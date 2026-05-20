@@ -200,22 +200,43 @@ export default function ShowcaseGrid() {
               </div>
 
               {/* META INFORMATION SIDEBAR */}
-              <div className="w-full md:w-1/3 p-6 md:p-8 flex flex-col justify-between bg-[#0e0e16]/80 text-left border-t md:border-t-0 md:border-l border-white/15">
+              <div className="w-full md:w-1/3 p-6 md:p-8 flex flex-col justify-between bg-[#0e0e16]/85 text-left border-t md:border-t-0 md:border-l border-white/15">
                 <div>
-                  <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-amber-300/90 border border-amber-300/20 bg-amber-300/5 px-2.5 py-1 rounded-md mb-4 inline-block">
-                    {selectedVideo.category.split(" / ")[0]}
-                  </span>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
+                  >
+                    <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-amber-300/90 border border-amber-300/20 bg-amber-300/5 px-2.5 py-1 rounded-md mb-4 inline-block">
+                      {selectedVideo.category.split(" / ")[0]}
+                    </span>
+                  </motion.div>
                   
-                  <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-3">
+                  <motion.h3 
+                    className="font-display font-medium text-2xl text-white tracking-tight mb-3"
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 100, damping: 14 }}
+                  >
                     {selectedVideo.title}
-                  </h3>
+                  </motion.h3>
                   
-                  <p className="text-gray-300 text-sm leading-relaxed mb-6">
+                  <motion.p 
+                    className="text-gray-300 text-sm leading-relaxed mb-6 font-light"
+                    initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                  >
                     {selectedVideo.description}
-                  </p>
+                  </motion.p>
 
                   {/* DETAILS CARD */}
-                  <div className="space-y-3.5 bg-black/30 border border-white/5 rounded-xl p-4.5 mb-6">
+                  <motion.div 
+                    className="space-y-3.5 bg-black/30 border border-white/5 rounded-xl p-4.5 mb-6"
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
+                  >
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-400 font-light flex items-center gap-2">
                         <User className="w-3.5 h-3.5 text-gray-500" /> Lead Synth
@@ -234,20 +255,30 @@ export default function ShowcaseGrid() {
                       </span>
                       <span className="text-[#E6C687] font-mono font-medium">Native MP4 H.264</span>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* SYSTEM TAGS */}
-                  <div className="flex flex-wrap gap-1.5 mb-6">
+                  <motion.div 
+                    className="flex flex-wrap gap-1.5 mb-6"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.4 }}
+                  >
                     {selectedVideo.tags.map((tag, i) => (
-                      <span key={i} className="text-[10px] font-mono text-gray-400 bg-white/5 px-2.5 py-1 rounded">
+                      <span key={i} className="text-[10px] font-mono text-gray-400 bg-white/5 px-2.5 py-1 rounded border border-white/5">
                         #{tag.toLowerCase().replace(/\s+/g, '')}
                       </span>
                     ))}
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* MODAL INTERACTIONS FOOTER */}
-                <div className="pt-4 border-t border-white/5 flex gap-3">
+                <motion.div 
+                  className="pt-4 border-t border-white/5 flex gap-3"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.55, duration: 0.5 }}
+                >
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(selectedVideo.videoUrl);
@@ -272,7 +303,7 @@ export default function ShowcaseGrid() {
                   >
                     Acquire License
                   </button>
-                </div>
+                </motion.div>
 
               </div>
 

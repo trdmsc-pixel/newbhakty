@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import ShowcaseGrid from "./components/ShowcaseGrid";
 import PricingSection from "./components/PricingSection";
 import BookingForm from "./components/BookingForm";
+import InteractiveParticles from "./components/InteractiveParticles";
 
 export default function App() {
   const [selectedTier, setSelectedTier] = useState<string>("");
@@ -35,11 +36,31 @@ export default function App() {
       <Navbar />
 
       {/* HERO SECTION CONTAINER */}
-      <section id="hero-section" className="relative pt-36 pb-20 md:py-40 z-10 px-4 md:px-8 max-w-7xl mx-auto flex flex-col items-center justify-between gap-16 lg:flex-row">
-        
+      <section 
+        id="hero-section" 
+        className="relative pt-36 pb-20 md:py-40 md:px-12 px-6 max-w-7xl mx-auto flex flex-col items-center justify-between gap-16 lg:flex-row rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl"
+      >
+        {/* Soft Looping background video centered in hero */}
+        <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
+          <video
+            src="https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          {/* Subtle darkness layers so fonts pop beautifully */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/90 via-transparent to-[#050508]/90" />
+          <div className="absolute inset-0 bg-[#050508]/40" />
+        </div>
+
+        {/* Dynamic mouse-reactive interactive particles overlay */}
+        <InteractiveParticles />
+
         {/* HERO LEFT: TEXTS */}
         <motion.div 
-          className="w-full lg:w-3/5 text-left flex flex-col items-start"
+          className="w-full lg:w-3/5 text-left flex flex-col items-start relative z-10"
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -123,7 +144,7 @@ export default function App() {
 
         {/* HERO RIGHT: DYNAMIC COMPOSITED PREVIEW SCREEN */}
         <motion.div 
-          className="w-full lg:w-2/5 flex items-center justify-center relative mt-8 lg:mt-0"
+          className="w-full lg:w-2/5 flex items-center justify-center relative mt-8 lg:mt-0 z-10"
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.9, delay: 0.15 }}
