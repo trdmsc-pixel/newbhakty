@@ -94,14 +94,7 @@ function AppContent() {
     }
   };
 
-  // ----------------------------------------------------
-  // ROUTE DISPATCHER: ADMIN SYSTEM
-  // ----------------------------------------------------
-  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
-    return <AdminPanel onNavigateHome={() => navigate("/")} />;
-  }
-
-  // Loader Bezel
+  // Loader Bezel - Wait for persistence data to load from Supabase / LocalStorage
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-6 relative">
@@ -112,6 +105,13 @@ function AppContent() {
         </div>
       </div>
     );
+  }
+
+  // ----------------------------------------------------
+  // ROUTE DISPATCHER: ADMIN SYSTEM
+  // ----------------------------------------------------
+  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
+    return <AdminPanel onNavigateHome={() => navigate("/")} />;
   }
 
   return (

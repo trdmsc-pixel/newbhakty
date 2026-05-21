@@ -20,13 +20,10 @@ function getGemini(): GoogleGenAI {
   return aiClient;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+app.use(express.json());
 
-  app.use(express.json());
-
-  // ----------------------------------------------------
+// ----------------------------------------------------
   // API ROUTE: ENRICH/OPTIMIZE BRIEF WITH GEMINI
   // ----------------------------------------------------
   app.post("/api/gemini/optimize-brief", async (req, res) => {
@@ -307,6 +304,8 @@ Output ONLY the comma-separated list of tags, nothing else.`,
 
 
   // Serve static UI assets or run Vite middleware
+async function startServer() {
+  const PORT = 3000;
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -326,4 +325,8 @@ Output ONLY the comma-separated list of tags, nothing else.`,
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export { app };

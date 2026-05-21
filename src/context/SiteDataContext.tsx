@@ -94,11 +94,67 @@ const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
 
 export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
-  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(DEFAULT_NAVIGATION_MENU);
-  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  
+  // Synchronous local storage initializers to eliminate initial rendering flash and timing races
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    const cached = localStorage.getItem("bhakty_site_settings");
+    if (cached) {
+      try {
+        return { ...DEFAULT_SITE_SETTINGS, ...JSON.parse(cached) };
+      } catch {
+        return DEFAULT_SITE_SETTINGS;
+      }
+    }
+    return DEFAULT_SITE_SETTINGS;
+  });
+
+  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(() => {
+    const cached = localStorage.getItem("bhakty_navigation_menu");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return DEFAULT_NAVIGATION_MENU;
+      }
+    }
+    return DEFAULT_NAVIGATION_MENU;
+  });
+
+  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(() => {
+    const cached = localStorage.getItem("bhakty_portfolio_works");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return PORTFOLIO_VIDEOS;
+      }
+    }
+    return PORTFOLIO_VIDEOS;
+  });
+
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(() => {
+    const cached = localStorage.getItem("bhakty_pricing_tiers");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return PRICING_TIERS;
+      }
+    }
+    return PRICING_TIERS;
+  });
+
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(() => {
+    const cached = localStorage.getItem("bhakty_media_assets");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return DEFAULT_MEDIA_ASSETS;
+      }
+    }
+    return DEFAULT_MEDIA_ASSETS;
+  });
 
   // Load from Supabase or LocalStorage cache
   const loadData = async (silent = false) => {
@@ -147,36 +203,26 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               created_at: a.created_at
             }));
             setMediaAssets(fetchedAssets);
-          } else {
-            // If empty, try local storage or default
-            const cached = localStorage.getItem("bhakty_media_assets");
-            if (cached) {
-              setMediaAssets(JSON.parse(cached));
-            } else {
-              setMediaAssets(DEFAULT_MEDIA_ASSETS);
-            }
+            localStorage.setItem("bhakty_media_assets", JSON.stringify(fetchedAssets));
           }
         } catch (tableErr) {
-          console.warn("Could not query 'media_assets' table from Supabase. Falling back to local storage.", tableErr);
-          const cached = localStorage.getItem("bhakty_media_assets");
-          if (cached) {
-            setMediaAssets(JSON.parse(cached));
-          } else {
-            setMediaAssets(DEFAULT_MEDIA_ASSETS);
-          }
+          console.warn("Could not query 'media_assets' table from Supabase.", tableErr);
         }
 
-        if (!settingsError && settingsData) {
+        // If queries succeeded, update state & local cache
+        if (!settingsError && settingsData && settingsData.length > 0) {
           const settingsObj: SiteSettings = {};
           settingsData.forEach((item) => {
             settingsObj[item.key] = item.value;
           });
-          // Merge with defaults to ensure all keys exist
-          setSiteSettings({ ...DEFAULT_SITE_SETTINGS, ...settingsObj });
+          const merged = { ...DEFAULT_SITE_SETTINGS, ...settingsObj };
+          setSiteSettings(merged);
+          localStorage.setItem("bhakty_site_settings", JSON.stringify(merged));
         }
 
         if (!menuError && menuData && menuData.length > 0) {
           setNavigationMenu(menuData);
+          localStorage.setItem("bhakty_navigation_menu", JSON.stringify(menuData));
         }
 
         if (!worksError && worksData && worksData.length > 0) {
@@ -194,6 +240,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: Array.isArray(w.tags) ? w.tags : JSON.parse(w.tags || "[]")
           }));
           setPortfolioWorks(mappedWorks);
+          localStorage.setItem("bhakty_portfolio_works", JSON.stringify(mappedWorks));
         }
 
         if (!pricingError && pricingData && pricingData.length > 0) {
@@ -210,6 +257,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             glowTheme: (t.glow_theme as any) || "saffron"
           }));
           setPricingTiers(mappedTiers);
+          localStorage.setItem("bhakty_pricing_tiers", JSON.stringify(mappedTiers));
         }
 
         success = true;
@@ -219,33 +267,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     if (!success) {
-      // LocalStorage Cache Driver
-      const cachedSettings = localStorage.getItem("bhakty_site_settings");
-      if (cachedSettings) {
-        try { setSiteSettings(JSON.parse(cachedSettings)); } catch {}
-      }
-
-      const cachedMenu = localStorage.getItem("bhakty_navigation_menu");
-      if (cachedMenu) {
-        try { setNavigationMenu(JSON.parse(cachedMenu)); } catch {}
-      }
-
-      const cachedWorks = localStorage.getItem("bhakty_portfolio_works");
-      if (cachedWorks) {
-        try { setPortfolioWorks(JSON.parse(cachedWorks)); } catch {}
-      }
-
-      const cachedPricing = localStorage.getItem("bhakty_pricing_tiers");
-      if (cachedPricing) {
-        try { setPricingTiers(JSON.parse(cachedPricing)); } catch {}
-      }
-
-      const cachedAssets = localStorage.getItem("bhakty_media_assets");
-      if (cachedAssets) {
-        try { setMediaAssets(JSON.parse(cachedAssets)); } catch { setMediaAssets(DEFAULT_MEDIA_ASSETS); }
-      } else {
-        setMediaAssets(DEFAULT_MEDIA_ASSETS);
-      }
+      // LocalStorage is already loaded synchronously or fallback state is active!
+      // No extra work needed to be done here.
     }
 
     setIsLoading(false);
