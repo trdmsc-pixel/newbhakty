@@ -1,7 +1,10 @@
 import { motion } from "motion/react";
 import { Film, Calendar, Compass, Layers } from "lucide-react";
+import { useSiteData } from "../context/SiteDataContext";
 
 export default function Navbar() {
+  const { siteSettings, navigationMenu } = useSiteData();
+
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -42,25 +45,23 @@ export default function Navbar() {
           </span>
         </div>
 
-        {/* ANCHOR NAV LINKS */}
+        {/* ANCHOR NAV LINKS (DYNAMIC) */}
         <nav className="hidden md:flex items-center gap-1">
-          <button 
-            id="nav-link-work"
-            onClick={() => scrollToSection("work-section")}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-300"
-          >
-            <Compass className="w-4 h-4 text-gray-400" />
-            Our Work
-          </button>
-          
-          <button 
-            id="nav-link-packages"
-            onClick={() => scrollToSection("pricing-section")}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-300"
-          >
-            <Layers className="w-4 h-4 text-gray-400" />
-            Production Tiers
-          </button>
+          {navigationMenu.map((item) => (
+            <button 
+              key={item.id}
+              id={`nav-link-${item.id}`}
+              onClick={() => scrollToSection(item.target_url)}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-300"
+            >
+              {item.target_url === "work-section" ? (
+                <Compass className="w-4 h-4 text-gray-400" />
+              ) : (
+                <Layers className="w-4 h-4 text-gray-400" />
+              )}
+              {item.label}
+            </button>
+          ))}
         </nav>
 
         {/* CALL TO ACTION BUTTON */}
@@ -71,10 +72,11 @@ export default function Navbar() {
             className="flex items-center gap-2 px-5 py-2 rounded-full text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all duration-300 cursor-pointer"
           >
             <Calendar className="w-3.5 h-3.5" />
-            Instant Consult
+            {siteSettings.hero_cta_booking_text || "Instant Consult"}
           </button>
         </div>
       </div>
     </motion.header>
   );
 }
+

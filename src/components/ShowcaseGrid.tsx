@@ -2,9 +2,10 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, X, User, Clock, Tag, Volume2, Info, Share2 } from "lucide-react";
 import { VideoBlock } from "../types";
-import { PORTFOLIO_VIDEOS } from "../data";
+import { useSiteData } from "../context/SiteDataContext";
 
 export default function ShowcaseGrid() {
+  const { portfolioWorks } = useSiteData();
   const [selectedVideo, setSelectedVideo] = useState<VideoBlock | null>(null);
   const [isHoveredId, setIsHoveredId] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("All Projects");
@@ -12,8 +13,8 @@ export default function ShowcaseGrid() {
   const categories = ["All Projects", "AI Commercial", "Sci-Fi Cinematic", "Motion Art", "Concept Stage"];
 
   const filteredVideos = selectedTab === "All Projects"
-    ? PORTFOLIO_VIDEOS
-    : PORTFOLIO_VIDEOS.filter(v => v.category.includes(selectedTab));
+    ? portfolioWorks
+    : portfolioWorks.filter(v => v.category.includes(selectedTab));
 
   return (
     <section id="work-section" className="py-24 relative z-10 px-4 md:px-8 max-w-7xl mx-auto">

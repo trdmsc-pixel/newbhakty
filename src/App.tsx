@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu } from "lucide-react";
 import BackgroundGradients from "./components/BackgroundGradients";
@@ -7,9 +7,39 @@ import ShowcaseGrid from "./components/ShowcaseGrid";
 import PricingSection from "./components/PricingSection";
 import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
+import AdminPanel from "./components/AdminPanel";
+import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 
-export default function App() {
+function AppContent() {
   const [selectedTier, setSelectedTier] = useState<string>("");
+  const { siteSettings, isLoading } = useSiteData();
+
+  // Simple and ultra-resilient single-page router state
+  const [path, setPath] = useState(window.location.pathname);
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setPath(window.location.pathname);
+      setHash(window.location.hash);
+    };
+    window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("hashchange", handleLocationChange);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("hashchange", handleLocationChange);
+    };
+  }, []);
+
+  const navigate = (to: string) => {
+    if (to.startsWith("#")) {
+      window.location.hash = to;
+      setHash(to);
+    } else {
+      window.history.pushState({}, "", to);
+      setPath(to);
+    }
+  };
 
   const handleSelectTier = (tierName: string) => {
     setSelectedTier(tierName);
@@ -25,6 +55,26 @@ export default function App() {
       });
     }
   };
+
+  // Loader Bezel
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-6 relative">
+        <BackgroundGradients />
+        <div className="flex flex-col items-center gap-3 relative z-10">
+          <div className="w-10 h-10 rounded-full border-t-2 border-r-2 border-[#E6C687] animate-spin" />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Initializing Studio Engine...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // ROUTE DISPATCHER: ADMIN SYSTEM
+  // ----------------------------------------------------
+  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
+    return <AdminPanel onNavigateHome={() => navigate("/")} />;
+  }
 
   return (
     <div className="relative min-h-screen font-sans selection:bg-[#E6C687]/30 selection:text-white overflow-hidden pb-16">
@@ -43,7 +93,7 @@ export default function App() {
         {/* Soft Looping background video centered in hero */}
         <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
           <video
-            src="https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"
+            src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
             autoPlay
             muted
             loop
@@ -68,17 +118,19 @@ export default function App() {
           {/* Subtle micro identifier */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono tracking-widest text-[#E6C687] mb-6 shadow-md uppercase">
             <Cpu className="w-3 h-3 text-[#E6C687]" />
-            Synthetic Arts Studio v4.1
+            {siteSettings.hero_badge_text || "Synthetic Arts Studio v4.1"}
           </div>
 
           <h1 className="font-display font-light text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.05] text-white max-w-2xl mb-8">
-            The Next Epoch <br />
-            <span className="italic font-serif text-[#E6C687] text-6xl sm:text-7xl md:text-8xl font-normal">of Cinema.</span> <br />
-            Synthesized.
+            {siteSettings.hero_title_1 || "The Next Epoch"} <br />
+            <span className="italic font-serif text-[#E6C687] text-6xl sm:text-7xl md:text-8xl font-normal">
+              {siteSettings.hero_title_2 || "of Cinema."}
+            </span> <br />
+            {siteSettings.hero_title_3 || "Synthesized."}
           </h1>
 
           <p className="text-gray-400 text-sm md:text-base mb-8 max-w-lg leading-relaxed font-light">
-            We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media.
+            {siteSettings.hero_description || "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media."}
           </p>
 
           {/* CALL TO ACTION BUTTON BAR */}
@@ -99,7 +151,7 @@ export default function App() {
               className="px-8 py-4 bg-gradient-to-r from-[#4A36B3] to-[#7a5ce0] text-white font-semibold font-display tracking-tight text-sm rounded-2xl hover:shadow-2xl hover:shadow-[#4A36B3]/30 cursor-pointer flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-amber-200" />
-              Book Creative Spot
+              {siteSettings.hero_cta_booking_text || "Book Creative Spot"}
             </motion.button>
 
             {/* Showcase guide navigation */}
@@ -109,34 +161,34 @@ export default function App() {
               className="px-6 py-4 rounded-2xl glass-panel-light text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold font-display tracking-tight text-sm border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Compass className="w-4 h-4 text-gray-400" />
-              Explore Curation
+              {siteSettings.hero_cta_work_text || "Explore Curation"}
             </button>
           </div>
 
           {/* SOCIAL PROOF STATS */}
-          <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md">
+          <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md font-sans">
             <div>
               <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
-                400+
+                {siteSettings.hero_stat1_value || "400+"}
               </span>
               <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                Synth Hours
+                {siteSettings.hero_stat1_label || "Synth Hours"}
               </span>
             </div>
             <div>
               <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
-                8K UHD
+                {siteSettings.hero_stat2_value || "8K UHD"}
               </span>
               <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                Upscale Target
+                {siteSettings.hero_stat2_label || "Upscale Target"}
               </span>
             </div>
             <div>
               <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1 text-[#E6C687]">
-                0%
+                {siteSettings.hero_stat3_value || "0%"}
               </span>
               <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                Physical Camera
+                {siteSettings.hero_stat3_label || "Physical Camera"}
               </span>
             </div>
           </div>
@@ -158,7 +210,7 @@ export default function App() {
             {/* Absolute background looping background for aesthetic depth */}
             <div className="absolute inset-0 z-0 opacity-70">
               <video
-                src="https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4"
+                src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
                 autoPlay
                 muted
                 loop
@@ -249,10 +301,13 @@ export default function App() {
           {/* METRIC CHIPS / INTERNALS */}
           <div className="flex flex-wrap gap-4 justify-center">
             <span className="text-[10px] uppercase font-mono tracking-widest text-gray-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-              © 2026 bhakty.studio
+              {siteSettings.footer_copyright || "© 2026 bhakty.studio"}
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-[#E6C687] bg-[#E6C687]/5 px-3 py-1.5 rounded-full border border-[#E6C687]/20">
-              AI Powered Synthesis
+            <span 
+              onClick={() => navigate("#admin")}
+              className="text-[10px] uppercase font-mono tracking-widest text-[#E6C687] bg-[#E6C687]/5 px-3 py-1.5 rounded-full border border-[#E6C687]/20 hover:bg-[#E6C687]/15 transition-all cursor-pointer"
+            >
+              🔐 Administrator Login
             </span>
             <span className="text-[10px] uppercase font-mono tracking-widest text-violet-300 bg-violet-600/5 px-3 py-1.5 rounded-full border border-violet-500/20">
               Studio Location // Global Client Access
@@ -278,3 +333,12 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() {
+  return (
+    <SiteDataProvider>
+      <AppContent />
+    </SiteDataProvider>
+  );
+}
+

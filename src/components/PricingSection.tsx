@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Check, Flame, Sliders, Hourglass, RotateCcw, CornerDownRight } from "lucide-react";
-import { PRICING_TIERS } from "../data";
+import { useSiteData } from "../context/SiteDataContext";
 import { PricingTier } from "../types";
 
 interface PricingSectionProps {
@@ -9,9 +9,10 @@ interface PricingSectionProps {
 }
 
 export default function PricingSection({ onSelectTier }: PricingSectionProps) {
+  const { pricingTiers } = useSiteData();
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
 
-  const activeTier = PRICING_TIERS[sliderIndex];
+  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0];
 
   // Map theme values to precise glow aesthetics
   const getThemeColors = (theme: "saffron" | "violet" | "emerald") => {
@@ -113,7 +114,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
             <input
               type="range"
               min="0"
-              max="2"
+              max={Math.max(0, pricingTiers.length - 1)}
               step="1"
               value={sliderIndex}
               onChange={handleSliderChange}
@@ -125,9 +126,11 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
             />
             {/* Custom slider steps */}
             <div className="flex justify-between mt-2.5 px-1 text-[10px] font-mono text-gray-400">
-              <span className={sliderIndex === 0 ? "text-white font-semibold" : ""}>Short-Form</span>
-              <span className={sliderIndex === 1 ? "text-white font-semibold" : ""}>Cinematic Studio</span>
-              <span className={sliderIndex === 2 ? "text-white font-semibold" : ""}>Enterprise Pipeline</span>
+              {pricingTiers.map((t, idx) => (
+                <span key={t.id} className={sliderIndex === idx ? "text-white font-semibold" : ""}>
+                  {t.name.split(" ")[0]}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -141,7 +144,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
 
       {/* 3-COLUMN GLASS TIERS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch pt-4">
-        {PRICING_TIERS.map((tier, index) => {
+        {pricingTiers.map((tier, index) => {
           const isActive = index === sliderIndex;
           const theme = getThemeColors(tier.glowTheme);
 
