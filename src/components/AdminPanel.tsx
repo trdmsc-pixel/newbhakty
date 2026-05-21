@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { useSiteData, NavigationMenuItem } from "../context/SiteDataContext";
 import { supabase } from "../lib/supabase";
 import { VideoBlock, PricingTier } from "../types";
+import BackgroundGradients from "./BackgroundGradients";
 import { 
   Lock, Settings, Compass, HelpCircle, 
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
