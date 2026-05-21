@@ -11,42 +11,28 @@ interface CloudinaryResponse {
   format: string;
 }
 
-// Helper to safely read environment variables with error catching
-const getEnvVariable = (key: string): string => {
-  try {
-    if (typeof import.meta === "undefined" || !import.meta.env) {
-      console.warn(`import.meta.env is undefined. Cannot read key: ${key}`);
-      return "";
-    }
-    const val = import.meta.env[key];
-    if (val === undefined || val === null) {
-      return "";
-    }
-    if (typeof val !== "string") {
-      console.warn(`Environment variable ${key} is malformed: expected string, got ${typeof val}`);
-      return "";
-    }
-    return val.trim();
-  } catch (err) {
-    console.error(`Unhandled error while accessing environment variable ${key}:`, err);
-    return "";
-  }
-};
+// ---------------------------------------------------------------
+// IMPORTANT: Vite statically replaces import.meta.env.VITE_* ONLY
+// when accessed via direct dot-notation (e.g. import.meta.env.VITE_CLOUDINARY_CLOUD_NAME).
+// Dynamic bracket notation like import.meta.env[key] does NOT get replaced
+// at build time and will be undefined in production builds.
+// ---------------------------------------------------------------
 
 let rawCloudName = "";
 let rawUploadPreset = "";
 
 try {
-  rawCloudName = getEnvVariable("VITE_CLOUDINARY_CLOUD_NAME");
+  // Direct property access — Vite will statically inline these at build time
+  rawCloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
   if (!rawCloudName) {
     console.warn("Missing environment variable: VITE_CLOUDINARY_CLOUD_NAME is not configured.");
   }
-  rawUploadPreset = getEnvVariable("VITE_CLOUDINARY_UPLOAD_PRESET");
+  rawUploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
   if (!rawUploadPreset) {
     console.warn("Missing environment variable: VITE_CLOUDINARY_UPLOAD_PRESET is not configured.");
   }
 } catch (err) {
-  console.error("Error verifying Cloudinary environment variables:", err);
+  console.error("Error reading Cloudinary environment variables:", err);
 }
 
 // Strip out any trailing slashes from the variables

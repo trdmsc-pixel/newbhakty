@@ -1,45 +1,38 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Helper to safely read environment variables with error catching
-const getEnvVariable = (key: string): string => {
-  try {
-    if (typeof import.meta === "undefined" || !import.meta.env) {
-      console.warn(`import.meta.env is undefined. Cannot read key: ${key}`);
-      return "";
-    }
-    const val = import.meta.env[key];
-    if (val === undefined || val === null) {
-      return "";
-    }
-    if (typeof val !== "string") {
-      console.warn(`Environment variable ${key} is malformed: expected string, got ${typeof val}`);
-      return "";
-    }
-    return val.trim();
-  } catch (err) {
-    console.error(`Unhandled error while accessing environment variable ${key}:`, err);
-    return "";
-  }
-};
+// ---------------------------------------------------------------
+// IMPORTANT: Vite statically replaces import.meta.env.VITE_* ONLY
+// when accessed via direct dot-notation (e.g. import.meta.env.VITE_SUPABASE_URL).
+// Dynamic bracket notation like import.meta.env[key] does NOT get replaced
+// at build time and will be undefined in production builds.
+// ---------------------------------------------------------------
 
+// Safely read each env var with direct dot-notation access for Vite static replacement
 let rawSupabaseUrl = "";
 let rawSupabaseAnonKey = "";
 
 try {
-  rawSupabaseUrl = getEnvVariable("VITE_SUPABASE_URL") || getEnvVariable("NEXT_PUBLIC_SUPABASE_URL");
+  // Direct property access — Vite will statically inline these at build time
+  rawSupabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "").trim();
   if (!rawSupabaseUrl) {
-    console.error("Missing environment variable: VITE_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL is not configured.");
+    rawSupabaseUrl = (import.meta.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  }
+  if (!rawSupabaseUrl) {
+    console.error("Missing environment variable: VITE_SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is not configured.");
   }
 
-  rawSupabaseAnonKey = getEnvVariable("VITE_SUPABASE_ANON_KEY") || getEnvVariable("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  rawSupabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
   if (!rawSupabaseAnonKey) {
-    console.error("Missing environment variable: VITE_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
+    rawSupabaseAnonKey = (import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
+  }
+  if (!rawSupabaseAnonKey) {
+    console.error("Missing environment variable: VITE_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) is not configured.");
   }
 } catch (e) {
-  console.error("Error occurred while verifying environment variables:", e);
+  console.error("Error occurred while reading Supabase environment variables:", e);
 }
 
-// Strip out any trailing slashes from the URL
+// Strip trailing slashes from the URL to prevent double-slash path construction
 export const supabaseUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/\/+$/, "") : "";
 export const supabaseAnonKey = rawSupabaseAnonKey;
 
@@ -63,4 +56,3 @@ export function getSupabaseDetails() {
     keyPlaceholder: supabaseAnonKey ? "••••••••••••••••" : "Not Provided",
   };
 }
-
