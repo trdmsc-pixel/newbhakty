@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle } from "lucide-react";
+import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle, AlertTriangle } from "lucide-react";
 import { BookingSubmission } from "../types";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 interface BookingFormProps {
   initialTier: string;
@@ -16,6 +17,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   const [selectedTier, setSelectedTier] = useState("Full Cinematic Production");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Synchronize initial prepopulation when user clicks pricing actions
@@ -41,17 +43,39 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
     setIsSubmitting(true);
-    
-    // Simulate high fidelity digital ingestion pipeline
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setSubmitError(null);
+
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error("Database connection is not configured. Please try again later.");
+      }
+
+      const { error } = await supabase.from("form_submissions").insert({
+        full_name: name.trim(),
+        email: email.trim().toLowerCase(),
+        company: company.trim() || null,
+        grade_selected: selectedTier,
+        budget: budget,
+        project_brief: brief.trim(),
+        source: "bhakty-studio-landing",
+      });
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        throw new Error(error.message || "Failed to submit booking. Please try again.");
+      }
+
       setShowSuccess(true);
-    }, 2200);
+    } catch (err: any) {
+      setSubmitError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -59,6 +83,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     setCompany("");
     setEmail("");
     setBrief("");
+    setSubmitError(null);
     setShowSuccess(false);
   };
 
@@ -240,6 +265,21 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
             </div>
 
           </div>
+
+          {/* ERROR MESSAGE */}
+          {submitError && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300"
+            >
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-red-400" />
+              <div>
+                <p className="text-sm font-medium">Submission Failed</p>
+                <p className="text-xs text-red-400/80 mt-1">{submitError}</p>
+              </div>
+            </motion.div>
+          )}
 
           {/* JELLY SQUISH SUBMIT BUTTON */}
           <div className="pt-6 text-center">
