@@ -474,8 +474,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
             <button
-              onClick={onNavigateHome}
-              className="text-xs text-gray-500 hover:text-white transition-colors uppercase tracking-widest font-mono"
+              type="button"
+              onClick={() => {
+                window.location.hash = "";
+                window.history.pushState({}, "", "/");
+                onNavigateHome();
+              }}
+              className="text-xs text-gray-500 hover:text-white transition-colors uppercase tracking-widest font-mono cursor-pointer"
             >
               Return to Website
             </button>
@@ -517,8 +522,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               </span>
             )}
             
-            <button
-              onClick={onNavigateHome}
+             <button
+              type="button"
+              onClick={() => {
+                window.location.hash = "";
+                window.history.pushState({}, "", "/");
+                onNavigateHome();
+              }}
               className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5  py-2 rounded-xl text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all cursor-pointer"
             >
               Exit to Studio

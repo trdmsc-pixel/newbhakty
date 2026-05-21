@@ -62,8 +62,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
 
   // Load from Supabase or LocalStorage cache
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     let success = false;
 
     if (isSupabaseConfigured && supabase) {
@@ -216,7 +216,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           await supabase.from("navigation_menu").upsert(payload, { onConflict: "id" });
         }
-        await loadData();
+        await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update menu items error", e);
@@ -253,7 +253,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           await supabase.from("portfolio_works").upsert(payload, { onConflict: "id" });
         }
-        await loadData();
+        await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update portfolio works error", e);
@@ -289,7 +289,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           await supabase.from("pricing_tiers").upsert(payload, { onConflict: "id" });
         }
-        await loadData();
+        await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update pricing tiers error", e);
