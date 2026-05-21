@@ -276,7 +276,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // First delete any items not in the updated list
         const activeIds = menuItems.map(item => item.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("navigation_menu").delete().not("id", "in", activeIds);
+          const { error: delErr } = await supabase.from("navigation_menu").delete().not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
           const { error: delErr } = await supabase.from("navigation_menu").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -319,7 +319,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // First delete any items not in the updated list
         const activeIds = works.map(w => w.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("portfolio_works").delete().not("id", "in", activeIds);
+          const { error: delErr } = await supabase.from("portfolio_works").delete().not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
           const { error: delErr } = await supabase.from("portfolio_works").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -371,7 +371,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // First delete any items not in the updated list
         const activeIds = tiers.map(t => t.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("pricing_tiers").delete().not("id", "in", activeIds);
+          const { error: delErr } = await supabase.from("pricing_tiers").delete().not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
           const { error: delErr } = await supabase.from("pricing_tiers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
