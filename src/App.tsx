@@ -9,6 +9,7 @@ import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
 import AdminPanel from "./components/AdminPanel";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
+import { ToastProvider } from "./context/ToastContext";
 
 function AppContent() {
   const [selectedTier, setSelectedTier] = useState<string>("");
@@ -353,8 +354,6 @@ function AppContent() {
     </div>
   );
 }
-
-import { ToastProvider } from "./components/ToastNotification";
 
 export default function App() {
   return (

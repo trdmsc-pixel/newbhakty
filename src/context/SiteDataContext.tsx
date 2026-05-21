@@ -16,14 +16,10 @@ export interface SiteSettings {
 
 export interface MediaAsset {
   id: string;
-  filename: string;
+  name: string;
   url: string;
-  cloudinary_public_id?: string;
-  mime_type?: string;
-  file_size?: number;
-  width?: number;
-  height?: number;
-  tags: string[];
+  type: "image" | "video";
+  created_at?: string;
 }
 
 interface SiteDataContextProps {
@@ -32,14 +28,14 @@ interface SiteDataContextProps {
   navigationMenu: NavigationMenuItem[];
   portfolioWorks: VideoBlock[];
   pricingTiers: PricingTier[];
-  mediaAssets: MediaAsset[];
   isUsingSupabase: boolean;
+  mediaAssets: MediaAsset[];
   refreshAllData: () => Promise<void>;
   updateSiteSetting: (key: string, value: string) => Promise<boolean>;
   updateNavigationMenu: (menuItems: NavigationMenuItem[]) => Promise<boolean>;
   updatePortfolioWorks: (works: VideoBlock[]) => Promise<boolean>;
   updatePricingTiers: (tiers: PricingTier[]) => Promise<boolean>;
-  addMediaAsset: (asset: Omit<MediaAsset, "id">) => Promise<MediaAsset | null>;
+  addMediaAsset: (name: string, url: string, type: "image" | "video") => Promise<MediaAsset | null>;
   deleteMediaAsset: (id: string) => Promise<boolean>;
 }
 
@@ -71,18 +67,28 @@ const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
 
 const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
   {
-    id: "default-asset-1",
-    filename: "Deep Space Particle Loop",
+    id: "asset-1",
+    name: "Deep Space Particle Loop",
     url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
-    mime_type: "video/mp4",
-    tags: ["video", "background"]
+    type: "video"
   },
   {
-    id: "default-asset-2",
-    filename: "Studio Aura Cover Image",
+    id: "asset-2",
+    name: "Nebula Ocean Waves Loop",
+    url: "https://assets.mixkit.co/videos/preview/mixkit-wave-looping-glowing-underwater-science-background-48282-large.mp4",
+    type: "video"
+  },
+  {
+    id: "asset-3",
+    name: "Studio Aura Cover Image",
     url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    mime_type: "image/jpeg",
-    tags: ["image", "cover"]
+    type: "image"
+  },
+  {
+    id: "asset-4",
+    name: "Futuristic Glass Abstract Logo",
+    url: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=150&h=150&q=80",
+    type: "image"
   }
 ];
 
@@ -92,7 +98,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(DEFAULT_NAVIGATION_MENU);
   const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(DEFAULT_MEDIA_ASSETS);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
 
   // Load from Supabase or LocalStorage cache
   const loadData = async (silent = false) => {
@@ -125,10 +131,40 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           .order("display_order", { ascending: true });
 
         // Fetch Media Assets
-        const { data: assetsData, error: assetsError } = await supabase
-          .from("media_assets")
-          .select("*")
-          .order("created_at", { ascending: false });
+        let fetchedAssets: MediaAsset[] = [];
+        try {
+          const { data: assetsData, error: assetsError } = await supabase
+            .from("media_assets")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (!assetsError && assetsData && assetsData.length > 0) {
+            fetchedAssets = assetsData.map((a: any) => ({
+              id: a.id,
+              name: a.name,
+              url: a.url,
+              type: a.type as "image" | "video",
+              created_at: a.created_at
+            }));
+            setMediaAssets(fetchedAssets);
+          } else {
+            // If empty, try local storage or default
+            const cached = localStorage.getItem("bhakty_media_assets");
+            if (cached) {
+              setMediaAssets(JSON.parse(cached));
+            } else {
+              setMediaAssets(DEFAULT_MEDIA_ASSETS);
+            }
+          }
+        } catch (tableErr) {
+          console.warn("Could not query 'media_assets' table from Supabase. Falling back to local storage.", tableErr);
+          const cached = localStorage.getItem("bhakty_media_assets");
+          if (cached) {
+            setMediaAssets(JSON.parse(cached));
+          } else {
+            setMediaAssets(DEFAULT_MEDIA_ASSETS);
+          }
+        }
 
         if (!settingsError && settingsData) {
           const settingsObj: SiteSettings = {};
@@ -176,21 +212,6 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setPricingTiers(mappedTiers);
         }
 
-        if (!assetsError && assetsData && assetsData.length > 0) {
-          const mappedAssets: MediaAsset[] = assetsData.map((a) => ({
-            id: a.id,
-            filename: a.filename,
-            url: a.url,
-            cloudinary_public_id: a.cloudinary_public_id || undefined,
-            mime_type: a.mime_type || undefined,
-            file_size: a.file_size || undefined,
-            width: a.width || undefined,
-            height: a.height || undefined,
-            tags: Array.isArray(a.tags) ? a.tags : []
-          }));
-          setMediaAssets(mappedAssets);
-        }
-
         success = true;
       } catch (err) {
         console.warn("Could not load from Supabase database tables. Falling back to local storage.", err);
@@ -221,7 +242,9 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const cachedAssets = localStorage.getItem("bhakty_media_assets");
       if (cachedAssets) {
-        try { setMediaAssets(JSON.parse(cachedAssets)); } catch {}
+        try { setMediaAssets(JSON.parse(cachedAssets)); } catch { setMediaAssets(DEFAULT_MEDIA_ASSETS); }
+      } else {
+        setMediaAssets(DEFAULT_MEDIA_ASSETS);
       }
     }
 
@@ -358,93 +381,62 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // 5. ADD MEDIA ASSET
-  const addMediaAsset = async (asset: Omit<MediaAsset, "id">): Promise<MediaAsset | null> => {
-    const tempId = `asset-${Date.now()}`;
-    const newAsset: MediaAsset = { id: tempId, ...asset };
+  const addMediaAsset = async (name: string, url: string, type: "image" | "video"): Promise<MediaAsset | null> => {
+    const newId = `asset-${Date.now()}`;
+    const newAsset: MediaAsset = {
+      id: newId,
+      name,
+      url,
+      type,
+      created_at: new Date().toISOString()
+    };
 
-    // Optimistic update
-    setMediaAssets(prev => [newAsset, ...prev]);
+    const updated = [newAsset, ...mediaAssets];
+    setMediaAssets(updated);
+    localStorage.setItem("bhakty_media_assets", JSON.stringify(updated));
 
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
           .from("media_assets")
-          .insert({
-            filename: asset.filename,
-            url: asset.url,
-            cloudinary_public_id: asset.cloudinary_public_id || null,
-            mime_type: asset.mime_type || null,
-            file_size: asset.file_size || null,
-            width: asset.width || null,
-            height: asset.height || null,
-            tags: asset.tags || [],
-          })
-          .select()
-          .single();
+          .insert({ name, url, type })
+          .select();
 
-        if (error) {
-          console.error("Supabase insert media_asset error:", error);
-          // Rollback optimistic update
-          setMediaAssets(prev => prev.filter(a => a.id !== tempId));
-          return null;
+        if (!error && data && data.length > 0) {
+          const dbAsset: MediaAsset = {
+            id: data[0].id,
+            name: data[0].name,
+            url: data[0].url,
+            type: data[0].type as "image" | "video",
+            created_at: data[0].created_at
+          };
+          setMediaAssets((prev) => [dbAsset, ...prev.filter((a) => a.id !== newId)]);
+          return dbAsset;
         }
-
-        // Replace temp ID with real Supabase ID
-        const realAsset: MediaAsset = {
-          id: data.id,
-          filename: data.filename,
-          url: data.url,
-          cloudinary_public_id: data.cloudinary_public_id || undefined,
-          mime_type: data.mime_type || undefined,
-          file_size: data.file_size || undefined,
-          width: data.width || undefined,
-          height: data.height || undefined,
-          tags: Array.isArray(data.tags) ? data.tags : [],
-        };
-        setMediaAssets(prev => prev.map(a => a.id === tempId ? realAsset : a));
-
-        // Also sync localStorage
-        const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
-        localStorage.setItem("bhakty_media_assets", JSON.stringify([realAsset, ...currentAssets]));
-
-        return realAsset;
       } catch (e) {
-        console.error("Error adding media asset:", e);
-        setMediaAssets(prev => prev.filter(a => a.id !== tempId));
-        return null;
+        console.error("Supabase insert media asset error", e);
       }
     }
-
-    // LocalStorage fallback
-    const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
-    localStorage.setItem("bhakty_media_assets", JSON.stringify([newAsset, ...currentAssets]));
     return newAsset;
   };
 
   // 6. DELETE MEDIA ASSET
   const deleteMediaAsset = async (id: string): Promise<boolean> => {
-    // Optimistic update
-    setMediaAssets(prev => prev.filter(a => a.id !== id));
+    const updated = mediaAssets.filter((item) => item.id !== id);
+    setMediaAssets(updated);
+    localStorage.setItem("bhakty_media_assets", JSON.stringify(updated));
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase.from("media_assets").delete().eq("id", id);
-        if (error) {
-          console.error("Supabase delete media_asset error:", error);
-          // Reload to restore state
-          await loadData(true);
-          return false;
-        }
+        const { error } = await supabase
+          .from("media_assets")
+          .delete()
+          .eq("id", id);
+        return !error;
       } catch (e) {
-        console.error("Error deleting media asset:", e);
-        await loadData(true);
-        return false;
+        console.error("Supabase delete media asset error", e);
       }
     }
-
-    // LocalStorage sync
-    const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
-    localStorage.setItem("bhakty_media_assets", JSON.stringify(currentAssets.filter((a: any) => a.id !== id)));
     return true;
   };
 
@@ -456,8 +448,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         navigationMenu,
         portfolioWorks,
         pricingTiers,
-        mediaAssets,
         isUsingSupabase: isSupabaseConfigured,
+        mediaAssets,
         refreshAllData,
         updateSiteSetting,
         updateNavigationMenu,

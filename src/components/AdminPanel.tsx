@@ -1,15 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset } from "../context/SiteDataContext";
-import { supabase } from "../lib/supabase";
+import { useToast } from "../context/ToastContext";
+import { uploadToCloudinary } from "../lib/cloudinary";
 import { VideoBlock, PricingTier } from "../types";
-import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
-import { useToast } from "./ToastNotification";
 import BackgroundGradients from "./BackgroundGradients";
 import { 
   Lock, Settings, Compass, HelpCircle, 
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
-  Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle, FileUp, File
+  Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle
 } from "lucide-react";
 
 export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => void }) {
@@ -18,8 +17,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     navigationMenu,
     portfolioWorks,
     pricingTiers,
-    mediaAssets,
     isUsingSupabase,
+    mediaAssets,
     updateSiteSetting,
     updateNavigationMenu,
     updatePortfolioWorks,
@@ -28,11 +27,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     deleteMediaAsset,
   } = useSiteData();
 
-  const { showToast, updateToast } = useToast();
+  const toast = useToast();
 
   // Authentication State
   const [password, setPassword] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem("bhakty_admin_auth") === "true";
+  });
   const [authError, setAuthError] = useState("");
 
   const handleLogin = (e: React.FormEvent) => {
@@ -40,117 +41,135 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     const envPass = import.meta.env.VITE_ADMIN_PASSWORD || "admin_bhakty_studio";
     if (password === envPass) {
       setIsAuthenticated(true);
+      sessionStorage.setItem("bhakty_admin_auth", "true");
       setAuthError("");
+      toast.success("Security access granted. Welcome to Axiom Core.");
     } else {
       setAuthError("Unauthorized access key. Please verify security password.");
+      toast.error("Security access validation failed.");
     }
   };
 
   // UI Navigation state
   const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets">("settings");
+  const [saveStatus, setSaveStatus] = useState<{ [tab: string]: "idle" | "saving" | "saved" | "error" }>({
+    settings: "idle",
+    navigation: "idle",
+    portfolio: "idle",
+    pricing: "idle",
+    assets: "idle",
+  });
 
   // ----------------------------------------------------
-  // TAB 5: GLOBAL ASSETS STATE & HANDLERS (Supabase + Cloudinary)
+  // TAB 5: GLOBAL ASSETS STATE & HANDLERS (Cloudinary Uploaders)
   // ----------------------------------------------------
+  const [selectedAssetFile, setSelectedAssetFile] = useState<File | null>(null);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
   const [newAssetUrl, setNewAssetUrl] = useState("");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetType, setNewAssetType] = useState("image");
-  const [assetUploadFile, setAssetUploadFile] = useState<File | null>(null);
-  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
-  const assetFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAssetFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Show selected file and configure default name/type before upload in Assets
+  const handleAssetFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setAssetUploadFile(files[0]);
+      const file = files[0];
+      setSelectedAssetFile(file);
+      setNewAssetName(file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
+      setNewAssetType(file.type.startsWith("video/") ? "video" : "image");
+      toast.info(`Selected file: ${file.name}. Ready for explicit upload.`);
     }
   };
 
   const handleAssetUpload = async () => {
-    if (!assetUploadFile) return;
+    if (!selectedAssetFile) {
+      toast.warning("Please choose a file first.");
+      return;
+    }
+
     setIsUploadingAsset(true);
-    const tid = showToast(`Uploading ${assetUploadFile.name}...`, "saving");
+    toast.info("Configuring cloud pipeline. Transferring file...");
 
     try {
-      if (!isCloudinaryConfigured) {
-        throw new Error("Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.");
-      }
-      const result = await uploadToCloudinary(assetUploadFile);
-      const mimeType = assetUploadFile.type || (result.resourceType === "video" ? "video/mp4" : "image/jpeg");
-      const asset = await addMediaAsset({
-        filename: result.originalFilename || assetUploadFile.name,
-        url: result.secureUrl,
-        cloudinary_public_id: result.publicId,
-        mime_type: mimeType,
-        file_size: result.bytes,
-        width: result.width,
-        height: result.height,
-        tags: [result.resourceType],
+      const uploadedUrl = await uploadToCloudinary(selectedAssetFile, (progress) => {
+        console.log(progress);
       });
 
-      if (asset) {
-        updateToast(tid, `${assetUploadFile.name} uploaded successfully!`, "success", 3500);
+      const newAsset = await addMediaAsset(
+        newAssetName || selectedAssetFile.name,
+        uploadedUrl,
+        newAssetType as "image" | "video"
+      );
+
+      if (newAsset) {
+        toast.success(`Success: ${newAssetName || selectedAssetFile.name} loaded and persisted!`);
+        setSelectedAssetFile(null);
+        setNewAssetName("");
       } else {
-        updateToast(tid, "Upload succeeded but failed to save asset record.", "error", 5000);
+        toast.error("Failed to persist uploaded asset details to the database.");
       }
     } catch (err: any) {
-      updateToast(tid, `Upload failed: ${err.message}`, "error", 5000);
+      toast.error(`Upload error: ${err?.message || "Verify your Cloudinary setup & connection."}`);
     } finally {
       setIsUploadingAsset(false);
-      setAssetUploadFile(null);
-      if (assetFileInputRef.current) assetFileInputRef.current.value = "";
     }
   };
 
   const handleAddCustomAsset = async () => {
-    if (!newAssetUrl || !newAssetName) return;
-    const tid = showToast("Adding asset...", "saving");
-    const asset = await addMediaAsset({
-      filename: newAssetName.trim(),
-      url: newAssetUrl.trim(),
-      mime_type: newAssetType === "video" ? "video/mp4" : "image/jpeg",
-      tags: [newAssetType],
-    });
-    if (asset) {
-      updateToast(tid, `${newAssetName.trim()} added to library!`, "success", 3500);
+    if (!newAssetUrl || !newAssetName) {
+      toast.warning("Please configure both an organic Name and direct URL link.");
+      return;
+    }
+    const cleanUrl = newAssetUrl.trim();
+    const cleanName = newAssetName.trim();
+    
+    const newAsset = await addMediaAsset(cleanName, cleanUrl, newAssetType as "image" | "video");
+    if (newAsset) {
+      toast.success(`External asset line '${cleanName}' registered successfully!`);
       setNewAssetUrl("");
       setNewAssetName("");
     } else {
-      updateToast(tid, "Failed to add asset.", "error", 5000);
+      toast.error("Could not register custom asset URL link.");
     }
   };
 
   const handleDeleteAsset = async (id: string) => {
     const success = await deleteMediaAsset(id);
     if (success) {
-      showToast("Asset removed from library.", "success");
+      toast.success("Asset removed from Library.");
     } else {
-      showToast("Failed to delete asset.", "error");
+      toast.error("Could not remove the specified resource.");
     }
   };
 
   const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url") => {
-    const label = targetSetting === "hero_video_bg_url" ? "Hero Background" : "Logo Image";
-    const tid = showToast(`Applying ${label}...`, "saving");
+    setSaveStatus(prev => ({ ...prev, assets: "saving" }));
+    toast.info(`Applying selected asset to ${targetSetting === "hero_video_bg_url" ? "Hero Background" : "Navbar Logo"}...`);
+    
     try {
       if (targetSetting === "hero_video_bg_url") {
         setEditSettings(p => ({ ...p, hero_video_bg_url: assetUrl }));
-      } else {
+      } else if (targetSetting === "logo_img_url") {
         setEditSettings(p => ({ ...p, logo_img_url: assetUrl }));
       }
+      
       const success = await updateSiteSetting(targetSetting, assetUrl);
       if (success) {
-        updateToast(tid, `${label} updated successfully!`, "success", 3500);
+        setSaveStatus(prev => ({ ...prev, assets: "saved" }));
+        toast.success(`Setting '${targetSetting}' successfully modified!`);
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, assets: "idle" })), 3000);
       } else {
-        updateToast(tid, `Failed to update ${label}.`, "error", 5000);
+        setSaveStatus(prev => ({ ...prev, assets: "error" }));
+        toast.error("Validation error saving settings.");
       }
-    } catch {
-      updateToast(tid, `Failed to update ${label}.`, "error", 5000);
+    } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, assets: "error" }));
+      toast.error(`Error saving: ${err?.message || "Unknown error."}`);
     }
   };
 
   // ----------------------------------------------------
-  // TAB 1: SITE SETTINGS STATE & HANDLERS
+  // TAB 1: SITE SITE SETTINGS CONFIGURATION
   // ----------------------------------------------------
   const [editSettings, setEditSettings] = useState({ ...siteSettings });
   
@@ -159,14 +178,18 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const saveSettings = async () => {
-    const tid = showToast("Synchronizing settings...", "saving");
+    setSaveStatus(prev => ({ ...prev, settings: "saving" }));
+    toast.info("Synchronizing site configurations to persistence index...");
     try {
       for (const [key, val] of Object.entries(editSettings)) {
         await updateSiteSetting(key, val);
       }
-      updateToast(tid, "All settings synchronized successfully!", "success", 3500);
-    } catch {
-      updateToast(tid, "Failed to synchronize settings.", "error", 5000);
+      setSaveStatus(prev => ({ ...prev, settings: "saved" }));
+      toast.success("Site configurations successfully updated!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, settings: "idle" })), 3000);
+    } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, settings: "error" }));
+      toast.error(`Configuration synchronization failed: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -194,12 +217,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const saveMenu = async () => {
-    const tid = showToast("Synchronizing navigation...", "saving");
+    setSaveStatus(prev => ({ ...prev, navigation: "saving" }));
+    toast.info("Applying navigation modifications to core index...");
     const success = await updateNavigationMenu(editMenu);
     if (success) {
-      updateToast(tid, "Navigation menu synchronized!", "success", 3500);
+      setSaveStatus(prev => ({ ...prev, navigation: "saved" }));
+      toast.success("Navigation modifications successfully applied!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, navigation: "idle" })), 3000);
     } else {
-      updateToast(tid, "Failed to synchronize navigation.", "error", 5000);
+      setSaveStatus(prev => ({ ...prev, navigation: "error" }));
+      toast.error("Failed to update navigation menu details.");
     }
   };
 
@@ -208,7 +235,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // ----------------------------------------------------
   const [editWorks, setEditWorks] = useState<VideoBlock[]>([...portfolioWorks]);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [portfolioUploadFiles, setPortfolioUploadFiles] = useState<{ [workId: string]: File | null }>({});
+
+  // Portfolio explicit upload states
+  const [selectedPortfolioFiles, setSelectedPortfolioFiles] = useState<{ [workId: string]: File | null }>({});
+  const [isUploadingPortfolioId, setIsUploadingPortfolioId] = useState<string | null>(null);
 
   const handleWorkChange = (id: string, field: keyof VideoBlock, value: any) => {
     setEditWorks(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -219,31 +249,36 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     handleWorkChange(id, "tags", tagsArr);
   };
 
-  const handlePortfolioFileSelect = (e: React.ChangeEvent<HTMLInputElement>, workId: string) => {
+  const handlePortfolioFileChange = (e: React.ChangeEvent<HTMLInputElement>, workId: string) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setPortfolioUploadFiles(prev => ({ ...prev, [workId]: files[0] }));
+      const file = files[0];
+      setSelectedPortfolioFiles(prev => ({ ...prev, [workId]: file }));
+      toast.info(`Selected: ${file.name}. Click 'Upload Video Track' button to start.`);
     }
   };
 
-  // Cloudinary uploader for portfolio videos
-  const handleVideoUpload = async (workId: string) => {
-    const file = portfolioUploadFiles[workId];
-    if (!file) return;
+  const handlePortfolioUpload = async (workId: string) => {
+    const file = selectedPortfolioFiles[workId];
+    if (!file) {
+      toast.warning("Please choose a local video file first.");
+      return;
+    }
 
-    const tid = showToast(`Uploading ${file.name}...`, "saving");
+    setIsUploadingPortfolioId(workId);
+    toast.info("Uploading video track to Cloudinary CDN...");
 
     try {
-      if (!isCloudinaryConfigured) {
-        throw new Error("Cloudinary not configured.");
-      }
-      const result = await uploadToCloudinary(file);
-      handleWorkChange(workId, "videoUrl", result.secureUrl);
-      handleWorkChange(workId, "highResVideoUrl", result.secureUrl);
-      updateToast(tid, `${file.name} uploaded via Cloudinary!`, "success", 3500);
-      setPortfolioUploadFiles(prev => ({ ...prev, [workId]: null }));
+      const uploadedUrl = await uploadToCloudinary(file);
+      handleWorkChange(workId, "videoUrl", uploadedUrl);
+      handleWorkChange(workId, "highResVideoUrl", uploadedUrl);
+      
+      setSelectedPortfolioFiles(prev => ({ ...prev, [workId]: null }));
+      toast.success(`Track '${file.name}' successfully uploaded!`);
     } catch (err: any) {
-      updateToast(tid, `Upload failed: ${err.message}`, "error", 5000);
+      toast.error(`Track upload failed: ${err?.message || "Unknown error"}`);
+    } finally {
+      setIsUploadingPortfolioId(null);
     }
   };
 
@@ -280,12 +315,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const saveWorks = async () => {
-    const tid = showToast("Synchronizing portfolio...", "saving");
+    setSaveStatus(prev => ({ ...prev, portfolio: "saving" }));
+    toast.info("Re-indexing portfolio works in backend storage...");
     const success = await updatePortfolioWorks(editWorks);
     if (success) {
-      updateToast(tid, "Portfolio synchronized successfully!", "success", 3500);
+      setSaveStatus(prev => ({ ...prev, portfolio: "saved" }));
+      toast.success("Portfolio works successfully re-indexed!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, portfolio: "idle" })), 3000);
     } else {
-      updateToast(tid, "Failed to synchronize portfolio.", "error", 5000);
+      setSaveStatus(prev => ({ ...prev, portfolio: "error" }));
+      toast.error("Failed to re-index portfolio works.");
     }
   };
 
@@ -328,12 +367,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const savePricing = async () => {
-    const tid = showToast("Synchronizing pricing...", "saving");
+    setSaveStatus(prev => ({ ...prev, pricing: "saving" }));
+    toast.info("Updating production tier packages on persistence server...");
     const success = await updatePricingTiers(editPricing);
     if (success) {
-      updateToast(tid, "Pricing tiers synchronized!", "success", 3500);
+      setSaveStatus(prev => ({ ...prev, pricing: "saved" }));
+      toast.success("Production tier packages successfully synchronized!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, pricing: "idle" })), 3000);
     } else {
-      updateToast(tid, "Failed to synchronize pricing.", "error", 5000);
+      setSaveStatus(prev => ({ ...prev, pricing: "error" }));
+      toast.error("Failed to update pricing package rates.");
     }
   };
 
@@ -398,11 +441,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
             <button
               type="button"
-              onClick={() => {
-                window.location.hash = "";
-                window.history.pushState({}, "", "/");
-                onNavigateHome();
-              }}
+              onClick={onNavigateHome}
               className="text-xs text-gray-500 hover:text-white transition-colors uppercase tracking-widest font-mono cursor-pointer"
             >
               Return to Website
@@ -447,11 +486,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             
              <button
               type="button"
-              onClick={() => {
-                window.location.hash = "";
-                window.history.pushState({}, "", "/");
-                onNavigateHome();
-              }}
+              onClick={onNavigateHome}
               className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5  py-2 rounded-xl text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all cursor-pointer"
             >
               Exit to Studio
@@ -549,7 +584,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <Save className="w-4 h-4" /> Synchronize settings
                     </button>
                   </div>
-
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
@@ -714,7 +748,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-
                   <div className="space-y-4">
                     {editMenu.map((item, index) => (
                       <div 
@@ -782,7 +815,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </button>
                     </div>
                   </div>
-
 
                   <div className="space-y-6">
                     {editWorks.map((work, index) => (
@@ -867,38 +899,40 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             />
                           </div>
 
-                          {/* CLOUDINARY FILE UPLOAD ZONE */}
+                          {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                           <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Upload File (Cloudinary CDN)</label>
-                            <div className="space-y-2">
-                              <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex items-center justify-between text-xs text-gray-400 hover:text-white transition-all cursor-pointer">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  {portfolioUploadFiles[work.id] ? (
-                                    <>
-                                      <File className="w-3.5 h-3.5 text-[#E6C687] shrink-0" />
-                                      <span className="text-[#E6C687] truncate">{portfolioUploadFiles[work.id]!.name}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Upload className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                      <span>Select video or media file</span>
-                                    </>
-                                  )}
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
+                            <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Upload className="w-3.5 h-3.5 text-gray-400" />
+                                  <span className="truncate max-w-[200px] text-gray-300">
+                                    {selectedPortfolioFiles[work.id] 
+                                      ? `Selected: ${selectedPortfolioFiles[work.id]?.name}` 
+                                      : "No video selected"}
+                                  </span>
                                 </div>
-                                <input
-                                  type="file"
-                                  accept="video/*,image/*"
-                                  onChange={(e) => handlePortfolioFileSelect(e, work.id)}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
+                                <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
+                                  <span>Choose File</span>
+                                  <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={(e) => handlePortfolioFileChange(e, work.id)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                  />
+                                </div>
                               </div>
-                              {portfolioUploadFiles[work.id] && (
+                              
+                              {selectedPortfolioFiles[work.id] && (
                                 <button
                                   type="button"
-                                  onClick={() => handleVideoUpload(work.id)}
-                                  className="flex items-center gap-1.5 px-4 py-1.5 bg-[#E6C687] text-black text-[10px] font-semibold rounded-lg hover:bg-[#fadfa8] transition-all cursor-pointer uppercase tracking-wider"
+                                  onClick={() => handlePortfolioUpload(work.id)}
+                                  disabled={isUploadingPortfolioId === work.id}
+                                  className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
                                 >
-                                  <FileUp className="w-3 h-3" /> Upload to Cloudinary
+                                  {isUploadingPortfolioId === work.id 
+                                    ? "Uploading Track..." 
+                                    : "Upload Video Track"}
                                 </button>
                               )}
                             </div>
@@ -960,7 +994,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <Save className="w-4 h-4" /> Sync Pricing
                     </button>
                   </div>
-
 
                   <div className="space-y-8">
                     {editPricing.map((tier) => (
@@ -1111,8 +1144,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  {/* SAVE STATUS */}
-
                   {/* ACTIVE CONFIGURATION ROLES */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 border border-white/5 p-6 rounded-2xl">
                     <div>
@@ -1131,7 +1162,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
-                            <option key={asset.id} value={asset.url}>{asset.filename} ({asset.mime_type?.startsWith("video") ? "video" : "image"})</option>
+                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
                           ))}
                         </select>
                       </div>
@@ -1153,7 +1184,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
-                            <option key={asset.id} value={asset.url}>{asset.filename} ({asset.mime_type?.startsWith("video") ? "video" : "image"})</option>
+                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
                           ))}
                         </select>
                       </div>
@@ -1165,46 +1196,34 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     {/* DRAG & DROP / FILE SELECTION */}
                     <div className="bg-[#11111c]/60 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-white mb-2">Upload Files via Cloudinary</h3>
+                        <h3 className="text-sm font-semibold text-white mb-2">Upload Files to Cloudinary</h3>
                         <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                          Upload high-resolution images or video files to <code className="text-amber-200/90 font-mono">Cloudinary CDN</code> for global delivery.
+                          Directly upload high-resolution images or .mp4 files into the high performance Cloudinary dynamic CDN network.
                         </p>
                       </div>
 
                       <div className="space-y-3">
                         <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#E6C687]/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
-                          {assetUploadFile ? (
-                            <>
-                              <File className="w-6 h-6 text-[#E6C687] mb-2" />
-                              <span className="text-xs font-medium text-[#E6C687] truncate max-w-full">{assetUploadFile.name}</span>
-                              <span className="text-[10px] text-gray-500 mt-1 font-mono">
-                                {(assetUploadFile.size / 1024).toFixed(1)} KB • {assetUploadFile.type || "unknown"}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                              <span className="text-xs font-medium text-white">Click to Select Asset File</span>
-                              <span className="text-[10px] text-gray-500 mt-1 uppercase font-mono">Supports MP4, JPG, PNG, WEBP</span>
-                            </>
-                          )}
+                          <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                          <span className="text-xs font-medium text-white">
+                            {selectedAssetFile ? `Selected: ${selectedAssetFile.name}` : "Click or Drop Asset File"}
+                          </span>
+                          <span className="text-[10px] text-gray-500 mt-1 uppercase font-mono">Supports MP4, JPG, PNG, WEBP</span>
                           <input
-                            ref={assetFileInputRef}
                             type="file"
-                            accept="image/*,video/mp4,video/webm"
-                            onChange={handleAssetFileSelect}
+                            accept="image/*,video/mp4"
+                            onChange={handleAssetFileChange}
                             className="hidden"
                           />
                         </label>
-                        {assetUploadFile && (
+                        {selectedAssetFile && (
                           <button
                             type="button"
                             onClick={handleAssetUpload}
                             disabled={isUploadingAsset}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#E6C687] text-black text-xs font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-50"
+                            className="w-full py-2.5 bg-[#E6C687] text-black text-xs font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
                           >
-                            <FileUp className="w-4 h-4" />
-                            {isUploadingAsset ? "Uploading..." : "Upload to Cloudinary"}
+                            {isUploadingAsset ? "Uploading to Cloudinary..." : "Upload Asset to CDN"}
                           </button>
                         )}
                       </div>
@@ -1275,54 +1294,51 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {mediaAssets.map((item) => {
-                        const isVideo = item.mime_type?.startsWith("video") || item.tags?.includes("video");
-                        return (
-                          <div 
-                            key={item.id}
-                            className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              {/* THUMBNAIL PREVIEW */}
-                              <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                {isVideo ? (
-                                  <Play className="w-4 h-4 text-gray-500 font-bold" />
-                                ) : (
-                                  <img src={item.url} alt="Thumb" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as any).src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=40&q=40" }} />
-                                )}
-                              </div>
-
-                              <div className="min-w-0 flex-1 font-sans">
-                                <h4 className="text-xs font-semibold text-white truncate">{item.filename}</h4>
-                                <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{isVideo ? "video" : "image"} • {item.file_size ? `${(item.file_size / 1024).toFixed(0)}KB` : item.url}</p>
-                              </div>
+                      {mediaAssets.map((item) => (
+                        <div 
+                          key={item.id}
+                          className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {/* THUMBNAIL PREVIEW */}
+                            <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                              {item.type === "video" ? (
+                                <Play className="w-4 h-4 text-gray-500 font-bold" />
+                              ) : (
+                                <img src={item.url} alt="Thumb" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as any).src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=40&q=40" }} />
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                              <button
-                                onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
-                                className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
-                                title="Set as Hero Background Video / Image"
-                              >
-                                Background
-                              </button>
-                              <button
-                                onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
-                                className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
-                                title="Set as Navbar Logo Image"
-                              >
-                                Logo
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAsset(item.id)}
-                                className="p-1 px-1.5 text-red-500 hover:text-red-400 bg-red-400/5 hover:bg-red-400/10 border border-red-400/10 rounded"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                            <div className="min-w-0 flex-1 font-sans">
+                              <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
+                              <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{item.type} • {item.url}</p>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                            <button
+                              onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              title="Set as Hero Background Video / Image"
+                            >
+                              Background
+                            </button>
+                            <button
+                              onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              title="Set as Navbar Logo Image"
+                            >
+                              Logo
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAsset(item.id)}
+                              className="p-1 px-1.5 text-red-500 hover:text-red-400 bg-red-400/5 hover:bg-red-400/10 border border-red-400/10 rounded"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
