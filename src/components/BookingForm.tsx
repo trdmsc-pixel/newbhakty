@@ -4,6 +4,8 @@ import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle,
 import { BookingSubmission } from "../types";
 import { trackEvent } from "../lib/analytics";
 import { useSiteData } from "../context/SiteDataContext";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
+
 
 interface BookingFormProps {
   initialTier: string;
@@ -91,7 +93,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     trackEvent("click", "Booking Form submit button clicked", { name, email, tier: selectedTier });
     if (!validate()) {
@@ -102,31 +104,74 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     setIsSubmitting(true);
     
     try {
-      const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
-      const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
-      const newSubmission = {
-        id: `sub-${Date.now()}`,
+      const submissionData = {
         name: name.trim(),
         company: company.trim() || "Independent Venturer",
         email: email.trim(),
         brief: brief.trim(),
         budget: budget,
+        selected_tier: selectedTier,
         selectedTier: selectedTier,
-        submitted_at: new Date().toISOString(),
         status: "Pending"
       };
-      submissionsList.push(newSubmission);
-      localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
-      trackEvent("click", "Booking proposal successfully compiled & logged with local store", { id: newSubmission.id, selectedTier });
-    } catch (err) {
-      console.error("Failed to commit booking submission state:", err);
-    }
 
-    // Simulate high fidelity digital ingestion pipeline
-    setTimeout(() => {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.from("bookings").insert([submissionData]);
+        if (error) {
+          throw new Error(error.message);
+        }
+        trackEvent("click", "Booking proposal successfully inserted into Supabase", { name, email, selectedTier });
+      } else {
+        const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
+        const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+        const newSubmission = {
+          id: `sub-${Date.now()}`,
+          ...submissionData,
+          submitted_at: new Date().toISOString()
+        };
+        submissionsList.push(newSubmission);
+        localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
+        trackEvent("click", "Booking proposal successfully compiled & logged with local store", { id: newSubmission.id, selectedTier });
+      }
+
+      // Add a slight delay for high fidelity digital ingestion animation feel
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       setIsSubmitting(false);
       setShowSuccess(true);
-    }, 2200);
+    } catch (err: any) {
+      console.error("Failed to commit booking submission state:", err);
+      // Fallback to local storage on error
+      try {
+        const submissionData = {
+          name: name.trim(),
+          company: company.trim() || "Independent Venturer",
+          email: email.trim(),
+          brief: brief.trim(),
+          budget: budget,
+          selected_tier: selectedTier,
+          selectedTier: selectedTier,
+          status: "Pending"
+        };
+        const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
+        const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+        const newSubmission = {
+          id: `sub-${Date.now()}`,
+          ...submissionData,
+          submitted_at: new Date().toISOString()
+        };
+        submissionsList.push(newSubmission);
+        localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
+        trackEvent("click", "Booking proposal successfully fallback-saved to local store after DB error");
+        
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setIsSubmitting(false);
+        setShowSuccess(true);
+      } catch (fallbackErr) {
+        setIsSubmitting(false);
+        console.error("Critically failed to save booking submission:", fallbackErr);
+        alert("Failed to submit booking. Please try again.");
+      }
+    }
   };
 
   const resetForm = () => {

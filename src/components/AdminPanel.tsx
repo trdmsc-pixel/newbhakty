@@ -16,6 +16,17 @@ import {
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 
+const generateUUID = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => void }) {
   const {
     siteSettings,
@@ -417,7 +428,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const addMenuItem = () => {
     recordMenuHistory();
     const newItem: NavigationMenuItem = {
-      id: `menu-new-${Date.now()}`,
+      id: generateUUID(),
       label: "New section",
       target_url: "booking-section",
       display_order: editMenu.length + 1
@@ -433,14 +444,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const saveMenu = async () => {
     setSaveStatus(prev => ({ ...prev, navigation: "saving" }));
     toast.info("Applying navigation modifications to core index...");
-    const success = await updateNavigationMenu(editMenu);
-    if (success) {
-      setSaveStatus(prev => ({ ...prev, navigation: "saved" }));
-      toast.success("Navigation modifications successfully applied!");
-      setTimeout(() => setSaveStatus(prev => ({ ...prev, navigation: "idle" })), 3000);
-    } else {
+    try {
+      const success = await updateNavigationMenu(editMenu);
+      if (success) {
+        setSaveStatus(prev => ({ ...prev, navigation: "saved" }));
+        toast.success("Navigation modifications successfully applied!");
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, navigation: "idle" })), 3000);
+      } else {
+        setSaveStatus(prev => ({ ...prev, navigation: "error" }));
+        toast.error("Failed to update navigation menu details.");
+      }
+    } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, navigation: "error" }));
-      toast.error("Failed to update navigation menu details.");
+      toast.error(`Failed to update navigation menu: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -532,7 +548,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const addWorkItem = () => {
     recordWorksHistory();
     const newItem: VideoBlock = {
-      id: `work-new-${Date.now()}`,
+      id: generateUUID(),
       title: "New Motion Piece",
       category: "AI Commercial / Fluid Dynamics",
       videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4",
@@ -667,14 +683,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const saveWorks = async () => {
     setSaveStatus(prev => ({ ...prev, portfolio: "saving" }));
     toast.info("Re-indexing portfolio works in backend storage...");
-    const success = await updatePortfolioWorks(editWorks);
-    if (success) {
-      setSaveStatus(prev => ({ ...prev, portfolio: "saved" }));
-      toast.success("Portfolio works successfully re-indexed!");
-      setTimeout(() => setSaveStatus(prev => ({ ...prev, portfolio: "idle" })), 3000);
-    } else {
+    try {
+      const success = await updatePortfolioWorks(editWorks);
+      if (success) {
+        setSaveStatus(prev => ({ ...prev, portfolio: "saved" }));
+        toast.success("Portfolio works successfully re-indexed!");
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, portfolio: "idle" })), 3000);
+      } else {
+        setSaveStatus(prev => ({ ...prev, portfolio: "error" }));
+        toast.error("Failed to re-index portfolio works.");
+      }
+    } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, portfolio: "error" }));
-      toast.error("Failed to re-index portfolio works.");
+      toast.error(`Failed to re-index portfolio works: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -721,14 +742,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const savePricing = async () => {
     setSaveStatus(prev => ({ ...prev, pricing: "saving" }));
     toast.info("Updating production tier packages on persistence server...");
-    const success = await updatePricingTiers(editPricing);
-    if (success) {
-      setSaveStatus(prev => ({ ...prev, pricing: "saved" }));
-      toast.success("Production tier packages successfully synchronized!");
-      setTimeout(() => setSaveStatus(prev => ({ ...prev, pricing: "idle" })), 3000);
-    } else {
+    try {
+      const success = await updatePricingTiers(editPricing);
+      if (success) {
+        setSaveStatus(prev => ({ ...prev, pricing: "saved" }));
+        toast.success("Production tier packages successfully synchronized!");
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, pricing: "idle" })), 3000);
+      } else {
+        setSaveStatus(prev => ({ ...prev, pricing: "error" }));
+        toast.error("Failed to update pricing package rates.");
+      }
+    } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, pricing: "error" }));
-      toast.error("Failed to update pricing package rates.");
+      toast.error(`Failed to update pricing package rates: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -1600,8 +1626,30 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             />
                           </div>
 
-                          {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                           <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Global Assets</label>
+                            <select
+                              onChange={(e) => {
+                                const selectedUrl = e.target.value;
+                                if (selectedUrl) {
+                                  handleWorkChange(work.id, "videoUrl", selectedUrl);
+                                  handleWorkChange(work.id, "highResVideoUrl", selectedUrl);
+                                }
+                              }}
+                              value={work.videoUrl}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
+                            >
+                              <option value="">-- Apply a Global Asset --</option>
+                              {mediaAssets.map((asset) => (
+                                <option key={asset.id} value={asset.url}>
+                                  {asset.name} ({asset.type})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* DUAL DRAG AND DROP UPLOADER ZONE */}
+                          <div className="md:col-span-2">
                             <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
                             <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                               <div className="flex items-center justify-between">

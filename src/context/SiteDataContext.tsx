@@ -289,11 +289,16 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             target_url: item.target_url,
             display_order: item.display_order
           };
+          let saveErr;
           if (isValidUUID(item.id)) {
             payload.id = item.id;
+            const { error } = await supabase.from("navigation_menu").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("navigation_menu").insert(payload);
+            saveErr = error;
           }
-          const { error: upsertErr } = await supabase.from("navigation_menu").upsert(payload, { onConflict: "id" });
-          if (upsertErr) throw new Error(upsertErr.message);
+          if (saveErr) throw new Error(saveErr.message);
         }
         await loadData(true);
         return true;
@@ -336,11 +341,16 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: w.tags,
             display_order: i + 1
           };
+          let saveErr;
           if (isValidUUID(w.id)) {
             payload.id = w.id;
+            const { error } = await supabase.from("portfolio_works").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("portfolio_works").insert(payload);
+            saveErr = error;
           }
-          const { error: upsertErr } = await supabase.from("portfolio_works").upsert(payload, { onConflict: "id" });
-          if (upsertErr) throw new Error(upsertErr.message);
+          if (saveErr) throw new Error(saveErr.message);
         }
         await loadData(true);
         return true;
@@ -383,11 +393,16 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             glow_theme: t.glowTheme,
             display_order: i + 1
           };
+          let saveErr;
           if (isValidUUID(t.id)) {
             payload.id = t.id;
+            const { error } = await supabase.from("pricing_tiers").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("pricing_tiers").insert(payload);
+            saveErr = error;
           }
-          const { error: upsertErr } = await supabase.from("pricing_tiers").upsert(payload, { onConflict: "id" });
-          if (upsertErr) throw new Error(upsertErr.message);
+          if (saveErr) throw new Error(saveErr.message);
         }
         await loadData(true);
         return true;
