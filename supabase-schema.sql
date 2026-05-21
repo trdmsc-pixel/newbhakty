@@ -117,3 +117,19 @@ insert into pricing_tiers (tier_name, tagline, price, period, popular, features,
 ('Full Cinematic Studio', 'The complete cinematic suite for commercials, trailers & visual epics.', '$5,800', 'project', true, array['1x High-fidelity 60-90s cinematic trailer', 'AI vector upscaling (Up to 8K resolution)', 'Premium custom audio score & SFX alignment', 'Concept art storyboards & vocal synthesizers', 'Full digital rights and 4K delivery layers', 'Interactive feedback workspace access'], 'Acquire Studio spot', '12 working days', '4 Rounds', 'saffron', 2),
 ('Enterprise Pipeline', 'Bespoke fine-tuned AI diffusion models and full custom pipeline setup.', '$14,500', 'setup', false, array['1x Custom style LoRA trained on brand assets', 'Up to 3 minutes of dedicated 4K cinematic footage', 'Dedicated creative visual supervisor', 'Bespoke audio composer & voice-clone profiles', 'VRAM hardware pipeline optimization advice', 'Priority project renders & instant pipeline access'], 'Acquire Enterprise access', '24 working days', 'Unlimited Revisions', 'violet', 3)
 on conflict do nothing;
+
+
+-- 6. MEDIA ASSETS
+create table if exists media_assets (
+    id uuid primary key default gen_random_uuid(),
+    name text not null,
+    url text not null,
+    type text not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS for media_assets
+alter table media_assets enable row level security;
+create policy "Allow public read access to media_assets" on media_assets for select using (true);
+create policy "Allow admin write access to media_assets" on media_assets for all using (true);
+

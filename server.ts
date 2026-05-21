@@ -3,11 +3,43 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, GenerateVideosOperation } from "@google/genai";
 
+// Helper to safely read server environment variables with error catching and validation
+const getEnvVariable = (key: string): string => {
+  try {
+    if (typeof process === "undefined" || !process.env) {
+      console.warn(`process.env is undefined. Cannot read key: ${key}`);
+      return "";
+    }
+    const val = process.env[key];
+    if (val === undefined || val === null) {
+      return "";
+    }
+    if (typeof val !== "string") {
+      console.warn(`Environment variable ${key} is malformed: expected string, got ${typeof val}`);
+      return "";
+    }
+    let result = val.trim();
+    if (result.startsWith("http://") || result.startsWith("https://")) {
+      result = result.replace(/\/+$/, "");
+    }
+    return result;
+  } catch (err) {
+    console.error(`Unhandled error while accessing environment variable ${key}:`, err);
+    return "";
+  }
+};
+
+// Log explicit key warning if missing at startup
+const geminiKeyAtStartup = getEnvVariable("GEMINI_API_KEY");
+if (!geminiKeyAtStartup) {
+  console.warn("Warning: GEMINI_API_KEY is not configured. Server-side AI features will run in high-fidelity mock fallback mode.");
+}
+
 // Cache/Store Gemini client lazy-initializer
 let aiClient: GoogleGenAI | null = null;
 function getGemini(): GoogleGenAI {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY || "";
+    const key = getEnvVariable("GEMINI_API_KEY");
     aiClient = new GoogleGenAI({
       apiKey: key,
       httpOptions: {
@@ -33,7 +65,7 @@ app.use(express.json());
         return res.status(400).json({ error: "Brief is required." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getEnvVariable("GEMINI_API_KEY")) {
         // Fallback simulation if key isn't provided yet
         const words = brief.split(" ");
         const enriched = `[AI ENRICHED COHESION DIRECTIVE]\n\nVisual Paradigm: A high-fidelity cinematic workflow centering around ${words.slice(0, 4).join(" ")} with organic temporal flow. \n\nComposition details: Multi-angle prompt sequence, neural differential fluid dynamics, and upscale target 8K processing. Directed by bhakty.studio algorithms.`;
@@ -63,7 +95,7 @@ app.use(express.json());
         return res.status(400).json({ error: "Brief details required." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getEnvVariable("GEMINI_API_KEY")) {
         const mockAnalysis = `[Axiom Core Analysis Fallback]\n• **Aesthetic Match**: High temporal fidelity.\n• **Style Direction**: Neo-futuristic, sound-reactive lighting.\n• **Orchestration Recommendation**: Allocate render slice in ${selectedTier || "Full Studio"} workflow. Target audience response optimization: high duration retention.`;
         return res.json({ text: mockAnalysis });
       }
@@ -99,7 +131,7 @@ Format as a direct black-and-gold bullet list, under 150 words.`;
         return res.status(400).json({ error: "Title and Category are required." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getEnvVariable("GEMINI_API_KEY")) {
         // Return fallback tags
         const fallbackTags = [category.split("/")[0].trim(), "Generative", "4K Loop"];
         return res.json({ tags: fallbackTags });
@@ -174,7 +206,7 @@ Output ONLY the comma-separated list of tags, nothing else.`,
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getEnvVariable("GEMINI_API_KEY")) {
         const mockOpName = `models/veo-3.1-lite-generate-preview/operations/mock-${Date.now()}`;
         mockOperationsProgress.set(mockOpName, 0);
         return res.json({ operationName: mockOpName });
@@ -290,7 +322,7 @@ Output ONLY the comma-separated list of tags, nothing else.`,
       }
 
       const videoRes = await fetch(uri, {
-        headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! },
+        headers: { "x-goog-api-key": getEnvVariable("GEMINI_API_KEY") },
       });
 
       res.setHeader("Content-Type", "video/mp4");

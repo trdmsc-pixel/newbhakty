@@ -11,15 +11,55 @@ interface CloudinaryResponse {
   format: string;
 }
 
+// Helper to safely read environment variables with error catching
+const getEnvVariable = (key: string): string => {
+  try {
+    if (typeof import.meta === "undefined" || !import.meta.env) {
+      console.warn(`import.meta.env is undefined. Cannot read key: ${key}`);
+      return "";
+    }
+    const val = import.meta.env[key];
+    if (val === undefined || val === null) {
+      return "";
+    }
+    if (typeof val !== "string") {
+      console.warn(`Environment variable ${key} is malformed: expected string, got ${typeof val}`);
+      return "";
+    }
+    return val.trim();
+  } catch (err) {
+    console.error(`Unhandled error while accessing environment variable ${key}:`, err);
+    return "";
+  }
+};
+
+let rawCloudName = "";
+let rawUploadPreset = "";
+
+try {
+  rawCloudName = getEnvVariable("VITE_CLOUDINARY_CLOUD_NAME");
+  if (!rawCloudName) {
+    console.warn("Missing environment variable: VITE_CLOUDINARY_CLOUD_NAME is not configured.");
+  }
+  rawUploadPreset = getEnvVariable("VITE_CLOUDINARY_UPLOAD_PRESET");
+  if (!rawUploadPreset) {
+    console.warn("Missing environment variable: VITE_CLOUDINARY_UPLOAD_PRESET is not configured.");
+  }
+} catch (err) {
+  console.error("Error verifying Cloudinary environment variables:", err);
+}
+
+// Strip out any trailing slashes from the variables
+export const cloudinaryCloudName = rawCloudName ? rawCloudName.replace(/\/+$/, "") : "";
+export const cloudinaryUploadPreset = rawUploadPreset ? rawUploadPreset.replace(/\/+$/, "") : "";
+export const isCloudinaryConfigured = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
+
 export const uploadToCloudinary = async (
   file: File,
   onProgress?: (progress: string) => void
 ): Promise<string> => {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
   // If no Cloudinary environment configuration, fall back gracefully to a Mock upload/Object URL
-  if (!cloudName || !uploadPreset) {
+  if (!isCloudinaryConfigured) {
     console.warn(
       "Cloudinary is not fully configured (VITE_CLOUDINARY_CLOUD_NAME or VITE_CLOUDINARY_UPLOAD_PRESET is missing). Falling back to local ObjectURL representation."
     );
@@ -42,11 +82,11 @@ export const uploadToCloudinary = async (
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
+  formData.append("upload_preset", cloudinaryUploadPreset);
 
   // Cloudinary uses automated endpoint: https://api.cloudinary.com/v1_1/<cloud_name>/auto/upload
   // using resource_type: auto ensures both images and videos are parsed automatically.
-  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/auto/upload`;
 
   try {
     if (onProgress) {

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
-import { uploadToCloudinary } from "../lib/cloudinary";
+import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
 import { VideoBlock, PricingTier } from "../types";
 import BackgroundGradients from "./BackgroundGradients";
 import { 
@@ -25,12 +25,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     isUsingSupabase,
     mediaAssets,
     updateSiteSetting,
+    updateMultipleSiteSettings,
     updateNavigationMenu,
     updatePortfolioWorks,
     updatePricingTiers,
     addMediaAsset,
     deleteMediaAsset,
   } = useSiteData();
+
+
 
   const theme = getActiveTheme(siteSettings.website_theme);
   const toast = useToast();
@@ -44,7 +47,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const envPass = import.meta.env.VITE_ADMIN_PASSWORD || "admin_bhakty_studio";
+    const envPass = (typeof import.meta !== "undefined" && import.meta.env ? import.meta.env.VITE_ADMIN_PASSWORD : "") || "admin_bhakty_studio";
     if (password === envPass) {
       setIsAuthenticated(true);
       localStorage.setItem("bhakty_admin_auth", "true");
@@ -392,9 +395,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setSaveStatus(prev => ({ ...prev, settings: "saving" }));
     toast.info("Synchronizing site configurations to persistence index...");
     try {
-      for (const [key, val] of Object.entries(editSettings)) {
-        await updateSiteSetting(key, val);
-      }
+      await updateMultipleSiteSettings(editSettings);
       setSaveStatus(prev => ({ ...prev, settings: "saved" }));
       toast.success("Site configurations successfully updated!");
       setTimeout(() => setSaveStatus(prev => ({ ...prev, settings: "idle" })), 3000);
@@ -1961,10 +1962,26 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     {/* DRAG & DROP / FILE SELECTION */}
                     <div className="bg-[#11111c]/60 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-white mb-2">Upload Files to Cloudinary</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-sm font-semibold text-white">Upload Files to Cloudinary</h3>
+                          {isCloudinaryConfigured ? (
+                            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
+                              ● Connected
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-amber-400 font-mono bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                              ▲ Unconfigured
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 leading-relaxed mb-4">
                           Directly upload high-resolution images or .mp4 files into the high performance Cloudinary dynamic CDN network.
                         </p>
+                        {!isCloudinaryConfigured && (
+                          <div className="mb-4 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl text-amber-300 text-[11px] leading-relaxed">
+                            <strong>Warning:</strong> Cloudinary keys not configured. Uploading a file will create a temporary local preview URL that won't work on other devices or after reloading.
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -2075,7 +2092,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             </div>
 
                             <div className="min-w-0 flex-1 font-sans">
-                              <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
+                                {item.url.startsWith("blob:") && (
+                                  <span className="text-[8px] uppercase tracking-wider font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                                    Temp Preview
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{item.type} • {item.url}</p>
                             </div>
                           </div>

@@ -3,6 +3,11 @@ import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { VideoBlock, PricingTier } from "../types";
 import { PORTFOLIO_VIDEOS, PRICING_TIERS } from "../data";
 
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 export interface NavigationMenuItem {
   id: string;
   label: string;
@@ -32,6 +37,7 @@ interface SiteDataContextProps {
   mediaAssets: MediaAsset[];
   refreshAllData: () => Promise<void>;
   updateSiteSetting: (key: string, value: string) => Promise<boolean>;
+  updateMultipleSiteSettings: (settings: SiteSettings) => Promise<boolean>;
   updateNavigationMenu: (menuItems: NavigationMenuItem[]) => Promise<boolean>;
   updatePortfolioWorks: (works: VideoBlock[]) => Promise<boolean>;
   updatePricingTiers: (tiers: PricingTier[]) => Promise<boolean>;
@@ -96,67 +102,13 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
   
   // Synchronous local storage initializers to eliminate initial rendering flash and timing races
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
-    const cached = localStorage.getItem("bhakty_site_settings");
-    if (cached) {
-      try {
-        return { ...DEFAULT_SITE_SETTINGS, ...JSON.parse(cached) };
-      } catch {
-        return DEFAULT_SITE_SETTINGS;
-      }
-    }
-    return DEFAULT_SITE_SETTINGS;
-  });
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(DEFAULT_NAVIGATION_MENU);
+  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(DEFAULT_MEDIA_ASSETS);
 
-  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(() => {
-    const cached = localStorage.getItem("bhakty_navigation_menu");
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return DEFAULT_NAVIGATION_MENU;
-      }
-    }
-    return DEFAULT_NAVIGATION_MENU;
-  });
-
-  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(() => {
-    const cached = localStorage.getItem("bhakty_portfolio_works");
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return PORTFOLIO_VIDEOS;
-      }
-    }
-    return PORTFOLIO_VIDEOS;
-  });
-
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(() => {
-    const cached = localStorage.getItem("bhakty_pricing_tiers");
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return PRICING_TIERS;
-      }
-    }
-    return PRICING_TIERS;
-  });
-
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(() => {
-    const cached = localStorage.getItem("bhakty_media_assets");
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return DEFAULT_MEDIA_ASSETS;
-      }
-    }
-    return DEFAULT_MEDIA_ASSETS;
-  });
-
-  // Load from Supabase or LocalStorage cache
+  // Load from Supabase
   const loadData = async (silent = false) => {
     if (!silent) setIsLoading(true);
     let success = false;
@@ -203,13 +155,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               created_at: a.created_at
             }));
             setMediaAssets(fetchedAssets);
-            localStorage.setItem("bhakty_media_assets", JSON.stringify(fetchedAssets));
           }
         } catch (tableErr) {
           console.warn("Could not query 'media_assets' table from Supabase.", tableErr);
         }
 
-        // If queries succeeded, update state & local cache
+        // If queries succeeded, update state
         if (!settingsError && settingsData && settingsData.length > 0) {
           const settingsObj: SiteSettings = {};
           settingsData.forEach((item) => {
@@ -217,12 +168,10 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
           const merged = { ...DEFAULT_SITE_SETTINGS, ...settingsObj };
           setSiteSettings(merged);
-          localStorage.setItem("bhakty_site_settings", JSON.stringify(merged));
         }
 
         if (!menuError && menuData && menuData.length > 0) {
           setNavigationMenu(menuData);
-          localStorage.setItem("bhakty_navigation_menu", JSON.stringify(menuData));
         }
 
         if (!worksError && worksData && worksData.length > 0) {
@@ -240,7 +189,6 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: Array.isArray(w.tags) ? w.tags : JSON.parse(w.tags || "[]")
           }));
           setPortfolioWorks(mappedWorks);
-          localStorage.setItem("bhakty_portfolio_works", JSON.stringify(mappedWorks));
         }
 
         if (!pricingError && pricingData && pricingData.length > 0) {
@@ -257,18 +205,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             glowTheme: (t.glow_theme as any) || "saffron"
           }));
           setPricingTiers(mappedTiers);
-          localStorage.setItem("bhakty_pricing_tiers", JSON.stringify(mappedTiers));
         }
 
         success = true;
       } catch (err) {
-        console.warn("Could not load from Supabase database tables. Falling back to local storage.", err);
+        console.warn("Could not load from Supabase database tables.", err);
       }
-    }
-
-    if (!success) {
-      // LocalStorage is already loaded synchronously or fallback state is active!
-      // No extra work needed to be done here.
     }
 
     setIsLoading(false);
@@ -284,9 +226,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // 1. UPDATE SINGLE SITE SETTING
   const updateSiteSetting = async (key: string, value: string): Promise<boolean> => {
-    const updatedSettings = { ...siteSettings, [key]: value };
-    setSiteSettings(updatedSettings);
-    localStorage.setItem("bhakty_site_settings", JSON.stringify(updatedSettings));
+    setSiteSettings((prev) => ({ ...prev, [key]: value }));
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -294,10 +234,34 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           .from("site_settings")
           .upsert({ key, value }, { onConflict: "key" });
         if (error) {
-          console.warn("Supabase upsert setting warning (completed locally via cached index):", error);
+          console.error("Supabase upsert setting error:", error);
+          throw new Error(error.message);
         }
       } catch (e) {
-        console.warn("Supabase upsert setting exception:", e);
+        console.error("Supabase upsert setting exception:", e);
+        throw e;
+      }
+    }
+    return true;
+  };
+
+  // UPDATE MULTIPLE SITE SETTINGS BULK
+  const updateMultipleSiteSettings = async (settings: SiteSettings): Promise<boolean> => {
+    setSiteSettings((prev) => ({ ...prev, ...settings }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const rows = Object.entries(settings).map(([key, value]) => ({ key, value }));
+        const { error } = await supabase
+          .from("site_settings")
+          .upsert(rows, { onConflict: "key" });
+        if (error) {
+          console.error("Supabase bulk upsert settings error:", error);
+          throw new Error(error.message);
+        }
+      } catch (e) {
+        console.error("Supabase bulk upsert settings exception:", e);
+        throw e;
       }
     }
     return true;
@@ -306,27 +270,36 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // 2. UPDATE ALL NAVIGATION MENU
   const updateNavigationMenu = async (menuItems: NavigationMenuItem[]): Promise<boolean> => {
     setNavigationMenu(menuItems);
-    localStorage.setItem("bhakty_navigation_menu", JSON.stringify(menuItems));
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // Simple way: clear and write again, or save individually
+        // First delete any items not in the updated list
+        const activeIds = menuItems.map(item => item.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase.from("navigation_menu").delete().not("id", "in", activeIds);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase.from("navigation_menu").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delErr) throw new Error(delErr.message);
+        }
+
         for (const item of menuItems) {
           const payload: any = {
             label: item.label,
             target_url: item.target_url,
             display_order: item.display_order
           };
-          // If UUID looks generated, preserve it, else let supabase generate
-          if (item.id && !item.id.startsWith("menu-")) {
+          if (isValidUUID(item.id)) {
             payload.id = item.id;
           }
-          await supabase.from("navigation_menu").upsert(payload, { onConflict: "id" });
+          const { error: upsertErr } = await supabase.from("navigation_menu").upsert(payload, { onConflict: "id" });
+          if (upsertErr) throw new Error(upsertErr.message);
         }
         await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update menu items error", e);
+        throw e;
       }
     }
     return true;
@@ -335,10 +308,19 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // 3. UPDATE PORTFOLIO WORKS
   const updatePortfolioWorks = async (works: VideoBlock[]): Promise<boolean> => {
     setPortfolioWorks(works);
-    localStorage.setItem("bhakty_portfolio_works", JSON.stringify(works));
 
     if (isSupabaseConfigured && supabase) {
       try {
+        // First delete any items not in the updated list
+        const activeIds = works.map(w => w.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase.from("portfolio_works").delete().not("id", "in", activeIds);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase.from("portfolio_works").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delErr) throw new Error(delErr.message);
+        }
+
         for (let i = 0; i < works.length; i++) {
           const w = works[i];
           const payload: any = {
@@ -354,16 +336,17 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: w.tags,
             display_order: i + 1
           };
-          // If valid uuid (more than 24 chars / has dashes) use it
-          if (w.id.includes("-") && w.id.length > 15) {
+          if (isValidUUID(w.id)) {
             payload.id = w.id;
           }
-          await supabase.from("portfolio_works").upsert(payload, { onConflict: "id" });
+          const { error: upsertErr } = await supabase.from("portfolio_works").upsert(payload, { onConflict: "id" });
+          if (upsertErr) throw new Error(upsertErr.message);
         }
         await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update portfolio works error", e);
+        throw e;
       }
     }
     return true;
@@ -372,10 +355,19 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // 4. UPDATE PRICING TIERS
   const updatePricingTiers = async (tiers: PricingTier[]): Promise<boolean> => {
     setPricingTiers(tiers);
-    localStorage.setItem("bhakty_pricing_tiers", JSON.stringify(tiers));
 
     if (isSupabaseConfigured && supabase) {
       try {
+        // First delete any items not in the updated list
+        const activeIds = tiers.map(t => t.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase.from("pricing_tiers").delete().not("id", "in", activeIds);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase.from("pricing_tiers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delErr) throw new Error(delErr.message);
+        }
+
         for (let i = 0; i < tiers.length; i++) {
           const t = tiers[i];
           const payload: any = {
@@ -391,15 +383,17 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             glow_theme: t.glowTheme,
             display_order: i + 1
           };
-          if (t.id.includes("-") && t.id.length > 15) {
+          if (isValidUUID(t.id)) {
             payload.id = t.id;
           }
-          await supabase.from("pricing_tiers").upsert(payload, { onConflict: "id" });
+          const { error: upsertErr } = await supabase.from("pricing_tiers").upsert(payload, { onConflict: "id" });
+          if (upsertErr) throw new Error(upsertErr.message);
         }
         await loadData(true);
         return true;
       } catch (e) {
         console.error("Supabase update pricing tiers error", e);
+        throw e;
       }
     }
     return true;
@@ -418,7 +412,6 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const updated = [newAsset, ...mediaAssets];
     setMediaAssets(updated);
-    localStorage.setItem("bhakty_media_assets", JSON.stringify(updated));
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -427,7 +420,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           .insert({ name, url, type })
           .select();
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error("Supabase insert media asset error:", error);
+          throw new Error(error.message);
+        }
+
+        if (data && data.length > 0) {
           const dbAsset: MediaAsset = {
             id: data[0].id,
             name: data[0].name,
@@ -439,7 +437,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return dbAsset;
         }
       } catch (e) {
-        console.error("Supabase insert media asset error", e);
+        console.error("Supabase insert media asset exception:", e);
+        throw e;
       }
     }
     return newAsset;
@@ -449,17 +448,20 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteMediaAsset = async (id: string): Promise<boolean> => {
     const updated = mediaAssets.filter((item) => item.id !== id);
     setMediaAssets(updated);
-    localStorage.setItem("bhakty_media_assets", JSON.stringify(updated));
 
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && isValidUUID(id)) {
       try {
         const { error } = await supabase
           .from("media_assets")
           .delete()
           .eq("id", id);
-        return !error;
+        if (error) {
+          console.error("Supabase delete media asset error:", error);
+          throw new Error(error.message);
+        }
       } catch (e) {
-        console.error("Supabase delete media asset error", e);
+        console.error("Supabase delete media asset exception:", e);
+        throw e;
       }
     }
     return true;
@@ -477,6 +479,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         mediaAssets,
         refreshAllData,
         updateSiteSetting,
+        updateMultipleSiteSettings,
         updateNavigationMenu,
         updatePortfolioWorks,
         updatePricingTiers,
