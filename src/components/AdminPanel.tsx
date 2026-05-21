@@ -32,7 +32,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // Authentication State
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem("bhakty_admin_auth") === "true";
+    return localStorage.getItem("bhakty_admin_auth") === "true" || sessionStorage.getItem("bhakty_admin_auth") === "true";
   });
   const [authError, setAuthError] = useState("");
 
@@ -41,6 +41,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     const envPass = import.meta.env.VITE_ADMIN_PASSWORD || "admin_bhakty_studio";
     if (password === envPass) {
       setIsAuthenticated(true);
+      localStorage.setItem("bhakty_admin_auth", "true");
       sessionStorage.setItem("bhakty_admin_auth", "true");
       setAuthError("");
       toast.success("Security access granted. Welcome to Axiom Core.");
@@ -487,9 +488,22 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
              <button
               type="button"
               onClick={onNavigateHome}
-              className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5  py-2 rounded-xl text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all cursor-pointer"
+              className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5 py-2 rounded-xl text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all cursor-pointer"
             >
               Exit to Studio
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("bhakty_admin_auth");
+                sessionStorage.removeItem("bhakty_admin_auth");
+                setIsAuthenticated(false);
+                toast.success("Security access terminated. Logged out.");
+              }}
+              className="text-xs md:text-sm font-medium font-display tracking-tight bg-red-950/20 border border-red-500/25 px-5 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Lock className="w-3.5 h-3.5" /> Logout
             </button>
           </div>
         </div>

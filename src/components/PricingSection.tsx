@@ -9,22 +9,26 @@ interface PricingSectionProps {
 }
 
 export default function PricingSection({ onSelectTier }: PricingSectionProps) {
-  const { pricingTiers } = useSiteData();
+  const { pricingTiers = [] } = useSiteData();
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
 
-  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0];
+  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0] || {
+    id: "fallback-tier",
+    name: "Full Cinematic Studio",
+    tagline: "Synthesizing custom diffusion pipelines around your brand.",
+    price: "$2,450",
+    period: "month",
+    popular: true,
+    deliverables: ["10x AI-generated Short Reels/TikToks", "High temporal consistency rendering"],
+    turnaround: "5 working days",
+    revisionRound: "2 Rounds",
+    glowTheme: "saffron"
+  };
 
   // Map theme values to precise glow aesthetics
-  const getThemeColors = (theme: "saffron" | "violet" | "emerald") => {
-    switch (theme) {
-      case "saffron":
-        return {
-          glow: "shadow-[#E6C687]/15 border-[#E6C687]/40",
-          text: "text-[#E6C687]",
-          badge: "bg-[#E6C687]/10 text-[#E6C687] border-[#E6C687]/20",
-          button: "bg-white text-black hover:bg-[#E6C687]",
-          accentLine: "bg-gradient-to-r from-transparent via-[#E6C687]/50 to-transparent",
-        };
+  const getThemeColors = (theme: "saffron" | "violet" | "emerald" | string | any) => {
+    const activeTheme = theme || "saffron";
+    switch (activeTheme) {
       case "violet":
         return {
           glow: "shadow-[#4A36B3]/30 border-[#4A36B3]/30",
@@ -40,6 +44,15 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           badge: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
           button: "bg-emerald-950/40 border border-emerald-500/30 text-white hover:bg-emerald-600 hover:text-white",
           accentLine: "bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent",
+        };
+      case "saffron":
+      default:
+        return {
+          glow: "shadow-[#E6C687]/15 border-[#E6C687]/40",
+          text: "text-[#E6C687]",
+          badge: "bg-[#E6C687]/10 text-[#E6C687] border-[#E6C687]/20",
+          button: "bg-white text-black hover:bg-[#E6C687]",
+          accentLine: "bg-gradient-to-r from-transparent via-[#E6C687]/50 to-transparent",
         };
     }
   };

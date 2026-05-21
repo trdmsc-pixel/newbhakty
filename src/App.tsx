@@ -59,6 +59,13 @@ function AppContent() {
     }
   };
 
+  // ----------------------------------------------------
+  // ROUTE DISPATCHER: ADMIN SYSTEM
+  // ----------------------------------------------------
+  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
+    return <AdminPanel onNavigateHome={() => navigate("/")} />;
+  }
+
   // Loader Bezel
   if (isLoading) {
     return (
@@ -70,13 +77,6 @@ function AppContent() {
         </div>
       </div>
     );
-  }
-
-  // ----------------------------------------------------
-  // ROUTE DISPATCHER: ADMIN SYSTEM
-  // ----------------------------------------------------
-  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
-    return <AdminPanel onNavigateHome={() => navigate("/")} />;
   }
 
   return (
