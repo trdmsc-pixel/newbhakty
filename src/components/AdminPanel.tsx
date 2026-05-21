@@ -40,13 +40,160 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets">("settings");
   const [saveStatus, setSaveStatus] = useState<{ [tab: string]: "idle" | "saving" | "saved" | "error" }>({
     settings: "idle",
     navigation: "idle",
     portfolio: "idle",
     pricing: "idle",
+    assets: "idle",
   });
+
+  // ----------------------------------------------------
+  // TAB 5: GLOBAL ASSETS STATE & HANDLERS
+  // ----------------------------------------------------
+  const DEFAULT_ASSETS = [
+    {
+      id: "asset-1",
+      name: "Deep Space Particle Loop",
+      url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
+      type: "video"
+    },
+    {
+      id: "asset-2",
+      name: "Nebula Ocean Waves Loop",
+      url: "https://assets.mixkit.co/videos/preview/mixkit-wave-looping-glowing-underwater-science-background-48282-large.mp4",
+      type: "video"
+    },
+    {
+      id: "asset-3",
+      name: "Studio Aura Cover Image",
+      url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+      type: "image"
+    },
+    {
+      id: "asset-4",
+      name: "Futuristic Glass Abstract Logo",
+      url: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=150&h=150&q=80",
+      type: "image"
+    }
+  ];
+
+  const getInitialAssets = () => {
+    if (siteSettings.registered_assets) {
+      try {
+        return JSON.parse(siteSettings.registered_assets);
+      } catch (err) {
+        console.warn("Could not parse registered_assets, returning defaults", err);
+      }
+    }
+    return DEFAULT_ASSETS;
+  };
+
+  const [assets, setAssets] = useState<{ id: string; name: string; url: string; type: string }[]>(getInitialAssets());
+  const [newAssetUrl, setNewAssetUrl] = useState("");
+  const [newAssetName, setNewAssetName] = useState("");
+  const [newAssetType, setNewAssetType] = useState("image");
+  const [localUploadProgress, setLocalUploadProgress] = useState("");
+
+  const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    setLocalUploadProgress(`Configuring binary stream: ${file.name}...`);
+
+    let finalUrl = "";
+    const fileType = file.type.startsWith("video/") ? "video" : "image";
+
+    if (isUsingSupabase && supabase) {
+      try {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
+        const filePath = `assets/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("bhakty-media")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from("bhakty-media")
+          .getPublicUrl(filePath);
+
+        finalUrl = publicUrl;
+        setLocalUploadProgress("File uploaded successfully to 'bhakty-media' bucket!");
+        setTimeout(() => setLocalUploadProgress(""), 4000);
+      } catch (err: any) {
+        setLocalUploadProgress(`Storage upload failure: ${err?.message || "Verify bucket setup."}`);
+        setTimeout(() => setLocalUploadProgress(""), 8000);
+        return;
+      }
+    } else {
+      finalUrl = URL.createObjectURL(file);
+      setLocalUploadProgress("Resource loaded locally! (Connect Supabase to persist files globally).");
+      setTimeout(() => setLocalUploadProgress(""), 5000);
+    }
+
+    if (finalUrl) {
+      const newAsset = {
+        id: `asset-${Date.now()}`,
+        name: file.name.substring(0, file.name.lastIndexOf('.')) || file.name,
+        url: finalUrl,
+        type: fileType
+      };
+      const updatedAssets = [...assets, newAsset];
+      setAssets(updatedAssets);
+      updateSiteSetting("registered_assets", JSON.stringify(updatedAssets));
+    }
+  };
+
+  const handleAddCustomAsset = () => {
+    if (!newAssetUrl || !newAssetName) return;
+    const cleanUrl = newAssetUrl.trim();
+    const cleanName = newAssetName.trim();
+    const newAsset = {
+      id: `asset-${Date.now()}`,
+      name: cleanName,
+      url: cleanUrl,
+      type: newAssetType
+    };
+    const updatedAssets = [...assets, newAsset];
+    setAssets(updatedAssets);
+    updateSiteSetting("registered_assets", JSON.stringify(updatedAssets));
+    setNewAssetUrl("");
+    setNewAssetName("");
+  };
+
+  const handleDeleteAsset = (id: string) => {
+    const updated = assets.filter(item => item.id !== id);
+    setAssets(updated);
+    updateSiteSetting("registered_assets", JSON.stringify(updated));
+  };
+
+  const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url") => {
+    setSaveStatus(prev => ({ ...prev, assets: "saving" }));
+    try {
+      if (targetSetting === "hero_video_bg_url") {
+        setEditSettings(p => ({ ...p, hero_video_bg_url: assetUrl }));
+      } else if (targetSetting === "logo_img_url") {
+        setEditSettings(p => ({ ...p, logo_img_url: assetUrl }));
+      }
+      
+      const success = await updateSiteSetting(targetSetting, assetUrl);
+      if (success) {
+        setSaveStatus(prev => ({ ...prev, assets: "saved" }));
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, assets: "idle" })), 3000);
+      } else {
+        setSaveStatus(prev => ({ ...prev, assets: "error" }));
+      }
+    } catch {
+      setSaveStatus(prev => ({ ...prev, assets: "error" }));
+    }
+  };
 
   const getStatusText = (tab: string) => {
     switch (saveStatus[tab]) {
@@ -423,6 +570,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               }`}
             >
               <ArrowDown className="w-4 h-4 rotate-45" /> Pricing packages
+            </button>
+
+            <button
+              onClick={() => setActiveTab("assets")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "assets"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <Upload className="w-4 h-4" /> Global Assets Manager
             </button>
 
             {/* QUICK SCHEMA INST INSTRUCTIONS */}
@@ -1018,6 +1176,222 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     ))}
                   </div>
 
+                </div>
+              )}
+
+              {/* TAB 5: GLOBAL ASSETS MANAGER */}
+              {activeTab === "assets" && (
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                    <div>
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Global Assets Library
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Upload media fragments or reference external URLs, then select which targets to populate.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* SAVE STATUS */}
+                  {getStatusText("assets") && (
+                    <div className={`p-3 rounded-lg text-xs leading-relaxed ${
+                      saveStatus.assets === "saved" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 text-red-400"
+                    }`}>
+                      {getStatusText("assets")}
+                    </div>
+                  )}
+
+                  {/* ACTIVE CONFIGURATION ROLES */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 border border-white/5 p-6 rounded-2xl">
+                    <div>
+                      <h3 className="text-xs font-mono uppercase text-[#E6C687] mb-3 tracking-wide flex items-center gap-2">
+                        <Play className="w-3.5 h-3.5" /> Hero Background (Img or Video)
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex gap-2 text-xs truncate bg-[#11111c] border border-white/5 rounded-xl px-4 py-3 text-gray-300">
+                          <span className="text-gray-500 font-mono">Active Link:</span>
+                          <span className="truncate flex-1 font-mono">{siteSettings.hero_video_bg_url || "Default Glowing Fluid Video"}</span>
+                        </div>
+                        <select
+                          onChange={(e) => handleSelectAssetForSetting(e.target.value, "hero_video_bg_url")}
+                          value={siteSettings.hero_video_bg_url || ""}
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
+                        >
+                          <option value="">-- Apply an Asset --</option>
+                          {assets.map((asset) => (
+                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-mono uppercase text-[#E6C687] mb-3 tracking-wide flex items-center gap-2">
+                        <Compass className="w-3.5 h-3.5" /> Navbar Logo Brand Image
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex gap-2 text-xs truncate bg-[#11111c] border border-white/5 rounded-xl px-4 py-3 text-gray-300">
+                          <span className="text-gray-500 font-mono">Active Link:</span>
+                          <span className="truncate flex-1 font-mono">{siteSettings.logo_img_url || "Default Vector Movie Icon"}</span>
+                        </div>
+                        <select
+                          onChange={(e) => handleSelectAssetForSetting(e.target.value, "logo_img_url")}
+                          value={siteSettings.logo_img_url || ""}
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
+                        >
+                          <option value="">-- Apply an Asset --</option>
+                          {assets.map((asset) => (
+                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ASSET UPLOAD & ADD SECTION */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* DRAG & DROP / FILE SELECTION */}
+                    <div className="bg-[#11111c]/60 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white mb-2">Upload Files to Supabase</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                          Directly upload high-resolution images or .mp4 files into the <code className="text-amber-200/90 font-mono">bhakty-media</code> storage bucket.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#E6C687]/40 hover:bg-white/5 rounded-2xl py-8 px-4 cursor-pointer transition-all text-center">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-xs font-medium text-white">Click or Drop Asset File</span>
+                          <span className="text-[10px] text-gray-500 mt-1 uppercase font-mono">Supports MP4, JPG, PNG, WEBP</span>
+                          <input
+                            type="file"
+                            accept="image/*,video/mp4"
+                            onChange={handleAssetUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        {localUploadProgress && (
+                          <div className="p-3 bg-white/5 border border-[#E1C58F]/20 text-[10px] font-mono text-amber-200 rounded-lg">
+                            {localUploadProgress}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* MANUALLY ADD URL */}
+                    <div className="bg-[#11111c]/60 border border-white/5 rounded-2xl p-6 space-y-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white mb-2">Link External Stream URLs</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed font-light">
+                          Reference external files hosted online (like Unsplash background layout keys or direct CDN links).
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Asset Meta Name</label>
+                          <input
+                            type="text"
+                            value={newAssetName}
+                            onChange={(e) => setNewAssetName(e.target.value)}
+                            placeholder="e.g. Cyberpunk Grid Layout"
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Direct Resource URL</label>
+                          <input
+                            type="text"
+                            value={newAssetUrl}
+                            onChange={(e) => setNewAssetUrl(e.target.value)}
+                            placeholder="https://images.unsplash.com/photo-..."
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Asset Type</label>
+                            <select
+                              value={newAssetType}
+                              onChange={(e) => setNewAssetType(e.target.value)}
+                              className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                            >
+                              <option value="image">Image Format</option>
+                              <option value="video">MP4 Video Format</option>
+                            </select>
+                          </div>
+                          <div className="flex items-end">
+                            <button
+                              onClick={handleAddCustomAsset}
+                              disabled={!newAssetUrl || !newAssetName}
+                              className="w-full py-2 bg-[#E6C687] text-black text-xs font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Add Asset URL
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DECLARED ASSETS LIBRARY GRID */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-mono uppercase text-gray-400 tracking-wider">
+                      Assets Collection Library ({assets.length} items)
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {assets.map((item) => (
+                        <div 
+                          key={item.id}
+                          className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {/* THUMBNAIL PREVIEW */}
+                            <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                              {item.type === "video" ? (
+                                <Play className="w-4 h-4 text-gray-500 font-bold" />
+                              ) : (
+                                <img src={item.url} alt="Thumb" className="w-full h-full object-cover animate-pulse" referrerPolicy="no-referrer" onError={(e) => { (e.target as any).src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=40&q=40" }} />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1 font-sans">
+                              <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
+                              <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{item.type} • {item.url}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                            <button
+                              onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              title="Set as Hero Background Video / Image"
+                            >
+                              Background
+                            </button>
+                            <button
+                              onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              title="Set as Navbar Logo Image"
+                            >
+                              Logo
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAsset(item.id)}
+                              className="p-1 px-1.5 text-red-500 hover:text-red-400 bg-red-400/5 hover:bg-red-400/10 border border-red-400/10 rounded"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

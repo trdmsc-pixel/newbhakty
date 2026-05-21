@@ -36,8 +36,10 @@ function AppContent() {
       window.location.hash = to;
       setHash(to);
     } else {
+      // Clear physical URL hash and update path
       window.history.pushState({}, "", to);
       setPath(to);
+      setHash("");
     }
   };
 
@@ -90,16 +92,25 @@ function AppContent() {
         id="hero-section" 
         className="relative pt-36 pb-20 md:py-40 md:px-12 px-6 max-w-7xl mx-auto flex flex-col items-center justify-between gap-16 lg:flex-row rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl"
       >
-        {/* Soft Looping background video centered in hero */}
+        {/* Soft Looping background video or image centered in hero */}
         <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
-          <video
-            src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-full object-cover"
-          />
+          {(!siteSettings.hero_video_bg_url || !siteSettings.hero_video_bg_url.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
+            <video
+              src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img
+              src={siteSettings.hero_video_bg_url}
+              alt="Studio Background"
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          )}
           {/* Subtle darkness layers so fonts pop beautifully */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/90 via-transparent to-[#050508]/90" />
           <div className="absolute inset-0 bg-[#050508]/40" />
@@ -209,14 +220,23 @@ function AppContent() {
             
             {/* Absolute background looping background for aesthetic depth */}
             <div className="absolute inset-0 z-0 opacity-70">
-              <video
-                src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full h-full object-cover rounded-3xl"
-              />
+              {(!siteSettings.hero_video_bg_url || !siteSettings.hero_video_bg_url.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
+                <video
+                  src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover rounded-3xl"
+                />
+              ) : (
+                <img
+                  src={siteSettings.hero_video_bg_url}
+                  alt="Studio Background Preview"
+                  className="w-full h-full object-cover rounded-3xl"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/60" />
             </div>
 

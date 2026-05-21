@@ -34,8 +34,17 @@ export default function Navbar() {
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#4A36B3] to-[#E6C687] flex items-center justify-center relative overflow-hidden">
             {/* Liquid overlay inner element */}
-            <div className="absolute inset-[2px] bg-[#050508] rounded-full flex items-center justify-center">
-              <Film className="w-3.5 h-3.5 text-white/90 group-hover:scale-110 transition-transform duration-300" />
+            <div className="absolute inset-[2px] bg-[#050508] rounded-full flex items-center justify-center overflow-hidden">
+              {siteSettings.logo_img_url ? (
+                <img 
+                  src={siteSettings.logo_img_url} 
+                  alt="Custom Logo" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Film className="w-3.5 h-3.5 text-white/90 group-hover:scale-110 transition-transform duration-300" />
+              )}
             </div>
             {/* Spinning/pulsing aura boundary */}
             <div className="absolute inset-0 bg-transparent group-hover:bg-gradient-to-tr group-hover:rotate-180 transition-all duration-700 pointer-events-none" />
