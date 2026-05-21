@@ -9,7 +9,7 @@ interface PricingSectionProps {
 }
 
 export default function PricingSection({ onSelectTier }: PricingSectionProps) {
-  const { pricingTiers = [] } = useSiteData();
+  const { pricingTiers = [], siteSettings } = useSiteData();
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
 
   const activeTier = pricingTiers[sliderIndex] || pricingTiers[0] || {
@@ -74,7 +74,11 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
   };
 
   return (
-    <section id="pricing-section" className="py-24 relative z-10 px-4 md:px-8 max-w-7xl mx-auto">
+    <section id="pricing-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 ${
+      siteSettings.website_full_width === "true" 
+        ? "max-w-none w-full" 
+        : "max-w-7xl mx-auto"
+    }`}>
       
       {/* HEADER */}
       <div className="text-center mb-16">

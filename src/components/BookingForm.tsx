@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle } from "lucide-react";
+import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle, Check } from "lucide-react";
 import { BookingSubmission } from "../types";
+import { trackEvent } from "../lib/analytics";
+import { useSiteData } from "../context/SiteDataContext";
 
 interface BookingFormProps {
   initialTier: string;
 }
 
 export default function BookingForm({ initialTier }: BookingFormProps) {
+  const { siteSettings } = useSiteData();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
@@ -17,6 +20,16 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Real-time tracking inputs
+  const [nameTouched, setNameTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [briefTouched, setBriefTouched] = useState(false);
+
+  const isNameValid = name.trim().length >= 2;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isBriefValid = brief.trim().length >= 15;
+
 
   // Synchronize initial prepopulation when user clicks pricing actions
   useEffect(() => {
@@ -34,19 +47,81 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
 
   const validate = () => {
     const errors: Record<string, string> = {};
-    if (!name.trim()) errors.name = "Synthesizer ID or Name is required";
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) errors.email = "Please supply a valid communication mail address";
-    if (!brief.trim() || brief.length < 15) errors.brief = "Please expand your details to at least 15 characters";
+    setNameTouched(true);
+    setEmailTouched(true);
+    setBriefTouched(true);
+
+    if (!isNameValid) {
+      errors.name = "Synthesizer ID or Name is required (minimum 2 letters)";
+    }
+    if (!isEmailValid) {
+      errors.email = "Please supply a valid communication mail address";
+    }
+    if (!isBriefValid) {
+      errors.brief = "Please expand your details to at least 15 characters";
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
+  const optimizeBriefWithAI = async () => {
+    if (!brief.trim()) return;
+    setIsOptimizing(true);
+    trackEvent("click", "Triggered AI Brief Optimization", { length: brief.length });
+    try {
+      const res = await fetch("/api/gemini/optimize-brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief }),
+      });
+      const data = await res.json();
+      if (data.text) {
+        setBrief(data.text);
+        trackEvent("click", "AI Brief Optimizer returned enriched contents", { previousLength: brief.length, nextLength: data.text.length });
+      } else {
+        console.error("AI error response", data);
+      }
+    } catch (e) {
+      console.error("Failed to call brief optimizer API:", e);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    trackEvent("click", "Booking Form submit button clicked", { name, email, tier: selectedTier });
+    if (!validate()) {
+      trackEvent("click", "Booking Form submit interrupted by validation block");
+      return;
+    }
 
     setIsSubmitting(true);
     
+    try {
+      const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
+      const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+      const newSubmission = {
+        id: `sub-${Date.now()}`,
+        name: name.trim(),
+        company: company.trim() || "Independent Venturer",
+        email: email.trim(),
+        brief: brief.trim(),
+        budget: budget,
+        selectedTier: selectedTier,
+        submitted_at: new Date().toISOString(),
+        status: "Pending"
+      };
+      submissionsList.push(newSubmission);
+      localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
+      trackEvent("click", "Booking proposal successfully compiled & logged with local store", { id: newSubmission.id, selectedTier });
+    } catch (err) {
+      console.error("Failed to commit booking submission state:", err);
+    }
+
     // Simulate high fidelity digital ingestion pipeline
     setTimeout(() => {
       setIsSubmitting(false);
@@ -63,7 +138,11 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   };
 
   return (
-    <section id="booking-section" className="py-24 relative z-10 px-4 md:px-8 max-w-4xl mx-auto">
+    <section id="booking-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 ${
+      siteSettings.website_full_width === "true" 
+        ? "max-w-6xl w-full" 
+        : "max-w-4xl mx-auto"
+    }`}>
       
       {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#E6C687]/5 rounded-full filter blur-[100px] pointer-events-none" />
@@ -93,20 +172,29 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
             
             {/* NAME / INTAKER */}
             <div className="flex flex-col relative">
-              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1">
-                Your Identity / Name *
+              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1 flex items-center justify-between">
+                <span>Your Identity / Name *</span>
+                {nameTouched && (
+                  isNameValid ? (
+                    <span className="text-emerald-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
+                  ) : (
+                    <span className="text-red-400 text-[9px]">Identity Empty</span>
+                  )
+                )}
               </label>
               <input
                 type="text"
                 value={name}
                 id="input-name"
+                onBlur={() => setNameTouched(true)}
                 onChange={(e) => {
                   setName(e.target.value);
+                  setNameTouched(true);
                   if (formErrors.name) setFormErrors({ ...formErrors, name: "" });
                 }}
                 placeholder="e.g. Cassian Andor"
                 className={`bg-transparent outline-none border-b ${
-                  formErrors.name ? "border-red-500" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                  nameTouched && !isNameValid ? "border-red-500 text-red-100 placeholder-red-800" : nameTouched && isNameValid ? "border-emerald-500/50 focus:border-emerald-500 focus:shadow-[0_1px_0_0_#10B981]" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
                 } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
               />
               {formErrors.name && (
@@ -138,20 +226,29 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
             
             {/* EMAIL */}
             <div className="flex flex-col relative">
-              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1">
-                Communication Mail *
+              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1 flex items-center justify-between">
+                <span>Communication Mail *</span>
+                {emailTouched && (
+                  isEmailValid ? (
+                    <span className="text-emerald-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
+                  ) : (
+                    <span className="text-red-400 text-[9px]">Check format</span>
+                  )
+                )}
               </label>
               <input
                 type="email"
                 value={email}
                 id="input-email"
+                onBlur={() => setEmailTouched(true)}
                 onChange={(e) => {
                   setEmail(e.target.value);
+                  setEmailTouched(true);
                   if (formErrors.email) setFormErrors({ ...formErrors, email: "" });
                 }}
                 placeholder="e.g. cassian@bhakty.net"
                 className={`bg-transparent outline-none border-b ${
-                  formErrors.email ? "border-red-500" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                  emailTouched && !isEmailValid ? "border-red-500 text-red-100 placeholder-red-800" : emailTouched && isEmailValid ? "border-emerald-500/50 focus:border-emerald-500 focus:shadow-[0_1px_0_0_#10B981]" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
                 } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
               />
               {formErrors.email && (
@@ -209,21 +306,32 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
             </div>
 
             {/* PROJECT BRIEF */}
-            <div className="flex flex-col relative">
-              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1">
-                Project Dimensional Brief *
+            <div className="flex flex-col relative font-sans">
+              <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1 flex items-center justify-between">
+                <span>Project Dimensional Brief *</span>
+                {brief.length > 0 && (
+                  brief.length < 15 ? (
+                    <span className="text-amber-500 text-[9px]">Need {15 - brief.length} more chars</span>
+                  ) : brief.length < 60 ? (
+                    <span className="text-emerald-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
+                  ) : (
+                    <span className="text-purple-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
+                  )
+                )}
               </label>
               <textarea
                 value={brief}
                 id="input-brief"
+                onBlur={() => setBriefTouched(true)}
                 onChange={(e) => {
                   setBrief(e.target.value);
+                  setBriefTouched(true);
                   if (formErrors.brief) setFormErrors({ ...formErrors, brief: "" });
                 }}
                 rows={4}
                 placeholder="Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction..."
                 className={`bg-transparent outline-none border-b ${
-                  formErrors.brief ? "border-red-500" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                  briefTouched && !isBriefValid ? "border-red-500 text-red-150 placeholder-red-800" : briefTouched && isBriefValid ? "border-emerald-500/50 focus:border-emerald-500 focus:shadow-[0_1px_0_0_#10B981]" : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
                 } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base resize-none`}
               />
               {formErrors.brief ? (
@@ -232,9 +340,24 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                   {formErrors.brief}
                 </div>
               ) : (
-                <span className="text-[10px] text-gray-500 font-mono mt-1 text-right flex items-center justify-between">
-                  <span>Minimum criteria: 15 chars</span>
-                  <span>{brief.length} chars</span>
+                <span className="text-[10px] text-gray-500 font-mono mt-1 flex items-center justify-between w-full">
+                  <span>Minimum criteria: 15 chars ({brief.length} active)</span>
+                  <button
+                    type="button"
+                    disabled={isOptimizing || brief.trim().length === 0}
+                    onClick={optimizeBriefWithAI}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-purple-500/20 hover:border-purple-500/60 rounded-lg text-[#E6C687] hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
+                  >
+                    {isOptimizing ? (
+                      <>
+                        <Sparkles className="w-3 h-3 animate-pulse text-[#E6C687]" /> Optimizing Brief...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3 text-purple-400" /> Optimize is AI-assisted
+                      </>
+                    )}
+                  </button>
                 </span>
               )}
             </div>

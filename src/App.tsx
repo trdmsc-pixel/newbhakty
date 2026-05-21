@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu } from "lucide-react";
+import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu, Palette, Sliders } from "lucide-react";
 import BackgroundGradients from "./components/BackgroundGradients";
 import Navbar from "./components/Navbar";
 import ShowcaseGrid from "./components/ShowcaseGrid";
@@ -10,10 +10,17 @@ import InteractiveParticles from "./components/InteractiveParticles";
 import AdminPanel from "./components/AdminPanel";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
+import { trackEvent, initializeMockAnalytics } from "./lib/analytics";
+import { getActiveTheme, WEB_THEMES } from "./lib/themes";
+
 
 function AppContent() {
   const [selectedTier, setSelectedTier] = useState<string>("");
-  const { siteSettings, isLoading } = useSiteData();
+  const { siteSettings, isLoading, updateSiteSetting } = useSiteData();
+  const [showThemePanel, setShowThemePanel] = useState(false);
+
+  // Dynamic Theme
+  const theme = getActiveTheme(siteSettings.website_theme);
 
   // Simple and ultra-resilient single-page router state
   const [path, setPath] = useState(window.location.pathname);
@@ -31,6 +38,34 @@ function AppContent() {
       window.removeEventListener("hashchange", handleLocationChange);
     };
   }, []);
+
+  useEffect(() => {
+    initializeMockAnalytics();
+    
+    // Set up dynamic IntersectionObserver for targeting sections of landing experience
+    const trackedSections = ["hero-section", "work-section", "pricing-section", "booking-section"];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          trackEvent("scroll", `Section viewed: ${entry.target.id}`, { ratio: Math.round(entry.intersectionRatio * 100) });
+        }
+      });
+    }, { threshold: 0.15 });
+
+    // Delay observer start slightly to make sure page elements are fully mounted
+    const delayObserve = setTimeout(() => {
+      trackedSections.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+    }, 1200);
+
+    return () => {
+      clearTimeout(delayObserve);
+      observer.disconnect();
+    };
+  }, []);
+
 
   const navigate = (to: string) => {
     if (to.startsWith("#")) {
@@ -80,7 +115,7 @@ function AppContent() {
   }
 
   return (
-    <div className="relative min-h-screen font-sans selection:bg-[#E6C687]/30 selection:text-white overflow-hidden pb-16">
+    <div className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-colors duration-500 overflow-hidden pb-16 md:pl-64`}>
       
       {/* 2-3 MASSIVE SMOOTH GRADIENT BULBS */}
       <BackgroundGradients />
@@ -91,7 +126,11 @@ function AppContent() {
       {/* HERO SECTION CONTAINER */}
       <section 
         id="hero-section" 
-        className="relative pt-36 pb-20 md:py-40 md:px-12 px-6 max-w-7xl mx-auto flex flex-col items-center justify-between gap-16 lg:flex-row rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl"
+        className={`relative pt-36 pb-20 md:py-40 md:px-12 px-6 flex flex-col items-center justify-center text-center gap-16 rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl transition-all duration-500 ${
+          siteSettings.website_full_width === "true" 
+            ? "max-w-none w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] mx-4 md:mx-8" 
+            : "max-w-7xl mx-auto"
+        }`}
       >
         {/* Soft Looping background video or image centered in hero */}
         <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
@@ -120,11 +159,11 @@ function AppContent() {
         {/* Dynamic mouse-reactive interactive particles overlay */}
         <InteractiveParticles />
 
-        {/* HERO LEFT: TEXTS */}
+        {/* HERO CONTENT: CENTERED TEXTS & STATS */}
         <motion.div 
-          className="w-full lg:w-3/5 text-left flex flex-col items-start relative z-10"
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
+          className="w-full max-w-3xl text-center flex flex-col items-center relative z-10"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
           {/* Subtle micro identifier */}
@@ -135,22 +174,25 @@ function AppContent() {
 
           <h1 className="font-display font-light text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.05] text-white max-w-2xl mb-8">
             {siteSettings.hero_title_1 || "The Next Epoch"} <br />
-            <span className="italic font-serif text-[#E6C687] text-6xl sm:text-7xl md:text-8xl font-normal">
+            <span className="italic font-serif text-[#E6C687] text-6xl sm:text-7xl md:text-8xl font-normal block my-1">
               {siteSettings.hero_title_2 || "of Cinema."}
-            </span> <br />
+            </span>
             {siteSettings.hero_title_3 || "Synthesized."}
           </h1>
 
-          <p className="text-gray-400 text-sm md:text-base mb-8 max-w-lg leading-relaxed font-light">
+          <p className="text-gray-400 text-sm md:text-base mb-8 max-w-lg leading-relaxed font-light mx-auto">
             {siteSettings.hero_description || "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media."}
           </p>
 
           {/* CALL TO ACTION BUTTON BAR */}
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
             {/* Main squishy booking trigger button */}
             <motion.button
               id="hero-cta-booking"
-              onClick={() => scrollToSection("booking-section")}
+              onClick={() => {
+                trackEvent("click", "CTA: Book Creative Spot clicked");
+                scrollToSection("booking-section");
+              }}
               whileHover={{ 
                 scale: 1.03,
                 transition: { type: "spring", stiffness: 350, damping: 10 }
@@ -169,7 +211,10 @@ function AppContent() {
             {/* Showcase guide navigation */}
             <button
               id="hero-cta-work"
-              onClick={() => scrollToSection("work-section")}
+              onClick={() => {
+                trackEvent("click", "CTA: Explore Curation clicked");
+                scrollToSection("work-section");
+              }}
               className="px-6 py-4 rounded-2xl glass-panel-light text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold font-display tracking-tight text-sm border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Compass className="w-4 h-4 text-gray-400" />
@@ -178,7 +223,7 @@ function AppContent() {
           </div>
 
           {/* SOCIAL PROOF STATS */}
-          <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md font-sans">
+          <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md font-sans mx-auto">
             <div>
               <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
                 {siteSettings.hero_stat1_value || "400+"}
@@ -203,81 +248,6 @@ function AppContent() {
                 {siteSettings.hero_stat3_label || "Physical Camera"}
               </span>
             </div>
-          </div>
-        </motion.div>
-
-        {/* HERO RIGHT: DYNAMIC COMPOSITED PREVIEW SCREEN */}
-        <motion.div 
-          className="w-full lg:w-2/5 flex items-center justify-center relative mt-8 lg:mt-0 z-10"
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.9, delay: 0.15 }}
-        >
-          {/* Subtle outer neon ring */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#4A36B3]/20 via-transparent to-[#E6C687]/20 rounded-3xl blur-2xl pointer-events-none" />
-
-          {/* Floating showcase card */}
-          <div className="glass-panel rounded-3xl p-4 w-full max-w-[420px] aspect-[4/5] relative border border-white/15 flex flex-col justify-between shadow-2xl overflow-hidden shadow-black/80">
-            
-            {/* Absolute background looping background for aesthetic depth */}
-            <div className="absolute inset-0 z-0 opacity-70">
-              {(!siteSettings.hero_video_bg_url || !siteSettings.hero_video_bg_url.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
-                <video
-                  src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover rounded-3xl"
-                />
-              ) : (
-                <img
-                  src={siteSettings.hero_video_bg_url}
-                  alt="Studio Background Preview"
-                  className="w-full h-full object-cover rounded-3xl"
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/60" />
-            </div>
-
-            {/* COMPOSITED OVERLAY TEXT & BRANDING */}
-            <div className="relative z-10 flex justify-between items-start">
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-mono text-white/95">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                DSD-04 RENDER LOOP
-              </div>
-              <div className="text-[10px] font-mono text-white/60 text-right bg-black/40 px-2 py-0.5 rounded border border-white/5">
-                SEC_COORDS // 482813
-              </div>
-            </div>
-
-            {/* ART PIECE SPECIFICATIONS BEZEL */}
-            <div className="relative z-10">
-              <div className="text-xs uppercase font-mono tracking-widest text-[#E6C687] bg-black/80 px-3 py-1 rounded-md border border-white/5 inline-block mb-3">
-                bhakty design labs
-              </div>
-              
-              <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-2">
-                Quantum Flow V4
-              </h3>
-              
-              <p className="text-gray-300 text-xs font-light leading-relaxed mb-4">
-                Interactive motion loop demonstrating dynamic particle density under localized AI friction triggers.
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-gray-400 bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/5">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-gray-500 uppercase text-[8px]">Resolution</span>
-                  <span className="text-white font-medium">3840 x 2160 pixels</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-gray-500 uppercase text-[8px]">Frame rate</span>
-                  <span className="text-[#E6C687] font-medium">60.00 FPS (Locked)</span>
-                </div>
-              </div>
-            </div>
-
           </div>
         </motion.div>
 
@@ -306,15 +276,34 @@ function AppContent() {
       <BookingForm initialTier={selectedTier} />
 
       {/* THE BRANDED FOOTER PANEL */}
-      <footer className="mt-20 border-t border-white/10 pt-12 max-w-7xl mx-auto px-4 md:px-8 relative z-10">
+      <footer className={`mt-20 border-t border-white/10 pt-12 px-4 md:px-8 relative z-10 transition-all duration-500 ${
+        siteSettings.website_full_width === "true" 
+          ? "max-w-none w-full" 
+          : "max-w-7xl mx-auto"
+      }`}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-10 pb-6 border-b border-white/5">
           
           <div className="text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-2.5 mb-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-amber-300 to-violet-500" />
-              <span className="font-display font-medium text-lg text-white tracking-tight">bhakty.studio</span>
+              {siteSettings.logo_img_url ? (
+                <img 
+                  src={siteSettings.logo_img_url} 
+                  alt="Footer Logo" 
+                  className="object-contain"
+                  style={{
+                    height: "28px",
+                    width: "auto"
+                  }}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <>
+                  <div className="w-6 h-6 rounded bg-gradient-to-r from-amber-300 to-violet-500" />
+                  <span className="font-display font-medium text-lg text-white tracking-tight">bhakty.studio</span>
+                </>
+              )}
             </div>
-            <p className="text-gray-500 text-xs max-w-sm">
+            <p className="text-gray-500 text-xs max-w-sm mt-1">
               Premium computational visualizers translating neural dimensions to pristine cinema assets.
             </p>
           </div>
@@ -350,6 +339,49 @@ function AppContent() {
           </div>
         </div>
       </footer>
+
+      {/* FLOATING QUICK THEME SWITCHER OVERLAY */}
+      <div className="fixed bottom-6 left-6 z-45">
+        <button
+          onClick={() => setShowThemePanel(!showThemePanel)}
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full backdrop-blur-md bg-black/80 hover:bg-black border border-white/10 hover:border-[#E6C687]/65 text-xs font-semibold text-white/95 shadow-2xl transition-all cursor-pointer"
+        >
+          <Palette className={`w-4 h-4 text-[#E6C687] ${showThemePanel ? "rotate-90 animate-pulse" : ""} transition-transform duration-300`} />
+          Theme Selector
+        </button>
+
+        {showThemePanel && (
+          <div className="absolute bottom-14 left-0 mt-2 p-2 bg-[#0d0d15] border border-white/10 rounded-2xl shadow-2xl w-64 max-h-80 overflow-y-auto z-50 text-left font-sans space-y-1">
+            <h4 className="text-[10px] font-mono uppercase text-gray-500 p-2 border-b border-white/5 flex justify-between items-center">
+              <span>Dynamic Website Themes</span>
+              <span className="text-[8px] bg-[#E6C687]/15 text-[#E6C687] px-1.5 py-0.5 rounded font-bold font-mono">10 DECORATIONS</span>
+            </h4>
+            
+            <div className="py-1 max-h-56 overflow-y-auto">
+              {WEB_THEMES.map((t) => {
+                const isActive = (siteSettings.website_theme || "obsidian_cyber") === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      updateSiteSetting("website_theme", t.id);
+                      trackEvent("click", `Theme switched: ${t.name}`);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      isActive 
+                        ? "bg-[#E6C687]/15 text-white border border-[#E6C687]/30" 
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                    }`}
+                  >
+                    <span className="truncate">{t.name}</span>
+                    <span className={`w-2 h-2 rounded-full ${t.type === 'dark' ? 'bg-indigo-500' : 'bg-amber-400'}`} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
     </div>
   );

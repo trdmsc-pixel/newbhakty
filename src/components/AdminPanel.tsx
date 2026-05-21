@@ -8,8 +8,13 @@ import BackgroundGradients from "./BackgroundGradients";
 import { 
   Lock, Settings, Compass, HelpCircle, 
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
-  Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle
+  Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle,
+  Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
+  Palette, Sliders
 } from "lucide-react";
+
+import { WEB_THEMES, getActiveTheme } from "../lib/themes";
+import AnalyticsDashboard from "./AnalyticsDashboard";
 
 export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => void }) {
   const {
@@ -27,6 +32,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     deleteMediaAsset,
   } = useSiteData();
 
+  const theme = getActiveTheme(siteSettings.website_theme);
   const toast = useToast();
 
   // Authentication State
@@ -52,14 +58,106 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics">("settings");
   const [saveStatus, setSaveStatus] = useState<{ [tab: string]: "idle" | "saving" | "saved" | "error" }>({
     settings: "idle",
     navigation: "idle",
     portfolio: "idle",
     pricing: "idle",
     assets: "idle",
+    submissions: "idle",
+    analytics: "idle",
   });
+
+  // Undo / Redo stacks
+  const [settingsHistory, setSettingsHistory] = useState<any[]>([]);
+  const [settingsFuture, setSettingsFuture] = useState<any[]>([]);
+
+  const [menuHistory, setMenuHistory] = useState<any[]>([]);
+  const [menuFuture, setMenuFuture] = useState<any[]>([]);
+
+  const [worksHistory, setWorksHistory] = useState<any[]>([]);
+  const [worksFuture, setWorksFuture] = useState<any[]>([]);
+
+  const [pricingHistory, setPricingHistory] = useState<any[]>([]);
+  const [pricingFuture, setPricingFuture] = useState<any[]>([]);
+
+  // Drag-and-drop targets
+  const [dragOverIdxMenu, setDragOverIdxMenu] = useState<number | null>(null);
+  const [dragOverIdxWorks, setDragOverIdxWorks] = useState<number | null>(null);
+
+  // Creative Intake (Form Submissions) State
+  const [submissionsList, setSubmissionsList] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_form_submissions");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [analyzingSubId, setAnalyzingSubId] = useState<string | null>(null);
+  const [submissionAnalyses, setSubmissionAnalyses] = useState<Record<string, string>>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_submission_analyses");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // AI Video Synthesizer States
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [videoAspect, setVideoAspect] = useState("landscape");
+  const [isSynthesizingVideo, setIsSynthesizingVideo] = useState(false);
+  const [videoSynthProgress, setVideoSynthProgress] = useState(0);
+  const [synthesizedVideoUrl, setSynthesizedVideoUrl] = useState("");
+  const [synthesizedTags, setSynthesizedTags] = useState<string[]>([]);
+
+  const updateSubmissionStatus = (id: string, newStatus: string) => {
+    const updated = submissionsList.map((sub: any) => 
+      sub.id === id ? { ...sub, status: newStatus } : sub
+    );
+    setSubmissionsList(updated);
+    localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+    toast.success(`Brief status successfully updated to: ${newStatus}`);
+  };
+
+  const deleteSubmission = (id: string) => {
+    const updated = submissionsList.filter((sub: any) => sub.id !== id);
+    setSubmissionsList(updated);
+    localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+    toast.success("Ingestion record removed from register.");
+  };
+
+  const runIntakeAIAnalysis = async (sub: any) => {
+    setAnalyzingSubId(sub.id);
+    try {
+      const res = await fetch("/api/gemini/analyze-brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brief: sub.brief,
+          company: sub.company,
+          selectedTier: sub.selectedTier
+        })
+      });
+      const data = await res.json();
+      if (data.text) {
+        const nextAnalyses = { ...submissionAnalyses, [sub.id]: data.text };
+        setSubmissionAnalyses(nextAnalyses);
+        localStorage.setItem("bhakty_submission_analyses", JSON.stringify(nextAnalyses));
+        toast.success("AI Synthesis Blueprint compiled successfully.");
+      } else {
+        toast.error("Could not obtain AI briefing recommendations.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Ingestion analysis error: ${e.message}`);
+    } finally {
+      setAnalyzingSubId(null);
+    }
+  };
 
   // ----------------------------------------------------
   // TAB 5: GLOBAL ASSETS STATE & HANDLERS (Cloudinary Uploaders)
@@ -69,6 +167,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [newAssetUrl, setNewAssetUrl] = useState("");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetType, setNewAssetType] = useState("image");
+
 
   // Show selected file and configure default name/type before upload in Assets
   const handleAssetFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,6 +269,117 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // ----------------------------------------------------
+  // HISTORICAL UNDO / REDO MANAGEMENTS
+  // ----------------------------------------------------
+  const recordSettingsHistory = (pivotState = editSettings) => {
+    setSettingsHistory(prev => {
+      const nextHistory = [...prev, JSON.parse(JSON.stringify(pivotState))];
+      if (nextHistory.length > 30) nextHistory.shift();
+      return nextHistory;
+    });
+    setSettingsFuture([]);
+  };
+
+  const triggerSettingsUndo = () => {
+    if (settingsHistory.length === 0) return;
+    const previous = settingsHistory[settingsHistory.length - 1];
+    setSettingsFuture(prev => [JSON.parse(JSON.stringify(editSettings)), ...prev]);
+    setSettingsHistory(prev => prev.slice(0, prev.length - 1));
+    setEditSettings(previous);
+    toast.success("Settings change reverted.");
+  };
+
+  const triggerSettingsRedo = () => {
+    if (settingsFuture.length === 0) return;
+    const next = settingsFuture[0];
+    setSettingsHistory(prev => [...prev, JSON.parse(JSON.stringify(editSettings))]);
+    setSettingsFuture(prev => prev.slice(1));
+    setEditSettings(next);
+    toast.success("Settings change re-applied.");
+  };
+
+  const recordMenuHistory = (pivotState = editMenu) => {
+    setMenuHistory(prev => {
+      const nextHistory = [...prev, JSON.parse(JSON.stringify(pivotState))];
+      if (nextHistory.length > 30) nextHistory.shift();
+      return nextHistory;
+    });
+    setMenuFuture([]);
+  };
+
+  const triggerMenuUndo = () => {
+    if (menuHistory.length === 0) return;
+    const previous = menuHistory[menuHistory.length - 1];
+    setMenuFuture(prev => [JSON.parse(JSON.stringify(editMenu)), ...prev]);
+    setMenuHistory(prev => prev.slice(0, prev.length - 1));
+    setEditMenu(previous);
+    toast.success("Navigation menu reverted.");
+  };
+
+  const triggerMenuRedo = () => {
+    if (menuFuture.length === 0) return;
+    const next = menuFuture[0];
+    setMenuHistory(prev => [...prev, JSON.parse(JSON.stringify(editMenu))]);
+    setMenuFuture(prev => prev.slice(1));
+    setEditMenu(next);
+    toast.success("Navigation menu re-applied.");
+  };
+
+  const recordWorksHistory = (pivotState = editWorks) => {
+    setWorksHistory(prev => {
+      const nextHistory = [...prev, JSON.parse(JSON.stringify(pivotState))];
+      if (nextHistory.length > 30) nextHistory.shift();
+      return nextHistory;
+    });
+    setWorksFuture([]);
+  };
+
+  const triggerWorksUndo = () => {
+    if (worksHistory.length === 0) return;
+    const previous = worksHistory[worksHistory.length - 1];
+    setWorksFuture(prev => [JSON.parse(JSON.stringify(editWorks)), ...prev]);
+    setWorksHistory(prev => prev.slice(0, prev.length - 1));
+    setEditWorks(previous);
+    toast.success("Portfolio work state reverted.");
+  };
+
+  const triggerWorksRedo = () => {
+    if (worksFuture.length === 0) return;
+    const next = worksFuture[0];
+    setWorksHistory(prev => [...prev, JSON.parse(JSON.stringify(editWorks))]);
+    setWorksFuture(prev => prev.slice(1));
+    setEditWorks(next);
+    toast.success("Portfolio work state re-applied.");
+  };
+
+  const recordPricingHistory = (pivotState = editPricing) => {
+    setPricingHistory(prev => {
+      const nextHistory = [...prev, JSON.parse(JSON.stringify(pivotState))];
+      if (nextHistory.length > 30) nextHistory.shift();
+      return nextHistory;
+    });
+    setPricingFuture([]);
+  };
+
+  const triggerPricingUndo = () => {
+    if (pricingHistory.length === 0) return;
+    const previous = pricingHistory[pricingHistory.length - 1];
+    setPricingFuture(prev => [JSON.parse(JSON.stringify(editPricing)), ...prev]);
+    setPricingHistory(prev => prev.slice(0, prev.length - 1));
+    setEditPricing(previous);
+    toast.success("Pricing tiers state reverted.");
+  };
+
+  const triggerPricingRedo = () => {
+    if (pricingFuture.length === 0) return;
+    const next = pricingFuture[0];
+    setPricingHistory(prev => [...prev, JSON.parse(JSON.stringify(editPricing))]);
+    setPricingFuture(prev => prev.slice(1));
+    setEditPricing(next);
+    toast.success("Pricing tiers state re-applied.");
+  };
+
+  // ----------------------------------------------------
   // TAB 1: SITE SITE SETTINGS CONFIGURATION
   // ----------------------------------------------------
   const [editSettings, setEditSettings] = useState({ ...siteSettings });
@@ -204,6 +414,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const addMenuItem = () => {
+    recordMenuHistory();
     const newItem: NavigationMenuItem = {
       id: `menu-new-${Date.now()}`,
       label: "New section",
@@ -214,6 +425,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const deleteMenuItem = (id: string) => {
+    recordMenuHistory();
     setEditMenu(prev => prev.filter(item => item.id !== id).map((item, idx) => ({ ...item, display_order: idx + 1 })));
   };
 
@@ -240,6 +452,38 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // Portfolio explicit upload states
   const [selectedPortfolioFiles, setSelectedPortfolioFiles] = useState<{ [workId: string]: File | null }>({});
   const [isUploadingPortfolioId, setIsUploadingPortfolioId] = useState<string | null>(null);
+  const [isSuggestingTagsId, setIsSuggestingTagsId] = useState<string | null>(null);
+
+  const runSuggestTagsAI = async (work: VideoBlock) => {
+    setIsSuggestingTagsId(work.id);
+    try {
+      const res = await fetch("/api/gemini/suggest-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: work.title,
+          category: work.category,
+          description: work.description
+        })
+      });
+      const data = await res.json();
+      if (data.tags && Array.isArray(data.tags)) {
+        recordWorksHistory();
+        const updated = editWorks.map(item => 
+          item.id === work.id ? { ...item, tags: data.tags } : item
+        );
+        setEditWorks(updated);
+        toast.success("AI suggested tags generated and applied!");
+      } else {
+        toast.error("Could not obtain AI tags suggestions.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`AI integration error: ${e.message}`);
+    } finally {
+      setIsSuggestingTagsId(null);
+    }
+  };
 
   const handleWorkChange = (id: string, field: keyof VideoBlock, value: any) => {
     setEditWorks(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -270,6 +514,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     toast.info("Uploading video track to Cloudinary CDN...");
 
     try {
+      recordWorksHistory();
       const uploadedUrl = await uploadToCloudinary(file);
       handleWorkChange(workId, "videoUrl", uploadedUrl);
       handleWorkChange(workId, "highResVideoUrl", uploadedUrl);
@@ -284,6 +529,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const addWorkItem = () => {
+    recordWorksHistory();
     const newItem: VideoBlock = {
       id: `work-new-${Date.now()}`,
       title: "New Motion Piece",
@@ -301,13 +547,115 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const deleteWorkItem = (id: string) => {
+    recordWorksHistory();
     setEditWorks(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleAIVideoSynthesis = async () => {
+    if (!videoPrompt.trim()) {
+      toast.error("Please enter a custom video prompt description first.");
+      return;
+    }
+    setIsSynthesizingVideo(true);
+    setVideoSynthProgress(5);
+    setSynthesizedVideoUrl("");
+    
+    try {
+      // 1) Trigger endpoint
+      const res = await fetch("/api/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: videoPrompt.trim(),
+          aspectRatio: videoAspect === "landscape" ? "16:9" : videoAspect === "portrait" ? "9:16" : "1:1",
+          duration: "5s"
+        })
+      });
+      
+      if (!res.ok) throw new Error("Synthesis initialization failed");
+      const initData = await res.json();
+      const taskId = initData.taskId;
+      
+      if (initData.fallback && initData.message) {
+        toast.info(initData.message);
+      }
+      
+      // 2) Poll status every 2 seconds
+      let pollIndex = 0;
+      const pollInterval = setInterval(async () => {
+        pollIndex++;
+        // Simulate a smooth progress bar
+        setVideoSynthProgress(prev => {
+          const limit = pollIndex * 15;
+          return prev < limit ? Math.min(prev + 12, 95) : prev;
+        });
+
+        try {
+          const statusRes = await fetch(`/api/video-status?taskId=${taskId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.status === "completed") {
+              clearInterval(pollInterval);
+              setVideoSynthProgress(100);
+              setTimeout(() => {
+                setSynthesizedVideoUrl(statusData.videoUrl);
+                setSynthesizedTags(statusData.tags || ["Generative", "Veo AI"]);
+                setIsSynthesizingVideo(false);
+                toast.success("AI Cinematic clip synthesized successfully!");
+              }, 600);
+            } else if (statusData.status === "failed") {
+              clearInterval(pollInterval);
+              setIsSynthesizingVideo(false);
+              toast.error("AI synthesis process interrupted.");
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch task progress status:", e);
+        }
+
+        // Failsafe timeout
+        if (pollIndex > 30) {
+          clearInterval(pollInterval);
+          setIsSynthesizingVideo(false);
+          toast.error("Synthesis task timed out.");
+        }
+      }, 2000);
+      
+    } catch (err: any) {
+      toast.error(err?.message || "AI Video generation failure.");
+      setIsSynthesizingVideo(false);
+    }
+  };
+
+  const commitSynthesizedVideo = () => {
+    if (!synthesizedVideoUrl) return;
+    recordWorksHistory();
+    const newItem: VideoBlock = {
+      id: `work-ai-${Date.now()}`,
+      title: "AI Synthesis: " + (videoPrompt.trim().slice(0, 18) || "Veo") + "...",
+      category: "Generative AI Preview",
+      videoUrl: synthesizedVideoUrl,
+      highResVideoUrl: synthesizedVideoUrl,
+      description: videoPrompt.trim(),
+      creator: "bhakty.veo-ai",
+      duration: "0:05",
+      ratio: videoAspect,
+      aspectRatioClass: videoAspect === "landscape" ? "aspect-video md:col-span-2" : "aspect-square md:col-span-1",
+      tags: synthesizedTags.length > 0 ? synthesizedTags : ["Generative", "DeepMind", "Veo"]
+    };
+    
+    setEditWorks(prev => [newItem, ...prev]);
+    toast.success("AI video asset successfully injected to your active Portfolio list!");
+    // Clear synth inputs
+    setVideoPrompt("");
+    setSynthesizedVideoUrl("");
   };
 
   const moveWorkItem = (index: number, direction: "up" | "down") => {
     const newIndex = direction === "up" ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= editWorks.length) return;
 
+    recordWorksHistory();
     const updated = [...editWorks];
     const temp = updated[index];
     updated[index] = updated[newIndex];
@@ -350,6 +698,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const addFeature = (id: string) => {
+    recordPricingHistory();
     setEditPricing(prev => prev.map(item => {
       if (item.id === id) {
         return { ...item, deliverables: [...item.deliverables, "New deliverable scope"] };
@@ -359,6 +708,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const deleteFeature = (id: string, index: number) => {
+    recordPricingHistory();
     setEditPricing(prev => prev.map(item => {
       if (item.id === id) {
         return { ...item, deliverables: item.deliverables.filter((_, idx) => idx !== index) };
@@ -454,7 +804,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   }
 
   return (
-    <div className="min-h-screen bg-[#050508] text-white flex flex-col pt-24 pb-16 px-4 md:px-8 relative">
+    <div className={`min-h-screen ${theme.style.bodyBg} flex flex-col pt-24 pb-16 px-4 md:px-8 relative transition-colors duration-500`}>
       <BackgroundGradients />
 
       <div className="max-w-7xl w-full mx-auto relative z-10">
@@ -565,6 +915,42 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Upload className="w-4 h-4" /> Global Assets Manager
             </button>
 
+            <button
+              onClick={() => setActiveTab("submissions")}
+              className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-medium transition-all ${
+                activeTab === "submissions"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4" /> 
+                <span className="truncate">Creative Intake Entries</span>
+              </div>
+              {(() => {
+                const pendingCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
+                if (pendingCount > 0) {
+                  return (
+                    <span className="shrink-0 ml-2 bg-red-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "analytics"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" /> Real-time Analytics Board
+            </button>
+
             {/* QUICK SCHEMA INST INSTRUCTIONS */}
             <div className="pt-6 mt-6 border-t border-white/5">
               <div className="glass-panel p-4 rounded-2xl text-xs space-y-2.5">
@@ -586,20 +972,44 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 1: SITE SETTINGS */}
               {activeTab === "settings" && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-                    <h2 className="font-display font-medium text-xl text-white">
-                      Global Text Copy & Hero Configuration
-                    </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Global Text Copy & Hero Configuration
+                      </h2>
+                      
+                      {/* Undo / Redo controls */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                        <button
+                          type="button"
+                          onClick={triggerSettingsUndo}
+                          disabled={settingsHistory.length === 0}
+                          title="Undo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerSettingsRedo}
+                          disabled={settingsFuture.length === 0}
+                          title="Redo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Redo className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                     <button
                       onClick={saveSettings}
                       disabled={saveStatus.settings === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
                     >
                       <Save className="w-4 h-4" /> Synchronize settings
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onFocusCapture={() => recordSettingsHistory()}>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Video Background Source (Looping)</label>
                       <input
@@ -734,6 +1144,148 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
+                    {/* BRAND / PARAMS: NAVIGATION LOGO STYLING */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <h3 className="text-sm font-semibold text-gray-300 font-display mb-3">Logo Appearance Attributes (Navbar logo)</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Logo URL Resource Link</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_img_url || ""}
+                            onChange={(e) => handleSettingChange("logo_img_url", e.target.value)}
+                            placeholder="e.g. https://domain.com/logo.png"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo Width (e.g. auto, 120px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_width || ""}
+                            onChange={(e) => handleSettingChange("logo_width", e.target.value)}
+                            placeholder="auto"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo Height (e.g. 36px, 48px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_height || ""}
+                            onChange={(e) => handleSettingChange("logo_height", e.target.value)}
+                            placeholder="36px"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Mobile Logo Width (e.g. auto, 80px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_width_mobile || ""}
+                            onChange={(e) => handleSettingChange("logo_width_mobile", e.target.value)}
+                            placeholder="auto"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Mobile Logo Height (e.g. 24px, 32px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_height_mobile || ""}
+                            onChange={(e) => handleSettingChange("logo_height_mobile", e.target.value)}
+                            placeholder="28px"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo CSS Padding (e.g. 0px, 4px 8px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.logo_padding || ""}
+                            onChange={(e) => handleSettingChange("logo_padding", e.target.value)}
+                            placeholder="0px"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* INTERACTIVE WEBSITE THEME SWITCHER TABLE */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Palette className="w-4 h-4 text-[#E6C687]" />
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Active Global Website Theme</h3>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+                        {WEB_THEMES.map((themeOption) => {
+                          const isCurrent = (editSettings.website_theme || "obsidian_cyber") === themeOption.id;
+                          return (
+                            <button
+                              key={themeOption.id}
+                              type="button"
+                              onClick={() => {
+                                handleSettingChange("website_theme", themeOption.id);
+                                toast.info(`Applied preview theme: ${themeOption.name}`);
+                              }}
+                              className={`p-3.5 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                                isCurrent 
+                                  ? "bg-[#E6C687]/15 border-[#E6C687] text-white" 
+                                  : "bg-black/40 border-white/5 hover:border-white/20 text-gray-400 hover:text-white"
+                              }`}
+                            >
+                              <span className="font-mono text-[9px] uppercase tracking-widest text-[#E6C687] opacity-80">
+                                {themeOption.type}
+                              </span>
+                              <span className="text-xs font-semibold truncate w-full">{themeOption.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* FULL WIDTH OPTION */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sliders className="w-4 h-4 text-[#E6C687]" />
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Website Dimension Configuration</h3>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                        Control the maximum stretching limits of page blocks. Full-width mode allows all curated sections to scale to the complete outer margins of your client viewer without overlaying or interfering with the navigation bars.
+                      </p>
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSettingChange("website_full_width", "false");
+                            toast.info("Switched to Default Moderate Width spacing (max 1280px / 7xl).");
+                          }}
+                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                            (editSettings.website_full_width !== "true")
+                              ? "bg-[#E6C687] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          Default Moderate (7xl Max Width)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSettingChange("website_full_width", "true");
+                            toast.info("Switched website layout to Full Width Cinematic stretch mode.");
+                          }}
+                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                            (editSettings.website_full_width === "true")
+                              ? "bg-[#E6C687] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          Cinematic Full Width (Edge-to-Edge)
+                        </button>
+                      </div>
+                    </div>
+
+
                   </div>
                 </div>
               )}
@@ -741,34 +1293,92 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 2: NAVIGATION */}
               {activeTab === "navigation" && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-                    <h2 className="font-display font-medium text-xl text-white">
-                      Navigation Link Anchors
-                    </h2>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={addMenuItem}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" /> Add Item
-                      </button>
-                      <button
-                        onClick={saveMenu}
-                        disabled={saveStatus.navigation === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
-                      >
-                        <Save className="w-4 h-4" /> Synchronize menu
-                      </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Navigation Link Anchors
+                      </h2>
+                      
+                      {/* Undo / Redo controls */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                        <button
+                          type="button"
+                          onClick={triggerMenuUndo}
+                          disabled={menuHistory.length === 0}
+                          title="Undo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerMenuRedo}
+                          disabled={menuFuture.length === 0}
+                          title="Redo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Redo className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <button
+                         onClick={addMenuItem}
+                         className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
+                       >
+                         <Plus className="w-4 h-4" /> Add Item
+                       </button>
+                       <button
+                         onClick={saveMenu}
+                         disabled={saveStatus.navigation === "saving"}
+                         className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
+                       >
+                         <Save className="w-4 h-4" /> Synchronize menu
+                       </button>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <p className="text-xs text-gray-500 font-mono italic">
+                    💡 Drag items using any container spot to intuitively arrange their priority list rank, or use typing focus to record restore states.
+                  </p>
+
+                  <div 
+                    className="space-y-4" 
+                    onFocusCapture={() => recordMenuHistory()}
+                  >
                     {editMenu.map((item, index) => (
                       <div 
                         key={item.id}
-                        className="flex flex-col md:flex-row items-center gap-4 bg-black/30 border border-white/5 rounded-2xl p-4"
+                        draggable="true"
+                        onDragStart={(e) => {
+                          recordMenuHistory();
+                          e.dataTransfer.setData("text/plain", index.toString());
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverIdxMenu(index);
+                        }}
+                        onDragEnd={() => setDragOverIdxMenu(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                          if (!isNaN(sourceIdx) && sourceIdx !== index) {
+                            const updated = [...editMenu];
+                            const [removed] = updated.splice(sourceIdx, 1);
+                            updated.splice(index, 0, removed);
+                            setEditMenu(updated.map((u, i) => ({ ...u, display_order: i + 1 })));
+                            toast.success("Navigation order rearranged.");
+                          }
+                          setDragOverIdxMenu(null);
+                        }}
+                        className={`flex flex-col md:flex-row items-center gap-4 border p-4 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
+                          dragOverIdxMenu === index 
+                            ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
+                            : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.02]"
+                        }`}
                       >
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2.5 shrink-0 select-none">
+                          <GripVertical className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" />
                           <span className="text-xs font-mono text-gray-500">0{index + 1}</span>
                         </div>
 
@@ -795,7 +1405,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                         <button
                           onClick={() => deleteMenuItem(item.id)}
-                          className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10 hover:border-red-500/30 text-red-400 hover:text-red-300 mt-4 md:mt-0 transition-colors shrink-0"
+                          className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10 hover:border-red-500/30 text-red-400 hover:text-red-300 mt-4 md:mt-0 transition-colors shrink-0 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -809,11 +1419,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 3: PORTFOLIO WORKS */}
               {activeTab === "portfolio" && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-                    <h2 className="font-display font-medium text-xl text-white">
-                      Portfolio motion Artifacts Manager
-                    </h2>
-                    <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Portfolio motion Artifacts Manager
+                      </h2>
+                      
+                      {/* Undo / Redo controls */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                        <button
+                          type="button"
+                          onClick={triggerWorksUndo}
+                          disabled={worksHistory.length === 0}
+                          title="Undo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerWorksRedo}
+                          disabled={worksFuture.length === 0}
+                          title="Redo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Redo className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={addWorkItem}
                         className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
@@ -830,20 +1464,54 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <p className="text-xs text-gray-500 font-mono italic">
+                    💡 Drag work blocks using their background bounds to arrange showcase grids, or use typing focus to track automatic restore points.
+                  </p>
+
+                  <div 
+                    className="space-y-6"
+                    onFocusCapture={() => recordWorksHistory()}
+                  >
                     {editWorks.map((work, index) => (
                       <div 
                         key={work.id}
-                        className="bg-black/30 border border-white/5 rounded-2xl p-4 md:p-6 space-y-4"
+                        draggable="true"
+                        onDragStart={(e) => {
+                          recordWorksHistory();
+                          e.dataTransfer.setData("text/plain", index.toString());
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverIdxWorks(index);
+                        }}
+                        onDragEnd={() => setDragOverIdxWorks(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                          if (!isNaN(sourceIdx) && sourceIdx !== index) {
+                            const updated = [...editWorks];
+                            const [removed] = updated.splice(sourceIdx, 1);
+                            updated.splice(index, 0, removed);
+                            setEditWorks(updated);
+                            toast.success("Portfolio artifact order adjusted.");
+                          }
+                          setDragOverIdxWorks(null);
+                        }}
+                        className={`border p-4 md:p-6 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 space-y-4 ${
+                          dragOverIdxWorks === index 
+                            ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
+                            : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.01]"
+                        }`}
                       >
                         {/* Title bar with drag handles */}
                         <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 select-none">
+                            <GripVertical className="w-4 h-4 text-gray-500" />
                             <span className="text-xs font-mono text-[#E6C687] font-semibold">Artifact 0{index + 1}</span>
                             <span className="text-sm font-medium text-gray-300">{work.title}</span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 select-none">
                             <button
                               onClick={() => moveWorkItem(index, "up")}
                               disabled={index === 0}
@@ -860,7 +1528,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             </button>
                             <button
                               onClick={() => deleteWorkItem(work.id)}
-                              className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors ml-2"
+                              className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors ml-2 cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -890,7 +1558,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           </div>
 
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Tags (Comma Separated)</label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[10px] font-mono uppercase text-gray-500">Tags (Comma Separated)</label>
+                              <button
+                                type="button"
+                                disabled={isSuggestingTagsId === work.id}
+                                onClick={() => runSuggestTagsAI(work)}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40"
+                              >
+                                {isSuggestingTagsId === work.id ? (
+                                  <>
+                                    <Sparkles className="w-3 h-3 animate-spin text-[#E6C687]" /> Auto suggesting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <BrainCircuit className="w-3 h-3 text-purple-400" /> AI Tag Generator
+                                  </>
+                                )}
+                              </button>
+                            </div>
                             <input
                               type="text"
                               value={work.tags.join(", ")}
@@ -996,10 +1682,34 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 4: PRICING PACKAGES */}
               {activeTab === "pricing" && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-                    <h2 className="font-display font-medium text-xl text-white">
-                      Production Pricing packages
-                    </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Production Pricing packages
+                      </h2>
+                      
+                      {/* Undo / Redo controls */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                        <button
+                          type="button"
+                          onClick={triggerPricingUndo}
+                          disabled={pricingHistory.length === 0}
+                          title="Undo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerPricingRedo}
+                          disabled={pricingFuture.length === 0}
+                          title="Redo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Redo className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                     <button
                       onClick={savePricing}
                       disabled={saveStatus.pricing === "saving"}
@@ -1009,7 +1719,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </button>
                   </div>
 
-                  <div className="space-y-8">
+                  <div 
+                    className="space-y-8"
+                    onFocusCapture={() => recordPricingHistory()}
+                  >
                     {editPricing.map((tier) => (
                       <div 
                         key={tier.id}
@@ -1147,7 +1860,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 5: GLOBAL ASSETS MANAGER */}
               {activeTab === "assets" && (
                 <div className="space-y-8">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
                     <div>
                       <h2 className="font-display font-medium text-xl text-white">
                         Global Assets Library
@@ -1156,6 +1869,44 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         Upload media fragments or reference external URLs, then select which targets to populate.
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setSaveStatus(prev => ({ ...prev, assets: "saving" }));
+                        toast.info("Synchronizing and safeguarding assets pipeline...");
+                        
+                        setTimeout(async () => {
+                          try {
+                            if (editSettings.hero_video_bg_url) {
+                              await updateSiteSetting("hero_video_bg_url", editSettings.hero_video_bg_url);
+                            }
+                            if (editSettings.logo_img_url) {
+                              await updateSiteSetting("logo_img_url", editSettings.logo_img_url);
+                            }
+                            setSaveStatus(prev => ({ ...prev, assets: "saved" }));
+                            toast.success("Assets synchronized safely & CDN cache updated.");
+                            setTimeout(() => setSaveStatus(prev => ({ ...prev, assets: "idle" })), 2000);
+                          } catch (e: any) {
+                            setSaveStatus(prev => ({ ...prev, assets: "error" }));
+                            toast.error("Synchronize error. Re-try in a brief moment.");
+                          }
+                        }, 800);
+                      }}
+                      disabled={saveStatus.assets === "saving"}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
+                    >
+                      {saveStatus.assets === "saving" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Synchronizing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Synchronize Assets</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   {/* ACTIVE CONFIGURATION ROLES */}
@@ -1356,6 +2107,138 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* TAB 6: CREATIVE INTAKE SUBMISSIONS */}
+              {activeTab === "submissions" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                    <div>
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Creative Intake Submissions
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Review high fidelity inquiries, manage pipeline progress, and invoke Gemini AI to generate conceptual orchestration analysis.
+                      </p>
+                    </div>
+                    <span className="text-xs text-purple-400 font-mono bg-purple-500/5 border border-purple-500/20 px-3 py-1.5 rounded-xl">
+                      Axiom Engine Online
+                    </span>
+                  </div>
+
+                  {submissionsList.length === 0 ? (
+                    <div className="text-center py-12 bg-black/20 border border-white/5 rounded-2xl p-8">
+                      <FileText className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                      <h3 className="text-sm font-semibold text-white">No entries registered yet</h3>
+                      <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto leading-relaxed font-light">
+                        Inbound client brief configurations from the booking portal will organize instantly under this registry block.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {submissionsList.map((sub, sIdx) => (
+                        <div 
+                          key={sub.id || sIdx}
+                          className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-5 hover:border-white/10 transition-all duration-300 pointer-events-auto"
+                        >
+                          {/* Client Detail Ribbon */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-display font-bold text-base text-white">{sub.fullName}</h3>
+                                {sub.company && (
+                                  <span className="text-[10px] font-mono text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/15 px-2 py-0.5 rounded-lg">
+                                    {sub.company}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs font-mono text-gray-500 mt-0.5">{sub.email} • {sub.createdAt ? new Date(sub.createdAt).toLocaleString() : "Date Unknown"}</p>
+                            </div>
+
+                            {/* Status Updater */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono uppercase text-gray-500">Pipeline:</span>
+                              <select
+                                value={sub.status || "Pending"}
+                                onChange={(e) => updateSubmissionStatus(sub.id, e.target.value)}
+                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[#E6C687] focus:outline-none"
+                              >
+                                <option value="Pending">Pending Audit</option>
+                                <option value="Reviewed">Under Review</option>
+                                <option value="In Dialogue">In Dialogue</option>
+                                <option value="Project Active">Project Active</option>
+                                <option value="Discarded">Archived</option>
+                              </select>
+
+                              <button
+                                onClick={() => deleteSubmission(sub.id)}
+                                className="p-1.5 rounded-lg bg-red-500/5 border border-red-500/10 text-red-100 hover:text-red-300 cursor-pointer"
+                                title="Delete entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Details Content Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="md:col-span-2 space-y-2">
+                              <h4 className="text-[10px] font-mono uppercase text-gray-500">Project Brief Synopsis</h4>
+                              <div className="bg-[#11111c]/50 border border-white/5 p-4 rounded-xl text-xs md:text-sm text-gray-300 leading-relaxed max-h-[160px] overflow-y-auto whitespace-pre-wrap font-light">
+                                {sub.brief}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              {/* Selected Package Info */}
+                              <div className="space-y-1 bg-white/[0.02] border border-white/5 p-3 rounded-xl">
+                                <h4 className="text-[10px] font-mono uppercase text-gray-500">Selected package rate</h4>
+                                <p className="text-xs font-semibold text-white mt-0.5">{sub.selectedTier || "Custom Inquiring / Discovery"}</p>
+                              </div>
+
+                              {/* AI synthesis action */}
+                              <button
+                                type="button"
+                                disabled={analyzingSubId === sub.id}
+                                onClick={() => runIntakeAIAnalysis(sub)}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 transition-all font-sans font-semibold text-xs cursor-pointer disabled:opacity-40"
+                              >
+                                {analyzingSubId === sub.id ? (
+                                  <>
+                                    <Sparkles className="w-4 h-4 animate-spin text-[#E6C687]" /> Compiling synthesis...
+                                  </>
+                                ) : (
+                                  <>
+                                    <BrainCircuit className="w-4 h-4 text-purple-400 animate-pulse" /> AI Orchestration blueprint
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* AI analysis response */}
+                          {submissionAnalyses[sub.id] && (
+                            <div className="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-5 space-y-3">
+                              <div className="flex items-center gap-2 text-xs font-mono text-[#E6C687] border-b border-purple-500/15 pb-2">
+                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                <span className="uppercase tracking-widest font-semibold">Gemini Ingestion Assessment Plan</span>
+                              </div>
+                              <p className="text-xs text-purple-100 font-sans leading-relaxed whitespace-pre-wrap font-light">
+                                {submissionAnalyses[sub.id]}
+                              </p>
+                            </div>
+                          )}
+
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 7: REAL-TIME ANALYTICS REPORT BOARD */}
+              {activeTab === "analytics" && (
+                <AnalyticsDashboard />
               )}
 
             </div>

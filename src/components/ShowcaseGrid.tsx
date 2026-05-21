@@ -3,12 +3,18 @@ import { motion, AnimatePresence } from "motion/react";
 import { Play, X, User, Clock, Tag, Volume2, Info, Share2 } from "lucide-react";
 import { VideoBlock } from "../types";
 import { useSiteData } from "../context/SiteDataContext";
+import { useToast } from "../context/ToastContext";
+import { trackEvent } from "../lib/analytics";
 
 export default function ShowcaseGrid() {
-  const { portfolioWorks } = useSiteData();
+  const { portfolioWorks, siteSettings } = useSiteData();
+  const toast = useToast();
   const [selectedVideo, setSelectedVideo] = useState<VideoBlock | null>(null);
+
   const [isHoveredId, setIsHoveredId] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("All Projects");
+  const [loadingVideos, setLoadingVideos] = useState<Record<string, boolean>>({});
+  const [modalVideoLoading, setModalVideoLoading] = useState(true);
 
   const categories = ["All Projects", "AI Commercial", "Sci-Fi Cinematic", "Motion Art", "Concept Stage"];
 
@@ -17,7 +23,11 @@ export default function ShowcaseGrid() {
     : portfolioWorks.filter(v => v.category.includes(selectedTab));
 
   return (
-    <section id="work-section" className="py-24 relative z-10 px-4 md:px-8 max-w-7xl mx-auto">
+    <section id="work-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 ${
+      siteSettings.website_full_width === "true" 
+        ? "max-w-none w-full" 
+        : "max-w-7xl mx-auto"
+    }`}>
       
       {/* SECTION HEADER */}
       <div className="text-center mb-16">
@@ -58,7 +68,10 @@ export default function ShowcaseGrid() {
           <button
             key={category}
             id={`filter-tab-${category.toLowerCase().replace(/\s+/g, '-')}`}
-            onClick={() => setSelectedTab(category)}
+            onClick={() => {
+              setSelectedTab(category);
+              trackEvent("click", "Portfolio Filter Tab clicked", { category });
+            }}
             className={`px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300 ${
               selectedTab === category
                 ? "bg-white text-black shadow-lg shadow-white/10"
@@ -88,9 +101,15 @@ export default function ShowcaseGrid() {
                 scale: 1.03,
                 transition: { type: "spring", stiffness: 150, damping: 12 }
               }}
-              onHoverStart={() => setIsHoveredId(video.id)}
+              onHoverStart={() => {
+                setIsHoveredId(video.id);
+                trackEvent("video_play", `Video hover simulation initiated: ${video.title}`, { creator: video.creator });
+              }}
               onHoverEnd={() => setIsHoveredId(null)}
-              onClick={() => setSelectedVideo(video)}
+              onClick={() => {
+                setSelectedVideo(video);
+                trackEvent("click", `Portfolio video modal context opened: ${video.title}`, { id: video.id });
+              }}
               className={`group relative overflow-hidden rounded-2xl glass-panel shadow-xl cursor-all-scroll ${video.aspectRatioClass}`}
             >
               
@@ -102,9 +121,27 @@ export default function ShowcaseGrid() {
                   muted
                   loop
                   playsInline
+                  onContextMenu={(e) => e.preventDefault()}
+                  onLoadStart={() => setLoadingVideos(prev => ({ ...prev, [video.id]: true }))}
+                  onCanPlay={() => setLoadingVideos(prev => ({ ...prev, [video.id]: false }))}
+                  onPlaying={() => setLoadingVideos(prev => ({ ...prev, [video.id]: false }))}
                   className="w-full h-full object-cover opacity-80 group-hover:scale-[1.04] transition-transform duration-1000 ease-out"
                 />
               </div>
+
+              {/* VIDEO CARD LOADING OVERLAY */}
+              {loadingVideos[video.id] && (
+                <div className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-[#050508]/65 backdrop-blur-xs">
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full border border-[#E6C687]/20 border-t-[#E6C687] animate-spin" />
+                    <div className="absolute w-10 h-10 rounded-full border border-[#E6C687]/5 animate-ping" />
+                  </div>
+                  <span className="text-[8px] font-mono uppercase tracking-widest text-[#E6C687] mt-2.5 animate-pulse">
+                    Rendering Stream
+                  </span>
+                </div>
+              )}
+
 
               {/* OVERLAY GRADIENTS */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent z-10 transition-opacity duration-300 group-hover:opacity-90" />
@@ -189,9 +226,28 @@ export default function ShowcaseGrid() {
                   src={selectedVideo.highResVideoUrl}
                   autoPlay
                   controls
+                  controlsList="nodownload"
+                  onContextMenu={(e) => e.preventDefault()}
                   playsInline
+                  disablePictureInPicture
+                  onLoadStart={() => setModalVideoLoading(true)}
+                  onCanPlay={() => setModalVideoLoading(false)}
+                  onPlaying={() => setModalVideoLoading(false)}
                   className="w-full h-full object-contain"
                 />
+
+                {/* MODAL BUFFERING LOAD STATE */}
+                {modalVideoLoading && (
+                  <div className="absolute inset-0 z-40 bg-[#050508]/90 flex flex-col items-center justify-center">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full border border-violet-500/20 border-t-[#E6C687] animate-spin" />
+                      <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-b-violet-500 animate-spin [animation-duration:1.5s]" />
+                    </div>
+                    <span className="text-[10px] font-mono tracking-widest text-[#E6C687] uppercase mt-4 animate-pulse">
+                      BUFFERING TEMPORAL FLOW...
+                    </span>
+                  </div>
+                )}
                 
                 {/* Direct audio watermark note */}
                 <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm border border-white/10 px-3 py-1 rounded-md text-[10px] font-mono text-[#E6C687]/90 flex items-center gap-1">
@@ -282,25 +338,16 @@ export default function ShowcaseGrid() {
                 >
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(selectedVideo.videoUrl);
-                      alert("Stream URL copied to clipboard!");
-                    }}
-                    className="flex-1 py-2.5 rounded-xl glass-panel-light hover:bg-white/10 text-white font-medium text-xs font-display flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/5"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    Copy Stream
-                  </button>
-                  <button
-                    onClick={() => {
                       const signup = document.getElementById("booking-section");
                       setSelectedVideo(null);
+                      trackEvent("click", "Acquire License clicked", { title: selectedVideo.title, category: selectedVideo.category });
                       if (signup) {
                         setTimeout(() => {
                           signup.scrollIntoView({ behavior: "smooth" });
                         }, 200);
                       }
                     }}
-                    className="flex-[1.2] py-2.5 rounded-xl bg-white text-black hover:bg-[#E6C687] transition-all duration-300 font-semibold text-xs font-display flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-white text-black hover:bg-[#E6C687] transition-all duration-300 font-semibold text-xs font-display flex items-center justify-center gap-2 cursor-pointer"
                   >
                     Acquire License
                   </button>

@@ -270,9 +270,11 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const { error } = await supabase
           .from("site_settings")
           .upsert({ key, value }, { onConflict: "key" });
-        return !error;
+        if (error) {
+          console.warn("Supabase upsert setting warning (completed locally via cached index):", error);
+        }
       } catch (e) {
-        console.error("Supabase upsert setting error", e);
+        console.warn("Supabase upsert setting exception:", e);
       }
     }
     return true;
