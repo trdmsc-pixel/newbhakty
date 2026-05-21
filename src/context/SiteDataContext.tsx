@@ -14,18 +14,33 @@ export interface SiteSettings {
   [key: string]: string;
 }
 
+export interface MediaAsset {
+  id: string;
+  filename: string;
+  url: string;
+  cloudinary_public_id?: string;
+  mime_type?: string;
+  file_size?: number;
+  width?: number;
+  height?: number;
+  tags: string[];
+}
+
 interface SiteDataContextProps {
   isLoading: boolean;
   siteSettings: SiteSettings;
   navigationMenu: NavigationMenuItem[];
   portfolioWorks: VideoBlock[];
   pricingTiers: PricingTier[];
+  mediaAssets: MediaAsset[];
   isUsingSupabase: boolean;
   refreshAllData: () => Promise<void>;
   updateSiteSetting: (key: string, value: string) => Promise<boolean>;
   updateNavigationMenu: (menuItems: NavigationMenuItem[]) => Promise<boolean>;
   updatePortfolioWorks: (works: VideoBlock[]) => Promise<boolean>;
   updatePricingTiers: (tiers: PricingTier[]) => Promise<boolean>;
+  addMediaAsset: (asset: Omit<MediaAsset, "id">) => Promise<MediaAsset | null>;
+  deleteMediaAsset: (id: string) => Promise<boolean>;
 }
 
 const SiteDataContext = createContext<SiteDataContextProps | undefined>(undefined);
@@ -54,12 +69,30 @@ const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
   { id: "menu-packages", label: "Production Tiers", target_url: "pricing-section", display_order: 2 }
 ];
 
+const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
+  {
+    id: "default-asset-1",
+    filename: "Deep Space Particle Loop",
+    url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
+    mime_type: "video/mp4",
+    tags: ["video", "background"]
+  },
+  {
+    id: "default-asset-2",
+    filename: "Studio Aura Cover Image",
+    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+    mime_type: "image/jpeg",
+    tags: ["image", "cover"]
+  }
+];
+
 export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
   const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(DEFAULT_NAVIGATION_MENU);
   const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(DEFAULT_MEDIA_ASSETS);
 
   // Load from Supabase or LocalStorage cache
   const loadData = async (silent = false) => {
@@ -90,6 +123,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           .from("pricing_tiers")
           .select("*")
           .order("display_order", { ascending: true });
+
+        // Fetch Media Assets
+        const { data: assetsData, error: assetsError } = await supabase
+          .from("media_assets")
+          .select("*")
+          .order("created_at", { ascending: false });
 
         if (!settingsError && settingsData) {
           const settingsObj: SiteSettings = {};
@@ -137,6 +176,21 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setPricingTiers(mappedTiers);
         }
 
+        if (!assetsError && assetsData && assetsData.length > 0) {
+          const mappedAssets: MediaAsset[] = assetsData.map((a) => ({
+            id: a.id,
+            filename: a.filename,
+            url: a.url,
+            cloudinary_public_id: a.cloudinary_public_id || undefined,
+            mime_type: a.mime_type || undefined,
+            file_size: a.file_size || undefined,
+            width: a.width || undefined,
+            height: a.height || undefined,
+            tags: Array.isArray(a.tags) ? a.tags : []
+          }));
+          setMediaAssets(mappedAssets);
+        }
+
         success = true;
       } catch (err) {
         console.warn("Could not load from Supabase database tables. Falling back to local storage.", err);
@@ -163,6 +217,11 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const cachedPricing = localStorage.getItem("bhakty_pricing_tiers");
       if (cachedPricing) {
         try { setPricingTiers(JSON.parse(cachedPricing)); } catch {}
+      }
+
+      const cachedAssets = localStorage.getItem("bhakty_media_assets");
+      if (cachedAssets) {
+        try { setMediaAssets(JSON.parse(cachedAssets)); } catch {}
       }
     }
 
@@ -298,6 +357,97 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   };
 
+  // 5. ADD MEDIA ASSET
+  const addMediaAsset = async (asset: Omit<MediaAsset, "id">): Promise<MediaAsset | null> => {
+    const tempId = `asset-${Date.now()}`;
+    const newAsset: MediaAsset = { id: tempId, ...asset };
+
+    // Optimistic update
+    setMediaAssets(prev => [newAsset, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("media_assets")
+          .insert({
+            filename: asset.filename,
+            url: asset.url,
+            cloudinary_public_id: asset.cloudinary_public_id || null,
+            mime_type: asset.mime_type || null,
+            file_size: asset.file_size || null,
+            width: asset.width || null,
+            height: asset.height || null,
+            tags: asset.tags || [],
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Supabase insert media_asset error:", error);
+          // Rollback optimistic update
+          setMediaAssets(prev => prev.filter(a => a.id !== tempId));
+          return null;
+        }
+
+        // Replace temp ID with real Supabase ID
+        const realAsset: MediaAsset = {
+          id: data.id,
+          filename: data.filename,
+          url: data.url,
+          cloudinary_public_id: data.cloudinary_public_id || undefined,
+          mime_type: data.mime_type || undefined,
+          file_size: data.file_size || undefined,
+          width: data.width || undefined,
+          height: data.height || undefined,
+          tags: Array.isArray(data.tags) ? data.tags : [],
+        };
+        setMediaAssets(prev => prev.map(a => a.id === tempId ? realAsset : a));
+
+        // Also sync localStorage
+        const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
+        localStorage.setItem("bhakty_media_assets", JSON.stringify([realAsset, ...currentAssets]));
+
+        return realAsset;
+      } catch (e) {
+        console.error("Error adding media asset:", e);
+        setMediaAssets(prev => prev.filter(a => a.id !== tempId));
+        return null;
+      }
+    }
+
+    // LocalStorage fallback
+    const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
+    localStorage.setItem("bhakty_media_assets", JSON.stringify([newAsset, ...currentAssets]));
+    return newAsset;
+  };
+
+  // 6. DELETE MEDIA ASSET
+  const deleteMediaAsset = async (id: string): Promise<boolean> => {
+    // Optimistic update
+    setMediaAssets(prev => prev.filter(a => a.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.from("media_assets").delete().eq("id", id);
+        if (error) {
+          console.error("Supabase delete media_asset error:", error);
+          // Reload to restore state
+          await loadData(true);
+          return false;
+        }
+      } catch (e) {
+        console.error("Error deleting media asset:", e);
+        await loadData(true);
+        return false;
+      }
+    }
+
+    // LocalStorage sync
+    const currentAssets = JSON.parse(localStorage.getItem("bhakty_media_assets") || "[]");
+    localStorage.setItem("bhakty_media_assets", JSON.stringify(currentAssets.filter((a: any) => a.id !== id)));
+    return true;
+  };
+
   return (
     <SiteDataContext.Provider
       value={{
@@ -306,12 +456,15 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         navigationMenu,
         portfolioWorks,
         pricingTiers,
+        mediaAssets,
         isUsingSupabase: isSupabaseConfigured,
         refreshAllData,
         updateSiteSetting,
         updateNavigationMenu,
         updatePortfolioWorks,
         updatePricingTiers,
+        addMediaAsset,
+        deleteMediaAsset,
       }}
     >
       {children}

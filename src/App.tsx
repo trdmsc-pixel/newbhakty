@@ -354,10 +354,14 @@ function AppContent() {
   );
 }
 
+import { ToastProvider } from "./components/ToastNotification";
+
 export default function App() {
   return (
     <SiteDataProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </SiteDataProvider>
   );
 }
