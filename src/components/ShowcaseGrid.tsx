@@ -135,20 +135,19 @@ export default function ShowcaseGrid() {
 
       {/* PORTFOLIO GRID */}
       <motion.div
-        layout
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 min-h-[300px]"
       >
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="wait">
           {filteredWorks.map((work) => {
             const isImage = work.type === "image";
             return (
               <motion.div
-                layout
                 key={work.id}
                 id={`portfolio-card-${work.id}`}
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
                 whileHover={{
                   scale: 1.02,
                   transition: { type: "spring", stiffness: 150, damping: 12 },
@@ -164,7 +163,7 @@ export default function ShowcaseGrid() {
                   setSelectedWork(work);
                   trackEvent("click", `Portfolio modal opened: ${work.title}`, { id: work.id });
                 }}
-                className={`group relative overflow-hidden rounded-2xl glass-panel shadow-xl cursor-pointer ${
+                className={`group relative overflow-hidden rounded-2xl glass-panel shadow-xl cursor-pointer portfolio-card-perf ${
                   work.aspectRatioClass || "aspect-video md:col-span-2"
                 }`}
               >

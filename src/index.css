@@ -91,3 +91,9 @@ html, body {
   animation: mesh-slow-alt 28s ease-in-out infinite;
 }
 
+/* Optimize rendering and scroll performance of portfolio grid items */
+.portfolio-card-perf {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 350px;
+}
+
