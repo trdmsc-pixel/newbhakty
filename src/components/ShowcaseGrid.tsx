@@ -337,94 +337,14 @@ export default function ShowcaseGrid() {
               {/* SIDEBAR DESCRIPTION */}
               <div className="w-full md:w-1/3 p-6 md:p-8 flex flex-col justify-between bg-[#0e0e16]/95 text-left border-t md:border-t-0 md:border-l border-white/15">
                 <div>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1, duration: 0.4 }}
-                  >
-                    <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-amber-300/90 border border-amber-300/20 bg-amber-300/5 px-2.5 py-1 rounded-md mb-4 inline-block">
-                      {selectedWork.category || (selectedWork.type === "image" ? "Static Design" : "Video")}
-                    </span>
-                  </motion.div>
-
                   <motion.h3
                     className="font-display font-medium text-2xl text-white tracking-tight mb-3"
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 100 }}
+                    transition={{ delay: 0.1, duration: 0.5, type: "spring", stiffness: 100 }}
                   >
                     {selectedWork.title}
                   </motion.h3>
-
-                  <motion.p
-                    className="text-gray-300 text-sm leading-relaxed mb-6 font-light"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                  >
-                    {selectedWork.description}
-                  </motion.p>
-
-                  {/* INFO PANEL */}
-                  <motion.div
-                    className="space-y-3.5 bg-black/35 border border-white/5 rounded-xl p-4.5 mb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400 font-light flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-gray-500" /> Lead Artist
-                      </span>
-                      <span className="text-gray-100 font-mono font-medium">
-                        {selectedWork.creator || "bhakty.synth"}
-                      </span>
-                    </div>
-
-                    {selectedWork.type === "image" ? (
-                      selectedWork.subtext && (
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400 font-light flex items-center gap-2">
-                            <Info className="w-3.5 h-3.5 text-gray-500" /> Detail
-                          </span>
-                          <span className="text-gray-100 font-mono font-medium">{selectedWork.subtext}</span>
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-400 font-light flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-gray-500" /> Loop Duration
-                        </span>
-                        <span className="text-gray-100 font-mono font-medium">{selectedWork.duration}s</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400 font-light flex items-center gap-2">
-                        <Info className="w-3.5 h-3.5 text-gray-500" /> Medium Format
-                      </span>
-                      <span className="text-[#E6C687] font-mono font-medium">
-                        {selectedWork.type === "image" ? "Lossless Raster WebP" : "Native MP4 H.264"}
-                      </span>
-                    </div>
-                  </motion.div>
-
-                  {/* SYSTEM TAGS */}
-                  <motion.div
-                    className="flex flex-wrap gap-1.5 mb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.45 }}
-                  >
-                    {(selectedWork.tags || []).map((tag, i) => (
-                      <span
-                        key={i}
-                        className="text-[10px] font-mono text-gray-400 bg-white/5 px-2.5 py-1 rounded border border-white/5"
-                      >
-                        #{tag.toLowerCase().replace(/\s+/g, "")}
-                      </span>
-                    ))}
-                  </motion.div>
                 </div>
 
                 {/* MODAL INTERACTIONS FOOTER */}
@@ -432,7 +352,7 @@ export default function ShowcaseGrid() {
                   className="pt-4 border-t border-white/5 flex gap-3"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
+                  transition={{ delay: 0.2 }}
                 >
                   <button
                     onClick={() => {
