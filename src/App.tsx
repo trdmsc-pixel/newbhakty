@@ -202,6 +202,7 @@ function AppContent() {
                 scaleX: 1.1,
                 transition: { type: "spring", stiffness: 450, damping: 14 } 
               }}
+              style={siteSettings.hero_cta_booking_color ? { backgroundColor: siteSettings.hero_cta_booking_color, backgroundImage: "none" } : undefined}
               className="px-8 py-4 bg-gradient-to-r from-[#4A36B3] to-[#7a5ce0] text-white font-semibold font-display tracking-tight text-sm rounded-2xl hover:shadow-2xl hover:shadow-[#4A36B3]/30 cursor-pointer flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-amber-200" />

@@ -202,9 +202,15 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     {tier.popular && (
-                      <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#E6C687] bg-[#E6C687]/10 px-3 py-1.5 rounded-full border border-[#E6C687]/20 flex items-center gap-1.5 mb-3.5">
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#E6C687] bg-[#E6C687]/10 px-3 py-1.5 rounded-full border border-[#E6C687]/20 flex items-center gap-1.5 mb-3.5 w-fit">
                         <Flame className="w-3 h-3 text-[#E6C687] animate-pulse" />
                         Most Recommended
+                      </span>
+                    )}
+                    {tier.discountEnabled && tier.discountText && (
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-widest bg-gradient-to-r from-amber-500/20 to-red-500/20 px-3 py-1.5 rounded-full border border-amber-500/30 text-amber-200 flex items-center gap-1.5 mb-3.5 w-fit">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping mr-0.5" />
+                        {tier.discountText}
                       </span>
                     )}
                     <div className="text-[#E6C687] font-mono text-xs font-bold tracking-widest mb-1">
@@ -224,7 +230,12 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 </p>
 
                 {/* PRICE AREA */}
-                <div className="flex items-baseline gap-2 mb-8 border-b border-white/5 pb-6">
+                <div className="flex items-baseline flex-wrap gap-2 mb-8 border-b border-white/5 pb-6">
+                  {tier.originalPrice && (
+                    <span className="text-lg md:text-xl font-mono text-gray-500 line-through mr-1 decoration-red-500/50">
+                      {tier.originalPrice}
+                    </span>
+                  )}
                   <span className="text-4xl md:text-5xl font-display font-semibold text-white tracking-tight">
                     {tier.price}
                   </span>
@@ -276,13 +287,14 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                     e.stopPropagation();
                     selectPackage(tier);
                   }}
+                  style={isActive && tier.buttonColor ? { backgroundColor: tier.buttonColor, color: '#000000', backgroundImage: 'none' } : undefined}
                   className={`w-full py-3.5 rounded-2xl font-semibold font-display tracking-tight text-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
                     isActive 
                       ? theme.button + " shadow-xl shadow-[#E6C687]/5" 
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"
                   }`}
                 >
-                  Acquire Pipeline
+                  {tier.buttonLabel || "Acquire Pipeline"}
                 </button>
               </div>
 
@@ -290,6 +302,30 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           );
         })}
       </div>
+
+      {/* NOTE PANEL */}
+      {siteSettings.pricing_note_text && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mt-16 max-w-4xl mx-auto"
+        >
+          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-purple-950/20 via-black/40 to-amber-950/10">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#E6C687]/5 rounded-full filter blur-2xl pointer-events-none" />
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#E6C687] shrink-0">
+              <Sliders className="w-6 h-6" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h4 className="text-xs font-mono font-bold tracking-widest text-[#E6C687] uppercase">Custom Scope & Integrations</h4>
+              <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-sans">
+                {siteSettings.pricing_note_text}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </section>
   );
 }

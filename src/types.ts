@@ -23,6 +23,11 @@ export interface PricingTier {
   turnaround: string;
   revisionRound: string;
   glowTheme: "saffron" | "violet" | "emerald";
+  buttonLabel?: string;
+  buttonColor?: string;
+  discountEnabled?: boolean;
+  discountText?: string;
+  originalPrice?: string;
 }
 
 export interface BookingSubmission {

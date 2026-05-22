@@ -64,6 +64,13 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_stat3_label: "Physical Camera",
   hero_video_bg_url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
   footer_copyright: "© 2026 bhakty.studio. Generative Temporal Coherence in Aesthetics.",
+  booking_form_title: "Book Creative Studio",
+  booking_form_subtitle: "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.",
+  booking_cta_text: "Request Synthesis Pipeline",
+  booking_cta_color: "",
+  pricing_note_text: "All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds.",
+  hero_cta_booking_color: "",
+  booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
 };
 
 const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
@@ -202,7 +209,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             deliverables: Array.isArray(t.features) ? t.features : JSON.parse(t.features || "[]"),
             turnaround: t.turnaround || "5 working days",
             revisionRound: t.revision_round || "2 Rounds",
-            glowTheme: (t.glow_theme as any) || "saffron"
+            glowTheme: (t.glow_theme as any) || "saffron",
+            buttonLabel: t.button_label || "",
+            buttonColor: t.button_color || "",
+            discountEnabled: t.discount_enabled || false,
+            discountText: t.discount_text || "",
+            originalPrice: t.original_price || "",
           }));
           setPricingTiers(mappedTiers);
         }
@@ -387,7 +399,11 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             period: t.period,
             popular: t.popular,
             features: t.deliverables,
-            button_label: t.name === "Short-Form Creative" ? "Acquire Creative Pipeline" : (t.name === "Full Cinematic Studio" ? "Acquire Studio spot" : "Acquire Enterprise access"),
+            button_label: t.buttonLabel || (t.name === "Short-Form Creative" ? "Acquire Creative Pipeline" : (t.name === "Full Cinematic Studio" ? "Acquire Studio spot" : "Acquire Enterprise access")),
+            button_color: t.buttonColor || "",
+            discount_enabled: t.discountEnabled || false,
+            discount_text: t.discountText || "",
+            original_price: t.originalPrice || "",
             turnaround: t.turnaround,
             revision_round: t.revisionRound,
             glow_theme: t.glowTheme,

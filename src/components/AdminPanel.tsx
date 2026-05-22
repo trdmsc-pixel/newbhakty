@@ -72,7 +72,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form">("settings");
   const [saveStatus, setSaveStatus] = useState<{ [tab: string]: "idle" | "saving" | "saved" | "error" }>({
     settings: "idle",
     navigation: "idle",
@@ -81,6 +81,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     assets: "idle",
     submissions: "idle",
     analytics: "idle",
+    intake_form: "idle",
   });
 
   // Undo / Redo stacks
@@ -127,6 +128,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [videoSynthProgress, setVideoSynthProgress] = useState(0);
   const [synthesizedVideoUrl, setSynthesizedVideoUrl] = useState("");
   const [synthesizedTags, setSynthesizedTags] = useState<string[]>([]);
+
+  // Intake Form Customization States
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [editFieldLabel, setEditFieldLabel] = useState("");
+  const [editFieldPlaceholder, setEditFieldPlaceholder] = useState("");
+  const [editFieldRequired, setEditFieldRequired] = useState(false);
+  const [editFieldOptionsText, setEditFieldOptionsText] = useState("");
+
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldType, setNewFieldType] = useState<"text" | "email" | "textarea" | "select">("text");
+  const [newFieldPlaceholder, setNewFieldPlaceholder] = useState("");
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+  const [newFieldOptionsText, setNewFieldOptionsText] = useState("");
 
   const updateSubmissionStatus = (id: string, newStatus: string) => {
     const updated = submissionsList.map((sub: any) => 
@@ -413,6 +427,164 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, settings: "error" }));
       toast.error(`Configuration synchronization failed: ${err?.message || "Unknown error"}`);
+    }
+  };
+
+  // ----------------------------------------------------
+  // TAB 8: INTAKE FORM CONFIGURATION HELPER FUNCTIONS
+  // ----------------------------------------------------
+  const getIntakeFields = (): any[] => {
+    try {
+      if (editSettings.booking_form_fields_json) {
+        return JSON.parse(editSettings.booking_form_fields_json);
+      }
+    } catch (e) {
+      console.error("Failed to parse booking_form_fields_json in AdminPanel:", e);
+    }
+    return [
+      { id: "name", label: "Your Identity / Name", type: "text", placeholder: "e.g. Cassian Andor", required: true },
+      { id: "company", label: "Company / Studio", type: "text", placeholder: "e.g. Coruscant Arts Ltd", required: false },
+      { id: "email", label: "Communication Mail", type: "email", placeholder: "e.g. cassian@bhakty.net", required: true },
+      { id: "budget", label: "Estimated Budget Bracket", type: "select", options: ["$2,000 - $5,000", "$5,000 - $10,000", "$10,000 - $25,000", "$25,000+"], required: true },
+      { id: "selected_tier", label: "Target Production Pipeline", type: "select", options: ["Short-Form Creative", "Full Cinematic Production", "Enterprise Studio Pipeline", "Custom Collaborative"], required: true },
+      { id: "brief", label: "Project Dimensional Brief", type: "textarea", placeholder: "Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...", required: true }
+    ];
+  };
+
+  const isCoreField = (id: string) => {
+    return ["name", "company", "email", "budget", "selected_tier", "brief"].includes(id);
+  };
+
+  const updateFieldsInSettings = (newFields: any[]) => {
+    setEditSettings(prev => ({
+      ...prev,
+      booking_form_fields_json: JSON.stringify(newFields)
+    }));
+  };
+
+  const handleAddIntakeField = () => {
+    if (!newFieldLabel.trim()) {
+      toast.error("Field label is required.");
+      return;
+    }
+    recordSettingsHistory();
+    const cleanId = "custom_" + newFieldLabel.toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 15) + "_" + Math.random().toString(36).substring(2, 6);
+    
+    let optionsArray: string[] = [];
+    if (newFieldType === "select") {
+      optionsArray = newFieldOptionsText.split(",").map(o => o.trim()).filter(Boolean);
+      if (optionsArray.length === 0) {
+        toast.error("Please supply at least one option for selection field.");
+        return;
+      }
+    }
+
+    const newField = {
+      id: cleanId,
+      label: newFieldLabel.trim(),
+      type: newFieldType,
+      placeholder: newFieldPlaceholder.trim(),
+      required: newFieldRequired,
+      ...(newFieldType === "select" ? { options: optionsArray } : {})
+    };
+
+    const currentFields = getIntakeFields();
+    const updated = [...currentFields, newField];
+    updateFieldsInSettings(updated);
+
+    // Reset state
+    setNewFieldLabel("");
+    setNewFieldType("text");
+    setNewFieldPlaceholder("");
+    setNewFieldRequired(false);
+    setNewFieldOptionsText("");
+    toast.success(`Custom field "${newField.label}" added to configuration list.`);
+  };
+
+  const handleDeleteIntakeField = (id: string) => {
+    if (isCoreField(id)) {
+      toast.error("Core ingestion fields cannot be deleted.");
+      return;
+    }
+    recordSettingsHistory();
+    const currentFields = getIntakeFields();
+    const updated = currentFields.filter((f: any) => f.id !== id);
+    updateFieldsInSettings(updated);
+    toast.success("Field successfully removed.");
+  };
+
+  const handleMoveIntakeField = (index: number, direction: "up" | "down") => {
+    recordSettingsHistory();
+    const currentFields = getIntakeFields();
+    const updated = [...currentFields];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= updated.length) return;
+    
+    // Swap
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    
+    updateFieldsInSettings(updated);
+  };
+
+  const handleStartEditField = (field: any) => {
+    setEditingFieldId(field.id);
+    setEditFieldLabel(field.label);
+    setEditFieldPlaceholder(field.placeholder || "");
+    setEditFieldRequired(field.required || false);
+    if (field.type === "select" && field.options) {
+      setEditFieldOptionsText(field.options.join(", "));
+    } else {
+      setEditFieldOptionsText("");
+    }
+  };
+
+  const handleSaveEditField = (id: string) => {
+    if (!editFieldLabel.trim()) {
+      toast.error("Field label cannot be empty.");
+      return;
+    }
+    recordSettingsHistory();
+    const currentFields = getIntakeFields();
+    
+    const updated = currentFields.map((f: any) => {
+      if (f.id === id) {
+        let optionsArray: string[] = [];
+        if (f.type === "select") {
+          optionsArray = editFieldOptionsText.split(",").map(o => o.trim()).filter(Boolean);
+          if (optionsArray.length === 0) {
+            toast.error("Please supply at least one option.");
+            return f;
+          }
+        }
+        return {
+          ...f,
+          label: editFieldLabel.trim(),
+          placeholder: editFieldPlaceholder.trim(),
+          required: editFieldRequired,
+          ...(f.type === "select" ? { options: optionsArray } : {})
+        };
+      }
+      return f;
+    });
+
+    updateFieldsInSettings(updated);
+    setEditingFieldId(null);
+    toast.success("Field customizations stored in staging.");
+  };
+
+  const saveIntakeFormSettings = async () => {
+    setSaveStatus(prev => ({ ...prev, intake_form: "saving" }));
+    toast.info("Synchronizing intake form configurations...");
+    try {
+      await updateMultipleSiteSettings(editSettings);
+      setSaveStatus(prev => ({ ...prev, intake_form: "saved" }));
+      toast.success("Intake form configurations successfully updated!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, intake_form: "idle" })), 3000);
+    } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, intake_form: "error" }));
+      toast.error(`Ingestion configuration synchronization failed: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -743,6 +915,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setSaveStatus(prev => ({ ...prev, pricing: "saving" }));
     toast.info("Updating production tier packages on persistence server...");
     try {
+      if (editSettings.pricing_note_text !== siteSettings.pricing_note_text) {
+        await updateSiteSetting("pricing_note_text", editSettings.pricing_note_text || "");
+      }
       const success = await updatePricingTiers(editPricing);
       if (success) {
         setSaveStatus(prev => ({ ...prev, pricing: "saved" }));
@@ -978,6 +1153,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <BarChart3 className="w-4 h-4" /> Real-time Analytics Board
             </button>
 
+            <button
+              onClick={() => setActiveTab("intake_form")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "intake_form"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <Sliders className="w-4 h-4" /> Ingestion Form Config
+            </button>
+
             {/* QUICK SCHEMA INST INSTRUCTIONS */}
             <div className="pt-6 mt-6 border-t border-white/5">
               <div className="glass-panel p-4 rounded-2xl text-xs space-y-2.5">
@@ -1105,6 +1291,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         onChange={(e) => handleSettingChange("hero_cta_booking_text", e.target.value)}
                         className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Color (HEX)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editSettings.hero_cta_booking_color || ""}
+                          onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
+                          placeholder="e.g. #E6C687"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 font-mono"
+                        />
+                        <input
+                          type="color"
+                          value={editSettings.hero_cta_booking_color && editSettings.hero_cta_booking_color.startsWith('#') && editSettings.hero_cta_booking_color.length === 7 ? editSettings.hero_cta_booking_color : "#E6C687"}
+                          onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
+                          className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                        />
+                      </div>
                     </div>
 
                     <div className="md:col-span-2">
@@ -1421,12 +1626,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           </div>
                           <div>
                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Target Element ID Link</label>
-                            <input
-                              type="text"
+                            <select
                               value={item.target_url}
                               onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[#E6C687]/40"
+                            >
+                              <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
+                              <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
+                              <option value="pricing-section" className="bg-zinc-950 text-white">Production Tiers (pricing-section)</option>
+                              <option value="booking-section" className="bg-zinc-950 text-white">Booking Portal (booking-section)</option>
+                            </select>
                           </div>
                         </div>
 
@@ -1801,11 +2010,32 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         {/* Text values */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Package Title</label>
+                            <input
+                              type="text"
+                              value={tier.name}
+                              onChange={(e) => handlePricingChange(tier.id, "name", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+
+                          <div>
                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Package Cost</label>
                             <input
                               type="text"
                               value={tier.price}
                               onChange={(e) => handlePricingChange(tier.id, "price", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Original Price (Strikethrough)</label>
+                            <input
+                              type="text"
+                              value={tier.originalPrice || ""}
+                              onChange={(e) => handlePricingChange(tier.id, "originalPrice", e.target.value)}
+                              placeholder="e.g. $2,500"
                               className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
                             />
                           </div>
@@ -1832,6 +2062,60 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <option value="saffron">Golden Saffron</option>
                               <option value="violet">Cyber Violet</option>
                             </select>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-4 md:mt-0">
+                            <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={tier.discountEnabled || false}
+                                onChange={(e) => handlePricingChange(tier.id, "discountEnabled", e.target.checked)}
+                                className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                              />
+                              Enable Discount Badge
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Discount Badge Text</label>
+                            <input
+                              type="text"
+                              disabled={!tier.discountEnabled}
+                              value={tier.discountText || ""}
+                              onChange={(e) => handlePricingChange(tier.id, "discountText", e.target.value)}
+                              placeholder="e.g. 20% OFF"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">CTA Button Label</label>
+                            <input
+                              type="text"
+                              value={tier.buttonLabel || ""}
+                              onChange={(e) => handlePricingChange(tier.id, "buttonLabel", e.target.value)}
+                              placeholder="e.g. Acquire Creative Pipeline"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">CTA Button Accent Color</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={tier.buttonColor || ""}
+                                onChange={(e) => handlePricingChange(tier.id, "buttonColor", e.target.value)}
+                                placeholder="e.g. #E6C687"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                              />
+                              <input
+                                type="color"
+                                value={tier.buttonColor && tier.buttonColor.startsWith('#') && tier.buttonColor.length === 7 ? tier.buttonColor : "#E6C687"}
+                                onChange={(e) => handlePricingChange(tier.id, "buttonColor", e.target.value)}
+                                className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                              />
+                            </div>
                           </div>
 
                           <div className="md:col-span-3">
@@ -1901,6 +2185,26 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                       </div>
                     ))}
+
+                    {/* Pricing Tier Note Panel Customize */}
+                    <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4 mt-6">
+                      <div className="border-b border-white/5 pb-3">
+                        <span className="font-display font-semibold text-lg text-white">Pricing Note Panel Description</span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This copy displays below the pricing tiers grid on the main website page.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-2">Note Panel Text</label>
+                        <textarea
+                          rows={3}
+                          value={editSettings.pricing_note_text || ""}
+                          onChange={(e) => handleSettingChange("pricing_note_text", e.target.value)}
+                          placeholder="e.g. All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds."
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 resize-none font-sans"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                 </div>
@@ -2311,6 +2615,349 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               {/* TAB 7: REAL-TIME ANALYTICS REPORT BOARD */}
               {activeTab === "analytics" && (
                 <AnalyticsDashboard />
+              )}
+
+              {/* TAB 8: CUSTOM INTAKE FORM CONFIGURATION */}
+              {activeTab === "intake_form" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div>
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Ingestion Form Customization
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Configure the layout, styling, and schema fields of the creative intake submission form.
+                      </p>
+                    </div>
+                    <button
+                      onClick={saveIntakeFormSettings}
+                      disabled={saveStatus.intake_form === "saving"}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                    >
+                      {saveStatus.intake_form === "saving" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Synchronizing...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" /> Synchronize fields
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* FORM TEXTS & HERO SETUP */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="border-b border-white/5 pb-3">
+                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Form Copy & Call-To-Action</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form Main Title</label>
+                        <input
+                          type="text"
+                          value={editSettings.booking_form_title || "Book Creative Studio"}
+                          onChange={(e) => handleSettingChange("booking_form_title", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form CTA Button Text</label>
+                        <input
+                          type="text"
+                          value={editSettings.booking_cta_text || "Request Synthesis Pipeline"}
+                          onChange={(e) => handleSettingChange("booking_cta_text", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form Subtitle Description</label>
+                        <textarea
+                          rows={2}
+                          value={editSettings.booking_form_subtitle || ""}
+                          onChange={(e) => handleSettingChange("booking_form_subtitle", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form CTA Accent Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editSettings.booking_cta_color || ""}
+                            onChange={(e) => handleSettingChange("booking_cta_color", e.target.value)}
+                            placeholder="e.g. #7a5ce0 (defaults to gradient)"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                          />
+                          <input
+                            type="color"
+                            value={editSettings.booking_cta_color && editSettings.booking_cta_color.startsWith('#') && editSettings.booking_cta_color.length === 7 ? editSettings.booking_cta_color : "#7a5ce0"}
+                            onChange={(e) => handleSettingChange("booking_cta_color", e.target.value)}
+                            className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTIVE FORM FIELDS LIST */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="border-b border-white/5 pb-3">
+                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Dynamic Fields Ingestion Schema</span>
+                      <p className="text-gray-500 text-[10px] mt-0.5">
+                        Core fields cannot be deleted or converted to different types, but labels, options, and placeholders can be fully customized.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {getIntakeFields().map((field: any, index: number) => {
+                        const isCore = isCoreField(field.id);
+                        const isEditing = editingFieldId === field.id;
+
+                        return (
+                          <div
+                            key={field.id}
+                            className="bg-black/40 border border-white/5 rounded-xl p-4 space-y-3 transition-all hover:border-white/10"
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-semibold text-white font-sans">{field.label}</span>
+                                  {field.required && (
+                                    <span className="text-[8px] font-mono bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded">
+                                      Required
+                                    </span>
+                                  )}
+                                  {isCore ? (
+                                    <span className="text-[8px] font-mono bg-[#E6C687]/10 text-[#E6C687] border border-[#E6C687]/20 px-1.5 py-0.5 rounded">
+                                      Core Ingestion ID: {field.id}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[8px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded">
+                                      Custom Ingestion ID: {field.id}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 font-mono uppercase mt-1">
+                                  Type: {field.type} {field.placeholder ? `• Placeholder: "${field.placeholder}"` : ""}
+                                </p>
+                                {field.type === "select" && field.options && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {field.options.map((opt: string) => (
+                                      <span key={opt} className="text-[9px] bg-white/5 border border-white/10 text-gray-400 px-1.5 py-0.5 rounded font-mono">
+                                        {opt}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Order buttons */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveIntakeField(index, "up")}
+                                  disabled={index === 0}
+                                  className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                                  title="Move Field Up"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveIntakeField(index, "down")}
+                                  disabled={index === getIntakeFields().length - 1}
+                                  className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                                  title="Move Field Down"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditField(field)}
+                                  className="p-1.5 text-[#E6C687] hover:text-[#fadfa8] bg-[#E6C687]/5 border border-[#E6C687]/15 rounded-lg hover:bg-[#E6C687]/10 transition-all cursor-pointer"
+                                  title="Edit Field Configuration"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteIntakeField(field.id)}
+                                  disabled={isCore}
+                                  className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/5 border border-red-500/10 rounded-lg hover:bg-red-500/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                                  title={isCore ? "Core fields cannot be deleted" : "Delete Field"}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Inline edit details block */}
+                            {isEditing && (
+                              <div className="bg-black/50 border border-amber-500/20 rounded-lg p-4 space-y-3 mt-2 animate-fadeIn">
+                                <div className="text-[10px] font-mono text-[#E6C687] uppercase border-b border-white/5 pb-1">
+                                  Modify Field Configuration
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">Field Label / Title</label>
+                                    <input
+                                      type="text"
+                                      value={editFieldLabel}
+                                      onChange={(e) => setEditFieldLabel(e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">Placeholder Text</label>
+                                    <input
+                                      type="text"
+                                      value={editFieldPlaceholder}
+                                      onChange={(e) => setEditFieldPlaceholder(e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40"
+                                    />
+                                  </div>
+
+                                  {field.type === "select" && (
+                                    <div className="md:col-span-2">
+                                      <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">
+                                        Options List (Comma-separated)
+                                      </label>
+                                      <textarea
+                                        rows={2}
+                                        value={editFieldOptionsText}
+                                        onChange={(e) => setEditFieldOptionsText(e.target.value)}
+                                        placeholder="e.g. Option A, Option B, Option C"
+                                        className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40 resize-none font-sans"
+                                      />
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={editFieldRequired}
+                                        onChange={(e) => setEditFieldRequired(e.target.checked)}
+                                        className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                                      />
+                                      Required Field
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingFieldId(null)}
+                                    className="px-3 py-1.5 bg-white/5 border border-white/10 text-gray-400 rounded-lg text-[10px] hover:text-white transition-all cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEditField(field.id)}
+                                    className="px-3 py-1.5 bg-amber-500 text-black font-semibold rounded-lg text-[10px] hover:bg-amber-400 transition-all cursor-pointer"
+                                  >
+                                    Apply Changes
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ADD CUSTOM FIELD COMPONENT */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="border-b border-white/5 pb-3">
+                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Add Custom Ingestion Field</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Field Label / Title</label>
+                        <input
+                          type="text"
+                          value={newFieldLabel}
+                          onChange={(e) => setNewFieldLabel(e.target.value)}
+                          placeholder="e.g. Targeted Release Platform"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Field Type</label>
+                        <select
+                          value={newFieldType}
+                          onChange={(e) => setNewFieldType(e.target.value as any)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40 cursor-pointer"
+                          style={{ colorScheme: "dark" }}
+                        >
+                          <option value="text">Text Input (single line)</option>
+                          <option value="email">Email Input</option>
+                          <option value="textarea">Textarea (multiple lines)</option>
+                          <option value="select">Dropdown Select Menu</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Placeholder Copy</label>
+                        <input
+                          type="text"
+                          value={newFieldPlaceholder}
+                          onChange={(e) => setNewFieldPlaceholder(e.target.value)}
+                          placeholder="e.g. YouTube, TikTok, Instagram..."
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-2">
+                        <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={newFieldRequired}
+                            onChange={(e) => setNewFieldRequired(e.target.checked)}
+                            className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                          />
+                          Make Field Required
+                        </label>
+                      </div>
+
+                      {newFieldType === "select" && (
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">
+                            Selection Options (Comma-separated)
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={newFieldOptionsText}
+                            onChange={(e) => setNewFieldOptionsText(e.target.value)}
+                            placeholder="e.g. YouTube, TikTok, Cinema Screen, Interactive App"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40 resize-none font-sans"
+                          />
+                        </div>
+                      )}
+
+                      <div className="md:col-span-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleAddIntakeField}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer ml-auto"
+                        >
+                          <PlusCircle className="w-4 h-4" /> Add Field to Staging
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
             </div>
