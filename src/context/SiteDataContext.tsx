@@ -72,6 +72,13 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   pricing_note_text: "All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds.",
   hero_cta_booking_color: "",
   hero_cta_booking_text_color: "",
+  hero_padding_top: "",
+  hero_padding_bottom: "",
+  hero_margin_top: "",
+  hero_margin_bottom: "",
+  hero_text_width: "",
+  hero_text_height: "",
+  portfolio_license_button_text: "Acquire License",
   booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
 };
 
@@ -188,14 +195,17 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             id: w.id,
             title: w.title,
             category: w.category,
-            videoUrl: w.video_url,
-            highResVideoUrl: w.high_res_video_url || w.video_url,
-            description: w.description,
+            videoUrl: w.video_url || "",
+            highResVideoUrl: w.high_res_video_url || w.video_url || "",
+            description: w.description || "",
             creator: w.creator || "bhakty.synth",
             duration: w.duration || "0:15",
             ratio: (w.ratio as any) || "landscape",
             aspectRatioClass: w.aspect_ratio_class || "aspect-video md:col-span-2",
-            tags: Array.isArray(w.tags) ? w.tags : JSON.parse(w.tags || "[]")
+            tags: Array.isArray(w.tags) ? w.tags : JSON.parse(w.tags || "[]"),
+            type: w.type || "video",
+            imageUrl: w.image_url || "",
+            subtext: w.subtext || ""
           }));
           setPortfolioWorks(mappedWorks);
         }
@@ -346,14 +356,17 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const payload: any = {
             title: w.title,
             category: w.category,
-            video_url: w.videoUrl,
-            high_res_video_url: w.highResVideoUrl,
-            description: w.description,
-            creator: w.creator,
-            duration: w.duration,
-            ratio: w.ratio,
-            aspect_ratio_class: w.aspectRatioClass,
-            tags: w.tags,
+            video_url: w.videoUrl || "",
+            high_res_video_url: w.highResVideoUrl || "",
+            description: w.description || "",
+            creator: w.creator || "bhakty.synth",
+            duration: w.duration || "0:15",
+            ratio: w.ratio || "landscape",
+            aspect_ratio_class: w.aspectRatioClass || "aspect-video md:col-span-2",
+            tags: w.tags || [],
+            type: w.type || "video",
+            image_url: w.imageUrl || "",
+            subtext: w.subtext || "",
             display_order: i + 1
           };
           let saveErr;

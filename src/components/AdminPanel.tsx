@@ -101,6 +101,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [dragOverIdxMenu, setDragOverIdxMenu] = useState<number | null>(null);
   const [dragOverIdxWorks, setDragOverIdxWorks] = useState<number | null>(null);
 
+  // Portfolio manager sub-tab: video (Motion) vs image (Static)
+  const [portfolioSubTab, setPortfolioSubTab] = useState<"video" | "image">("video");
+
   // Creative Intake (Form Submissions) State
   const [submissionsList, setSubmissionsList] = useState<any[]>(() => {
     try {
@@ -688,30 +691,39 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     if (files && files.length > 0) {
       const file = files[0];
       setSelectedPortfolioFiles(prev => ({ ...prev, [workId]: file }));
-      toast.info(`Selected: ${file.name}. Click 'Upload Video Track' button to start.`);
+      const targetWork = editWorks.find(w => w.id === workId);
+      const isImage = targetWork?.type === "image";
+      toast.info(`Selected: ${file.name}. Click 'Upload' button to start.`);
     }
   };
 
   const handlePortfolioUpload = async (workId: string) => {
     const file = selectedPortfolioFiles[workId];
     if (!file) {
-      toast.warning("Please choose a local video file first.");
+      toast.warning("Please choose a local file first.");
       return;
     }
 
+    const targetWork = editWorks.find(w => w.id === workId);
+    const isImage = targetWork?.type === "image";
+
     setIsUploadingPortfolioId(workId);
-    toast.info("Uploading video track to Cloudinary CDN...");
+    toast.info(isImage ? "Uploading image to Cloudinary CDN..." : "Uploading video track to Cloudinary CDN...");
 
     try {
       recordWorksHistory();
       const uploadedUrl = await uploadToCloudinary(file);
-      handleWorkChange(workId, "videoUrl", uploadedUrl);
-      handleWorkChange(workId, "highResVideoUrl", uploadedUrl);
+      if (isImage) {
+        handleWorkChange(workId, "imageUrl", uploadedUrl);
+      } else {
+        handleWorkChange(workId, "videoUrl", uploadedUrl);
+        handleWorkChange(workId, "highResVideoUrl", uploadedUrl);
+      }
       
       setSelectedPortfolioFiles(prev => ({ ...prev, [workId]: null }));
-      toast.success(`Track '${file.name}' successfully uploaded!`);
+      toast.success(`File '${file.name}' successfully uploaded!`);
     } catch (err: any) {
-      toast.error(`Track upload failed: ${err?.message || "Unknown error"}`);
+      toast.error(`File upload failed: ${err?.message || "Unknown error"}`);
     } finally {
       setIsUploadingPortfolioId(null);
     }
@@ -719,20 +731,41 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   const addWorkItem = () => {
     recordWorksHistory();
-    const newItem: VideoBlock = {
-      id: generateUUID(),
-      title: "New Motion Piece",
-      category: "AI Commercial / Fluid Dynamics",
-      videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4",
-      highResVideoUrl: "https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4",
-      description: "Generative media synthetics compiled organically.",
-      creator: "bhakty.synth",
-      duration: "0:15",
-      ratio: "landscape",
-      aspectRatioClass: "aspect-square md:col-span-1",
-      tags: ["Fluid Simulation", "Neural Render"]
-    };
-    setEditWorks(prev => [...prev, newItem]);
+    if (portfolioSubTab === "image") {
+      const newItem: VideoBlock = {
+        id: generateUUID(),
+        title: "New Static Work",
+        category: "Graphic Design / Brand Curation",
+        videoUrl: "",
+        highResVideoUrl: "",
+        description: "Static visual content synthesized organically.",
+        creator: "bhakty.synth",
+        duration: "",
+        ratio: "landscape",
+        aspectRatioClass: "aspect-square md:col-span-1",
+        tags: ["Static Design", "Graphic Design"],
+        type: "image",
+        imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+        subtext: "Brand identity layout"
+      };
+      setEditWorks(prev => [...prev, newItem]);
+    } else {
+      const newItem: VideoBlock = {
+        id: generateUUID(),
+        title: "New Motion Piece",
+        category: "AI Commercial / Fluid Dynamics",
+        videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4",
+        highResVideoUrl: "https://assets.mixkit.co/videos/preview/mixkit-flowing-sand-particles-and-glowing-gold-lines-48281-large.mp4",
+        description: "Generative media synthetics compiled organically.",
+        creator: "bhakty.synth",
+        duration: "0:15",
+        ratio: "landscape",
+        aspectRatioClass: "aspect-square md:col-span-1",
+        tags: ["Fluid Simulation", "Neural Render"],
+        type: "video"
+      };
+      setEditWorks(prev => [...prev, newItem]);
+    }
   };
 
   const deleteWorkItem = (id: string) => {
@@ -841,14 +874,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const moveWorkItem = (index: number, direction: "up" | "down") => {
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= editWorks.length) return;
+    const isImage = editWorks[index]?.type === "image";
+    const filteredIndices = editWorks
+      .map((w, idx) => ({ type: w.type, idx }))
+      .filter(item => isImage ? item.type === "image" : item.type !== "image")
+      .map(item => item.idx);
+
+    const filteredIndex = filteredIndices.indexOf(index);
+    if (filteredIndex === -1) return;
+
+    const targetFilteredIndex = direction === "up" ? filteredIndex - 1 : filteredIndex + 1;
+    if (targetFilteredIndex < 0 || targetFilteredIndex >= filteredIndices.length) return;
+
+    const targetIndex = filteredIndices[targetFilteredIndex];
 
     recordWorksHistory();
     const updated = [...editWorks];
     const temp = updated[index];
-    updated[index] = updated[newIndex];
-    updated[newIndex] = temp;
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
     setEditWorks(updated);
   };
 
@@ -856,6 +900,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setSaveStatus(prev => ({ ...prev, portfolio: "saving" }));
     toast.info("Re-indexing portfolio works in backend storage...");
     try {
+      if (editSettings.portfolio_license_button_text !== siteSettings.portfolio_license_button_text) {
+        await updateSiteSetting("portfolio_license_button_text", editSettings.portfolio_license_button_text || "Acquire License");
+      }
       const success = await updatePortfolioWorks(editWorks);
       if (success) {
         setSaveStatus(prev => ({ ...prev, portfolio: "saved" }));
@@ -1395,6 +1442,73 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
+                    {/* HERO SPACING & LAYOUT CONTROLS */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <h3 className="text-sm font-semibold text-[#E6C687] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top (e.g. 2rem, 40px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_padding_top || ""}
+                            onChange={(e) => handleSettingChange("hero_padding_top", e.target.value)}
+                            placeholder="default (e.g. 8rem)"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Bottom (e.g. 2rem)</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_padding_bottom || ""}
+                            onChange={(e) => handleSettingChange("hero_padding_bottom", e.target.value)}
+                            placeholder="default (e.g. 8rem)"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Top (e.g. 10px, 0px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_margin_top || ""}
+                            onChange={(e) => handleSettingChange("hero_margin_top", e.target.value)}
+                            placeholder="default"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Bottom (e.g. 10px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_margin_bottom || ""}
+                            onChange={(e) => handleSettingChange("hero_margin_bottom", e.target.value)}
+                            placeholder="default"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Width</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_text_width || ""}
+                            onChange={(e) => handleSettingChange("hero_text_width", e.target.value)}
+                            placeholder="e.g. 7xl or 800px"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Height</label>
+                          <input
+                            type="text"
+                            value={editSettings.hero_text_height || ""}
+                            onChange={(e) => handleSettingChange("hero_text_height", e.target.value)}
+                            placeholder="e.g. auto"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* BRAND / PARAMS: NAVIGATION LOGO STYLING */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <h3 className="text-sm font-semibold text-gray-300 font-display mb-3">Logo Appearance Attributes (Navbar logo)</h3>
@@ -1719,6 +1833,57 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
+                  <div className="flex gap-2 p-1 bg-black/40 border border-white/5 rounded-xl w-fit mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioSubTab("video")}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
+                        portfolioSubTab === "video"
+                          ? "bg-white text-black shadow-lg"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Motion Portfolio (Videos)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioSubTab("image")}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
+                        portfolioSubTab === "image"
+                          ? "bg-white text-black shadow-lg"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Static Portfolio (Images)
+                    </button>
+                  </div>
+
+                  {/* Licensing CTA config panel */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-4 md:p-6 mb-6 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold text-white font-display">License CTA Button Text</h4>
+                        <p className="text-xs text-gray-500">Customize the action text displayed on the portfolio preview modals.</p>
+                      </div>
+                      <div className="flex items-center gap-3 w-full md:w-auto">
+                        <input
+                          type="text"
+                          value={editSettings.portfolio_license_button_text || ""}
+                          onChange={(e) => handleSettingChange("portfolio_license_button_text", e.target.value)}
+                          placeholder="Acquire License"
+                          className="w-full md:w-64 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#E6C687]/50"
+                        />
+                        <button
+                          onClick={saveWorks}
+                          disabled={saveStatus.portfolio === "saving"}
+                          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/10 transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          Sync Text
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <p className="text-xs text-gray-500 font-mono italic">
                     💡 Drag work blocks using their background bounds to arrange showcase grids, or use typing focus to track automatic restore points.
                   </p>
@@ -1727,230 +1892,325 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     className="space-y-6"
                     onFocusCapture={() => recordWorksHistory()}
                   >
-                    {editWorks.map((work, index) => (
-                      <div 
-                        key={work.id}
-                        draggable="true"
-                        onDragStart={(e) => {
-                          recordWorksHistory();
-                          e.dataTransfer.setData("text/plain", index.toString());
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDragOverIdxWorks(index);
-                        }}
-                        onDragEnd={() => setDragOverIdxWorks(null)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
-                          if (!isNaN(sourceIdx) && sourceIdx !== index) {
-                            const updated = [...editWorks];
-                            const [removed] = updated.splice(sourceIdx, 1);
-                            updated.splice(index, 0, removed);
-                            setEditWorks(updated);
-                            toast.success("Portfolio artifact order adjusted.");
-                          }
-                          setDragOverIdxWorks(null);
-                        }}
-                        className={`border p-4 md:p-6 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 space-y-4 ${
-                          dragOverIdxWorks === index 
-                            ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
-                            : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.01]"
-                        }`}
-                      >
-                        {/* Title bar with drag handles */}
-                        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                          <div className="flex items-center gap-3 select-none">
-                            <GripVertical className="w-4 h-4 text-gray-500" />
-                            <span className="text-xs font-mono text-[#E6C687] font-semibold">Artifact 0{index + 1}</span>
-                            <span className="text-sm font-medium text-gray-300">{work.title}</span>
-                          </div>
+                    {editWorks
+                      .map((work, idx) => ({ work, idx }))
+                      .filter(({ work }) => portfolioSubTab === "image" ? work.type === "image" : work.type !== "image")
+                      .map(({ work, idx: index }, filteredIndex, filteredArray) => {
+                        const isImage = work.type === "image";
+                        return (
+                          <div 
+                            key={work.id}
+                            draggable="true"
+                            onDragStart={(e) => {
+                              recordWorksHistory();
+                              e.dataTransfer.setData("text/plain", index.toString());
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setDragOverIdxWorks(index);
+                            }}
+                            onDragEnd={() => setDragOverIdxWorks(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                              if (!isNaN(sourceIdx) && sourceIdx !== index) {
+                                const updated = [...editWorks];
+                                const [removed] = updated.splice(sourceIdx, 1);
+                                updated.splice(index, 0, removed);
+                                setEditWorks(updated);
+                                toast.success("Portfolio artifact order adjusted.");
+                              }
+                              setDragOverIdxWorks(null);
+                            }}
+                            className={`border p-4 md:p-6 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 space-y-4 ${
+                              dragOverIdxWorks === index 
+                                ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
+                                : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.01]"
+                            }`}
+                          >
+                            {/* Title bar with drag handles */}
+                            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                              <div className="flex items-center gap-3 select-none">
+                                <GripVertical className="w-4 h-4 text-gray-500" />
+                                <span className="text-xs font-mono text-[#E6C687] font-semibold">Artifact 0{filteredIndex + 1}</span>
+                                <span className="text-sm font-medium text-gray-300">{work.title}</span>
+                              </div>
 
-                          <div className="flex items-center gap-2 select-none">
-                            <button
-                              onClick={() => moveWorkItem(index, "up")}
-                              disabled={index === 0}
-                              className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => moveWorkItem(index, "down")}
-                              disabled={index === editWorks.length - 1}
-                              className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => deleteWorkItem(work.id)}
-                              className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors ml-2 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Input Fields */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Title</label>
-                            <input
-                              type="text"
-                              value={work.title}
-                              onChange={(e) => handleWorkChange(work.id, "title", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Category Label</label>
-                            <input
-                              type="text"
-                              value={work.category}
-                              onChange={(e) => handleWorkChange(work.id, "category", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                          </div>
-
-                          <div className="md:col-span-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[10px] font-mono uppercase text-gray-500">Tags (Comma Separated)</label>
-                              <button
-                                type="button"
-                                disabled={isSuggestingTagsId === work.id}
-                                onClick={() => runSuggestTagsAI(work)}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40"
-                              >
-                                {isSuggestingTagsId === work.id ? (
-                                  <>
-                                    <Sparkles className="w-3 h-3 animate-spin text-[#E6C687]" /> Auto suggesting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <BrainCircuit className="w-3 h-3 text-purple-400" /> AI Tag Generator
-                                  </>
-                                )}
-                              </button>
+                              <div className="flex items-center gap-2 select-none">
+                                <button
+                                  onClick={() => moveWorkItem(index, "up")}
+                                  disabled={filteredIndex === 0}
+                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => moveWorkItem(index, "down")}
+                                  disabled={filteredIndex === filteredArray.length - 1}
+                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => deleteWorkItem(work.id)}
+                                  className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors ml-2 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
-                            <input
-                              type="text"
-                              value={work.tags.join(", ")}
-                              onChange={(e) => handleTagsChange(work.id, e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                              placeholder="Fluid Simulation, Luxury, AI Render"
-                            />
-                          </div>
 
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Custom Video Source Link (MP4 URL)</label>
-                            <input
-                              type="text"
-                              value={work.videoUrl}
-                              onChange={(e) => {
-                                handleWorkChange(work.id, "videoUrl", e.target.value);
-                                handleWorkChange(work.id, "highResVideoUrl", e.target.value);
-                              }}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
+                            {/* Input Fields */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Title</label>
+                                <input
+                                  type="text"
+                                  value={work.title}
+                                  onChange={(e) => handleWorkChange(work.id, "title", e.target.value)}
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-sans"
+                                />
+                              </div>
 
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Global Assets</label>
-                            <select
-                              onChange={(e) => {
-                                const selectedUrl = e.target.value;
-                                if (selectedUrl) {
-                                  handleWorkChange(work.id, "videoUrl", selectedUrl);
-                                  handleWorkChange(work.id, "highResVideoUrl", selectedUrl);
-                                }
-                              }}
-                              value={work.videoUrl}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
-                            >
-                              <option value="">-- Apply a Global Asset --</option>
-                              {mediaAssets.map((asset) => (
-                                <option key={asset.id} value={asset.url}>
-                                  {asset.name} ({asset.type})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                              <div>
+                                <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Category Label</label>
+                                <input
+                                  type="text"
+                                  value={work.category}
+                                  onChange={(e) => handleWorkChange(work.id, "category", e.target.value)}
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-sans"
+                                />
+                              </div>
 
-                          {/* DUAL DRAG AND DROP UPLOADER ZONE */}
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
-                            <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Upload className="w-3.5 h-3.5 text-gray-400" />
-                                  <span className="truncate max-w-[200px] text-gray-300">
-                                    {selectedPortfolioFiles[work.id] 
-                                      ? `Selected: ${selectedPortfolioFiles[work.id]?.name}` 
-                                      : "No video selected"}
-                                  </span>
+                              <div className="md:col-span-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block text-[10px] font-mono uppercase text-gray-500">Tags (Comma Separated)</label>
+                                  <button
+                                    type="button"
+                                    disabled={isSuggestingTagsId === work.id}
+                                    onClick={() => runSuggestTagsAI(work)}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40 animate-pulse"
+                                  >
+                                    {isSuggestingTagsId === work.id ? (
+                                      <>
+                                        <Sparkles className="w-3 h-3 animate-spin text-[#E6C687]" /> Auto suggesting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <BrainCircuit className="w-3 h-3 text-purple-400" /> AI Tag Generator
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
-                                <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
-                                  <span>Choose File</span>
+                                <input
+                                  type="text"
+                                  value={(work.tags || []).join(", ")}
+                                  onChange={(e) => handleTagsChange(work.id, e.target.value)}
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                  placeholder="Fluid Simulation, Luxury, AI Render"
+                                />
+                              </div>
+
+                              {!isImage ? (
+                                <>
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Custom Video Source Link (MP4 URL)</label>
+                                    <input
+                                      type="text"
+                                      value={work.videoUrl || ""}
+                                      onChange={(e) => {
+                                        handleWorkChange(work.id, "videoUrl", e.target.value);
+                                        handleWorkChange(work.id, "highResVideoUrl", e.target.value);
+                                      }}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Video Assets</label>
+                                    <select
+                                      onChange={(e) => {
+                                        const selectedUrl = e.target.value;
+                                        if (selectedUrl) {
+                                          handleWorkChange(work.id, "videoUrl", selectedUrl);
+                                          handleWorkChange(work.id, "highResVideoUrl", selectedUrl);
+                                        }
+                                      }}
+                                      value={work.videoUrl || ""}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50 font-sans"
+                                    >
+                                      <option value="">-- Apply a Video Asset --</option>
+                                      {mediaAssets.filter(asset => asset.type === "video").map((asset) => (
+                                        <option key={asset.id} value={asset.url}>
+                                          {asset.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* DUAL DRAG AND DROP UPLOADER ZONE */}
+                                  <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
+                                    <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Upload className="w-3.5 h-3.5 text-gray-400" />
+                                          <span className="truncate max-w-[200px] text-gray-300">
+                                            {selectedPortfolioFiles[work.id] 
+                                              ? `Selected: ${selectedPortfolioFiles[work.id]?.name}` 
+                                              : "No video selected"}
+                                          </span>
+                                        </div>
+                                        <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
+                                          <span>Choose File</span>
+                                          <input
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={(e) => handlePortfolioFileChange(e, work.id)}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                          />
+                                        </div>
+                                      </div>
+                                      
+                                      {selectedPortfolioFiles[work.id] && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePortfolioUpload(work.id)}
+                                          disabled={isUploadingPortfolioId === work.id}
+                                          className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                                        >
+                                          {isUploadingPortfolioId === work.id 
+                                            ? "Uploading Track..." 
+                                            : "Upload Video Track"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Custom Image URL</label>
+                                    <input
+                                      type="text"
+                                      value={work.imageUrl || ""}
+                                      onChange={(e) => handleWorkChange(work.id, "imageUrl", e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Image Assets</label>
+                                    <select
+                                      onChange={(e) => {
+                                        const selectedUrl = e.target.value;
+                                        if (selectedUrl) {
+                                          handleWorkChange(work.id, "imageUrl", selectedUrl);
+                                        }
+                                      }}
+                                      value={work.imageUrl || ""}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50 font-sans"
+                                    >
+                                      <option value="">-- Apply an Image Asset --</option>
+                                      {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
+                                        <option key={asset.id} value={asset.url}>
+                                          {asset.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* DUAL DRAG AND DROP UPLOADER ZONE */}
+                                  <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
+                                    <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Upload className="w-3.5 h-3.5 text-gray-400" />
+                                          <span className="truncate max-w-[200px] text-gray-300">
+                                            {selectedPortfolioFiles[work.id] 
+                                              ? `Selected: ${selectedPortfolioFiles[work.id]?.name}` 
+                                              : "No image selected"}
+                                          </span>
+                                        </div>
+                                        <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
+                                          <span>Choose File</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handlePortfolioFileChange(e, work.id)}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                          />
+                                        </div>
+                                      </div>
+                                      
+                                      {selectedPortfolioFiles[work.id] && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePortfolioUpload(work.id)}
+                                          disabled={isUploadingPortfolioId === work.id}
+                                          className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                                        >
+                                          {isUploadingPortfolioId === work.id 
+                                            ? "Uploading Image..." 
+                                            : "Upload Image File"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              <div className="md:col-span-2">
+                                <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Short Description / Subtext</label>
+                                <textarea
+                                  value={work.description || ""}
+                                  onChange={(e) => handleWorkChange(work.id, "description", e.target.value)}
+                                  rows={2}
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white resize-none font-sans"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Grid Layout Weight (Responsive)</label>
+                                <select
+                                  value={work.aspectRatioClass}
+                                  onChange={(e) => handleWorkChange(work.id, "aspectRatioClass", e.target.value)}
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-sans"
+                                >
+                                  <option value="aspect-video md:col-span-2">Dynamic Wide (2 Grid Units)</option>
+                                  <option value="aspect-square md:col-span-1">Perfect Square (1 Grid Unit)</option>
+                                </select>
+                              </div>
+
+                              {!isImage ? (
+                                <div>
+                                  <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Duration Indicator</label>
                                   <input
-                                    type="file"
-                                    accept="video/*"
-                                    onChange={(e) => handlePortfolioFileChange(e, work.id)}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    type="text"
+                                    value={work.duration || ""}
+                                    onChange={(e) => handleWorkChange(work.id, "duration", e.target.value)}
+                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                                    placeholder="0:15"
                                   />
                                 </div>
-                              </div>
-                              
-                              {selectedPortfolioFiles[work.id] && (
-                                <button
-                                  type="button"
-                                  onClick={() => handlePortfolioUpload(work.id)}
-                                  disabled={isUploadingPortfolioId === work.id}
-                                  className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
-                                >
-                                  {isUploadingPortfolioId === work.id 
-                                    ? "Uploading Track..." 
-                                    : "Upload Video Track"}
-                                </button>
+                              ) : (
+                                <div>
+                                  <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Subtext / Spec Sheet Note</label>
+                                  <input
+                                    type="text"
+                                    value={work.subtext || ""}
+                                    onChange={(e) => handleWorkChange(work.id, "subtext", e.target.value)}
+                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                                    placeholder="e.g. 4000x3000 PNG"
+                                  />
+                                </div>
                               )}
+
                             </div>
                           </div>
-
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Short Description / Subtext</label>
-                            <textarea
-                              value={work.description}
-                              onChange={(e) => handleWorkChange(work.id, "description", e.target.value)}
-                              rows={2}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white resize-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Grid Layout Weight (Responsive)</label>
-                            <select
-                              value={work.aspectRatioClass}
-                              onChange={(e) => handleWorkChange(work.id, "aspectRatioClass", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            >
-                              <option value="aspect-video md:col-span-2">Dynamic Wide (2 Grid Units)</option>
-                              <option value="aspect-square md:col-span-1">Perfect Square (1 Grid Unit)</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Duration Indicator</label>
-                            <input
-                              type="text"
-                              value={work.duration}
-                              onChange={(e) => handleWorkChange(work.id, "duration", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                              placeholder="0:15"
-                            />
-                          </div>
-
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
                   </div>
 
                 </div>

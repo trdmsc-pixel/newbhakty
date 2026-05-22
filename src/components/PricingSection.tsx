@@ -74,7 +74,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
   };
 
   return (
-    <section id="pricing-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 ${
+    <section id="pricing-section" className={`pt-8 pb-24 relative z-10 px-4 md:px-8 transition-all duration-500 ${
       siteSettings.website_full_width === "true" 
         ? "max-w-none w-full" 
         : "max-w-7xl mx-auto"

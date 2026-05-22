@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu, Palette, Sliders } from "lucide-react";
 import BackgroundGradients from "./components/BackgroundGradients";
@@ -16,8 +16,7 @@ import { getActiveTheme, WEB_THEMES } from "./lib/themes";
 
 function AppContent() {
   const [selectedTier, setSelectedTier] = useState<string>("");
-  const { siteSettings, isLoading, updateSiteSetting } = useSiteData();
-  const [showThemePanel, setShowThemePanel] = useState(false);
+  const { siteSettings, isLoading } = useSiteData();
 
   // Dynamic Theme
   const theme = getActiveTheme(siteSettings.website_theme);
@@ -114,6 +113,19 @@ function AppContent() {
     return <AdminPanel onNavigateHome={() => navigate("/")} />;
   }
 
+  // Spacing and layout control overrides for the hero section
+  const heroStyle: React.CSSProperties = {
+    paddingTop: siteSettings.hero_padding_top || undefined,
+    paddingBottom: siteSettings.hero_padding_bottom || undefined,
+    marginTop: siteSettings.hero_margin_top || undefined,
+    marginBottom: siteSettings.hero_margin_bottom || undefined,
+  };
+
+  const heroTextStyle: React.CSSProperties = {
+    maxWidth: siteSettings.hero_text_width || undefined,
+    height: siteSettings.hero_text_height || undefined,
+  };
+
   return (
     <div className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-colors duration-500 overflow-hidden pb-16 md:pl-64`}>
       
@@ -126,6 +138,7 @@ function AppContent() {
       {/* HERO SECTION CONTAINER */}
       <section 
         id="hero-section" 
+        style={heroStyle}
         className={`relative pt-36 pb-20 md:py-40 md:px-12 px-6 flex flex-col items-center justify-center text-center gap-16 rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl transition-all duration-500 ${
           siteSettings.website_full_width === "true" 
             ? "max-w-none w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] mx-4 md:mx-8" 
@@ -161,6 +174,7 @@ function AppContent() {
 
         {/* HERO CONTENT: CENTERED TEXTS & STATS */}
         <motion.div 
+          style={heroTextStyle}
           className="w-full max-w-3xl text-center flex flex-col items-center relative z-10"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -343,49 +357,6 @@ function AppContent() {
           </div>
         </div>
       </footer>
-
-      {/* FLOATING QUICK THEME SWITCHER OVERLAY */}
-      <div className="fixed bottom-6 left-6 z-45">
-        <button
-          onClick={() => setShowThemePanel(!showThemePanel)}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full backdrop-blur-md bg-black/80 hover:bg-black border border-white/10 hover:border-[#E6C687]/65 text-xs font-semibold text-white/95 shadow-2xl transition-all cursor-pointer"
-        >
-          <Palette className={`w-4 h-4 text-[#E6C687] ${showThemePanel ? "rotate-90 animate-pulse" : ""} transition-transform duration-300`} />
-          Theme Selector
-        </button>
-
-        {showThemePanel && (
-          <div className="absolute bottom-14 left-0 mt-2 p-2 bg-[#0d0d15] border border-white/10 rounded-2xl shadow-2xl w-64 max-h-80 overflow-y-auto z-50 text-left font-sans space-y-1">
-            <h4 className="text-[10px] font-mono uppercase text-gray-500 p-2 border-b border-white/5 flex justify-between items-center">
-              <span>Dynamic Website Themes</span>
-              <span className="text-[8px] bg-[#E6C687]/15 text-[#E6C687] px-1.5 py-0.5 rounded font-bold font-mono">10 DECORATIONS</span>
-            </h4>
-            
-            <div className="py-1 max-h-56 overflow-y-auto">
-              {WEB_THEMES.map((t) => {
-                const isActive = (siteSettings.website_theme || "obsidian_cyber") === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      updateSiteSetting("website_theme", t.id);
-                      trackEvent("click", `Theme switched: ${t.name}`);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                      isActive 
-                        ? "bg-[#E6C687]/15 text-white border border-[#E6C687]/30" 
-                        : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
-                    }`}
-                  >
-                    <span className="truncate">{t.name}</span>
-                    <span className={`w-2 h-2 rounded-full ${t.type === 'dark' ? 'bg-indigo-500' : 'bg-amber-400'}`} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
 
     </div>
   );

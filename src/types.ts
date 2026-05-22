@@ -10,6 +10,9 @@ export interface VideoBlock {
   ratio: "landscape" | "portrait" | "video-post";
   aspectRatioClass: string;
   tags: string[];
+  type?: "video" | "image";
+  imageUrl?: string;
+  subtext?: string;
 }
 
 export interface PricingTier {
