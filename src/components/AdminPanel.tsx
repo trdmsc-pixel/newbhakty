@@ -137,7 +137,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [editFieldOptionsText, setEditFieldOptionsText] = useState("");
 
   const [newFieldLabel, setNewFieldLabel] = useState("");
-  const [newFieldType, setNewFieldType] = useState<"text" | "email" | "textarea" | "select">("text");
+  const [newFieldType, setNewFieldType] = useState<"text" | "email" | "textarea" | "select" | "phone">("text");
   const [newFieldPlaceholder, setNewFieldPlaceholder] = useState("");
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [newFieldOptionsText, setNewFieldOptionsText] = useState("");
@@ -1312,6 +1312,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
+                    <div>
+                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Text Color (HEX)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editSettings.hero_cta_booking_text_color || ""}
+                          onChange={(e) => handleSettingChange("hero_cta_booking_text_color", e.target.value)}
+                          placeholder="e.g. #FFFFFF"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 font-mono"
+                        />
+                        <input
+                          type="color"
+                          value={editSettings.hero_cta_booking_text_color && editSettings.hero_cta_booking_text_color.startsWith('#') && editSettings.hero_cta_booking_text_color.length === 7 ? editSettings.hero_cta_booking_text_color : "#FFFFFF"}
+                          onChange={(e) => handleSettingChange("hero_cta_booking_text_color", e.target.value)}
+                          className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                        />
+                      </div>
+                    </div>
+
                     <div className="md:col-span-2">
                       <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
                       <textarea
@@ -2118,6 +2137,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             </div>
                           </div>
 
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">CTA Button Text Color</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={tier.buttonTextColor || ""}
+                                onChange={(e) => handlePricingChange(tier.id, "buttonTextColor", e.target.value)}
+                                placeholder="e.g. #000000"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                              />
+                              <input
+                                type="color"
+                                value={tier.buttonTextColor && tier.buttonTextColor.startsWith('#') && tier.buttonTextColor.length === 7 ? tier.buttonTextColor : "#000000"}
+                                onChange={(e) => handlePricingChange(tier.id, "buttonTextColor", e.target.value)}
+                                className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                              />
+                            </div>
+                          </div>
+
                           <div className="md:col-span-3">
                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Package Tagline Description</label>
                             <input
@@ -2701,6 +2739,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           />
                         </div>
                       </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form CTA Text Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editSettings.booking_cta_text_color || ""}
+                            onChange={(e) => handleSettingChange("booking_cta_text_color", e.target.value)}
+                            placeholder="e.g. #FFFFFF"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                          />
+                          <input
+                            type="color"
+                            value={editSettings.booking_cta_text_color && editSettings.booking_cta_text_color.startsWith('#') && editSettings.booking_cta_text_color.length === 7 ? editSettings.booking_cta_text_color : "#FFFFFF"}
+                            onChange={(e) => handleSettingChange("booking_cta_text_color", e.target.value)}
+                            className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -2905,6 +2962,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           <option value="email">Email Input</option>
                           <option value="textarea">Textarea (multiple lines)</option>
                           <option value="select">Dropdown Select Menu</option>
+                          <option value="phone">Mobile Number with Country Selector</option>
                         </select>
                       </div>
 

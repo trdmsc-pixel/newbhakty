@@ -68,8 +68,10 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   booking_form_subtitle: "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.",
   booking_cta_text: "Request Synthesis Pipeline",
   booking_cta_color: "",
+  booking_cta_text_color: "",
   pricing_note_text: "All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds.",
   hero_cta_booking_color: "",
+  hero_cta_booking_text_color: "",
   booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
 };
 
@@ -212,6 +214,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             glowTheme: (t.glow_theme as any) || "saffron",
             buttonLabel: t.button_label || "",
             buttonColor: t.button_color || "",
+            buttonTextColor: t.button_text_color || "",
             discountEnabled: t.discount_enabled || false,
             discountText: t.discount_text || "",
             originalPrice: t.original_price || "",
@@ -401,6 +404,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             features: t.deliverables,
             button_label: t.buttonLabel || (t.name === "Short-Form Creative" ? "Acquire Creative Pipeline" : (t.name === "Full Cinematic Studio" ? "Acquire Studio spot" : "Acquire Enterprise access")),
             button_color: t.buttonColor || "",
+            button_text_color: t.buttonTextColor || "",
             discount_enabled: t.discountEnabled || false,
             discount_text: t.discountText || "",
             original_price: t.originalPrice || "",

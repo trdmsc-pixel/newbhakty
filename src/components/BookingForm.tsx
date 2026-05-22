@@ -6,6 +6,16 @@ import { trackEvent } from "../lib/analytics";
 import { useSiteData } from "../context/SiteDataContext";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
+const COUNTRIES = [
+  { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳" },
+  { code: "US", name: "US / Canada", dialCode: "+1", flag: "🇺🇸" },
+  { code: "GB", name: "United Kingdom", dialCode: "+44", flag: "🇬🇧" },
+  { code: "AE", name: "United Arab Emirates", dialCode: "+971", flag: "🇦🇪" },
+  { code: "AU", name: "Australia", dialCode: "+61", flag: "🇦🇺" },
+  { code: "SG", name: "Singapore", dialCode: "+65", flag: "🇸🇬" },
+  { code: "DE", name: "Germany", dialCode: "+49", flag: "🇩🇪" },
+  { code: "FR", name: "France", dialCode: "+33", flag: "🇫🇷" }
+];
 
 interface BookingFormProps {
   initialTier: string;
@@ -23,6 +33,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
+  const [phoneCountry, setPhoneCountry] = useState<Record<string, string>>({});
+  const [activeDropdownFieldId, setActiveDropdownFieldId] = useState<string | null>(null);
 
   // Parse form schema from settings
   const getFormFields = () => {
@@ -50,17 +62,38 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   // Initialize custom fields state
   useEffect(() => {
     const initialCustoms: Record<string, string> = {};
+    const initialPhoneCountries: Record<string, string> = {};
     fields.forEach((field: any) => {
       if (!["name", "company", "email", "budget", "selected_tier", "brief"].includes(field.id)) {
         if (field.type === "select" && field.options && field.options.length > 0) {
           initialCustoms[field.id] = field.options[0];
+        } else if (field.type === "phone") {
+          initialCustoms[field.id] = "";
+          initialPhoneCountries[field.id] = "+91"; // Default to India (+91)
         } else {
           initialCustoms[field.id] = "";
         }
       }
     });
     setCustomFields(initialCustoms);
+    setPhoneCountry(initialPhoneCountries);
   }, [fields]);
+
+  // Click outside country selection dropdown auto-closer
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (activeDropdownFieldId) {
+        const target = e.target as HTMLElement;
+        if (!target.closest(".country-dropdown-container")) {
+          setActiveDropdownFieldId(null);
+        }
+      }
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => {
+      window.removeEventListener("click", handleOutsideClick);
+    };
+  }, [activeDropdownFieldId]);
 
   // Synchronize initial prepopulation when user clicks pricing actions
   useEffect(() => {
@@ -84,6 +117,21 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   const isNameValid = name.trim().length >= 2;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isBriefValid = brief.trim().length >= 15;
+
+  const getCustomFieldsText = () => {
+    return fields
+      .filter((f: any) => !["name", "company", "email", "budget", "selected_tier", "brief"].includes(f.id))
+      .map((f: any) => {
+        if (f.type === "phone") {
+          const code = phoneCountry[f.id] || "+91";
+          const val = customFields[f.id] || "";
+          return `${f.label}: ${code} ${val}`;
+        }
+        const val = customFields[f.id] || "";
+        return `${f.label}: ${val}`;
+      })
+      .join("\n");
+  };
 
   const validate = () => {
     const errors: Record<string, string> = {};
@@ -109,6 +157,13 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
         errors.email = "Please supply a valid communication mail address";
       } else if (field.id === "brief" && field.required && val.trim().length < 15) {
         errors.brief = "Please expand your details to at least 15 characters";
+      } else if (field.type === "phone") {
+        const cleaned = val.replace(/\D/g, "");
+        if (field.required && !cleaned) {
+          errors[field.id] = `${field.label} is required`;
+        } else if (cleaned && (cleaned.length < 6 || cleaned.length > 15)) {
+          errors[field.id] = `${field.label} must contain between 6 and 15 digits`;
+        }
       }
     });
 
@@ -154,13 +209,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     
     try {
       let briefText = brief.trim();
-      const customFieldsText = fields
-        .filter((f: any) => !["name", "company", "email", "budget", "selected_tier", "brief"].includes(f.id))
-        .map((f: any) => {
-          const val = customFields[f.id] || "";
-          return `${f.label}: ${val}`;
-        })
-        .join("\n");
+      const customFieldsText = getCustomFieldsText();
 
       if (customFieldsText) {
         briefText += `\n\n[Additional Details]\n${customFieldsText}`;
@@ -205,13 +254,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
       // Fallback to local storage on error
       try {
         let briefText = brief.trim();
-        const customFieldsText = fields
-          .filter((f: any) => !["name", "company", "email", "budget", "selected_tier", "brief"].includes(f.id))
-          .map((f: any) => {
-            const val = customFields[f.id] || "";
-            return `${f.label}: ${val}`;
-          })
-          .join("\n");
+        const customFieldsText = getCustomFieldsText();
 
         if (customFieldsText) {
           briefText += `\n\n[Additional Details]\n${customFieldsText}`;
@@ -408,6 +451,89 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         </option>
                       ))}
                     </select>
+                  ) : field.type === "phone" ? (
+                    <div className="flex gap-3 relative country-dropdown-container">
+                      {/* Country Selector */}
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownFieldId(activeDropdownFieldId === field.id ? null : field.id);
+                          }}
+                          className={`bg-white/5 hover:bg-white/10 border-b ${
+                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#E6C687]"
+                          } transition-all duration-300 py-3 px-3 text-white text-sm md:text-base flex items-center gap-2 rounded-t-lg cursor-pointer h-full`}
+                        >
+                          <span>{COUNTRIES.find(c => c.dialCode === (phoneCountry[field.id] || "+91"))?.flag || "🇮🇳"}</span>
+                          <span className="font-mono text-xs">{phoneCountry[field.id] || "+91"}</span>
+                          <span className="text-[8px] text-gray-500">▼</span>
+                        </button>
+
+                        <AnimatePresence>
+                          {activeDropdownFieldId === field.id && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 10 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute left-0 top-full mt-2 w-56 max-h-60 overflow-y-auto bg-[#0a0a0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-md z-50 py-1.5 custom-scrollbar"
+                            >
+                              {COUNTRIES.map((country) => (
+                                <button
+                                  key={country.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setPhoneCountry(prev => ({ ...prev, [field.id]: country.dialCode }));
+                                    setActiveDropdownFieldId(null);
+                                    if (formErrors[field.id]) {
+                                      setFormErrors(prev => {
+                                        const copy = { ...prev };
+                                        delete copy[field.id];
+                                        return copy;
+                                      });
+                                    }
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center justify-between font-sans"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-base">{country.flag}</span>
+                                    <span>{country.name}</span>
+                                  </div>
+                                  <span className="font-mono text-gray-500 text-[10px]">{country.dialCode}</span>
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Telephone Input */}
+                      <input
+                        type="tel"
+                        pattern="[0-9]*"
+                        inputMode="numeric"
+                        value={customFields[field.id] || ""}
+                        id={`input-${field.id}`}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setCustomFields(prev => ({ ...prev, [field.id]: val }));
+                          if (formErrors[field.id]) {
+                            setFormErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy[field.id];
+                              return copy;
+                            });
+                          }
+                        }}
+                        placeholder={field.placeholder || "e.g. 9876543210"}
+                        className={`flex-1 bg-transparent outline-none border-b ${
+                          formErrors[field.id] 
+                            ? "border-red-500 text-red-150 placeholder-red-800" 
+                            : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                        } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base font-mono`}
+                      />
+                    </div>
                   ) : (
                     <input
                       type={field.type}
@@ -478,16 +604,19 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 scaleX: 1.1,
                 transition: { type: "spring", stiffness: 450, damping: 14 } 
               }}
-              style={siteSettings.booking_cta_color ? { backgroundColor: siteSettings.booking_cta_color, backgroundImage: 'none' } : {}}
+              style={{
+                ...(siteSettings.booking_cta_color ? { backgroundColor: siteSettings.booking_cta_color, backgroundImage: 'none' } : {}),
+                ...(siteSettings.booking_cta_text_color ? { color: siteSettings.booking_cta_text_color } : {})
+              }}
               className="w-full md:w-auto md:px-12 py-4 rounded-2xl font-bold font-display tracking-tight text-white bg-gradient-to-r from-[#4A36B3] via-[#7a5ce0] to-[#E6C687] shadow-xl hover:shadow-[#4A36B3]/20 shadow-black/40 hover:opacity-95 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#050508]">
-                  <Sparkles className="w-4 h-4 animate-spin" /> Resolving Coordinates...
+                  <Sparkles className="w-4 h-4 animate-spin text-[#050508]" /> Resolving Coordinates...
                 </span>
               ) : (
                 <>
-                  <Send className="w-4 h-4 text-white" />
+                  <Send className="w-4 h-4" />
                   {siteSettings.booking_cta_text || "Request Synthesis Pipeline"}
                 </>
               )}

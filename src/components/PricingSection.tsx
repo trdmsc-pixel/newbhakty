@@ -287,7 +287,10 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                     e.stopPropagation();
                     selectPackage(tier);
                   }}
-                  style={isActive && tier.buttonColor ? { backgroundColor: tier.buttonColor, color: '#000000', backgroundImage: 'none' } : undefined}
+                  style={isActive ? {
+                    ...(tier.buttonColor ? { backgroundColor: tier.buttonColor, backgroundImage: 'none' } : {}),
+                    ...(tier.buttonTextColor ? { color: tier.buttonTextColor } : (tier.buttonColor ? { color: '#000000' } : {}))
+                  } : undefined}
                   className={`w-full py-3.5 rounded-2xl font-semibold font-display tracking-tight text-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
                     isActive 
                       ? theme.button + " shadow-xl shadow-[#E6C687]/5" 

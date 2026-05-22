@@ -25,6 +25,7 @@ export interface PricingTier {
   glowTheme: "saffron" | "violet" | "emerald";
   buttonLabel?: string;
   buttonColor?: string;
+  buttonTextColor?: string;
   discountEnabled?: boolean;
   discountText?: string;
   originalPrice?: string;
