@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
@@ -15,6 +15,7 @@ import {
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
+import { supabase } from "../lib/supabase";
 
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -114,6 +115,31 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }
   });
 
+  useEffect(() => {
+    async function loadSubmissions() {
+      if (isUsingSupabase && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("bookings")
+            .select("*")
+            .order("created_at", { ascending: false });
+          
+          if (error) {
+            console.error("Error fetching bookings from Supabase:", error);
+            toast.error("Failed to load submissions from database.");
+            return;
+          }
+          if (data) {
+            setSubmissionsList(data);
+          }
+        } catch (e) {
+          console.error("Error in loadSubmissions:", e);
+        }
+      }
+    }
+    loadSubmissions();
+  }, [isUsingSupabase]);
+
   const [analyzingSubId, setAnalyzingSubId] = useState<string | null>(null);
   const [submissionAnalyses, setSubmissionAnalyses] = useState<Record<string, string>>(() => {
     try {
@@ -145,19 +171,57 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [newFieldOptionsText, setNewFieldOptionsText] = useState("");
 
-  const updateSubmissionStatus = (id: string, newStatus: string) => {
+  const updateSubmissionStatus = async (id: string, newStatus: string) => {
     const updated = submissionsList.map((sub: any) => 
       sub.id === id ? { ...sub, status: newStatus } : sub
     );
     setSubmissionsList(updated);
-    localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+
+    if (isUsingSupabase && supabase) {
+      try {
+        const { error } = await supabase
+          .from("bookings")
+          .update({ status: newStatus })
+          .eq("id", id);
+        if (error) {
+          console.error("Failed to update status in Supabase:", error);
+          toast.error("Failed to update status in database.");
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to update status in Supabase:", err);
+        toast.error("Failed to update status in database.");
+        return;
+      }
+    } else {
+      localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+    }
     toast.success(`Brief status successfully updated to: ${newStatus}`);
   };
 
-  const deleteSubmission = (id: string) => {
+  const deleteSubmission = async (id: string) => {
     const updated = submissionsList.filter((sub: any) => sub.id !== id);
     setSubmissionsList(updated);
-    localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+
+    if (isUsingSupabase && supabase) {
+      try {
+        const { error } = await supabase
+          .from("bookings")
+          .delete()
+          .eq("id", id);
+        if (error) {
+          console.error("Failed to delete from Supabase:", error);
+          toast.error("Failed to remove record from database.");
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to delete from Supabase:", err);
+        toast.error("Failed to remove record from database.");
+        return;
+      }
+    } else {
+      localStorage.setItem("bhakty_form_submissions", JSON.stringify(updated));
+    }
     toast.success("Ingestion record removed from register.");
   };
 
@@ -2819,14 +2883,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                             <div>
                               <div className="flex items-center gap-2">
-                                <h3 className="font-display font-bold text-base text-white">{sub.fullName}</h3>
+                                <h3 className="font-display font-bold text-base text-white">{sub.fullName || sub.name}</h3>
                                 {sub.company && (
                                   <span className="text-[10px] font-mono text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/15 px-2 py-0.5 rounded-lg">
                                     {sub.company}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs font-mono text-gray-500 mt-0.5">{sub.email} • {sub.createdAt ? new Date(sub.createdAt).toLocaleString() : "Date Unknown"}</p>
+                              <p className="text-xs font-mono text-gray-500 mt-0.5">{sub.email} • {sub.createdAt || sub.created_at || sub.submitted_at ? new Date(sub.createdAt || sub.created_at || sub.submitted_at).toLocaleString() : "Date Unknown"}</p>
                             </div>
 
                             {/* Status Updater */}
