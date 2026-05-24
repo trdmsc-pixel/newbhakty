@@ -21,6 +21,23 @@ function AppContent() {
   // Dynamic Theme
   const theme = getActiveTheme(siteSettings.website_theme);
 
+  // Light/Dark Mode state
+  const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("theme_mode");
+    return (saved === "light" || saved === "dark") ? saved : "dark";
+  });
+
+  useEffect(() => {
+    if (themeMode === "light") {
+      document.documentElement.classList.add("light-mode");
+      document.body.classList.add("light-mode");
+    } else {
+      document.documentElement.classList.remove("light-mode");
+      document.body.classList.remove("light-mode");
+    }
+    localStorage.setItem("theme_mode", themeMode);
+  }, [themeMode]);
+
   // Simple and ultra-resilient single-page router state
   const [path, setPath] = useState(window.location.pathname);
   const [hash, setHash] = useState(window.location.hash);
@@ -127,13 +144,13 @@ function AppContent() {
   };
 
   return (
-    <div className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-colors duration-500 overflow-hidden pb-16 md:pl-64`}>
+    <div className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-colors duration-500 overflow-hidden pb-16 pt-24 md:pt-28`}>
       
       {/* 2-3 MASSIVE SMOOTH GRADIENT BULBS */}
       <BackgroundGradients />
 
       {/* FLOATING HEADER BAR */}
-      <Navbar />
+      <Navbar themeMode={themeMode} setThemeMode={setThemeMode} />
 
       {/* HERO SECTION CONTAINER */}
       <section 

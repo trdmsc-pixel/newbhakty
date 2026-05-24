@@ -1781,6 +1781,88 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
+                    {/* DISCOUNT BADGE CONTROLS */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sliders className="w-4 h-4 text-[#ffea00]" />
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Discount Badge Color & Gradient Configuration</h3>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                        Customize the visual aesthetics of the pricing discount ribbon badges. Adjust gradient colors, text colors, and choose whether to apply a gradient or a solid color.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient Start / Solid Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editSettings.discount_badge_gradient_start || "#10ac84"}
+                              onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
+                              placeholder="#10ac84"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={editSettings.discount_badge_gradient_start && editSettings.discount_badge_gradient_start.startsWith('#') && editSettings.discount_badge_gradient_start.length === 7 ? editSettings.discount_badge_gradient_start : "#10ac84"}
+                              onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient End Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editSettings.discount_badge_gradient_end || "#01a3a4"}
+                              onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
+                              placeholder="#01a3a4"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={editSettings.discount_badge_gradient_end && editSettings.discount_badge_gradient_end.startsWith('#') && editSettings.discount_badge_gradient_end.length === 7 ? editSettings.discount_badge_gradient_end : "#01a3a4"}
+                              onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Badge Text Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editSettings.discount_badge_text_color || "#ffffff"}
+                              onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
+                              placeholder="#ffffff"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={editSettings.discount_badge_text_color && editSettings.discount_badge_text_color.startsWith('#') && editSettings.discount_badge_text_color.length === 7 ? editSettings.discount_badge_text_color : "#ffffff"}
+                              onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-3">
+                        <label className="text-xs font-mono text-gray-400 uppercase flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={editSettings.discount_badge_gradient_enabled !== "false"}
+                            onChange={(e) => handleSettingChange("discount_badge_gradient_enabled", e.target.checked ? "true" : "false")}
+                            className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                          />
+                          Enable Gradient Fill
+                        </label>
+                      </div>
+                    </div>
+
 
                   </div>
                 </div>

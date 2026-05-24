@@ -126,13 +126,44 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           // Determine badge settings based on tier properties
           const getBadgeConfig = (glowTheme: string, tierId: string, discountText?: string) => {
             if (discountText) {
+              const bgStart = siteSettings.discount_badge_gradient_start || "#10ac84";
+              const bgEnd = siteSettings.discount_badge_gradient_end || "#01a3a4";
+              const isGradient = siteSettings.discount_badge_gradient_enabled !== "false";
+              const txtColor = siteSettings.discount_badge_text_color || "#ffffff";
+              
+              const darkenHex = (hex: string, percent: number) => {
+                try {
+                  const cleaned = hex.startsWith("#") ? hex : "#" + hex;
+                  const num = parseInt(cleaned.replace("#",""), 16);
+                  const amt = Math.round(2.55 * percent);
+                  let R = (num >> 16) - amt;
+                  let G = (num >> 8 & 0x00FF) - amt;
+                  let B = (num & 0x0000FF) - amt;
+                  R = R < 0 ? 0 : R > 255 ? 255 : R;
+                  G = G < 0 ? 0 : G > 255 ? 255 : G;
+                  B = B < 0 ? 0 : B > 255 ? 255 : B;
+                  return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+                } catch (e) {
+                  return "#0a6b51";
+                }
+              };
+
+              const foldColor = darkenHex(bgStart, 30);
+
               return {
                 text: discountText.toUpperCase(),
-                gradient: "from-[#10ac84] via-[#1dd1a1] to-[#01a3a4]",
-                glow: "rgba(29, 209, 161, 0.45)",
-                fold: "#0a6b51",
-                iconColor: "text-emerald-100",
-                textColor: "text-white",
+                gradient: "",
+                customStyle: {
+                  background: isGradient 
+                    ? `linear-gradient(to bottom, ${bgStart}, ${bgEnd})`
+                    : bgStart,
+                  color: txtColor,
+                  boxShadow: `0 8px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.4)`
+                },
+                textColor: "",
+                fold: foldColor,
+                glow: "rgba(0, 0, 0, 0.3)",
+                iconColor: "",
                 icon: Flame
               };
             }
@@ -218,24 +249,29 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 >
                   {/* Ribbon Body */}
                   <div
-                    className={`relative px-2.5 pt-3.5 pb-4 text-center font-display font-black shadow-lg bg-gradient-to-b ${badge.gradient} ${badge.textColor}`}
+                    className={`relative px-2.5 pt-3.5 pb-4 text-center font-display font-black shadow-lg ${badge.gradient ? `bg-gradient-to-b ${badge.gradient}` : ""} ${badge.textColor || ""}`}
                     style={{
                       clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 50% 88%, 0% 100%)",
                       minWidth: "60px",
                       minHeight: "72px",
-                      boxShadow: `0 8px 20px ${badge.glow}, inset 0 1px 0 rgba(255,255,255,0.4)`
+                      boxShadow: badge.customStyle?.boxShadow || `0 8px 20px ${badge.glow}, inset 0 1px 0 rgba(255,255,255,0.4)`,
+                      ...(badge.customStyle || {})
                     }}
                   >
                     {/* Shimmer line effect */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent opacity-65 animate-pulse" />
                     
-                    <badge.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${badge.iconColor} drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] animate-bounce`} />
+                    <badge.icon 
+                      className={`w-3.5 h-3.5 mx-auto mb-1 ${badge.iconColor || ""} drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] animate-bounce`} 
+                      style={badge.customStyle?.color ? { color: badge.customStyle.color } : undefined}
+                    />
                     
                     <div className="flex flex-col gap-0.5 leading-none">
                       {badge.text.split(" ").map((word, wIdx) => (
                         <span
                           key={wIdx}
-                          className={`text-[8px] uppercase tracking-wider font-extrabold ${badge.textColor === 'text-black' ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.3)]' : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]'} font-sans`}
+                          className={`text-[8px] uppercase tracking-wider font-extrabold font-sans`}
+                          style={badge.customStyle?.color ? { color: badge.customStyle.color } : undefined}
                         >
                           {word}
                         </span>

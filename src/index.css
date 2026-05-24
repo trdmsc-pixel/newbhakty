@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Stack+Sans+Headline:wght@200..700&family=JetBrains+Mono:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-display: "Stack Sans Headline", sans-serif;
   --font-serif: "Instrument Serif", serif;
   --font-mono: "JetBrains Mono", monospace;
   
@@ -245,5 +245,131 @@ html, body {
   box-shadow: 0 0 22px rgba(255, 234, 0, 0.6) !important;
   filter: brightness(1.05) !important;
 }
+
+/* Neumorphic Shadow Pill Styles */
+.shadow-neumorphic-pill {
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.shadow-neumorphic-pill-active {
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Light mode overrides */
+html.light-mode,
+body.light-mode {
+  background-color: #faf9f6 !important;
+  background-image: none !important;
+  color: #18181b !important;
+}
+
+body.light-mode p,
+body.light-mode span,
+body.light-mode h1,
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode h4,
+body.light-mode h5,
+body.light-mode h6,
+body.light-mode label,
+body.light-mode li,
+body.light-mode select {
+  color: #18181b !important;
+}
+
+/* Specific elements that should keep white color or have high contrast */
+body.light-mode .text-white,
+body.light-mode .text-gray-100,
+body.light-mode .text-gray-200,
+body.light-mode .text-gray-300,
+body.light-mode .text-gray-400 {
+  color: #18181b !important;
+}
+
+body.light-mode .text-gray-500,
+body.light-mode .text-gray-600 {
+  color: #52525b !important;
+}
+
+/* Preserve active pricing elements color */
+body.light-mode .active-pricing-header,
+body.light-mode .active-pricing-header * {
+  color: #000000 !important;
+}
+
+body.light-mode button.bg-\[\#ffea00\],
+body.light-mode button.bg-\[\#ffea00\] * {
+  color: #000000 !important;
+}
+
+/* Class-based overrides for panels and buttons */
+body.light-mode .glass-panel,
+body.light-mode .glass-panel-heavy,
+body.light-mode .glass-panel-light,
+body.light-mode .liquid-glass {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 12px 30px -10px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #18181b !important;
+}
+
+body.light-mode .glass-panel::before,
+body.light-mode .glass-panel-heavy::before,
+body.light-mode .glass-panel-light::before,
+body.light-mode .liquid-glass::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(0, 0, 0, 0.03) 50%,
+    rgba(255, 255, 255, 0.4) 100%
+  ) !important;
+}
+
+/* Neumorphic shadow light mode adjustments */
+body.light-mode .shadow-neumorphic-pill {
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 4px 10px rgba(0, 0, 0, 0.06) !important;
+}
+
+body.light-mode .shadow-neumorphic-pill-active {
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    0 1px 1px rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Invert form elements */
+body.light-mode input,
+body.light-mode textarea,
+body.light-mode select {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #18181b !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Dim particle animations and background ambient glows */
+body.light-mode .absolute.pointer-events-none,
+body.light-mode .bg-mesh-glow,
+body.light-mode .mesh-glow-orb {
+  opacity: 0.12 !important;
+}
+
 
 
