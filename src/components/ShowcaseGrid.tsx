@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "motion/react";
-import { Play, Film, Sparkles, Flame, Layers, Star, Image as ImageIcon, Eye, Palette, Compass, Info } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Play, Film, Sparkles, Flame, Layers, Star, Image as ImageIcon, Eye, Palette, Compass, Info, X } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 
 export default function ShowcaseGrid() {
@@ -13,6 +13,9 @@ export default function ShowcaseGrid() {
   // Accordion active item state (defaults to the first item of each list)
   const [activeVideoId, setActiveVideoId] = useState<string>("");
   const [activeImageId, setActiveImageId] = useState<string>("");
+  
+  // Image preview popup modal state
+  const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
   useEffect(() => {
     if (motionWorks.length > 0 && !activeVideoId) {
@@ -170,20 +173,30 @@ export default function ShowcaseGrid() {
                   <div
                     key={work.id}
                     onMouseEnter={() => setActiveImageId(work.id)}
-                    onClick={() => setActiveImageId(work.id)}
+                    onClick={() => {
+                      if (isActive) {
+                        setSelectedImage(work);
+                      } else {
+                        setActiveImageId(work.id);
+                      }
+                    }}
                     className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                       isActive 
                         ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
                         : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
                     }`}
                   >
-                    {/* Media container */}
-                    <div className="absolute inset-0 z-0 bg-black/45">
+                    {/* Media container: uses object-contain when active for original aspect ratios */}
+                    <div className="absolute inset-0 z-0 bg-[#050508]/95 flex items-center justify-center">
                       <img
                         src={work.imageUrl || work.videoUrl}
                         alt={work.title}
                         draggable="false"
-                        className="w-full h-full object-cover opacity-85"
+                        className={`transition-all duration-700 ${
+                          isActive 
+                            ? "w-full h-full object-contain p-6 opacity-100" 
+                            : "w-full h-full object-cover opacity-75"
+                        }`}
                       />
                       {/* Dark overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
@@ -219,6 +232,61 @@ export default function ShowcaseGrid() {
           </div>
         )}
       </div>
+
+      {/* COMPACT SECURE PREVIEW MODAL FOR IMAGES ONLY (z-index sits below top navigation bar) */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-[9998] bg-[#050508]/85 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel-heavy rounded-3xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl relative flex flex-col border border-white/10 p-4"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-3 right-3 z-50 p-2 rounded-full bg-black/60 border border-white/10 text-gray-300 hover:text-white hover:border-[#ffea00] transition-all duration-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Image Frame */}
+              <div className="w-full overflow-hidden rounded-2xl flex items-center justify-center bg-black/40 p-2">
+                <img
+                  src={selectedImage.imageUrl || selectedImage.videoUrl}
+                  alt={selectedImage.title}
+                  draggable="false"
+                  className="max-h-[60vh] object-contain rounded-xl w-full"
+                />
+              </div>
+
+              {/* Text Meta info */}
+              <div className="pt-4 px-2">
+                <h4 className="font-display font-bold text-lg text-white tracking-tight leading-tight">
+                  {selectedImage.title}
+                </h4>
+                <p className="text-xs text-gray-400 font-mono tracking-wide uppercase mt-1">
+                  {selectedImage.category}
+                </p>
+                {selectedImage.description && (
+                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                    {selectedImage.description}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

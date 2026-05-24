@@ -168,40 +168,7 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
           {/* RIGHT: Light/Dark mode glassy toggle slider & Instant Consult CTA */}
           <div className="flex items-center gap-3">
             {/* Sliding Capsule Toggle Button (Image 2 style) */}
-            <div 
-              onClick={() => setThemeMode(prev => prev === "dark" ? "light" : "dark")}
-              className={`relative h-9 rounded-full border p-1 flex items-center cursor-pointer select-none transition-all duration-500 overflow-hidden ${
-                themeMode === "light" ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10"
-              } ${
-                isScrolled || isMobile ? "w-9" : "w-24"
-              }`}
-            >
-              {/* Glass track slider */}
-              <motion.div 
-                className={`absolute top-[3px] left-[3px] w-7 h-7 rounded-full flex items-center justify-center shadow-lg transition-transform ${
-                  themeMode === "light" ? "bg-[#faf9f6]" : "bg-[#18181b]"
-                }`}
-                animate={{
-                  x: themeMode === "light" ? (isScrolled || isMobile ? 0 : 54) : 0
-                }}
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              >
-                {themeMode === "light" ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                ) : (
-                  <Moon className="w-3.5 h-3.5 text-[#ffea00] fill-[#ffea00]" />
-                )}
-              </motion.div>
-              
-              {/* Sliding text label */}
-              {!(isScrolled || isMobile) && (
-                <span className={`text-[10px] font-mono font-black uppercase tracking-wider absolute transition-all duration-300 ${
-                  themeMode === "light" ? "left-3 text-black/70" : "right-3 text-white/70"
-                }`}>
-                  {themeMode === "light" ? "Light" : "Dark"}
-                </span>
-              )}
-            </div>
+
 
             {/* Desktop CTA (Book Consultation) */}
             <button
