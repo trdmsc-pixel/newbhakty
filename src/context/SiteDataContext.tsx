@@ -27,6 +27,24 @@ export interface MediaAsset {
   created_at?: string;
 }
 
+export interface BrandLogo {
+  id: string;
+  url: string;
+  name: string;
+  display_order: number;
+}
+
+export interface Testimonial {
+  id: string;
+  client_name: string;
+  role: string;
+  company: string;
+  text: string;
+  video_url: string;
+  rating: number;
+  display_order: number;
+}
+
 interface SiteDataContextProps {
   isLoading: boolean;
   siteSettings: SiteSettings;
@@ -35,6 +53,8 @@ interface SiteDataContextProps {
   pricingTiers: PricingTier[];
   isUsingSupabase: boolean;
   mediaAssets: MediaAsset[];
+  brandLogos: BrandLogo[];
+  testimonials: Testimonial[];
   refreshAllData: () => Promise<void>;
   updateSiteSetting: (key: string, value: string) => Promise<boolean>;
   updateMultipleSiteSettings: (settings: SiteSettings) => Promise<boolean>;
@@ -43,6 +63,8 @@ interface SiteDataContextProps {
   updatePricingTiers: (tiers: PricingTier[]) => Promise<boolean>;
   addMediaAsset: (name: string, url: string, type: "image" | "video") => Promise<MediaAsset | null>;
   deleteMediaAsset: (id: string) => Promise<boolean>;
+  updateBrandLogos: (logos: BrandLogo[]) => Promise<boolean>;
+  updateTestimonials: (testimonials: Testimonial[]) => Promise<boolean>;
 }
 
 const SiteDataContext = createContext<SiteDataContextProps | undefined>(undefined);
@@ -79,6 +101,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_text_width: "",
   hero_text_height: "",
   portfolio_license_button_text: "Acquire License",
+  marquee_direction: "left",
   booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
 };
 
@@ -123,6 +146,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(DEFAULT_MEDIA_ASSETS);
+  const [brandLogos, setBrandLogos] = useState<BrandLogo[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   // Load from Supabase
   const loadData = async (silent = false) => {
@@ -174,6 +199,48 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
         } catch (tableErr) {
           console.warn("Could not query 'media_assets' table from Supabase.", tableErr);
+        }
+
+        // Fetch Brand Logos
+        try {
+          const { data: logosData, error: logosError } = await supabase
+            .from("brand_logos")
+            .select("*")
+            .order("display_order", { ascending: true });
+
+          if (!logosError && logosData && logosData.length > 0) {
+            setBrandLogos(logosData.map((l: any) => ({
+              id: l.id,
+              url: l.url,
+              name: l.name || "",
+              display_order: l.display_order || 0,
+            })));
+          }
+        } catch (tableErr) {
+          console.warn("Could not query 'brand_logos' table from Supabase.", tableErr);
+        }
+
+        // Fetch Testimonials
+        try {
+          const { data: testimonialsData, error: testimonialsError } = await supabase
+            .from("testimonials")
+            .select("*")
+            .order("display_order", { ascending: true });
+
+          if (!testimonialsError && testimonialsData && testimonialsData.length > 0) {
+            setTestimonials(testimonialsData.map((t: any) => ({
+              id: t.id,
+              client_name: t.client_name || "",
+              role: t.role || "",
+              company: t.company || "",
+              text: t.text || "",
+              video_url: t.video_url || "",
+              rating: t.rating || 5,
+              display_order: t.display_order || 0,
+            })));
+          }
+        } catch (tableErr) {
+          console.warn("Could not query 'testimonials' table from Supabase.", tableErr);
         }
 
         // If queries succeeded, update state
@@ -523,6 +590,96 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   };
 
+  // 7. UPDATE BRAND LOGOS
+  const updateBrandLogos = async (logos: BrandLogo[]): Promise<boolean> => {
+    setBrandLogos(logos);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const activeIds = logos.map(l => l.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase.from("brand_logos").delete().not("id", "in", `(${activeIds.join(",")})`);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase.from("brand_logos").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delErr) throw new Error(delErr.message);
+        }
+
+        for (let i = 0; i < logos.length; i++) {
+          const l = logos[i];
+          const payload: any = {
+            url: l.url,
+            name: l.name || "",
+            display_order: i + 1,
+          };
+          let saveErr;
+          if (isValidUUID(l.id)) {
+            payload.id = l.id;
+            const { error } = await supabase.from("brand_logos").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("brand_logos").insert(payload);
+            saveErr = error;
+          }
+          if (saveErr) throw new Error(saveErr.message);
+        }
+        await loadData(true);
+        return true;
+      } catch (e) {
+        console.error("Supabase update brand logos error", e);
+        throw e;
+      }
+    }
+    return true;
+  };
+
+  // 8. UPDATE TESTIMONIALS
+  const updateTestimonials = async (items: Testimonial[]): Promise<boolean> => {
+    setTestimonials(items);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const activeIds = items.map(t => t.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase.from("testimonials").delete().not("id", "in", `(${activeIds.join(",")})`);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase.from("testimonials").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delErr) throw new Error(delErr.message);
+        }
+
+        for (let i = 0; i < items.length; i++) {
+          const t = items[i];
+          const payload: any = {
+            client_name: t.client_name,
+            role: t.role || "",
+            company: t.company || "",
+            text: t.text,
+            video_url: t.video_url || "",
+            rating: t.rating || 5,
+            display_order: i + 1,
+          };
+          let saveErr;
+          if (isValidUUID(t.id)) {
+            payload.id = t.id;
+            const { error } = await supabase.from("testimonials").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("testimonials").insert(payload);
+            saveErr = error;
+          }
+          if (saveErr) throw new Error(saveErr.message);
+        }
+        await loadData(true);
+        return true;
+      } catch (e) {
+        console.error("Supabase update testimonials error", e);
+        throw e;
+      }
+    }
+    return true;
+  };
+
   return (
     <SiteDataContext.Provider
       value={{
@@ -533,6 +690,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pricingTiers,
         isUsingSupabase: isSupabaseConfigured,
         mediaAssets,
+        brandLogos,
+        testimonials,
         refreshAllData,
         updateSiteSetting,
         updateMultipleSiteSettings,
@@ -541,6 +700,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updatePricingTiers,
         addMediaAsset,
         deleteMediaAsset,
+        updateBrandLogos,
+        updateTestimonials,
       }}
     >
       {children}

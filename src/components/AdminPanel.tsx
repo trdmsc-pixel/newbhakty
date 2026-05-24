@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useSiteData, NavigationMenuItem, MediaAsset } from "../context/SiteDataContext";
+import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
 import { VideoBlock, PricingTier } from "../types";
@@ -10,7 +10,7 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders
+  Palette, Sliders, Image, MessageSquare
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
@@ -36,6 +36,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     pricingTiers,
     isUsingSupabase,
     mediaAssets,
+    brandLogos,
+    testimonials,
     updateSiteSetting,
     updateMultipleSiteSettings,
     updateNavigationMenu,
@@ -43,6 +45,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     updatePricingTiers,
     addMediaAsset,
     deleteMediaAsset,
+    updateBrandLogos,
+    updateTestimonials,
   } = useSiteData();
 
 
@@ -73,7 +77,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials">("settings");
+
+  // Brand Logos & Testimonials Edit State
+  const [editLogos, setEditLogos] = useState<BrandLogo[]>([]);
+  const [editTestimonials, setEditTestimonials] = useState<Testimonial[]>([]);
 
   const [uploadModal, setUploadModal] = useState<{
     active: boolean;
@@ -208,6 +216,18 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }
     loadSubmissions();
   }, [isUsingSupabase]);
+
+  useEffect(() => {
+    if (brandLogos) {
+      setEditLogos([...brandLogos]);
+    }
+  }, [brandLogos]);
+
+  useEffect(() => {
+    if (testimonials) {
+      setEditTestimonials([...testimonials]);
+    }
+  }, [testimonials]);
 
   const [analyzingSubId, setAnalyzingSubId] = useState<string | null>(null);
   const [submissionAnalyses, setSubmissionAnalyses] = useState<Record<string, string>>(() => {
@@ -719,6 +739,152 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, intake_form: "error" }));
       toast.error(`Ingestion configuration synchronization failed: ${err?.message || "Unknown error"}`);
+    }
+  };
+
+  // ----------------------------------------------------
+  // BRAND LOGOS HANDLERS
+  // ----------------------------------------------------
+  const [selectedBrandLogoFiles, setSelectedBrandLogoFiles] = useState<{ [logoId: string]: File | null }>({});
+  const [isUploadingBrandLogoId, setIsUploadingBrandLogoId] = useState<string | null>(null);
+
+  const handleBrandLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>, logoId: string) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setSelectedBrandLogoFiles(prev => ({ ...prev, [logoId]: file }));
+      toast.info(`Selected logo file: ${file.name}. Ready to upload.`);
+    }
+  };
+
+  const handleBrandLogoUpload = async (logoId: string) => {
+    const file = selectedBrandLogoFiles[logoId];
+    if (!file) {
+      toast.warning("Choose a file first.");
+      return;
+    }
+    setIsUploadingBrandLogoId(logoId);
+    try {
+      const url = await runUploadWithModal(file, () => uploadToCloudinary(file));
+      setEditLogos(prev => prev.map(l => l.id === logoId ? { ...l, url } : l));
+      setSelectedBrandLogoFiles(prev => ({ ...prev, [logoId]: null }));
+      toast.success("Logo uploaded successfully!");
+    } catch (err: any) {
+      toast.error(`Logo upload failed: ${err.message || err}`);
+    } finally {
+      setIsUploadingBrandLogoId(null);
+    }
+  };
+
+  const addBrandLogo = () => {
+    const newLogo: BrandLogo = {
+      id: "logo-temp-" + Date.now(),
+      url: "",
+      name: "New Brand",
+      display_order: editLogos.length + 1
+    };
+    setEditLogos(prev => [...prev, newLogo]);
+  };
+
+  const deleteBrandLogo = (id: string) => {
+    setEditLogos(prev => prev.filter(l => l.id !== id).map((l, idx) => ({ ...l, display_order: idx + 1 })));
+  };
+
+  const moveBrandLogo = (index: number, direction: "up" | "down") => {
+    const updated = [...editLogos];
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= updated.length) return;
+    const temp = updated[index];
+    updated[index] = updated[target];
+    updated[target] = temp;
+    setEditLogos(updated.map((l, idx) => ({ ...l, display_order: idx + 1 })));
+  };
+
+  const saveBrandLogos = async () => {
+    setSaveStatus(prev => ({ ...prev, brand_logos: "saving" }));
+    try {
+      await updateBrandLogos(editLogos);
+      setSaveStatus(prev => ({ ...prev, brand_logos: "saved" }));
+      toast.success("Brand logos successfully synchronized!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, brand_logos: "idle" })), 3000);
+    } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, brand_logos: "error" }));
+      toast.error(`Failed to sync brand logos: ${err.message || err}`);
+    }
+  };
+
+  // ----------------------------------------------------
+  // TESTIMONIALS HANDLERS
+  // ----------------------------------------------------
+  const [selectedTestimonialFiles, setSelectedTestimonialFiles] = useState<{ [tId: string]: File | null }>({});
+  const [isUploadingTestimonialId, setIsUploadingTestimonialId] = useState<string | null>(null);
+
+  const handleTestimonialFileChange = (e: React.ChangeEvent<HTMLInputElement>, tId: string) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setSelectedTestimonialFiles(prev => ({ ...prev, [tId]: file }));
+      toast.info(`Selected testimonial video: ${file.name}. Ready to upload.`);
+    }
+  };
+
+  const handleTestimonialUpload = async (tId: string) => {
+    const file = selectedTestimonialFiles[tId];
+    if (!file) {
+      toast.warning("Choose a file first.");
+      return;
+    }
+    setIsUploadingTestimonialId(tId);
+    try {
+      const url = await runUploadWithModal(file, () => uploadToCloudinary(file));
+      setEditTestimonials(prev => prev.map(t => t.id === tId ? { ...t, video_url: url } : t));
+      setSelectedTestimonialFiles(prev => ({ ...prev, [tId]: null }));
+      toast.success("Testimonial video uploaded successfully!");
+    } catch (err: any) {
+      toast.error(`Video upload failed: ${err.message || err}`);
+    } finally {
+      setIsUploadingTestimonialId(null);
+    }
+  };
+
+  const addTestimonial = () => {
+    const newTestimonial: Testimonial = {
+      id: "testimonial-temp-" + Date.now(),
+      client_name: "John Doe",
+      role: "Founder & CEO",
+      company: "Acme Corp",
+      text: "This creative studio completely transformed our brand aesthetics. Truly premium orchestration.",
+      video_url: "",
+      rating: 5,
+      display_order: editTestimonials.length + 1
+    };
+    setEditTestimonials(prev => [...prev, newTestimonial]);
+  };
+
+  const deleteTestimonial = (id: string) => {
+    setEditTestimonials(prev => prev.filter(t => t.id !== id).map((t, idx) => ({ ...t, display_order: idx + 1 })));
+  };
+
+  const moveTestimonial = (index: number, direction: "up" | "down") => {
+    const updated = [...editTestimonials];
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= updated.length) return;
+    const temp = updated[index];
+    updated[index] = updated[target];
+    updated[target] = temp;
+    setEditTestimonials(updated.map((t, idx) => ({ ...t, display_order: idx + 1 })));
+  };
+
+  const saveTestimonials = async () => {
+    setSaveStatus(prev => ({ ...prev, testimonials: "saving" }));
+    try {
+      await updateTestimonials(editTestimonials);
+      setSaveStatus(prev => ({ ...prev, testimonials: "saved" }));
+      toast.success("Testimonials successfully synchronized!");
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, testimonials: "idle" })), 3000);
+    } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, testimonials: "error" }));
+      toast.error(`Failed to sync testimonials: ${err.message || err}`);
     }
   };
 
@@ -1340,6 +1506,28 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               }`}
             >
               <Sliders className="w-4 h-4" /> Ingestion Form Config
+            </button>
+
+            <button
+              onClick={() => setActiveTab("brand_logos")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "brand_logos"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <Image className="w-4 h-4" /> Brand Logos Manager
+            </button>
+
+            <button
+              onClick={() => setActiveTab("testimonials")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "testimonials"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" /> Testimonials Manager
             </button>
 
             {/* QUICK SCHEMA INST INSTRUCTIONS */}
@@ -3549,6 +3737,426 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 9: BRAND LOGOS MANAGER */}
+              {activeTab === "brand_logos" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div>
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Brand Logos Management
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Upload and manage client/brand logos displayed in the infinite horizontal marquee.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={addBrandLogo}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" /> Add Logo
+                      </button>
+                      <button
+                        onClick={saveBrandLogos}
+                        disabled={saveStatus.brand_logos === "saving"}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                      >
+                        {saveStatus.brand_logos === "saving" ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Synchronizing...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" /> Synchronize logos
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Marquee Direction Settings block */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="border-b border-white/5 pb-3">
+                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Marquee Flow Configuration</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Direction:</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateSiteSetting("marquee_direction", "left")}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                            siteSettings.marquee_direction === "left"
+                              ? "bg-[#ffea00] text-black border-[#ffea00]"
+                              : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                          }`}
+                        >
+                          Scroll Left
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateSiteSetting("marquee_direction", "right")}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                            siteSettings.marquee_direction === "right"
+                              ? "bg-[#ffea00] text-black border-[#ffea00]"
+                              : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                          }`}
+                        >
+                          Scroll Right
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Brand Logos List */}
+                  <div className="space-y-4">
+                    {editLogos.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
+                        <p className="text-gray-500 text-sm">No brand logos configured yet. Click "Add Logo" to start.</p>
+                      </div>
+                    ) : (
+                      editLogos.map((logo, index) => (
+                        <div
+                          key={logo.id}
+                          className="bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center gap-4 hover:border-white/10 transition-all"
+                        >
+                          {/* Image preview box */}
+                          <div className="w-24 h-16 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                            {logo.url ? (
+                              <img
+                                src={logo.url}
+                                alt={logo.name || "Brand logo preview"}
+                                className="w-full h-full object-contain p-2"
+                              />
+                            ) : (
+                              <Image className="w-6 h-6 text-gray-600" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0 space-y-3 w-full">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Brand/Client Name</label>
+                                <input
+                                  type="text"
+                                  value={logo.name}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, name: val } : l));
+                                  }}
+                                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                  placeholder="e.g. Acme Corp"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Logo Image URL</label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={logo.url}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
+                                    }}
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                                    placeholder="Direct logo link"
+                                  />
+                                  
+                                  {/* File Upload Trigger */}
+                                  <div className="relative shrink-0">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleBrandLogoFileChange(e, logo.id)}
+                                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                    />
+                                    <button
+                                      type="button"
+                                      className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs hover:bg-white/10 hover:text-white transition-all flex items-center gap-1 cursor-pointer h-full"
+                                    >
+                                      <Upload className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Show selected file name and upload button if present */}
+                            {selectedBrandLogoFiles[logo.id] && (
+                              <div className="flex items-center justify-between bg-purple-950/20 border border-purple-500/20 px-3 py-2 rounded-xl text-xs">
+                                <span className="text-gray-300 truncate max-w-xs">
+                                  Selected: {selectedBrandLogoFiles[logo.id]?.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleBrandLogoUpload(logo.id)}
+                                  disabled={isUploadingBrandLogoId === logo.id}
+                                  className="flex items-center gap-1 px-3 py-1 bg-[#ffea00] text-black font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                                >
+                                  {isUploadingBrandLogoId === logo.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" /> Uploading...
+                                    </>
+                                  ) : (
+                                    <>Upload to CDN</>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Control arrows/delete */}
+                          <div className="flex items-center gap-1 shrink-0 ml-auto md:ml-0 self-end md:self-center">
+                            <button
+                              type="button"
+                              onClick={() => moveBrandLogo(index, "up")}
+                              disabled={index === 0}
+                              className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveBrandLogo(index, "down")}
+                              disabled={index === editLogos.length - 1}
+                              className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteBrandLogo(logo.id)}
+                              className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/5 border border-red-500/10 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 10: TESTIMONIALS MANAGER */}
+              {activeTab === "testimonials" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div>
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Testimonials Management
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Add, edit, and arrange customer reviews and video testimonials.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={addTestimonial}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" /> Add Testimonial
+                      </button>
+                      <button
+                        onClick={saveTestimonials}
+                        disabled={saveStatus.testimonials === "saving"}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                      >
+                        {saveStatus.testimonials === "saving" ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Synchronizing...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" /> Synchronize testimonials
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Testimonials List */}
+                  <div className="space-y-4">
+                    {editTestimonials.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
+                        <p className="text-gray-500 text-sm">No testimonials configured yet. Click "Add Testimonial" to start.</p>
+                      </div>
+                    ) : (
+                      editTestimonials.map((testimonial, index) => (
+                        <div
+                          key={testimonial.id}
+                          className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4 hover:border-white/10 transition-all"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-3">
+                            <span className="font-mono text-xs text-[#ffea00] uppercase tracking-wider">
+                              Testimonial Slot #{index + 1}
+                            </span>
+                            
+                            <div className="flex items-center gap-1.5 shrink-0 self-end md:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => moveTestimonial(index, "up")}
+                                disabled={index === 0}
+                                className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveTestimonial(index, "down")}
+                                disabled={index === editTestimonials.length - 1}
+                                className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteTestimonial(testimonial.id)}
+                                className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/5 border border-red-500/10 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Client/Author Name</label>
+                              <input
+                                type="text"
+                                value={testimonial.client_name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, client_name: val } : t));
+                                }}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                placeholder="e.g. John Doe"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Role / Position</label>
+                              <input
+                                type="text"
+                                value={testimonial.role}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, role: val } : t));
+                                }}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                placeholder="e.g. Founder & CEO"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Company / Studio</label>
+                              <input
+                                type="text"
+                                value={testimonial.company}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, company: val } : t));
+                                }}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                placeholder="e.g. Acme Corp"
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Quote Text Content</label>
+                              <textarea
+                                rows={3}
+                                value={testimonial.text}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, text: val } : t));
+                                }}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white resize-none"
+                                placeholder="What the client said about their rendering schedule..."
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Rating Stars (1 to 5)</label>
+                              <select
+                                value={testimonial.rating}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, rating: val } : t));
+                                }}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white cursor-pointer"
+                                style={{ colorScheme: "dark" }}
+                              >
+                                <option value="5">5 Stars</option>
+                                <option value="4.5">4.5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                              </select>
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Optional Video Testimonial URL</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={testimonial.video_url}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, video_url: val } : t));
+                                  }}
+                                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                                  placeholder="Direct MP4 video URL"
+                                />
+
+                                {/* File Upload Trigger */}
+                                <div className="relative shrink-0">
+                                  <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={(e) => handleTestimonialFileChange(e, testimonial.id)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs hover:bg-white/10 hover:text-white transition-all flex items-center gap-1 cursor-pointer h-full"
+                                  >
+                                    <Upload className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Show selected file name and upload button if present */}
+                          {selectedTestimonialFiles[testimonial.id] && (
+                            <div className="flex items-center justify-between bg-purple-950/20 border border-purple-500/20 px-3 py-2 rounded-xl text-xs">
+                              <span className="text-gray-300 truncate max-w-xs">
+                                Selected: {selectedTestimonialFiles[testimonial.id]?.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleTestimonialUpload(testimonial.id)}
+                                disabled={isUploadingTestimonialId === testimonial.id}
+                                className="flex items-center gap-1 px-3 py-1 bg-[#ffea00] text-black font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                              >
+                                {isUploadingTestimonialId === testimonial.id ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" /> Uploading...
+                                  </>
+                                ) : (
+                                  <>Upload Video to CDN</>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

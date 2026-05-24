@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Film, Calendar, Compass, Layers, Menu, X, Sun, Moon } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
@@ -123,14 +123,8 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
               : "bg-black/75 border-white/10 backdrop-blur-xl"
           } px-4 md:px-6`}
         >
-          {/* LEFT: macOS colored window control dots & Logo */}
+          {/* LEFT: Logo */}
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-1.5 px-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56] border border-[#e0443e] hover:brightness-110 transition-all" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e] border border-[#dea123] hover:brightness-110 transition-all" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f] border border-[#1aab29] hover:brightness-110 transition-all" />
-            </div>
-            
             <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center cursor-pointer">
               {renderLogo(isMobile)}
             </div>

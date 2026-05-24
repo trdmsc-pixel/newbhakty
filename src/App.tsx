@@ -7,6 +7,7 @@ import ShowcaseGrid from "./components/ShowcaseGrid";
 import PricingSection from "./components/PricingSection";
 import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
+import BrandMarquee from "./components/BrandMarquee";
 import AdminPanel from "./components/AdminPanel";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -300,6 +301,9 @@ function AppContent() {
           <ChevronDown className="w-4 h-4 text-gray-500 hover:text-[#ffea00]" />
         </motion.button>
       </div>
+
+      {/* BRAND LOGOS MARQUEE */}
+      <BrandMarquee />
 
       {/* THE INTEGRATED PORTFOLIO SHOWCASE GRID */}
       <ShowcaseGrid />

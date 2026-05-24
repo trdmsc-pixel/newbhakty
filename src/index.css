@@ -414,6 +414,54 @@ body.light-mode .mesh-glow-orb {
   animation: offer-shimmer-slide 2.8s infinite ease-in-out;
 }
 
+/* ========================================= */
+/* BRAND MARQUEE ANIMATIONS                  */
+/* ========================================= */
 
+@keyframes marquee-scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
 
+@keyframes marquee-scroll-right {
+  0% {
+    transform: translateX(-33.333%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.marquee-track-left {
+  animation: marquee-scroll-left 30s linear infinite;
+}
+
+.marquee-track-right {
+  animation: marquee-scroll-right 30s linear infinite;
+}
+
+.marquee-paused {
+  animation-play-state: paused !important;
+}
+
+/* ========================================= */
+/* TESTIMONIAL CAROUSEL                      */
+/* ========================================= */
+
+@keyframes testimonial-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-testimonial-float {
+  animation: testimonial-float 4s ease-in-out infinite;
+}
 

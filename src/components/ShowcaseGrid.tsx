@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Film, Sparkles, Flame, Layers, Star, Image as ImageIcon, Eye, Palette, Compass, Info, X } from "lucide-react";
+import { Film, Image as ImageIcon, Volume2, VolumeX, X } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 
 export default function ShowcaseGrid() {
@@ -14,8 +14,22 @@ export default function ShowcaseGrid() {
   const [activeVideoId, setActiveVideoId] = useState<string>("");
   const [activeImageId, setActiveImageId] = useState<string>("");
   
+  // Audio state: track which video is currently unmuted
+  const [unmutedVideoId, setUnmutedVideoId] = useState<string | null>(null);
+  
   // Image preview popup modal state
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
+
+  // Refs for all video elements to control audio
+  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+
+  const setVideoRef = useCallback((id: string, el: HTMLVideoElement | null) => {
+    if (el) {
+      videoRefs.current.set(id, el);
+    } else {
+      videoRefs.current.delete(id);
+    }
+  }, []);
 
   useEffect(() => {
     if (motionWorks.length > 0 && !activeVideoId) {
@@ -29,16 +43,36 @@ export default function ShowcaseGrid() {
     }
   }, [staticWorks, activeImageId]);
 
-  const getMotionIcon = (index: number) => {
-    const icons = [Play, Film, Sparkles, Flame, Layers, Star];
-    const IconComp = icons[index % icons.length];
-    return <IconComp className={`w-4 h-4 ${IconComp === Play ? "fill-current ml-0.5 text-black" : "text-black"}`} />;
+  // Mute all videos except the active unmuted one
+  useEffect(() => {
+    videoRefs.current.forEach((videoEl, id) => {
+      if (id === unmutedVideoId) {
+        videoEl.muted = false;
+      } else {
+        videoEl.muted = true;
+      }
+    });
+  }, [unmutedVideoId]);
+
+  // Handle video card click - toggle audio
+  const handleVideoCardClick = (workId: string) => {
+    if (activeVideoId === workId) {
+      // Already active - toggle audio
+      setUnmutedVideoId(prev => prev === workId ? null : workId);
+    } else {
+      // Switch to this card and unmute it
+      setActiveVideoId(workId);
+      setUnmutedVideoId(workId);
+    }
   };
 
-  const getStaticIcon = (index: number) => {
-    const icons = [ImageIcon, Eye, Palette, Compass, Star, Info];
-    const IconComp = icons[index % icons.length];
-    return <IconComp className="w-4 h-4 text-black" />;
+  // When active video changes via hover, mute previous
+  const handleVideoHover = (workId: string) => {
+    if (workId !== activeVideoId) {
+      setActiveVideoId(workId);
+      // Mute previous when switching via hover
+      setUnmutedVideoId(null);
+    }
   };
 
   return (
@@ -85,23 +119,27 @@ export default function ShowcaseGrid() {
         {/* ==================================================== */}
         {motionWorks.length > 0 && (
           <div className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 flex-wrap">
               <Film className="w-5 h-5 text-[#ffea00]" />
               <h3 className="font-display font-medium text-xl text-white">Motion Portfolio</h3>
               <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                 {motionWorks.length} Synths
               </span>
+              <span className="text-[10px] font-mono text-gray-500 italic ml-auto hidden sm:inline">
+                (Click on the thumbnail to enable sound)
+              </span>
             </div>
 
             {/* Accordion List Wrapper */}
             <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
-              {motionWorks.map((work, idx) => {
+              {motionWorks.map((work) => {
                 const isActive = activeVideoId === work.id;
+                const isUnmuted = unmutedVideoId === work.id;
                 return (
                   <div
                     key={work.id}
-                    onMouseEnter={() => setActiveVideoId(work.id)}
-                    onClick={() => setActiveVideoId(work.id)}
+                    onMouseEnter={() => handleVideoHover(work.id)}
+                    onClick={() => handleVideoCardClick(work.id)}
                     className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                       isActive 
                         ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
@@ -111,6 +149,7 @@ export default function ShowcaseGrid() {
                     {/* Media container */}
                     <div className="absolute inset-0 z-0 bg-black/45">
                       <video
+                        ref={(el) => setVideoRef(work.id, el)}
                         src={work.videoUrl}
                         autoPlay
                         muted
@@ -122,18 +161,31 @@ export default function ShowcaseGrid() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
                     </div>
 
+                    {/* Audio indicator icon at top-right when expanded and unmuted */}
+                    {isActive && (
+                      <div className="absolute top-4 right-4 z-30 pointer-events-none">
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider transition-all duration-300 ${
+                          isUnmuted 
+                            ? "bg-[#ffea00]/20 border border-[#ffea00]/40 text-[#ffea00]" 
+                            : "bg-white/5 border border-white/10 text-gray-400"
+                        }`}>
+                          {isUnmuted ? (
+                            <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+                          ) : (
+                            <VolumeX className="w-3.5 h-3.5" />
+                          )}
+                          <span className="hidden sm:inline">{isUnmuted ? "Sound On" : "Muted"}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Bottom-left overlay info */}
                     <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
-                      {/* Circle Badge icon */}
-                      <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center shadow-lg transition-transform duration-500">
-                        {getMotionIcon(idx)}
-                      </div>
-
                       {/* Text details (Fades in dynamically) */}
                       <div 
                         className={`flex flex-col select-none transition-all duration-700 ${
                           isActive 
-                            ? "opacity-100 translate-x-0 w-auto max-w-[calc(100%-4rem)]" 
+                            ? "opacity-100 translate-x-0 w-auto max-w-full" 
                             : "opacity-0 -translate-x-4 w-0 overflow-hidden"
                         }`}
                       >
@@ -167,7 +219,7 @@ export default function ShowcaseGrid() {
 
             {/* Accordion List Wrapper */}
             <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
-              {staticWorks.map((work, idx) => {
+              {staticWorks.map((work) => {
                 const isActive = activeImageId === work.id;
                 return (
                   <div
@@ -204,16 +256,11 @@ export default function ShowcaseGrid() {
 
                     {/* Bottom-left overlay info */}
                     <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
-                      {/* Circle Badge icon */}
-                      <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center shadow-lg transition-transform duration-500">
-                        {getStaticIcon(idx)}
-                      </div>
-
                       {/* Text details (Fades in dynamically) */}
                       <div 
                         className={`flex flex-col select-none transition-all duration-700 ${
                           isActive 
-                            ? "opacity-100 translate-x-0 w-auto max-w-[calc(100%-4rem)]" 
+                            ? "opacity-100 translate-x-0 w-auto max-w-full" 
                             : "opacity-0 -translate-x-4 w-0 overflow-hidden"
                         }`}
                       >

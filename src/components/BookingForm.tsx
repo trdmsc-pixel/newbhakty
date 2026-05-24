@@ -574,33 +574,178 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     setShowSuccess(false);
   };
 
+  // Testimonials carousel state
+  const { testimonials = [] } = useSiteData();
+  const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
+  const testimonialTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-rotate testimonials
+  useEffect(() => {
+    if (testimonials.length <= 1) return;
+    testimonialTimerRef.current = setInterval(() => {
+      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => {
+      if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
+    };
+  }, [testimonials.length]);
+
+  const goToPrevTestimonial = () => {
+    setActiveTestimonialIdx(prev => prev === 0 ? testimonials.length - 1 : prev - 1);
+    // Reset autoplay timer
+    if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
+    testimonialTimerRef.current = setInterval(() => {
+      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
+    }, 5000);
+  };
+
+  const goToNextTestimonial = () => {
+    setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
+    // Reset autoplay timer
+    if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
+    testimonialTimerRef.current = setInterval(() => {
+      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
+    }, 5000);
+  };
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <span key={i} className={`text-sm ${i < Math.round(rating) ? "text-[#ffea00]" : "text-gray-700"}`}>★</span>
+    ));
+  };
+
+  const hasTestimonials = testimonials.length > 0;
+
   return (
     <section id="booking-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 mx-auto ${
       siteSettings.website_full_width === "true" 
-        ? "max-w-6xl w-full" 
-        : "max-w-4xl"
+        ? "max-w-7xl w-full" 
+        : "max-w-6xl"
     }`}>
       
       {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#ffea00]/5 rounded-full filter blur-[100px] pointer-events-none" />
 
-      {/* BLOCK BACKGROUND FORM PANEL WITH FROSTED GLASSMOPHISM */}
-      <div className="glass-panel rounded-3xl p-8 md:p-12 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
+      {/* SECTION HEADER */}
+      <div className="text-center mb-12">
+        <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4">
+          Creative Intake
+        </span>
+        <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
+          {siteSettings.booking_form_title || "Book Creative Studio"}
+        </h2>
+        <p className="text-gray-400 text-sm md:text-base max-w-lg mx-auto">
+          {siteSettings.booking_form_subtitle || "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours."}
+        </p>
+      </div>
+
+      {/* SIDE-BY-SIDE LAYOUT: TESTIMONIALS (Left) + FORM (Right) */}
+      <div className={`flex flex-col ${hasTestimonials ? "lg:flex-row" : ""} gap-8`}>
         
-        {/* UPPER RADIANT BARS */}
-        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/40 to-transparent" />
-        
-        <div className="text-center mb-12">
-          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4">
-            Creative Intake
-          </span>
-          <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
-            {siteSettings.booking_form_title || "Book Creative Studio"}
-          </h2>
-          <p className="text-gray-400 text-sm md:text-base max-w-lg mx-auto">
-            {siteSettings.booking_form_subtitle || "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours."}
-          </p>
-        </div>
+        {/* LEFT: TESTIMONIALS CAROUSEL */}
+        {hasTestimonials && (
+          <div className="lg:w-[45%] flex flex-col justify-center">
+            <div className="relative">
+              {/* Testimonial Cards Stack */}
+              <div className="relative h-[400px] md:h-[460px] flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  {testimonials.map((t, idx) => {
+                    if (idx !== activeTestimonialIdx) return null;
+                    return (
+                      <motion.div
+                        key={t.id}
+                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -30, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 22 }}
+                        className="absolute inset-0 glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden"
+                      >
+                        {/* Upper radiant line */}
+                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/30 to-transparent" />
+
+                        <div className="flex-1 flex flex-col justify-center">
+                          {/* Rating Stars */}
+                          <div className="flex gap-0.5 mb-4">
+                            {renderStars(t.rating)}
+                          </div>
+
+                          {/* Quote text */}
+                          <blockquote className="text-white text-base md:text-lg leading-relaxed font-light mb-6 line-clamp-6">
+                            "{t.text}"
+                          </blockquote>
+
+                          {/* Video embed if present */}
+                          {t.video_url && (
+                            <div className="mb-4 rounded-xl overflow-hidden border border-white/10 max-h-[120px]">
+                              <video
+                                src={t.video_url}
+                                controls
+                                playsInline
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Client meta */}
+                        <div className="border-t border-white/5 pt-4">
+                          <p className="font-display font-semibold text-white text-sm tracking-tight">{t.client_name}</p>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mt-0.5">
+                            {t.role}{t.company ? ` · ${t.company}` : ""}
+                          </p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+
+                {/* Background blurred stacked cards */}
+                <div className="absolute inset-4 top-6 glass-panel rounded-3xl border border-white/5 opacity-20 blur-[2px] -z-10" />
+                <div className="absolute inset-8 top-10 glass-panel rounded-3xl border border-white/5 opacity-10 blur-[4px] -z-20" />
+              </div>
+
+              {/* Navigation controls */}
+              {testimonials.length > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <button
+                    onClick={goToPrevTestimonial}
+                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#ffea00]/40 transition-all cursor-pointer"
+                  >
+                    ←
+                  </button>
+                  
+                  {/* Dots indicator */}
+                  <div className="flex gap-2">
+                    {testimonials.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveTestimonialIdx(idx)}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                          idx === activeTestimonialIdx 
+                            ? "bg-[#ffea00] w-6" 
+                            : "bg-white/20 hover:bg-white/40"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={goToNextTestimonial}
+                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#ffea00]/40 transition-all cursor-pointer"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* RIGHT: BOOKING FORM */}
+        <div className={`${hasTestimonials ? "lg:w-[55%]" : "w-full"}`}>
+          <div className="glass-panel rounded-3xl p-8 md:p-10 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
+            {/* UPPER RADIANT BARS */}
+            <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/40 to-transparent" />
 
         {/* INPUT LAYOUT FORM */}
         <form onSubmit={handleSubmit} className="space-y-8" id="booking-form-element">
@@ -900,6 +1045,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
         </form>
 
       </div>
+      </div>{/* close form column */}
+      </div>{/* close side-by-side flex container */}
 
       {/* FULL SCREEN CONFIRMATION MODAL */}
       <AnimatePresence>

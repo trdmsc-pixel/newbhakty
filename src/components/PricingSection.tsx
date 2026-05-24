@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Check, Flame, Sliders, Hourglass, RotateCcw, CornerDownRight } from "lucide-react";
+import { Check, Flame, Hourglass, RotateCcw, Sliders } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 import { PricingTier } from "../types";
 
@@ -13,11 +13,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0];
 
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSliderIndex(parseInt(e.target.value));
-  };
 
   const selectPackage = (tier: PricingTier) => {
     onSelectTier(tier.name);
@@ -71,54 +67,8 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
         </motion.p>
       </div>
 
-      {/* INTERACTIVE PIPELINE SLIDER TOOL */}
-      <div className="max-w-xl mx-auto mb-16 px-4">
-        <div className="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden bg-black/60">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-[#ffea00] uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5" />
-              Dynamic Scale Controller
-            </span>
-            <span className="text-xs text-gray-400 font-mono">
-              Level {sliderIndex + 1}: <span className="text-white font-medium">{activeTier?.name}</span>
-            </span>
-          </div>
-
-          {/* DYNAMIC PIPELINE SLIDER CONTROL */}
-          <div className="relative mt-2 mb-6">
-            <input
-              type="range"
-              min="0"
-              max={Math.max(0, pricingTiers.length - 1)}
-              step="1"
-              value={sliderIndex}
-              onChange={handleSliderChange}
-              className="w-full h-1 bg-[#1a1708] rounded-full appearance-none cursor-pointer accent-[#ffea00]"
-              style={{
-                background: "linear-gradient(to right, #665200 0%, #ffea00 100%)",
-                height: "6px"
-              }}
-            />
-            {/* Custom slider steps */}
-            <div className="flex justify-between mt-2.5 px-1 text-[10px] font-mono text-gray-400">
-              {pricingTiers.map((t, idx) => (
-                <span key={t.id} className={sliderIndex === idx ? "text-white font-semibold" : ""}>
-                  {t.name.split(" ")[0]}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* DYNAMIC SCALE READOUT */}
-          <div className="text-center pt-2 text-xs text-gray-400 border-t border-white/5 flex justify-center items-center gap-1">
-            <CornerDownRight className="w-3.5 h-3.5 text-yellow-500" />
-            Slide coordinate to toggle and focus the core architectural package below.
-          </div>
-        </div>
-      </div>
-
       {/* 3-COLUMN GLASS TIERS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch pt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
         {pricingTiers.map((tier, index) => {
           // Whichever card is hovered gets highlighted. If no card is hovered, the selected card is highlighted.
           const isHighlighted = hoveredIndex !== null ? index === hoveredIndex : index === sliderIndex;
