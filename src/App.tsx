@@ -99,7 +99,7 @@ function AppContent() {
       <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-6 relative">
         <BackgroundGradients />
         <div className="flex flex-col items-center gap-3 relative z-10">
-          <div className="w-10 h-10 rounded-full border-t-2 border-r-2 border-[#e60027] animate-spin" />
+          <div className="w-10 h-10 rounded-full border-t-2 border-r-2 border-[#ffea00] animate-spin" />
           <span className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Initializing Studio Engine...</span>
         </div>
       </div>
@@ -181,14 +181,14 @@ function AppContent() {
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
           {/* Subtle micro identifier */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono tracking-widest text-[#e60027] mb-6 shadow-md uppercase">
-            <Cpu className="w-3 h-3 text-[#e60027]" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono tracking-widest text-[#ffea00] mb-6 shadow-md uppercase">
+            <Cpu className="w-3 h-3 text-[#ffea00]" />
             {siteSettings.hero_badge_text || "Synthetic Arts Studio v4.1"}
           </div>
 
           <h1 className="font-display font-light text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.05] text-white max-w-2xl mb-8">
             {siteSettings.hero_title_1 || "The Next Epoch"} <br />
-            <span className="italic font-serif text-[#e60027] text-6xl sm:text-7xl md:text-8xl font-normal block my-1">
+            <span className="italic font-serif text-[#ffea00] text-6xl sm:text-7xl md:text-8xl font-normal block my-1">
               {siteSettings.hero_title_2 || "of Cinema."}
             </span>
             {siteSettings.hero_title_3 || "Synthesized."}
@@ -220,9 +220,9 @@ function AppContent() {
                 ...(siteSettings.hero_cta_booking_color ? { backgroundColor: siteSettings.hero_cta_booking_color, backgroundImage: "none" } : {}),
                 ...(siteSettings.hero_cta_booking_text_color ? { color: siteSettings.hero_cta_booking_text_color } : {})
               }}
-              className="px-8 py-4 bg-gradient-to-r from-[#e60027] to-[#990011] text-white font-semibold font-display tracking-tight text-sm rounded-2xl hover:shadow-2xl hover:shadow-[#e60027]/30 cursor-pointer flex items-center justify-center gap-2"
+              className="px-8 py-4 bg-[#ffea00] hover-glow-yellow text-black font-semibold font-display tracking-tight text-sm rounded-full cursor-pointer flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4 text-white" style={siteSettings.hero_cta_booking_text_color ? { color: siteSettings.hero_cta_booking_text_color } : undefined} />
+              <Sparkles className="w-4 h-4 text-black" style={siteSettings.hero_cta_booking_text_color ? { color: siteSettings.hero_cta_booking_text_color } : undefined} />
               {siteSettings.hero_cta_booking_text || "Book Creative Spot"}
             </motion.button>
 
@@ -259,7 +259,7 @@ function AppContent() {
               </span>
             </div>
             <div>
-              <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1 text-[#e60027]">
+              <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1 text-[#ffea00]">
                 {siteSettings.hero_stat3_value || "0%"}
               </span>
               <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
@@ -277,10 +277,10 @@ function AppContent() {
           onClick={() => scrollToSection("work-section")}
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-          className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-[#e60027] text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer"
+          className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-[#ffea00] text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer"
         >
           <span>Begin Odyssey</span>
-          <ChevronDown className="w-4 h-4 text-gray-500 hover:text-[#e60027]" />
+          <ChevronDown className="w-4 h-4 text-gray-500 hover:text-[#ffea00]" />
         </motion.button>
       </div>
 
@@ -333,7 +333,7 @@ function AppContent() {
             </span>
             <span 
               onClick={() => navigate("#admin")}
-              className="text-[10px] uppercase font-mono tracking-widest text-[#e60027] bg-[#e60027]/5 px-3 py-1.5 rounded-full border border-[#e60027]/20 hover:bg-[#e60027]/15 transition-all cursor-pointer"
+              className="text-[10px] uppercase font-mono tracking-widest text-[#ffea00] bg-[#ffea00]/5 px-3 py-1.5 rounded-full border border-[#ffea00]/20 hover:bg-[#ffea00]/15 transition-all cursor-pointer"
             >
               🔐 Administrator Login
             </span>

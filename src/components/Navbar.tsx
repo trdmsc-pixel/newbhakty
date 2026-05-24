@@ -52,7 +52,7 @@ export default function Navbar() {
 
     return (
       <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#e60027] to-[#990011] flex items-center justify-center relative overflow-hidden shadow-md">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ffea00] to-[#cca300] flex items-center justify-center relative overflow-hidden shadow-md">
           <div className="absolute inset-[2px] bg-[#050508] rounded-xl flex items-center justify-center">
             <Film className="w-4 h-4 text-white/90" />
           </div>
@@ -91,9 +91,9 @@ export default function Navbar() {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-medium transition-all duration-200 hover:bg-white/5 border border-transparent hover:border-white/5 text-gray-300 hover:text-white group`}
               >
                 {item.target_url === "work-section" ? (
-                  <Compass className="w-4 h-4 text-gray-400 group-hover:text-[#e60027] transition-colors" />
+                  <Compass className="w-4 h-4 text-gray-400 group-hover:text-[#ffea00] transition-colors" />
                 ) : (
-                  <Layers className="w-4 h-4 text-gray-400 group-hover:text-[#e60027] transition-colors" />
+                  <Layers className="w-4 h-4 text-gray-400 group-hover:text-[#ffea00] transition-colors" />
                 )}
                 <span className="truncate">{item.label}</span>
               </button>
@@ -106,9 +106,9 @@ export default function Navbar() {
           <button
             id="nav-btn-book"
             onClick={() => scrollToSection("booking-section")}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 text-white hover:border-[#e60027]/40 hover:text-[#e60027] transition-all duration-300 cursor-pointer shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 text-white hover:border-[#ffea00]/40 hover:text-[#ffea00] hover-glow-yellow transition-all duration-300 cursor-pointer shadow-md"
           >
-            <Calendar className="w-3.5 h-3.5 text-[#e60027]" />
+            <Calendar className="w-3.5 h-3.5 text-[#ffea00]" />
             {siteSettings.hero_cta_booking_text || "Instant Consult"}
           </button>
         </div>
@@ -148,7 +148,7 @@ export default function Navbar() {
             className={`fixed inset-x-0 top-16 bottom-0 z-40 p-6 flex flex-col justify-between md:hidden ${theme.style.bodyBg.split(" ")[0]} bg-opacity-98 backdrop-blur-2xl border-t border-white/5`}
           >
             <div className="space-y-6 pt-4">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-[#e60027] opacity-60">Curated Sections</p>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-[#ffea00] opacity-60">Curated Sections</p>
               
               <div className="flex flex-col gap-2">
                 {navigationMenu.map((item) => (
@@ -158,9 +158,9 @@ export default function Navbar() {
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold text-white bg-white/5 border border-white/5"
                   >
                     {item.target_url === "work-section" ? (
-                      <Compass className="w-4 h-4 text-[#e60027]" />
+                      <Compass className="w-4 h-4 text-[#ffea00]" />
                     ) : (
-                      <Layers className="w-4 h-4 text-[#e60027]" />
+                      <Layers className="w-4 h-4 text-[#ffea00]" />
                     )}
                     <span>{item.label}</span>
                   </button>
@@ -171,9 +171,9 @@ export default function Navbar() {
             <div className="space-y-4 pb-8">
               <button
                 onClick={() => scrollToSection("booking-section")}
-                className="w-full py-4.5 rounded-xl bg-white text-black font-semibold font-display tracking-tight text-center text-sm shadow-xl flex items-center justify-center gap-2"
+                className="w-full py-4.5 rounded-xl bg-[#ffea00] hover-glow-yellow text-black font-semibold font-display tracking-tight text-center text-sm shadow-xl flex items-center justify-center gap-2"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4 text-black" />
                 {siteSettings.hero_cta_booking_text || "Instant Consult"}
               </button>
               

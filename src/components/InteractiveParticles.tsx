@@ -37,7 +37,7 @@ export default function InteractiveParticles() {
     const initParticles = () => {
       particles = [];
       // Use brand-aligned red and white/dark-red particles
-      const colors = ["rgba(230, 0, 39, ", "rgba(255, 255, 255, ", "rgba(100, 0, 10, "];
+      const colors = ["rgba(255, 234, 0, ", "rgba(255, 255, 255, ", "rgba(100, 0, 10, "];
 
       for (let i = 0; i < particleCount; i++) {
         const radius = Math.random() * 2.5 + 1;

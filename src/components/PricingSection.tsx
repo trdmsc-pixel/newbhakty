@@ -45,7 +45,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-xs uppercase font-mono font-medium tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 rounded-full px-4 py-1.5 inline-block mb-4"
+          className="text-xs uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
           Acquisition Pipeline
         </motion.span>
@@ -75,7 +75,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
       <div className="max-w-xl mx-auto mb-16 px-4">
         <div className="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden bg-black/60">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-[#e60027] uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-mono text-[#ffea00] uppercase tracking-wider flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" />
               Dynamic Scale Controller
             </span>
@@ -93,9 +93,9 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               step="1"
               value={sliderIndex}
               onChange={handleSliderChange}
-              className="w-full h-1 bg-[#1a080a] rounded-full appearance-none cursor-pointer accent-[#e60027]"
+              className="w-full h-1 bg-[#1a1708] rounded-full appearance-none cursor-pointer accent-[#ffea00]"
               style={{
-                background: "linear-gradient(to right, #66000b 0%, #e60027 100%)",
+                background: "linear-gradient(to right, #665200 0%, #ffea00 100%)",
                 height: "6px"
               }}
             />
@@ -111,7 +111,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
 
           {/* DYNAMIC SCALE READOUT */}
           <div className="text-center pt-2 text-xs text-gray-400 border-t border-white/5 flex justify-center items-center gap-1">
-            <CornerDownRight className="w-3.5 h-3.5 text-red-500" />
+            <CornerDownRight className="w-3.5 h-3.5 text-yellow-500" />
             Slide coordinate to toggle and focus the core architectural package below.
           </div>
         </div>
@@ -132,6 +132,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 glow: "rgba(29, 209, 161, 0.45)",
                 fold: "#0a6b51",
                 iconColor: "text-emerald-100",
+                textColor: "text-white",
                 icon: Flame
               };
             }
@@ -142,16 +143,18 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 glow: "rgba(29, 209, 161, 0.45)",
                 fold: "#0a6b51",
                 iconColor: "text-emerald-100",
+                textColor: "text-white",
                 icon: Flame
               };
             }
             if (tierId === "cinematic" || tier.popular) {
               return {
                 text: "MOST POPULAR",
-                gradient: "from-[#ff9f43] via-[#ff5a36] to-[#e60027]", // High-vibrancy saffron orange/red gradient
-                glow: "rgba(230, 0, 39, 0.5)",
-                fold: "#800010",
-                iconColor: "text-amber-100",
+                gradient: "from-[#fff200] via-[#ffd600] to-[#ffaa00]", // Gold-yellow gradient matching image
+                glow: "rgba(255, 234, 0, 0.5)",
+                fold: "#806600",
+                iconColor: "text-black",
+                textColor: "text-black",
                 icon: Flame
               };
             }
@@ -162,6 +165,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 glow: "rgba(108, 92, 231, 0.45)",
                 fold: "#271b80",
                 iconColor: "text-indigo-100",
+                textColor: "text-white",
                 icon: Flame
               };
             }
@@ -183,16 +187,16 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               animate={{
                 scale: isHighlighted ? 1.02 : 0.98,
                 opacity: isHighlighted ? 1 : 0.65,
-                borderColor: isHighlighted ? "rgba(230, 0, 39, 0.4)" : "rgba(255, 255, 255, 0.08)"
+                borderColor: isHighlighted ? "rgba(255, 234, 0, 0.4)" : "rgba(255, 255, 255, 0.08)"
               }}
               transition={{ type: "spring", stiffness: 150, damping: 18 }}
               className={`rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 relative cursor-pointer shadow-xl border ${
-                isHighlighted ? "bg-[#0b0506] shadow-2xl border-[#e60027]/30" : "bg-[#070505]/45 border-white/5"
+                isHighlighted ? "bg-[#0b0c05] shadow-2xl border-[#ffea00]/30" : "bg-[#070505]/45 border-white/5"
               }`}
             >
               {/* CARD ACCENT LINE */}
               {isHighlighted && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#e60027] to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffea00] to-transparent" />
               )}
 
               {/* 3D RIBBON OVERLAY BADGE */}
@@ -214,7 +218,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                 >
                   {/* Ribbon Body */}
                   <div
-                    className={`relative px-2.5 pt-3.5 pb-4 text-center font-display font-black text-white shadow-lg bg-gradient-to-b ${badge.gradient}`}
+                    className={`relative px-2.5 pt-3.5 pb-4 text-center font-display font-black shadow-lg bg-gradient-to-b ${badge.gradient} ${badge.textColor}`}
                     style={{
                       clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 50% 88%, 0% 100%)",
                       minWidth: "60px",
@@ -225,13 +229,13 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                     {/* Shimmer line effect */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent opacity-65 animate-pulse" />
                     
-                    <badge.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${badge.iconColor} drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)] animate-bounce`} />
+                    <badge.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${badge.iconColor} drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] animate-bounce`} />
                     
                     <div className="flex flex-col gap-0.5 leading-none">
                       {badge.text.split(" ").map((word, wIdx) => (
                         <span
                           key={wIdx}
-                          className="text-[8px] uppercase tracking-wider font-extrabold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] font-sans"
+                          className={`text-[8px] uppercase tracking-wider font-extrabold ${badge.textColor === 'text-black' ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.3)]' : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]'} font-sans`}
                         >
                           {word}
                         </span>
@@ -278,14 +282,14 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   )}
 
                   <div>
-                    <div className={`font-mono text-xs font-bold tracking-widest mb-1 ${isHighlighted ? "text-black/60" : "text-[#e60027]"}`}>
+                    <div className={`font-mono text-xs font-bold tracking-widest mb-1 ${isHighlighted ? "text-black/60" : "text-[#ffea00]"}`}>
                       {tier.name.toUpperCase().split(" ")[0]}
                     </div>
                     
                     {/* Price read-out */}
                     <div className="flex items-baseline flex-wrap gap-2 mt-2 mb-3">
                       {tier.originalPrice && (
-                        <span className={`text-lg font-mono line-through mr-1 decoration-red-500/50 ${isHighlighted ? "text-black/40" : "text-gray-500"}`}>
+                        <span className={`text-lg font-mono line-through mr-1 decoration-yellow-500/50 ${isHighlighted ? "text-black/40" : "text-gray-500"}`}>
                           {tier.originalPrice}
                         </span>
                       )}
@@ -311,7 +315,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   <ul className="space-y-3">
                     {tier.deliverables.map((item, dIdx) => (
                       <li key={dIdx} className="flex items-start text-xs md:text-sm text-gray-300 gap-3">
-                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isHighlighted ? "text-[#e60027] border-[#e60027]/30 bg-[#e60027]/5" : "text-gray-500"}`}>
+                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isHighlighted ? "text-[#ffea00] border-[#ffea00]/30 bg-[#ffea00]/5" : "text-gray-500"}`}>
                           <Check className="w-3 h-3" />
                         </span>
                         <span>{item}</span>
@@ -348,7 +352,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   }}
                   className={`w-full py-3.5 rounded-2xl font-semibold font-display tracking-tight text-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
                     isHighlighted 
-                      ? "bg-[#e60027] text-white shadow-xl shadow-[#e60027]/10 hover:bg-[#ff1236]" 
+                      ? "bg-[#ffea00] text-black shadow-xl shadow-[#ffea00]/10 hover-glow-yellow" 
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"
                   }`}
                 >
@@ -370,13 +374,13 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-16 max-w-4xl mx-auto"
         >
-          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-red-950/10 via-black/60 to-red-950/5 bg-black/40">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#e60027]/5 rounded-full filter blur-2xl pointer-events-none" />
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#e60027] shrink-0">
+          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-yellow-950/10 via-black/60 to-yellow-950/5 bg-black/40">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#ffea00]/5 rounded-full filter blur-2xl pointer-events-none" />
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#ffea00] shrink-0">
               <Sliders className="w-6 h-6" />
             </div>
             <div className="flex-1 space-y-1">
-              <h4 className="text-xs font-mono font-bold tracking-widest text-[#e60027] uppercase">Custom Scope & Integrations</h4>
+              <h4 className="text-xs font-mono font-bold tracking-widest text-[#ffea00] uppercase">Custom Scope & Integrations</h4>
               <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-sans">
                 {siteSettings.pricing_note_text}
               </p>

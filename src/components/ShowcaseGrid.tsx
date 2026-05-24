@@ -48,7 +48,7 @@ export default function ShowcaseGrid() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-xs uppercase font-mono font-medium tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 rounded-full px-4 py-1.5 inline-block mb-4"
+          className="text-xs uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
           Selected Works
         </motion.span>
@@ -86,7 +86,7 @@ export default function ShowcaseGrid() {
           }}
           className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
             activeTypeTab === "video"
-              ? "bg-[#e60027] text-white shadow-lg shadow-[#e60027]/20 border border-[#e60027]/30"
+              ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/20 border border-[#ffea00]/30"
               : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5 border border-white/5"
           }`}
         >
@@ -101,7 +101,7 @@ export default function ShowcaseGrid() {
           }}
           className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
             activeTypeTab === "image"
-              ? "bg-[#e60027] text-white shadow-lg shadow-[#e60027]/20 border border-[#e60027]/30"
+              ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/20 border border-[#ffea00]/30"
               : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5 border border-white/5"
           }`}
         >
@@ -201,9 +201,9 @@ export default function ShowcaseGrid() {
                 {!isImage && loadingVideos[work.id] && (
                   <div className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-[#050508]/65 backdrop-blur-xs">
                     <div className="relative flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full border border-[#e60027]/20 border-t-[#e60027] animate-spin" />
+                      <div className="w-6 h-6 rounded-full border border-[#ffea00]/20 border-t-[#ffea00] animate-spin" />
                     </div>
-                    <span className="text-[8px] font-mono uppercase tracking-widest text-[#e60027] mt-2.5">
+                    <span className="text-[8px] font-mono uppercase tracking-widest text-[#ffea00] mt-2.5">
                       Rendering Stream
                     </span>
                   </div>
@@ -218,11 +218,11 @@ export default function ShowcaseGrid() {
                   {/* TOP CARD CHIPS */}
                   <div className="flex justify-between items-start">
                     <span className="text-[10px] font-mono tracking-widest uppercase bg-white/10 backdrop-blur-md text-white/95 px-3 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
-                      <Tag className="w-3 h-3 text-[#e60027]" />
+                      <Tag className="w-3 h-3 text-[#ffea00]" />
                       {work.category || (isImage ? "Static Design" : "Video")}
                     </span>
                     {work.subtext ? (
-                      <span className="text-xs font-mono text-[#e60027]/90 bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/5 flex items-center gap-1">
+                      <span className="text-xs font-mono text-[#ffea00]/90 bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/5 flex items-center gap-1">
                         {work.subtext}
                       </span>
                     ) : (
@@ -237,7 +237,7 @@ export default function ShowcaseGrid() {
 
                   {/* BOTTOM INFO */}
                   <div>
-                    <h3 className="font-display font-medium text-xl md:text-2xl text-white tracking-tight mb-2 group-hover:text-[#e60027] transition-all duration-300">
+                    <h3 className="font-display font-medium text-xl md:text-2xl text-white tracking-tight mb-2 group-hover:text-[#ffea00] transition-all duration-300">
                       {work.title}
                     </h3>
                     <p className="text-xs md:text-sm text-gray-300 line-clamp-2 max-w-sm mb-4 opacity-0 group-hover:opacity-100 duration-300 transition-all transform translate-y-2 group-hover:translate-y-0">
@@ -250,7 +250,7 @@ export default function ShowcaseGrid() {
                         {work.creator || "bhakty.synth"}
                       </span>
 
-                      <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-md group-hover:bg-[#e60027] group-hover:text-white transition-all duration-300 group-hover:scale-110">
+                      <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-md group-hover:bg-[#ffea00] group-hover:text-white transition-all duration-300 group-hover:scale-110">
                         {isImage ? <Eye className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                       </div>
                     </div>
@@ -284,7 +284,7 @@ export default function ShowcaseGrid() {
               <button
                 id="close-modal-btn"
                 onClick={() => setSelectedWork(null)}
-                className="absolute top-4 right-4 z-[60] p-2.5 rounded-full bg-black/60 border border-white/20 text-gray-300 hover:text-white hover:bg-black/90 hover:scale-110 hover:border-[#e60027] transition-all duration-200 cursor-pointer"
+                className="absolute top-4 right-4 z-[60] p-2.5 rounded-full bg-black/60 border border-white/20 text-gray-300 hover:text-white hover:bg-black/90 hover:scale-110 hover:border-[#ffea00] transition-all duration-200 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -323,9 +323,9 @@ export default function ShowcaseGrid() {
                     {modalVideoLoading && (
                       <div className="absolute inset-0 z-40 bg-[#050508]/90 flex flex-col items-center justify-center">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-full border border-red-500/20 border-t-[#e60027] animate-spin" />
+                          <div className="w-12 h-12 rounded-full border border-red-500/20 border-t-[#ffea00] animate-spin" />
                         </div>
-                        <span className="text-[10px] font-mono tracking-widest text-[#e60027] uppercase mt-4">
+                        <span className="text-[10px] font-mono tracking-widest text-[#ffea00] uppercase mt-4">
                           BUFFERING TEMPORAL FLOW...
                         </span>
                       </div>
@@ -368,7 +368,7 @@ export default function ShowcaseGrid() {
                         }, 200);
                       }
                     }}
-                    className="w-full py-3 rounded-xl bg-white text-black hover:bg-[#e60027] hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-semibold text-xs font-display flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[#e60027]/20"
+                    className="w-full py-3 rounded-xl bg-white text-black hover:bg-[#ffea00] hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-semibold text-xs font-display flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[#ffea00]/20"
                   >
                     {siteSettings.portfolio_license_button_text || "Acquire License"}
                   </button>

@@ -126,7 +126,7 @@ const GlowingCursorInput = React.forwardRef<HTMLInputElement, GlowingCursorInput
             <div 
               className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
               style={{
-                background: "radial-gradient(ellipse at left, rgba(230, 0, 39, 0.45) 0%, rgba(230, 0, 39, 0.15) 30%, transparent 70%)",
+                background: "radial-gradient(ellipse at left, rgba(255, 234, 0, 0.5) 0%, rgba(255, 234, 0, 0.15) 30%, transparent 70%)",
                 transform: "translateY(-50%)",
                 top: "50%",
               }}
@@ -274,7 +274,7 @@ const GlowingCursorTextarea = React.forwardRef<HTMLTextAreaElement, GlowingCurso
             <div 
               className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
               style={{
-                background: "radial-gradient(ellipse at left, rgba(230, 0, 39, 0.45) 0%, rgba(230, 0, 39, 0.15) 30%, transparent 70%)",
+                background: "radial-gradient(ellipse at left, rgba(255, 234, 0, 0.5) 0%, rgba(255, 234, 0, 0.15) 30%, transparent 70%)",
                 transform: "translateY(-50%)",
                 top: "50%",
               }}
@@ -582,16 +582,16 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     }`}>
       
       {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#e60027]/5 rounded-full filter blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#ffea00]/5 rounded-full filter blur-[100px] pointer-events-none" />
 
       {/* BLOCK BACKGROUND FORM PANEL WITH FROSTED GLASSMOPHISM */}
       <div className="glass-panel rounded-3xl p-8 md:p-12 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
         
         {/* UPPER RADIANT BARS */}
-        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#e60027]/40 to-transparent" />
+        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/40 to-transparent" />
         
         <div className="text-center mb-12">
-          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 rounded-full px-4 py-1.5 inline-block mb-4">
+          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4">
             Creative Intake
           </span>
           <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
@@ -610,18 +610,18 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               const isFullWidth = field.type === "textarea" || field.id === "selected_tier" || field.type === "checkbox";
               return (
                 <div key={field.id} className={`flex flex-col relative ${isFullWidth ? "md:col-span-2" : ""}`}>
-                  <label className="text-[10px] tracking-widest text-[#e60027] font-mono uppercase mb-1 flex items-center justify-between">
+                  <label className="text-[10px] tracking-widest text-[#ffea00] font-mono uppercase mb-1 flex items-center justify-between">
                     <span>{field.label} {field.required && "*"}</span>
                     {field.id === "name" && nameTouched && (
                       isNameValid ? (
-                        <span className="text-red-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
+                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
                       ) : (
                         <span className="text-red-400 text-[9px]">Identity Empty</span>
                       )
                     )}
                     {field.id === "email" && emailTouched && (
                       isEmailValid ? (
-                        <span className="text-red-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
+                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
                       ) : (
                         <span className="text-red-400 text-[9px]">Check format</span>
                       )
@@ -630,9 +630,9 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                       brief.length < 15 ? (
                         <span className="text-red-500 text-[9px]">Need {15 - brief.length} more chars</span>
                       ) : brief.length < 60 ? (
-                        <span className="text-red-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
+                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
                       ) : (
-                        <span className="text-red-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
+                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
                       )
                     )}
                   </label>
@@ -666,7 +666,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         className={`bg-transparent outline-none border-b ${
                           formErrors[field.id] 
                             ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
+                            : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base resize-none`}
                       />
                       {field.id === "brief" && (
@@ -677,15 +677,15 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                               type="button"
                               disabled={isOptimizing || brief.trim().length === 0}
                               onClick={optimizeBriefWithAI}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-red-500/20 hover:border-red-500/60 rounded-lg text-[#e60027] hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
+                              className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-yellow-500/20 hover:border-yellow-500/60 rounded-lg text-[#ffea00] hover:text-black hover:bg-[#ffea00] transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
                             >
                               {isOptimizing ? (
                                 <>
-                                  <Sparkles className="w-3 h-3 animate-pulse text-[#e60027]" /> Optimizing Brief...
+                                  <Sparkles className="w-3 h-3 animate-pulse text-[#ffea00]" /> Optimizing Brief...
                                 </>
                               ) : (
                                 <>
-                                  <Sparkles className="w-3 h-3 text-red-400" /> Optimize is AI-assisted
+                                  <Sparkles className="w-3 h-3 text-yellow-400" /> Optimize is AI-assisted
                                 </>
                               )}
                             </button>
@@ -714,7 +714,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                           });
                         }
                       }}
-                      className="bg-transparent outline-none border-b border-white/10 focus:border-[#e60027] transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
+                      className="bg-transparent outline-none border-b border-white/10 focus:border-[#ffea00] transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
                       style={{
                         colorScheme: "dark"
                       }}
@@ -736,7 +736,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                             setActiveDropdownFieldId(activeDropdownFieldId === field.id ? null : field.id);
                           }}
                           className={`bg-white/5 hover:bg-white/10 border-b ${
-                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#e60027]"
+                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#ffea00]"
                           } transition-all duration-300 py-3 px-3 text-white text-sm md:text-base flex items-center gap-2 rounded-t-lg cursor-pointer h-full`}
                         >
                           <span>{COUNTRIES.find(c => c.dialCode === (phoneCountry[field.id] || "+91"))?.flag || "🇮🇳"}</span>
@@ -804,7 +804,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         className={`flex-1 bg-transparent outline-none border-b ${
                           formErrors[field.id] 
                             ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
+                            : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base font-mono`}
                       />
                     </div>
@@ -847,7 +847,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                       className={`bg-transparent outline-none border-b ${
                         formErrors[field.id] 
                           ? "border-red-500 text-red-100 placeholder-red-800" 
-                          : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
+                          : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
                       } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
                     />
                   )}
@@ -882,7 +882,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 ...(siteSettings.booking_cta_color ? { backgroundColor: siteSettings.booking_cta_color, backgroundImage: 'none' } : {}),
                 ...(siteSettings.booking_cta_text_color ? { color: siteSettings.booking_cta_text_color } : {})
               }}
-              className="w-full md:w-auto md:px-12 py-4 rounded-2xl font-bold font-display tracking-tight text-white bg-gradient-to-r from-[#e60027] via-[#b3001a] to-[#800010] shadow-xl hover:shadow-[#e60027]/20 shadow-black/40 hover:opacity-95 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+              className="w-full md:w-auto md:px-12 py-4 rounded-full font-bold font-display tracking-tight text-black bg-[#ffea00] hover-glow-yellow shadow-xl shadow-[#ffea00]/10 shadow-black/40 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#050508]">
@@ -917,10 +917,10 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.85, y: 30, opacity: 0 }}
               transition={{ type: "spring", stiffness: 140, damping: 16 }}
-              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-[#e60027]/30 shadow-2xl relative"
+              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-[#ffea00]/30 shadow-2xl relative"
             >
               {/* HEADER DECORATION BAR */}
-              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#e60027] to-transparent" />
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffea00] to-transparent" />
               
               <button
                 id="close-success-btn"
@@ -930,8 +930,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-16 h-16 rounded-full bg-[#e60027]/10 border border-[#e60027]/30 flex items-center justify-center text-[#e60027] mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-[#e60027] animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-[#ffea00]/10 border border-[#ffea00]/30 flex items-center justify-center text-[#ffea00] mx-auto mb-6">
+                <CheckCircle className="w-8 h-8 text-[#ffea00] animate-pulse" />
               </div>
 
               <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-3">
@@ -939,7 +939,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               </h3>
 
               <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                Greetings, <span className="text-[#e60027] font-semibold">{name}</span>. Your creative matrix of metadata for 
+                Greetings, <span className="text-[#ffea00] font-semibold">{name}</span>. Your creative matrix of metadata for 
                 <span className="text-white font-medium"> {company || "Independent Ventures"} </span> has breached our intake loop.
               </p>
 
@@ -950,7 +950,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Coordinate Slot:</span>
-                  <span className="text-[#e60027] font-medium">{budget}</span>
+                  <span className="text-[#ffea00] font-medium">{budget}</span>
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Lead Resolver:</span>
@@ -965,7 +965,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               <button
                 id="success-dismiss-btn"
                 onClick={resetForm}
-                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-[#e60027] transition-all duration-300 cursor-pointer text-sm"
+                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-[#ffea00] transition-all duration-300 cursor-pointer text-sm"
               >
                 Reset & Access Portfolio
               </button>
