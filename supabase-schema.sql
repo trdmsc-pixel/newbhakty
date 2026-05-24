@@ -66,6 +66,10 @@ create table if exists pricing_tiers (
     turnaround text,
     revision_round text,
     glow_theme text default 'saffron',
+    offer_text text default '',
+    offer_text_color text default '',
+    offer_bg_color text default '',
+    offer_animation text default 'none',
     display_order integer not null default 0
 );
 

@@ -2660,6 +2660,68 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               placeholder="2 Rounds"
                             />
                           </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Offer / Deal Highlight Text</label>
+                            <input
+                              type="text"
+                              value={tier.offerText || ""}
+                              onChange={(e) => handlePricingChange(tier.id, "offerText", e.target.value)}
+                              placeholder="e.g. SPECIAL OFFER: 20% OFF FIRST MONTH"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Offer Text Color (HEX)</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={tier.offerTextColor || ""}
+                                onChange={(e) => handlePricingChange(tier.id, "offerTextColor", e.target.value)}
+                                placeholder="#ffffff"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                              />
+                              <input
+                                type="color"
+                                value={tier.offerTextColor && tier.offerTextColor.startsWith('#') && tier.offerTextColor.length === 7 ? tier.offerTextColor : "#ffffff"}
+                                onChange={(e) => handlePricingChange(tier.id, "offerTextColor", e.target.value)}
+                                className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Offer Background Color/Gradient</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={tier.offerBgColor || ""}
+                                onChange={(e) => handlePricingChange(tier.id, "offerBgColor", e.target.value)}
+                                placeholder="e.g. #ffea00 or linear-gradient(...)"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                              />
+                              <input
+                                type="color"
+                                value={tier.offerBgColor && tier.offerBgColor.startsWith('#') && tier.offerBgColor.length === 7 ? tier.offerBgColor : "#ffea00"}
+                                onChange={(e) => handlePricingChange(tier.id, "offerBgColor", e.target.value)}
+                                className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Offer Animation</label>
+                            <select
+                              value={tier.offerAnimation || "none"}
+                              onChange={(e) => handlePricingChange(tier.id, "offerAnimation", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            >
+                              <option value="none">None (Static)</option>
+                              <option value="pulse">Pulse Glow</option>
+                              <option value="shimmer">Gradient Shimmer</option>
+                            </select>
+                          </div>
                         </div>
 
                         {/* List Inputs (Deliverables feature lists) */}

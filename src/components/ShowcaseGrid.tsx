@@ -1,48 +1,52 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Play, X, User, Clock, Tag, Info, Eye, Image as ImageIcon } from "lucide-react";
-import { VideoBlock } from "../types";
+import { useState, useEffect } from "react";
+import { motion } from "motion/react";
+import { Play, Film, Sparkles, Flame, Layers, Star, Image as ImageIcon, Eye, Palette, Compass, Info } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
-import { trackEvent } from "../lib/analytics";
 
 export default function ShowcaseGrid() {
   const { portfolioWorks = [], siteSettings } = useSiteData();
-  const [selectedWork, setSelectedWork] = useState<VideoBlock | null>(null);
 
-  const [isHoveredId, setIsHoveredId] = useState<string | null>(null);
-  const [activeTypeTab, setActiveTypeTab] = useState<"video" | "image">("video");
-  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>("All Projects");
-  const [loadingVideos, setLoadingVideos] = useState<Record<string, boolean>>({});
-  const [modalVideoLoading, setModalVideoLoading] = useState(true);
+  // Split works into videos and images
+  const motionWorks = portfolioWorks.filter((w) => (w.type || "video") === "video");
+  const staticWorks = portfolioWorks.filter((w) => w.type === "image");
 
-  // Filter works by primary type (video/image)
-  const typeFilteredWorks = portfolioWorks.filter((w) => {
-    const itemType = w.type || "video";
-    return itemType === activeTypeTab;
-  });
+  // Accordion active item state (defaults to the first item of each list)
+  const [activeVideoId, setActiveVideoId] = useState<string>("");
+  const [activeImageId, setActiveImageId] = useState<string>("");
 
-  // Dynamically extract categories present in current list
-  const categories: string[] = [
-    "All Projects",
-    ...(Array.from(new Set(typeFilteredWorks.map((w) => w.category).filter(Boolean))) as string[]),
-  ];
+  useEffect(() => {
+    if (motionWorks.length > 0 && !activeVideoId) {
+      setActiveVideoId(motionWorks[0].id);
+    }
+  }, [motionWorks, activeVideoId]);
 
-  // Filter works by dynamic category tab
-  const filteredWorks = selectedCategoryTab === "All Projects"
-    ? typeFilteredWorks
-    : typeFilteredWorks.filter((w) => w.category === selectedCategoryTab);
+  useEffect(() => {
+    if (staticWorks.length > 0 && !activeImageId) {
+      setActiveImageId(staticWorks[0].id);
+    }
+  }, [staticWorks, activeImageId]);
+
+  const getMotionIcon = (index: number) => {
+    const icons = [Play, Film, Sparkles, Flame, Layers, Star];
+    const IconComp = icons[index % icons.length];
+    return <IconComp className={`w-4 h-4 ${IconComp === Play ? "fill-current ml-0.5 text-black" : "text-black"}`} />;
+  };
+
+  const getStaticIcon = (index: number) => {
+    const icons = [ImageIcon, Eye, Palette, Compass, Star, Info];
+    const IconComp = icons[index % icons.length];
+    return <IconComp className="w-4 h-4 text-black" />;
+  };
 
   return (
     <section
       id="work-section"
-      className={`pt-24 pb-8 relative z-10 px-4 md:px-8 transition-all duration-500 ${
-        siteSettings.website_full_width === "true"
-          ? "max-w-none w-full"
-          : "max-w-7xl mx-auto"
+      className={`pt-24 pb-8 relative z-10 px-4 md:px-8 transition-all duration-500 mx-auto ${
+        siteSettings.website_full_width === "true" ? "max-w-none w-full" : "max-w-7xl"
       }`}
     >
       {/* SECTION HEADER */}
-      <div className="text-center mb-12">
+      <div className="text-center mb-16">
         <motion.span
           initial={{ opacity: 0, y: 15 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -50,19 +54,17 @@ export default function ShowcaseGrid() {
           transition={{ duration: 0.6 }}
           className="text-xs uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
-          Selected Works
+          Visual Artifacts
         </motion.span>
-
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="font-display font-medium text-3xl md:text-5xl tracking-tight text-white mb-6 animate-pulse"
+          className="font-display font-medium text-3xl md:text-5xl tracking-tight text-white mb-6"
         >
-          {activeTypeTab === "video" ? "Synthesized Motion Artifacts" : "Static Design & UGC"}
+          Our Visual Curation
         </motion.h2>
-
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -70,314 +72,153 @@ export default function ShowcaseGrid() {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="text-gray-400 max-w-2xl mx-auto text-sm md:text-base"
         >
-          {activeTypeTab === "video"
-            ? "Explore a curation of hyper-aesthetic short-films, digital lookbooks, and computational environments synthesized entirely by bhakty.studio."
-            : "Browse high-fidelity graphic layouts, social static assets, and computational art layers optimized for spatial platforms."}
+          Explore a curation of hyper-aesthetic short-films and computational graphic design layers synthesized entirely by bhakty.studio.
         </motion.p>
       </div>
 
-      {/* PRIMARY TYPE SWITCHER TABS */}
-      <div className="flex justify-center items-center gap-4 mb-8">
-        <button
-          onClick={() => {
-            setActiveTypeTab("video");
-            setSelectedCategoryTab("All Projects");
-            trackEvent("click", "Portfolio Type Switcher: Video");
-          }}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
-            activeTypeTab === "video"
-              ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/20 border border-[#ffea00]/30"
-              : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5 border border-white/5"
-          }`}
-        >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          Motion Portfolio
-        </button>
-        <button
-          onClick={() => {
-            setActiveTypeTab("image");
-            setSelectedCategoryTab("All Projects");
-            trackEvent("click", "Portfolio Type Switcher: Image");
-          }}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
-            activeTypeTab === "image"
-              ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/20 border border-[#ffea00]/30"
-              : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5 border border-white/5"
-          }`}
-        >
-          <ImageIcon className="w-3.5 h-3.5" />
-          Static Design
-        </button>
-      </div>
+      <div className="space-y-20">
+        {/* ==================================================== */}
+        {/* SECTION 1: MOTION PORTFOLIO (VIDEOS ACCORDION)       */}
+        {/* ==================================================== */}
+        {motionWorks.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <Film className="w-5 h-5 text-[#ffea00]" />
+              <h3 className="font-display font-medium text-xl text-white">Motion Portfolio</h3>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                {motionWorks.length} Synths
+              </span>
+            </div>
 
-      {/* DYNAMIC CATEGORY FILTER TABS (Only shown if multiple categories exist) */}
-      {categories.length > 2 && (
-        <div className="flex flex-wrap justify-center items-center gap-2 mb-12">
-          {categories.map((category) => (
-            <button
-              key={category}
-              id={`filter-tab-${category.toLowerCase().replace(/\s+/g, "-")}`}
-              onClick={() => {
-                setSelectedCategoryTab(category);
-                trackEvent("click", "Portfolio Filter Tab clicked", { category });
-              }}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 cursor-pointer ${
-                selectedCategoryTab === category
-                  ? "bg-white text-black shadow-lg shadow-white/10"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      )}
+            {/* Accordion List Wrapper */}
+            <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
+              {motionWorks.map((work, idx) => {
+                const isActive = activeVideoId === work.id;
+                return (
+                  <div
+                    key={work.id}
+                    onMouseEnter={() => setActiveVideoId(work.id)}
+                    onClick={() => setActiveVideoId(work.id)}
+                    className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
+                      isActive 
+                        ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
+                        : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
+                    }`}
+                  >
+                    {/* Media container */}
+                    <div className="absolute inset-0 z-0 bg-black/45">
+                      <video
+                        src={work.videoUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full object-cover opacity-80"
+                      />
+                      {/* Dark overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
+                    </div>
 
-      {/* PORTFOLIO GRID */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 min-h-[300px]"
-      >
-        <AnimatePresence mode="wait">
-          {filteredWorks.map((work) => {
-            const isImage = work.type === "image";
-            return (
-              <motion.div
-                key={work.id}
-                id={`portfolio-card-${work.id}`}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                whileHover={{
-                  scale: 1.02,
-                  transition: { type: "spring", stiffness: 150, damping: 12 },
-                }}
-                onHoverStart={() => {
-                  setIsHoveredId(work.id);
-                  if (!isImage) {
-                    trackEvent("video_play", `Video hover simulation initiated: ${work.title}`);
-                  }
-                }}
-                onHoverEnd={() => setIsHoveredId(null)}
-                onClick={() => {
-                  setSelectedWork(work);
-                  trackEvent("click", `Portfolio modal opened: ${work.title}`, { id: work.id });
-                }}
-                className={`group relative overflow-hidden rounded-2xl glass-panel shadow-xl cursor-pointer portfolio-card-perf ${
-                  work.aspectRatioClass || "aspect-video md:col-span-2"
-                }`}
-              >
-                {/* MEDIA FRAME */}
-                <div className="absolute inset-0 z-0 bg-black/40">
-                  {isImage ? (
-                    <div className="w-full h-full relative">
+                    {/* Bottom-left overlay info */}
+                    <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
+                      {/* Circle Badge icon */}
+                      <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center shadow-lg transition-transform duration-500">
+                        {getMotionIcon(idx)}
+                      </div>
+
+                      {/* Text details (Fades in dynamically) */}
+                      <div 
+                        className={`flex flex-col select-none transition-all duration-700 ${
+                          isActive 
+                            ? "opacity-100 translate-x-0 w-auto max-w-[calc(100%-4rem)]" 
+                            : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                        }`}
+                      >
+                        <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
+                          {work.title}
+                        </h4>
+                        <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
+                          {work.category}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* SECTION 2: STATIC DESIGN (IMAGES ACCORDION)          */}
+        {/* ==================================================== */}
+        {staticWorks.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <ImageIcon className="w-5 h-5 text-[#ffea00]" />
+              <h3 className="font-display font-medium text-xl text-white">Static Design</h3>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                {staticWorks.length} Layers
+              </span>
+            </div>
+
+            {/* Accordion List Wrapper */}
+            <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
+              {staticWorks.map((work, idx) => {
+                const isActive = activeImageId === work.id;
+                return (
+                  <div
+                    key={work.id}
+                    onMouseEnter={() => setActiveImageId(work.id)}
+                    onClick={() => setActiveImageId(work.id)}
+                    className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
+                      isActive 
+                        ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
+                        : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
+                    }`}
+                  >
+                    {/* Media container */}
+                    <div className="absolute inset-0 z-0 bg-black/45">
                       <img
                         src={work.imageUrl || work.videoUrl}
                         alt={work.title}
                         draggable="false"
-                        onContextMenu={(e) => e.preventDefault()}
-                        className="w-full h-full object-cover opacity-80 group-hover:scale-[1.04] transition-transform duration-1000 ease-out"
+                        className="w-full h-full object-cover opacity-85"
                       />
-                      {/* Anti-right-click empty overlay */}
-                      <div className="absolute inset-0 z-10 bg-transparent" />
+                      {/* Dark overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
                     </div>
-                  ) : (
-                    <video
-                      src={work.videoUrl}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      onContextMenu={(e) => e.preventDefault()}
-                      onLoadStart={() => setLoadingVideos((prev) => ({ ...prev, [work.id]: true }))}
-                      onCanPlay={() => setLoadingVideos((prev) => ({ ...prev, [work.id]: false }))}
-                      onPlaying={() => setLoadingVideos((prev) => ({ ...prev, [work.id]: false }))}
-                      className="w-full h-full object-cover opacity-80 group-hover:scale-[1.04] transition-transform duration-1000 ease-out"
-                    />
-                  )}
-                </div>
 
-                {/* LOADING OVERLAY (VIDEOS ONLY) */}
-                {!isImage && loadingVideos[work.id] && (
-                  <div className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-[#050508]/65 backdrop-blur-xs">
-                    <div className="relative flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full border border-[#ffea00]/20 border-t-[#ffea00] animate-spin" />
-                    </div>
-                    <span className="text-[8px] font-mono uppercase tracking-widest text-[#ffea00] mt-2.5">
-                      Rendering Stream
-                    </span>
-                  </div>
-                )}
+                    {/* Bottom-left overlay info */}
+                    <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
+                      {/* Circle Badge icon */}
+                      <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center shadow-lg transition-transform duration-500">
+                        {getStaticIcon(idx)}
+                      </div>
 
-                {/* GRADIENTS OVERLAYS */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent z-10 transition-opacity duration-300 group-hover:opacity-90" />
-                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#4A36B3]/20 via-[#4A36B3]/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-15" />
-
-                {/* CARD CONTENT */}
-                <div className="absolute inset-0 z-20 flex flex-col justify-between p-6 md:p-8">
-                  {/* TOP CARD CHIPS */}
-                  <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-mono tracking-widest uppercase bg-white/10 backdrop-blur-md text-white/95 px-3 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
-                      <Tag className="w-3 h-3 text-[#ffea00]" />
-                      {work.category || (isImage ? "Static Design" : "Video")}
-                    </span>
-                    {work.subtext ? (
-                      <span className="text-xs font-mono text-[#ffea00]/90 bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/5 flex items-center gap-1">
-                        {work.subtext}
-                      </span>
-                    ) : (
-                      !isImage && (
-                        <span className="text-xs font-mono text-white/70 bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/5 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-white/50" />
-                          {work.duration}
-                        </span>
-                      )
-                    )}
-                  </div>
-
-                  {/* BOTTOM INFO */}
-                  <div>
-                    <h3 className="font-display font-medium text-xl md:text-2xl text-white tracking-tight mb-2 group-hover:text-[#ffea00] transition-all duration-300">
-                      {work.title}
-                    </h3>
-                    <p className="text-xs md:text-sm text-gray-300 line-clamp-2 max-w-sm mb-4 opacity-0 group-hover:opacity-100 duration-300 transition-all transform translate-y-2 group-hover:translate-y-0">
-                      {work.description}
-                    </p>
-
-                    <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-2">
-                      <span className="text-xs font-mono text-gray-400 font-light flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-gray-500" />
-                        {work.creator || "bhakty.synth"}
-                      </span>
-
-                      <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-md group-hover:bg-[#ffea00] group-hover:text-white transition-all duration-300 group-hover:scale-110">
-                        {isImage ? <Eye className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                      {/* Text details (Fades in dynamically) */}
+                      <div 
+                        className={`flex flex-col select-none transition-all duration-700 ${
+                          isActive 
+                            ? "opacity-100 translate-x-0 w-auto max-w-[calc(100%-4rem)]" 
+                            : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                        }`}
+                      >
+                        <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
+                          {work.title}
+                        </h4>
+                        <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
+                          {work.category}
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* PREMIUM FULLSCREEN OVERLAY MODAL */}
-      <AnimatePresence>
-        {selectedWork && (
-          <motion.div
-            id="portfolio-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#050508]/90 backdrop-blur-3xl flex items-center justify-center p-4 md:p-8 overflow-y-auto"
-          >
-            <motion.div
-              id="portfolio-modal-card"
-              initial={{ scale: 0.9, y: 30, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 30, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 120, damping: 16 }}
-              className="glass-panel-heavy rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row border border-white/15"
-            >
-              {/* CLOSE BUTTON */}
-              <button
-                id="close-modal-btn"
-                onClick={() => setSelectedWork(null)}
-                className="absolute top-4 right-4 z-[60] p-2.5 rounded-full bg-black/60 border border-white/20 text-gray-300 hover:text-white hover:bg-black/90 hover:scale-110 hover:border-[#ffea00] transition-all duration-200 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {/* MEDIA CONTAINER */}
-              <div className="w-full md:w-2/3 bg-black/90 aspect-video md:aspect-auto md:h-[550px] relative flex items-center justify-center overflow-hidden">
-                {selectedWork.type === "image" ? (
-                  <div className="w-full h-full relative flex items-center justify-center">
-                    <img
-                      src={selectedWork.imageUrl || selectedWork.videoUrl}
-                      alt={selectedWork.title}
-                      draggable="false"
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="w-full h-full object-contain"
-                    />
-                    {/* Transparent download protection overlay */}
-                    <div className="absolute inset-0 z-10 bg-transparent" />
-                  </div>
-                ) : (
-                  <>
-                    <video
-                      src={selectedWork.highResVideoUrl || selectedWork.videoUrl}
-                      autoPlay
-                      controls
-                      controlsList="nodownload"
-                      onContextMenu={(e) => e.preventDefault()}
-                      playsInline
-                      disablePictureInPicture
-                      onLoadStart={() => setModalVideoLoading(true)}
-                      onCanPlay={() => setModalVideoLoading(false)}
-                      onPlaying={() => setModalVideoLoading(false)}
-                      className="w-full h-full object-contain"
-                    />
-
-                    {/* MODAL BUFFERING LOAD STATE */}
-                    {modalVideoLoading && (
-                      <div className="absolute inset-0 z-40 bg-[#050508]/90 flex flex-col items-center justify-center">
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-full border border-red-500/20 border-t-[#ffea00] animate-spin" />
-                        </div>
-                        <span className="text-[10px] font-mono tracking-widest text-[#ffea00] uppercase mt-4">
-                          BUFFERING TEMPORAL FLOW...
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* SIDEBAR DESCRIPTION */}
-              <div className="w-full md:w-1/3 p-6 md:p-8 flex flex-col justify-between bg-[#0e0e16]/95 text-left border-t md:border-t-0 md:border-l border-white/15">
-                <div>
-                  <motion.h3
-                    className="font-display font-medium text-2xl text-white tracking-tight mb-3"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1, duration: 0.5, type: "spring", stiffness: 100 }}
-                  >
-                    {selectedWork.title}
-                  </motion.h3>
-                </div>
-
-                {/* MODAL INTERACTIONS FOOTER */}
-                <motion.div
-                  className="pt-4 border-t border-white/5 flex gap-3"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <button
-                    onClick={() => {
-                      const signup = document.getElementById("booking-section");
-                      setSelectedWork(null);
-                      trackEvent("click", "Acquire License clicked", {
-                        title: selectedWork.title,
-                        category: selectedWork.category,
-                      });
-                      if (signup) {
-                        setTimeout(() => {
-                          signup.scrollIntoView({ behavior: "smooth" });
-                        }, 200);
-                      }
-                    }}
-                    className="w-full py-3 rounded-xl bg-white text-black hover:bg-[#ffea00] hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-semibold text-xs font-display flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[#ffea00]/20"
-                  >
-                    {siteSettings.portfolio_license_button_text || "Acquire License"}
-                  </button>
-                </motion.div>
-              </div>
-            </motion.div>
-          </motion.div>
+                );
+              })}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </section>
   );
 }

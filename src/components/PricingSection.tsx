@@ -336,6 +336,24 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                         / {tier.period}
                       </span>
                     </div>
+
+                    {/* Offer Highlight Box */}
+                    {tier.offerText && (
+                      <div 
+                        className={`mt-2 mb-3 px-3 py-1.5 rounded-xl text-center text-[10px] font-mono font-black uppercase tracking-widest ${
+                          tier.offerAnimation === "pulse" 
+                            ? "animate-offer-pulse" 
+                            : (tier.offerAnimation === "shimmer" ? "animate-offer-shimmer" : "")
+                        }`}
+                        style={{
+                          color: tier.offerTextColor || "#ffffff",
+                          background: tier.offerBgColor || (isHighlighted ? "#000000" : "#ffea00"),
+                          border: "1px solid rgba(255,255,255,0.08)"
+                        }}
+                      >
+                        {tier.offerText}
+                      </div>
+                    )}
                   </div>
 
                   <p className={`text-xs leading-relaxed mt-2 ${isHighlighted ? "text-black/75" : "text-gray-400"} min-h-[40px]`}>

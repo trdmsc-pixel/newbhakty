@@ -228,6 +228,10 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             discountEnabled: t.discount_enabled || false,
             discountText: t.discount_text || "",
             originalPrice: t.original_price || "",
+            offerText: t.offer_text || "",
+            offerTextColor: t.offer_text_color || "",
+            offerBgColor: t.offer_bg_color || "",
+            offerAnimation: t.offer_animation || "none",
           }));
           setPricingTiers(mappedTiers);
         }
@@ -424,6 +428,10 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             turnaround: t.turnaround,
             revision_round: t.revisionRound,
             glow_theme: t.glowTheme,
+            offer_text: t.offerText || "",
+            offer_text_color: t.offerTextColor || "",
+            offer_bg_color: t.offerBgColor || "",
+            offer_animation: t.offerAnimation || "none",
             display_order: i + 1
           };
           let saveErr;

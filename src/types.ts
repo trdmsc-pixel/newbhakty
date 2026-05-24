@@ -32,6 +32,10 @@ export interface PricingTier {
   discountEnabled?: boolean;
   discountText?: string;
   originalPrice?: string;
+  offerText?: string;
+  offerTextColor?: string;
+  offerBgColor?: string;
+  offerAnimation?: "shimmer" | "pulse" | "none";
 }
 
 export interface BookingSubmission {
