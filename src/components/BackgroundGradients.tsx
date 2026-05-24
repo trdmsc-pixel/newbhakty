@@ -21,8 +21,8 @@ export default function BackgroundGradients() {
           top: "-5%",
           left: "5%",
           background: theme.type === "dark" 
-            ? "radial-gradient(circle, rgba(230,198,135,0.15) 0%, rgba(74,54,179,0.05) 100%)"
-            : "radial-gradient(circle, rgba(168,85,247,0.08) 0%, rgba(230,198,135,0.03) 100%)"
+            ? "radial-gradient(circle, rgba(230,0,39,0.14) 0%, rgba(10,5,5,0.02) 100%)"
+            : "radial-gradient(circle, rgba(230,0,39,0.08) 0%, rgba(255,255,255,0.02) 100%)"
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.8 }}
@@ -36,8 +36,8 @@ export default function BackgroundGradients() {
           bottom: "10%",
           right: "-10%",
           background: theme.type === "dark"
-            ? "radial-gradient(circle, rgba(74,54,179,0.18) 0%, rgba(230,198,135,0.03) 100%)"
-            : "radial-gradient(circle, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.02) 100%)"
+            ? "radial-gradient(circle, rgba(160,0,25,0.12) 0%, rgba(10,5,5,0.02) 100%)"
+            : "radial-gradient(circle, rgba(230,0,39,0.06) 0%, rgba(255,255,255,0.01) 100%)"
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.7 }}
@@ -52,8 +52,8 @@ export default function BackgroundGradients() {
           left: "40%",
           transform: "translate(-50%, -50%)",
           background: theme.type === "dark"
-            ? "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)"
+            ? "radial-gradient(circle, rgba(230,0,39,0.08) 0%, transparent 70%)"
+            : "radial-gradient(circle, rgba(230,0,39,0.04) 0%, transparent 70%)"
         }}
         animate={{
           scale: [1, 1.1, 0.95, 1],

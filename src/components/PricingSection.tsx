@@ -11,51 +11,9 @@ interface PricingSectionProps {
 export default function PricingSection({ onSelectTier }: PricingSectionProps) {
   const { pricingTiers = [], siteSettings } = useSiteData();
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0] || {
-    id: "fallback-tier",
-    name: "Full Cinematic Studio",
-    tagline: "Synthesizing custom diffusion pipelines around your brand.",
-    price: "$2,450",
-    period: "month",
-    popular: true,
-    deliverables: ["10x AI-generated Short Reels/TikToks", "High temporal consistency rendering"],
-    turnaround: "5 working days",
-    revisionRound: "2 Rounds",
-    glowTheme: "saffron"
-  };
-
-  // Map theme values to precise glow aesthetics
-  const getThemeColors = (theme: "saffron" | "violet" | "emerald" | string | any) => {
-    const activeTheme = theme || "saffron";
-    switch (activeTheme) {
-      case "violet":
-        return {
-          glow: "shadow-[#4A36B3]/30 border-[#4A36B3]/30",
-          text: "text-violet-400",
-          badge: "bg-[#4A36B3]/20 text-violet-300 border-[#4A36B3]/30",
-          button: "bg-violet-950/40 border border-violet-500/30 text-white hover:bg-violet-600 hover:text-white",
-          accentLine: "bg-gradient-to-r from-transparent via-violet-500/50 to-transparent",
-        };
-      case "emerald":
-        return {
-          glow: "shadow-emerald-500/10 border-emerald-500/20",
-          text: "text-emerald-400",
-          badge: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
-          button: "bg-emerald-950/40 border border-emerald-500/30 text-white hover:bg-emerald-600 hover:text-white",
-          accentLine: "bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent",
-        };
-      case "saffron":
-      default:
-        return {
-          glow: "shadow-[#E6C687]/15 border-[#E6C687]/40",
-          text: "text-[#E6C687]",
-          badge: "bg-[#E6C687]/10 text-[#E6C687] border-[#E6C687]/20",
-          button: "bg-white text-black hover:bg-[#E6C687]",
-          accentLine: "bg-gradient-to-r from-transparent via-[#E6C687]/50 to-transparent",
-        };
-    }
-  };
+  const activeTier = pricingTiers[sliderIndex] || pricingTiers[0];
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSliderIndex(parseInt(e.target.value));
@@ -87,7 +45,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-xs uppercase font-mono font-medium tracking-widest text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/15 rounded-full px-4 py-1.5 inline-block mb-4"
+          className="text-xs uppercase font-mono font-medium tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
           Acquisition Pipeline
         </motion.span>
@@ -115,14 +73,14 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
 
       {/* INTERACTIVE PIPELINE SLIDER TOOL */}
       <div className="max-w-xl mx-auto mb-16 px-4">
-        <div className="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden">
+        <div className="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden bg-black/60">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-[#E6C687] uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-mono text-[#e60027] uppercase tracking-wider flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" />
               Dynamic Scale Controller
             </span>
             <span className="text-xs text-gray-400 font-mono">
-              Level {sliderIndex + 1}: <span className="text-white font-medium">{activeTier.name}</span>
+              Level {sliderIndex + 1}: <span className="text-white font-medium">{activeTier?.name}</span>
             </span>
           </div>
 
@@ -135,9 +93,9 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               step="1"
               value={sliderIndex}
               onChange={handleSliderChange}
-              className="w-full h-1 bg-[#151525] rounded-full appearance-none cursor-pointer accent-[#E6C687]"
+              className="w-full h-1 bg-[#1a080a] rounded-full appearance-none cursor-pointer accent-[#e60027]"
               style={{
-                background: "linear-gradient(to right, #4A36B3 0%, #E6C687 100%)",
+                background: "linear-gradient(to right, #66000b 0%, #e60027 100%)",
                 height: "6px"
               }}
             />
@@ -153,7 +111,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
 
           {/* DYNAMIC SCALE READOUT */}
           <div className="text-center pt-2 text-xs text-gray-400 border-t border-white/5 flex justify-center items-center gap-1">
-            <CornerDownRight className="w-3.5 h-3.5 text-amber-300" />
+            <CornerDownRight className="w-3.5 h-3.5 text-red-500" />
             Slide coordinate to toggle and focus the core architectural package below.
           </div>
         </div>
@@ -162,97 +120,198 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
       {/* 3-COLUMN GLASS TIERS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch pt-4">
         {pricingTiers.map((tier, index) => {
-          const isActive = index === sliderIndex;
-          const theme = getThemeColors(tier.glowTheme);
+          // Whichever card is hovered gets highlighted. If no card is hovered, the selected card is highlighted.
+          const isHighlighted = hoveredIndex !== null ? index === hoveredIndex : index === sliderIndex;
+
+          // Determine badge settings based on tier properties
+          const getBadgeConfig = (glowTheme: string, tierId: string, discountText?: string) => {
+            if (discountText) {
+              return {
+                text: discountText.toUpperCase(),
+                gradient: "from-[#10ac84] via-[#1dd1a1] to-[#01a3a4]",
+                glow: "rgba(29, 209, 161, 0.45)",
+                fold: "#0a6b51",
+                iconColor: "text-emerald-100",
+                icon: Flame
+              };
+            }
+            if (tierId === "short-form") {
+              return {
+                text: "BEST VALUE",
+                gradient: "from-[#00b894] via-[#05c46b] to-[#10ac84]",
+                glow: "rgba(29, 209, 161, 0.45)",
+                fold: "#0a6b51",
+                iconColor: "text-emerald-100",
+                icon: Flame
+              };
+            }
+            if (tierId === "cinematic" || tier.popular) {
+              return {
+                text: "MOST POPULAR",
+                gradient: "from-[#ff9f43] via-[#ff5a36] to-[#e60027]", // High-vibrancy saffron orange/red gradient
+                glow: "rgba(230, 0, 39, 0.5)",
+                fold: "#800010",
+                iconColor: "text-amber-100",
+                icon: Flame
+              };
+            }
+            if (tierId === "enterprise") {
+              return {
+                text: "ELITE SETUP",
+                gradient: "from-[#a29bfe] via-[#6c5ce7] to-[#4834d4]",
+                glow: "rgba(108, 92, 231, 0.45)",
+                fold: "#271b80",
+                iconColor: "text-indigo-100",
+                icon: Flame
+              };
+            }
+            return null;
+          };
+
+          const badge = getBadgeConfig(tier.glowTheme, tier.id, tier.discountEnabled ? tier.discountText : undefined);
 
           return (
             <motion.div
               key={tier.id}
               id={`pricing-card-${tier.id}`}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
               onClick={() => setSliderIndex(index)}
               initial={{ opacity: 0.8, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              whileHover={{
-                scale: 1.03,
-                transition: { type: "spring", stiffness: 120, damping: 10 }
-              }}
               animate={{
-                scale: isActive ? 1.02 : 0.98,
-                opacity: isActive ? 1 : 0.65,
-                borderColor: isActive ? "rgba(230, 198, 135, 0.4)" : "rgba(255, 255, 255, 0.08)"
+                scale: isHighlighted ? 1.02 : 0.98,
+                opacity: isHighlighted ? 1 : 0.65,
+                borderColor: isHighlighted ? "rgba(230, 0, 39, 0.4)" : "rgba(255, 255, 255, 0.08)"
               }}
               transition={{ type: "spring", stiffness: 150, damping: 18 }}
-              className={`rounded-3xl p-8 flex flex-col justify-between transition-all relative overflow-hidden cursor-pointer shadow-xl ${
-                isActive ? `glass-panel shadow-2xl ${theme.glow}` : "glass-panel-light"
+              className={`rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 relative cursor-pointer shadow-xl border ${
+                isHighlighted ? "bg-[#0b0506] shadow-2xl border-[#e60027]/30" : "bg-[#070505]/45 border-white/5"
               }`}
             >
-              {/* DECORATIVE BACKGROUND CHIPS */}
-              {isActive && (
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[#E6C687]/15 to-[#4A36B3]/15 rounded-full filter blur-xl pointer-events-none" />
+              {/* CARD ACCENT LINE */}
+              {isHighlighted && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#e60027] to-transparent" />
               )}
 
-              {/* CARD ACCENT LINE */}
-              {isActive && (
-                <div className={`absolute top-0 left-0 right-0 h-[2px] ${theme.accentLine}`} />
+              {/* 3D RIBBON OVERLAY BADGE */}
+              {badge && (
+                <motion.div
+                  className="absolute -top-[14px] right-8 z-30 flex flex-col items-center pointer-events-none select-none"
+                  animate={isHighlighted ? {
+                    y: [0, -5, 0],
+                    scale: [1, 1.03, 1],
+                  } : {
+                    y: 0,
+                    scale: 1,
+                  }}
+                  transition={isHighlighted ? {
+                    duration: 2.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  } : undefined}
+                >
+                  {/* Ribbon Body */}
+                  <div
+                    className={`relative px-2.5 pt-3.5 pb-4 text-center font-display font-black text-white shadow-lg bg-gradient-to-b ${badge.gradient}`}
+                    style={{
+                      clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 50% 88%, 0% 100%)",
+                      minWidth: "60px",
+                      minHeight: "72px",
+                      boxShadow: `0 8px 20px ${badge.glow}, inset 0 1px 0 rgba(255,255,255,0.4)`
+                    }}
+                  >
+                    {/* Shimmer line effect */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent opacity-65 animate-pulse" />
+                    
+                    <badge.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${badge.iconColor} drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)] animate-bounce`} />
+                    
+                    <div className="flex flex-col gap-0.5 leading-none">
+                      {badge.text.split(" ").map((word, wIdx) => (
+                        <span
+                          key={wIdx}
+                          className="text-[8px] uppercase tracking-wider font-extrabold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] font-sans"
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3D Fold Corners Behind Card Edge */}
+                  <div
+                    className="absolute z-[-1]"
+                    style={{
+                      left: "-6px",
+                      top: "14px",
+                      width: "6px",
+                      height: "8px",
+                      backgroundColor: badge.fold,
+                      clipPath: "polygon(100% 0, 0 0, 100% 100%)"
+                    }}
+                  />
+                  <div
+                    className="absolute z-[-1]"
+                    style={{
+                      right: "-6px",
+                      top: "14px",
+                      width: "6px",
+                      height: "8px",
+                      backgroundColor: badge.fold,
+                      clipPath: "polygon(0 0, 0 100%, 100% 0)"
+                    }}
+                  />
+                </motion.div>
               )}
 
               <div>
-                {/* HEADER ROW */}
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    {tier.popular && (
-                      <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#E6C687] bg-[#E6C687]/10 px-3 py-1.5 rounded-full border border-[#E6C687]/20 flex items-center gap-1.5 mb-3.5 w-fit">
-                        <Flame className="w-3 h-3 text-[#E6C687] animate-pulse" />
-                        Most Recommended
-                      </span>
-                    )}
-                    {tier.discountEnabled && tier.discountText && (
-                      <span className="text-[10px] uppercase font-mono font-bold tracking-widest bg-gradient-to-r from-amber-500/20 to-red-500/20 px-3 py-1.5 rounded-full border border-amber-500/30 text-amber-200 flex items-center gap-1.5 mb-3.5 w-fit">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping mr-0.5" />
-                        {tier.discountText}
-                      </span>
-                    )}
-                    <div className="text-[#E6C687] font-mono text-xs font-bold tracking-widest mb-1">
-                      0{index + 1}
-                    </div>
-                    <h3 className="font-display font-medium text-2xl text-white tracking-tight">
-                      {tier.name}
-                    </h3>
-                  </div>
-                  <span className={`text-[10px] uppercase font-mono font-semibold px-2.5 py-1 rounded border ${theme.badge}`}>
-                    {tier.glowTheme} scale
-                  </span>
-                </div>
-
-                <p className="text-gray-400 text-sm mb-6 leading-relaxed min-h-[40px]">
-                  {tier.tagline}
-                </p>
-
-                {/* PRICE AREA */}
-                <div className="flex items-baseline flex-wrap gap-2 mb-8 border-b border-white/5 pb-6">
-                  {tier.originalPrice && (
-                    <span className="text-lg md:text-xl font-mono text-gray-500 line-through mr-1 decoration-red-500/50">
-                      {tier.originalPrice}
-                    </span>
+                {/* 5th Image Box: Top Distinct Header Card Box */}
+                <div className={`rounded-2xl p-6 mb-6 transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
+                  isHighlighted 
+                    ? "active-pricing-header text-black" 
+                    : "bg-white/[0.02] border border-white/5 text-white"
+                }`}>
+                  {/* Decorative background chip inside header */}
+                  {isHighlighted && (
+                    <div className="absolute -top-10 -right-10 w-24 h-24 bg-gradient-to-br from-white/20 to-transparent rounded-full filter blur-lg pointer-events-none" />
                   )}
-                  <span className="text-4xl md:text-5xl font-display font-semibold text-white tracking-tight">
-                    {tier.price}
-                  </span>
-                  <span className="text-gray-400 font-mono text-xs">
-                    / {tier.period}
-                  </span>
+
+                  <div>
+                    <div className={`font-mono text-xs font-bold tracking-widest mb-1 ${isHighlighted ? "text-black/60" : "text-[#e60027]"}`}>
+                      {tier.name.toUpperCase().split(" ")[0]}
+                    </div>
+                    
+                    {/* Price read-out */}
+                    <div className="flex items-baseline flex-wrap gap-2 mt-2 mb-3">
+                      {tier.originalPrice && (
+                        <span className={`text-lg font-mono line-through mr-1 decoration-red-500/50 ${isHighlighted ? "text-black/40" : "text-gray-500"}`}>
+                          {tier.originalPrice}
+                        </span>
+                      )}
+                      <span className="text-4xl md:text-5xl font-display font-semibold tracking-tight">
+                        {tier.price}
+                      </span>
+                      <span className={`font-mono text-xs ${isHighlighted ? "text-black/60" : "text-gray-400"}`}>
+                        / {tier.period}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className={`text-xs leading-relaxed mt-2 ${isHighlighted ? "text-black/75" : "text-gray-400"} min-h-[40px]`}>
+                    {tier.tagline}
+                  </p>
                 </div>
 
                 {/* DELIVERABLES LIST */}
-                <div className="space-y-4 mb-8">
+                <div className="space-y-4 mb-8 px-2">
                   <h4 className="text-xs font-mono uppercase tracking-widest text-gray-400">
                     Syllabus of Execution
                   </h4>
                   <ul className="space-y-3">
-                    {tier.deliverables.map((item, index) => (
-                      <li key={index} className="flex items-start text-xs md:text-sm text-gray-300 gap-3">
-                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isActive ? theme.text : "text-gray-500"}`}>
+                    {tier.deliverables.map((item, dIdx) => (
+                      <li key={dIdx} className="flex items-start text-xs md:text-sm text-gray-300 gap-3">
+                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isHighlighted ? "text-[#e60027] border-[#e60027]/30 bg-[#e60027]/5" : "text-gray-500"}`}>
                           <Check className="w-3 h-3" />
                         </span>
                         <span>{item}</span>
@@ -263,8 +322,8 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               </div>
 
               {/* METADATA CHIPS REVISIONS / TURNAROUNDS */}
-              <div>
-                <div className="grid grid-cols-2 gap-4 bg-black/20 border border-white/5 rounded-xl p-3.5 mb-6 text-xs font-mono">
+              <div className="px-2">
+                <div className="grid grid-cols-2 gap-4 bg-black/40 border border-white/5 rounded-xl p-3.5 mb-6 text-xs font-mono">
                   <div className="flex flex-col gap-1">
                     <span className="text-gray-500 font-light flex items-center gap-1.5">
                       <Hourglass className="w-3.5 h-3.5 text-gray-500" /> Wait period
@@ -287,13 +346,9 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                     e.stopPropagation();
                     selectPackage(tier);
                   }}
-                  style={isActive ? {
-                    ...(tier.buttonColor ? { backgroundColor: tier.buttonColor, backgroundImage: 'none' } : {}),
-                    ...(tier.buttonTextColor ? { color: tier.buttonTextColor } : (tier.buttonColor ? { color: '#000000' } : {}))
-                  } : undefined}
                   className={`w-full py-3.5 rounded-2xl font-semibold font-display tracking-tight text-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
-                    isActive 
-                      ? theme.button + " shadow-xl shadow-[#E6C687]/5" 
+                    isHighlighted 
+                      ? "bg-[#e60027] text-white shadow-xl shadow-[#e60027]/10 hover:bg-[#ff1236]" 
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"
                   }`}
                 >
@@ -315,13 +370,13 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-16 max-w-4xl mx-auto"
         >
-          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-purple-950/20 via-black/40 to-amber-950/10">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#E6C687]/5 rounded-full filter blur-2xl pointer-events-none" />
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#E6C687] shrink-0">
+          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-red-950/10 via-black/60 to-red-950/5 bg-black/40">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#e60027]/5 rounded-full filter blur-2xl pointer-events-none" />
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#e60027] shrink-0">
               <Sliders className="w-6 h-6" />
             </div>
             <div className="flex-1 space-y-1">
-              <h4 className="text-xs font-mono font-bold tracking-widest text-[#E6C687] uppercase">Custom Scope & Integrations</h4>
+              <h4 className="text-xs font-mono font-bold tracking-widest text-[#e60027] uppercase">Custom Scope & Integrations</h4>
               <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-sans">
                 {siteSettings.pricing_note_text}
               </p>

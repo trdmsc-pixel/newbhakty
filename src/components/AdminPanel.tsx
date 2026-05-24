@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
@@ -74,6 +74,75 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   // UI Navigation state
   const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form">("settings");
+
+  const [uploadModal, setUploadModal] = useState<{
+    active: boolean;
+    filename: string;
+    filesize: string;
+    percentage: number;
+    statusText: string;
+  }>({
+    active: false,
+    filename: "",
+    filesize: "",
+    percentage: 0,
+    statusText: "",
+  });
+
+  const runUploadWithModal = async (file: File, uploadFn: () => Promise<string>): Promise<string> => {
+    const sizeKb = (file.size / 1024).toFixed(2) + " KB";
+    setUploadModal({
+      active: true,
+      filename: file.name,
+      filesize: sizeKb,
+      percentage: 0,
+      statusText: "Initiating upload handshake...",
+    });
+
+    const interval = setInterval(() => {
+      setUploadModal((prev) => {
+        if (!prev.active) {
+          clearInterval(interval);
+          return prev;
+        }
+        if (prev.percentage < 92) {
+          const increment = Math.max(1, Math.floor(Math.random() * 6));
+          const nextPercent = Math.min(92, prev.percentage + increment);
+          return {
+            ...prev,
+            percentage: nextPercent,
+            statusText: nextPercent < 30 ? "Negotiating security cipher keys..." :
+                       nextPercent < 60 ? "Transporting file segments to Cloudinary CDN..." :
+                       "Syncing cache nodes at edges...",
+          };
+        }
+        return prev;
+      });
+    }, 150);
+
+    try {
+      const url = await uploadFn();
+      clearInterval(interval);
+      setUploadModal((prev) => ({
+        ...prev,
+        percentage: 100,
+        statusText: "Ingestion and edge cache syncing completed!",
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setUploadModal((prev) => ({ ...prev, active: false }));
+      return url;
+    } catch (err: any) {
+      clearInterval(interval);
+      setUploadModal((prev) => ({
+        ...prev,
+        percentage: 0,
+        statusText: `Handshake rejected: ${err?.message || "Unknown Error"}`,
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setUploadModal((prev) => ({ ...prev, active: false }));
+      throw err;
+    }
+  };
   const [saveStatus, setSaveStatus] = useState<{ [tab: string]: "idle" | "saving" | "saved" | "error" }>({
     settings: "idle",
     navigation: "idle",
@@ -283,12 +352,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }
 
     setIsUploadingAsset(true);
-    toast.info("Configuring cloud pipeline. Transferring file...");
-
     try {
-      const uploadedUrl = await uploadToCloudinary(selectedAssetFile, (progress) => {
-        console.log(progress);
-      });
+      const uploadedUrl = await runUploadWithModal(selectedAssetFile, () => 
+        uploadToCloudinary(selectedAssetFile)
+      );
 
       const newAsset = await addMediaAsset(
         newAssetName || selectedAssetFile.name,
@@ -772,11 +839,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     const isImage = targetWork?.type === "image";
 
     setIsUploadingPortfolioId(workId);
-    toast.info(isImage ? "Uploading image to Cloudinary CDN..." : "Uploading video track to Cloudinary CDN...");
-
     try {
       recordWorksHistory();
-      const uploadedUrl = await uploadToCloudinary(file);
+      const uploadedUrl = await runUploadWithModal(file, () => 
+        uploadToCloudinary(file)
+      );
       if (isImage) {
         handleWorkChange(workId, "imageUrl", uploadedUrl);
       } else {
@@ -1062,11 +1129,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
         >
           {/* LOGO */}
           <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#4A36B3] to-[#E6C687] flex items-center justify-center relative shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#4A36B3] to-[#e60027] flex items-center justify-center relative shadow-lg">
               <Lock className="w-5 h-5 text-white" />
             </div>
             <h1 className="font-display font-medium text-2xl tracking-tight text-white italic">
-              bhakty<span className="text-[#E6C687]">.</span>admin
+              bhakty<span className="text-[#e60027]">.</span>admin
             </h1>
             <p className="text-gray-500 font-mono text-xs uppercase tracking-widest text-center">
               Axiom Core Gatekeeper
@@ -1083,7 +1150,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••••••"
-                className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#E6C687]/50 focus:ring-1 focus:ring-[#E6C687]/30 transition-all font-mono"
+                className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#e60027]/50 focus:ring-1 focus:ring-[#e60027]/30 transition-all font-mono"
               />
             </div>
 
@@ -1096,7 +1163,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-[#E6C687] text-black font-semibold font-display tracking-tight hover:shadow-lg hover:shadow-[#E6C687]/20 hover:bg-[#ebd5ad] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-xl bg-[#e60027] text-white font-semibold font-display tracking-tight hover:shadow-lg hover:shadow-[#e60027]/20 hover:bg-[#ff3b30] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               Sign In <ArrowRight className="w-4 h-4" />
             </button>
@@ -1126,10 +1193,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           <div>
             <div className="flex items-center gap-3">
               <span className="font-display font-medium text-2xl md:text-3xl tracking-tighter italic text-white">
-                bhakty<span className="text-[#E6C687]">.</span>admin
+                bhakty<span className="text-[#e60027]">.</span>admin
               </span>
-              <span className="text-[10px] uppercase font-mono tracking-widest text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/20 rounded-full px-2.5 py-1 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-[#E6C687]" /> Connected
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/20 rounded-full px-2.5 py-1 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-[#e60027]" /> Connected
               </span>
             </div>
             <p className="text-gray-400 text-sm font-light mt-1.5">
@@ -1151,7 +1218,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
              <button
               type="button"
               onClick={onNavigateHome}
-              className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5 py-2 rounded-xl text-white hover:border-[#E6C687]/40 hover:text-[#E6C687] transition-all cursor-pointer"
+              className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5 py-2 rounded-xl text-white hover:border-[#e60027]/40 hover:text-[#e60027] transition-all cursor-pointer"
             >
               Exit to Studio
             </button>
@@ -1327,7 +1394,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveSettings}
                       disabled={saveStatus.settings === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
                     >
                       <Save className="w-4 h-4" /> Synchronize settings
                     </button>
@@ -1340,7 +1407,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_video_bg_url}
                         onChange={(e) => handleSettingChange("hero_video_bg_url", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1350,7 +1417,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_badge_text}
                         onChange={(e) => handleSettingChange("hero_badge_text", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1360,7 +1427,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.footer_copyright}
                         onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1370,7 +1437,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_title_1}
                         onChange={(e) => handleSettingChange("hero_title_1", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1380,7 +1447,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_title_2}
                         onChange={(e) => handleSettingChange("hero_title_2", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1390,7 +1457,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_title_3}
                         onChange={(e) => handleSettingChange("hero_title_3", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1400,7 +1467,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="text"
                         value={editSettings.hero_cta_booking_text}
                         onChange={(e) => handleSettingChange("hero_cta_booking_text", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40"
                       />
                     </div>
 
@@ -1411,12 +1478,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           type="text"
                           value={editSettings.hero_cta_booking_color || ""}
                           onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
-                          placeholder="e.g. #E6C687"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 font-mono"
+                          placeholder="e.g. #e60027"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40 font-mono"
                         />
                         <input
                           type="color"
-                          value={editSettings.hero_cta_booking_color && editSettings.hero_cta_booking_color.startsWith('#') && editSettings.hero_cta_booking_color.length === 7 ? editSettings.hero_cta_booking_color : "#E6C687"}
+                          value={editSettings.hero_cta_booking_color && editSettings.hero_cta_booking_color.startsWith('#') && editSettings.hero_cta_booking_color.length === 7 ? editSettings.hero_cta_booking_color : "#e60027"}
                           onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
                           className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
                         />
@@ -1431,7 +1498,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={editSettings.hero_cta_booking_text_color || ""}
                           onChange={(e) => handleSettingChange("hero_cta_booking_text_color", e.target.value)}
                           placeholder="e.g. #FFFFFF"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 font-mono"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40 font-mono"
                         />
                         <input
                           type="color"
@@ -1448,7 +1515,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         value={editSettings.hero_description}
                         onChange={(e) => handleSettingChange("hero_description", e.target.value)}
                         rows={4}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 resize-none"
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40 resize-none"
                       />
                     </div>
 
@@ -1508,7 +1575,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                     {/* HERO SPACING & LAYOUT CONTROLS */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <h3 className="text-sm font-semibold text-[#E6C687] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
+                      <h3 className="text-sm font-semibold text-[#e60027] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
                         <div>
                           <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top (e.g. 2rem, 40px)</label>
@@ -1643,7 +1710,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     {/* INTERACTIVE WEBSITE THEME SWITCHER TABLE */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <div className="flex items-center gap-2 mb-3">
-                        <Palette className="w-4 h-4 text-[#E6C687]" />
+                        <Palette className="w-4 h-4 text-[#e60027]" />
                         <h3 className="text-sm font-semibold text-gray-300 font-display">Active Global Website Theme</h3>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
@@ -1659,11 +1726,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               }}
                               className={`p-3.5 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
                                 isCurrent 
-                                  ? "bg-[#E6C687]/15 border-[#E6C687] text-white" 
+                                  ? "bg-[#e60027]/15 border-[#e60027] text-white" 
                                   : "bg-black/40 border-white/5 hover:border-white/20 text-gray-400 hover:text-white"
                               }`}
                             >
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-[#E6C687] opacity-80">
+                              <span className="font-mono text-[9px] uppercase tracking-widest text-[#e60027] opacity-80">
                                 {themeOption.type}
                               </span>
                               <span className="text-xs font-semibold truncate w-full">{themeOption.name}</span>
@@ -1676,7 +1743,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     {/* FULL WIDTH OPTION */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <div className="flex items-center gap-2 mb-3">
-                        <Sliders className="w-4 h-4 text-[#E6C687]" />
+                        <Sliders className="w-4 h-4 text-[#e60027]" />
                         <h3 className="text-sm font-semibold text-gray-300 font-display">Website Dimension Configuration</h3>
                       </div>
                       <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
@@ -1691,7 +1758,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           }}
                           className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
                             (editSettings.website_full_width !== "true")
-                              ? "bg-[#E6C687] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              ? "bg-[#e60027] text-white font-semibold border-transparent shadow shadow-amber-400/25"
                               : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
                           }`}
                         >
@@ -1705,7 +1772,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           }}
                           className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
                             (editSettings.website_full_width === "true")
-                              ? "bg-[#E6C687] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              ? "bg-[#e60027] text-white font-semibold border-transparent shadow shadow-amber-400/25"
                               : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
                           }`}
                         >
@@ -1760,7 +1827,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                        <button
                          onClick={saveMenu}
                          disabled={saveStatus.navigation === "saving"}
-                         className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
+                         className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer"
                        >
                          <Save className="w-4 h-4" /> Synchronize menu
                        </button>
@@ -1826,7 +1893,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <select
                               value={item.target_url}
                               onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[#E6C687]/40"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[#e60027]/40"
                             >
                               <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
                               <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
@@ -1885,12 +1952,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         onClick={addWorkItem}
                         className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
                       >
-                        <PlusCircle className="w-4 h-4 text-[#E6C687]" /> Synthesize Work Card
+                        <PlusCircle className="w-4 h-4 text-[#e60027]" /> Synthesize Work Card
                       </button>
                       <button
                         onClick={saveWorks}
                         disabled={saveStatus.portfolio === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer"
                       >
                         <Save className="w-4 h-4" /> Sync Portfolio
                       </button>
@@ -1935,7 +2002,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={editSettings.portfolio_license_button_text || ""}
                           onChange={(e) => handleSettingChange("portfolio_license_button_text", e.target.value)}
                           placeholder="Acquire License"
-                          className="w-full md:w-64 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#E6C687]/50"
+                          className="w-full md:w-64 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#e60027]/50"
                         />
                         <button
                           onClick={saveWorks}
@@ -1996,7 +2063,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <div className="flex items-center justify-between border-b border-white/5 pb-3">
                               <div className="flex items-center gap-3 select-none">
                                 <GripVertical className="w-4 h-4 text-gray-500" />
-                                <span className="text-xs font-mono text-[#E6C687] font-semibold">Artifact 0{filteredIndex + 1}</span>
+                                <span className="text-xs font-mono text-[#e60027] font-semibold">Artifact 0{filteredIndex + 1}</span>
                                 <span className="text-sm font-medium text-gray-300">{work.title}</span>
                               </div>
 
@@ -2053,11 +2120,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                     type="button"
                                     disabled={isSuggestingTagsId === work.id}
                                     onClick={() => runSuggestTagsAI(work)}
-                                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40 animate-pulse"
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#e60027] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40 animate-pulse"
                                   >
                                     {isSuggestingTagsId === work.id ? (
                                       <>
-                                        <Sparkles className="w-3 h-3 animate-spin text-[#E6C687]" /> Auto suggesting...
+                                        <Sparkles className="w-3 h-3 animate-spin text-[#e60027]" /> Auto suggesting...
                                       </>
                                     ) : (
                                       <>
@@ -2101,7 +2168,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         }
                                       }}
                                       value={work.videoUrl || ""}
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50 font-sans"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/50 font-sans"
                                     >
                                       <option value="">-- Apply a Video Asset --</option>
                                       {mediaAssets.filter(asset => asset.type === "video").map((asset) => (
@@ -2115,7 +2182,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                                   <div className="md:col-span-2">
                                     <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
-                                    <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                    <div className="relative border border-dashed border-white/10 hover:border-[#e60027]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                           <Upload className="w-3.5 h-3.5 text-gray-400" />
@@ -2141,7 +2208,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                           type="button"
                                           onClick={() => handlePortfolioUpload(work.id)}
                                           disabled={isUploadingPortfolioId === work.id}
-                                          className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                                          className="w-full mt-1 bg-[#e60027] text-white text-[10px] font-semibold py-1.5 rounded hover:bg-[#ff1236] transition-all cursor-pointer disabled:opacity-40"
                                         >
                                           {isUploadingPortfolioId === work.id 
                                             ? "Uploading Track..." 
@@ -2173,7 +2240,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         }
                                       }}
                                       value={work.imageUrl || ""}
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50 font-sans"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/50 font-sans"
                                     >
                                       <option value="">-- Apply an Image Asset --</option>
                                       {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
@@ -2187,7 +2254,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                                   <div className="md:col-span-2">
                                     <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
-                                    <div className="relative border border-dashed border-white/10 hover:border-[#E6C687]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                    <div className="relative border border-dashed border-white/10 hover:border-[#e60027]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                           <Upload className="w-3.5 h-3.5 text-gray-400" />
@@ -2213,7 +2280,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                           type="button"
                                           onClick={() => handlePortfolioUpload(work.id)}
                                           disabled={isUploadingPortfolioId === work.id}
-                                          className="w-full mt-1 bg-[#E6C687] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                                          className="w-full mt-1 bg-[#e60027] text-white text-[10px] font-semibold py-1.5 rounded hover:bg-[#ff1236] transition-all cursor-pointer disabled:opacity-40"
                                         >
                                           {isUploadingPortfolioId === work.id 
                                             ? "Uploading Image..." 
@@ -2314,7 +2381,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={savePricing}
                       disabled={saveStatus.pricing === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer"
                     >
                       <Save className="w-4 h-4" /> Sync Pricing
                     </button>
@@ -2332,7 +2399,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <div className="flex items-center justify-between border-b border-white/5 pb-3">
                           <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full" style={{
-                              backgroundColor: tier.glowTheme === "emerald" ? "#10b981" : (tier.glowTheme === "saffron" ? "#E6C687" : "#4A36B3")
+                              backgroundColor: tier.glowTheme === "emerald" ? "#10b981" : (tier.glowTheme === "saffron" ? "#e60027" : "#4A36B3")
                             }} />
                             <span className="font-display font-semibold text-lg text-white">{tier.name}</span>
                           </div>
@@ -2343,7 +2410,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="checkbox"
                                 checked={tier.popular}
                                 onChange={(e) => handlePricingChange(tier.id, "popular", e.target.checked)}
-                                className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                                className="rounded border-white/10 text-[#e60027] focus:ring-0 bg-transparent"
                               />
                               Recommend Spotlight
                             </label>
@@ -2413,7 +2480,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="checkbox"
                                 checked={tier.discountEnabled || false}
                                 onChange={(e) => handlePricingChange(tier.id, "discountEnabled", e.target.checked)}
-                                className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                                className="rounded border-white/10 text-[#e60027] focus:ring-0 bg-transparent"
                               />
                               Enable Discount Badge
                             </label>
@@ -2449,12 +2516,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="text"
                                 value={tier.buttonColor || ""}
                                 onChange={(e) => handlePricingChange(tier.id, "buttonColor", e.target.value)}
-                                placeholder="e.g. #E6C687"
+                                placeholder="e.g. #e60027"
                                 className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
                               />
                               <input
                                 type="color"
-                                value={tier.buttonColor && tier.buttonColor.startsWith('#') && tier.buttonColor.length === 7 ? tier.buttonColor : "#E6C687"}
+                                value={tier.buttonColor && tier.buttonColor.startsWith('#') && tier.buttonColor.length === 7 ? tier.buttonColor : "#e60027"}
                                 onChange={(e) => handlePricingChange(tier.id, "buttonColor", e.target.value)}
                                 className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
                               />
@@ -2519,7 +2586,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <span className="text-[10px] font-mono uppercase text-gray-400">Deliverables Deliverable Scope</span>
                             <button
                               onClick={() => addFeature(tier.id)}
-                              className="flex items-center gap-1 text-[10px] font-mono text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/20 px-2 py-0.5 rounded hover:bg-[#E6C687]/10"
+                              className="flex items-center gap-1 text-[10px] font-mono text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/20 px-2 py-0.5 rounded hover:bg-[#e60027]/10"
                             >
                               <Plus className="w-3 h-3" /> Add feature scope
                             </button>
@@ -2563,7 +2630,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={editSettings.pricing_note_text || ""}
                           onChange={(e) => handleSettingChange("pricing_note_text", e.target.value)}
                           placeholder="e.g. All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds."
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E6C687]/40 resize-none font-sans"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e60027]/40 resize-none font-sans"
                         />
                       </div>
                     </div>
@@ -2608,7 +2675,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         }, 800);
                       }}
                       disabled={saveStatus.assets === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
                     >
                       {saveStatus.assets === "saving" ? (
                         <>
@@ -2627,7 +2694,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   {/* ACTIVE CONFIGURATION ROLES */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 border border-white/5 p-6 rounded-2xl">
                     <div>
-                      <h3 className="text-xs font-mono uppercase text-[#E6C687] mb-3 tracking-wide flex items-center gap-2">
+                      <h3 className="text-xs font-mono uppercase text-[#e60027] mb-3 tracking-wide flex items-center gap-2">
                         <Play className="w-3.5 h-3.5" /> Hero Background (Img or Video)
                       </h3>
                       <div className="space-y-3">
@@ -2638,7 +2705,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           onChange={(e) => handleSelectAssetForSetting(e.target.value, "hero_video_bg_url")}
                           value={siteSettings.hero_video_bg_url || ""}
-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/50"
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
@@ -2649,7 +2716,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
 
                     <div>
-                      <h3 className="text-xs font-mono uppercase text-[#E6C687] mb-3 tracking-wide flex items-center gap-2">
+                      <h3 className="text-xs font-mono uppercase text-[#e60027] mb-3 tracking-wide flex items-center gap-2">
                         <Compass className="w-3.5 h-3.5" /> Navbar Logo Brand Image
                       </h3>
                       <div className="space-y-3">
@@ -2660,7 +2727,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           onChange={(e) => handleSelectAssetForSetting(e.target.value, "logo_img_url")}
                           value={siteSettings.logo_img_url || ""}
-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/50"
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/50"
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
@@ -2699,7 +2766,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
 
                       <div className="space-y-3">
-                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#E6C687]/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#e60027]/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
                           <Upload className="w-6 h-6 text-gray-400 mb-2" />
                           <span className="text-xs font-medium text-white">
                             {selectedAssetFile ? `Selected: ${selectedAssetFile.name}` : "Click or Drop Asset File"}
@@ -2717,7 +2784,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="button"
                             onClick={handleAssetUpload}
                             disabled={isUploadingAsset}
-                            className="w-full py-2.5 bg-[#E6C687] text-black text-xs font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                            className="w-full py-2.5 bg-[#e60027] text-white text-xs font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer disabled:opacity-40"
                           >
                             {isUploadingAsset ? "Uploading to Cloudinary..." : "Upload Asset to CDN"}
                           </button>
@@ -2773,7 +2840,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <button
                               onClick={handleAddCustomAsset}
                               disabled={!newAssetUrl || !newAssetName}
-                              className="w-full py-2 bg-[#E6C687] text-black text-xs font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer disabled:opacity-40"
+                              className="w-full py-2 bg-[#e60027] text-white text-xs font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer disabled:opacity-40"
                             >
                               Add Asset URL
                             </button>
@@ -2821,14 +2888,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           <div className="flex items-center gap-1.5 ml-2 shrink-0">
                             <button
                               onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
-                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#e60027]/5 text-[#e60027] border border-[#e60027]/15 hover:bg-[#e60027]/20"
                               title="Set as Hero Background Video / Image"
                             >
                               Background
                             </button>
                             <button
                               onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
-                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#E6C687]/5 text-[#E6C687] border border-[#E6C687]/15 hover:bg-[#E6C687]/20"
+                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#e60027]/5 text-[#e60027] border border-[#e60027]/15 hover:bg-[#e60027]/20"
                               title="Set as Navbar Logo Image"
                             >
                               Logo
@@ -2885,7 +2952,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <div className="flex items-center gap-2">
                                 <h3 className="font-display font-bold text-base text-white">{sub.fullName || sub.name}</h3>
                                 {sub.company && (
-                                  <span className="text-[10px] font-mono text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/15 px-2 py-0.5 rounded-lg">
+                                  <span className="text-[10px] font-mono text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 px-2 py-0.5 rounded-lg">
                                     {sub.company}
                                   </span>
                                 )}
@@ -2899,7 +2966,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <select
                                 value={sub.status || "Pending"}
                                 onChange={(e) => updateSubmissionStatus(sub.id, e.target.value)}
-                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[#E6C687] focus:outline-none"
+                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[#e60027] focus:outline-none"
                               >
                                 <option value="Pending">Pending Audit</option>
                                 <option value="Reviewed">Under Review</option>
@@ -2939,11 +3006,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="button"
                                 disabled={analyzingSubId === sub.id}
                                 onClick={() => runIntakeAIAnalysis(sub)}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#E6C687] hover:text-white hover:border-purple-500 transition-all font-sans font-semibold text-xs cursor-pointer disabled:opacity-40"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#e60027] hover:text-white hover:border-purple-500 transition-all font-sans font-semibold text-xs cursor-pointer disabled:opacity-40"
                               >
                                 {analyzingSubId === sub.id ? (
                                   <>
-                                    <Sparkles className="w-4 h-4 animate-spin text-[#E6C687]" /> Compiling synthesis...
+                                    <Sparkles className="w-4 h-4 animate-spin text-[#e60027]" /> Compiling synthesis...
                                   </>
                                 ) : (
                                   <>
@@ -2957,7 +3024,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           {/* AI analysis response */}
                           {submissionAnalyses[sub.id] && (
                             <div className="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-5 space-y-3">
-                              <div className="flex items-center gap-2 text-xs font-mono text-[#E6C687] border-b border-purple-500/15 pb-2">
+                              <div className="flex items-center gap-2 text-xs font-mono text-[#e60027] border-b border-purple-500/15 pb-2">
                                 <Sparkles className="w-4 h-4 text-purple-400" />
                                 <span className="uppercase tracking-widest font-semibold">Gemini Ingestion Assessment Plan</span>
                               </div>
@@ -2994,7 +3061,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveIntakeFormSettings}
                       disabled={saveStatus.intake_form === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#E6C687] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#fadfa8] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#e60027] text-white text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ff1236] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
                     >
                       {saveStatus.intake_form === "saving" ? (
                         <>
@@ -3114,7 +3181,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                     </span>
                                   )}
                                   {isCore ? (
-                                    <span className="text-[8px] font-mono bg-[#E6C687]/10 text-[#E6C687] border border-[#E6C687]/20 px-1.5 py-0.5 rounded">
+                                    <span className="text-[8px] font-mono bg-[#e60027]/10 text-[#e60027] border border-[#e60027]/20 px-1.5 py-0.5 rounded">
                                       Core Ingestion ID: {field.id}
                                     </span>
                                   ) : (
@@ -3160,7 +3227,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 <button
                                   type="button"
                                   onClick={() => handleStartEditField(field)}
-                                  className="p-1.5 text-[#E6C687] hover:text-[#fadfa8] bg-[#E6C687]/5 border border-[#E6C687]/15 rounded-lg hover:bg-[#E6C687]/10 transition-all cursor-pointer"
+                                  className="p-1.5 text-[#e60027] hover:text-[#ff1236] bg-[#e60027]/5 border border-[#e60027]/15 rounded-lg hover:bg-[#e60027]/10 transition-all cursor-pointer"
                                   title="Edit Field Configuration"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -3180,7 +3247,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             {/* Inline edit details block */}
                             {isEditing && (
                               <div className="bg-black/50 border border-amber-500/20 rounded-lg p-4 space-y-3 mt-2 animate-fadeIn">
-                                <div className="text-[10px] font-mono text-[#E6C687] uppercase border-b border-white/5 pb-1">
+                                <div className="text-[10px] font-mono text-[#e60027] uppercase border-b border-white/5 pb-1">
                                   Modify Field Configuration
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -3225,7 +3292,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         type="checkbox"
                                         checked={editFieldRequired}
                                         onChange={(e) => setEditFieldRequired(e.target.checked)}
-                                        className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                                        className="rounded border-white/10 text-[#e60027] focus:ring-0 bg-transparent"
                                       />
                                       Required Field
                                     </label>
@@ -3270,7 +3337,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={newFieldLabel}
                           onChange={(e) => setNewFieldLabel(e.target.value)}
                           placeholder="e.g. Targeted Release Platform"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/40"
                         />
                       </div>
 
@@ -3279,7 +3346,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           value={newFieldType}
                           onChange={(e) => setNewFieldType(e.target.value as any)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40 cursor-pointer"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/40 cursor-pointer"
                           style={{ colorScheme: "dark" }}
                         >
                           <option value="text">Text Input (single line)</option>
@@ -3297,7 +3364,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={newFieldPlaceholder}
                           onChange={(e) => setNewFieldPlaceholder(e.target.value)}
                           placeholder="e.g. YouTube, TikTok, Instagram..."
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/40"
                         />
                       </div>
 
@@ -3307,7 +3374,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="checkbox"
                             checked={newFieldRequired}
                             onChange={(e) => setNewFieldRequired(e.target.checked)}
-                            className="rounded border-white/10 text-[#E6C687] focus:ring-0 bg-transparent"
+                            className="rounded border-white/10 text-[#e60027] focus:ring-0 bg-transparent"
                           />
                           Make Field Required
                         </label>
@@ -3323,7 +3390,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={newFieldOptionsText}
                             onChange={(e) => setNewFieldOptionsText(e.target.value)}
                             placeholder="e.g. YouTube, TikTok, Cinema Screen, Interactive App"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E6C687]/40 resize-none font-sans"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e60027]/40 resize-none font-sans"
                           />
                         </div>
                       )}
@@ -3345,6 +3412,68 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             </div>
           </div>
 
+          {/* CUSTOM GLOWING UPLOAD MODAL (Replicating Image 4 style) */}
+          <AnimatePresence>
+            {uploadModal.active && (
+              <div className="fixed inset-0 z-[999] bg-[#050508]/85 backdrop-blur-2xl flex items-center justify-center p-4">
+                {/* Red Glowing Halo/Backlight Behind Card */}
+                <div className="absolute w-[350px] h-[350px] bg-red-600/15 rounded-full filter blur-[120px] pointer-events-none animate-pulse" />
+                
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  transition={{ type: "spring", stiffness: 150, damping: 18 }}
+                  className="glass-panel-heavy rounded-3xl p-8 max-w-md w-full border border-red-500/25 relative flex flex-col items-center text-center shadow-2xl bg-[#080203]/90"
+                >
+                  {/* Top glossy edge line */}
+                  <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
+                  
+                  {/* File Icon Block */}
+                  <div className="w-16 h-16 rounded-2xl bg-red-950/20 border border-red-500/20 flex items-center justify-center mb-6 relative overflow-hidden">
+                    <FileText className="w-8 h-8 text-red-500" />
+                    <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 border border-white/10 text-[7px] font-mono text-white tracking-widest uppercase">
+                      {uploadModal.filename.split('.').pop() || "FILE"}
+                    </div>
+                  </div>
+
+                  {/* File Name & Size */}
+                  <h3 className="font-display font-medium text-lg text-white mb-1 truncate max-w-xs">
+                    {uploadModal.filename}
+                  </h3>
+                  <p className="text-gray-400 font-mono text-[10px] uppercase tracking-wider mb-6">
+                    {uploadModal.filesize}
+                  </p>
+
+                  {/* Progress Bar Container */}
+                  <div className="w-full bg-[#110506] border border-white/5 rounded-full p-1 mb-4 relative overflow-hidden">
+                    {/* Progress bar track fill */}
+                    <div 
+                      className="h-2 rounded-full bg-gradient-to-r from-red-600 to-red-400 relative transition-all duration-300 ease-out"
+                      style={{ width: `${uploadModal.percentage}%` }}
+                    >
+                      {/* Bright Laser-tipped white highlight */}
+                      <div className="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#fff]" />
+                    </div>
+                  </div>
+
+                  {/* Progress readouts */}
+                  <div className="flex justify-between items-center w-full mb-1">
+                    <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest animate-pulse">
+                      {uploadModal.percentage === 100 ? "Syncing CDN..." : "Uploading..."}
+                    </span>
+                    <span className="text-sm font-display font-semibold text-white">
+                      {uploadModal.percentage}%
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-red-400 font-mono italic mt-2 text-center max-w-xs line-clamp-1">
+                    {uploadModal.statusText}
+                  </p>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

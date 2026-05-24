@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle, Check } from "lucide-react";
 import { BookingSubmission } from "../types";
@@ -16,6 +16,280 @@ const COUNTRIES = [
   { code: "DE", name: "Germany", dialCode: "+49", flag: "🇩🇪" },
   { code: "FR", name: "France", dialCode: "+33", flag: "🇫🇷" }
 ];
+
+// =========================================================================
+// CUSTOM GLOWING CARET INPUTS (Captures look and feel of Image 3)
+// =========================================================================
+
+interface GlowingCursorInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+}
+
+const GlowingCursorInput = React.forwardRef<HTMLInputElement, GlowingCursorInputProps>(
+  ({ className, onChange, onKeyUp, onSelect, onFocus, onBlur, onScroll, error, ...props }, ref) => {
+    const localRef = useRef<HTMLInputElement | null>(null);
+    const [caretLeft, setCaretLeft] = useState(0);
+    const [isFocused, setIsFocused] = useState(false);
+
+    const updateCaret = () => {
+      const input = localRef.current;
+      if (!input) return;
+      
+      const start = input.selectionStart || 0;
+      const val = input.value || "";
+      const textBeforeCaret = val.substring(0, start);
+      
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (context) {
+        const style = window.getComputedStyle(input);
+        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const metrics = context.measureText(textBeforeCaret);
+        
+        const paddingLeft = parseFloat(style.paddingLeft) || 0;
+        const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+        
+        // Account for horizontal scrolling inside the input
+        setCaretLeft(paddingLeft + borderLeft + metrics.width - input.scrollLeft);
+      }
+    };
+
+    useEffect(() => {
+      const input = localRef.current;
+      if (!input) return;
+      
+      const handleResize = () => updateCaret();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      updateCaret();
+      if (onChange) onChange(e);
+    };
+
+    const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      updateCaret();
+      if (onKeyUp) onKeyUp(e);
+    };
+
+    const handleSelect = (e: React.SyntheticEvent<HTMLInputElement>) => {
+      updateCaret();
+      if (onSelect) onSelect(e);
+    };
+
+    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(true);
+      setTimeout(updateCaret, 10);
+      if (onFocus) onFocus(e);
+    };
+
+    const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(false);
+      if (onBlur) onBlur(e);
+    };
+
+    const handleInputScroll = (e: React.UIEvent<HTMLInputElement>) => {
+      updateCaret();
+      if (onScroll) onScroll(e);
+    };
+
+    return (
+      <div className="relative w-full">
+        <input
+          {...props}
+          ref={(node) => {
+            localRef.current = node;
+            if (typeof ref === "function") ref(node);
+            else if (ref) ref.current = node;
+          }}
+          onChange={handleChange}
+          onKeyUp={handleKeyUp}
+          onSelect={handleSelect}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onScroll={handleInputScroll}
+          className={`${className} caret-transparent`}
+        />
+        {isFocused && (
+          <div
+            className="absolute pointer-events-none top-1/2 -translate-y-1/2 flex items-center transition-all duration-75"
+            style={{
+              left: `${caretLeft}px`,
+              height: "1.2em",
+            }}
+          >
+            {/* White Caret Bar */}
+            <div className="w-[2px] h-full bg-white shadow-[0_0_8px_#fff] custom-caret-bar" />
+            
+            {/* Glowing spotlight cone */}
+            <div 
+              className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
+              style={{
+                background: "radial-gradient(ellipse at left, rgba(230, 0, 39, 0.45) 0%, rgba(230, 0, 39, 0.15) 30%, transparent 70%)",
+                transform: "translateY(-50%)",
+                top: "50%",
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+GlowingCursorInput.displayName = "GlowingCursorInput";
+
+
+interface GlowingCursorTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  error?: boolean;
+}
+
+const GlowingCursorTextarea = React.forwardRef<HTMLTextAreaElement, GlowingCursorTextareaProps>(
+  ({ className, onChange, onKeyUp, onSelect, onFocus, onBlur, onScroll, error, ...props }, ref) => {
+    const localRef = useRef<HTMLTextAreaElement | null>(null);
+    const mirrorRef = useRef<HTMLDivElement | null>(null);
+    const [caretPos, setCaretPos] = useState({ left: 0, top: 0 });
+    const [isFocused, setIsFocused] = useState(false);
+    const [mirrorText, setMirrorText] = useState("");
+
+    const updateCaret = () => {
+      const textarea = localRef.current;
+      const mirror = mirrorRef.current;
+      if (!textarea || !mirror) return;
+
+      const start = textarea.selectionStart || 0;
+      const val = textarea.value || "";
+      
+      const textBefore = val.substring(0, start);
+      setMirrorText(textBefore);
+
+      setTimeout(() => {
+        const marker = mirror.querySelector("#caret-marker");
+        if (marker) {
+          const markerRect = marker.getBoundingClientRect();
+          const mirrorRect = mirror.getBoundingClientRect();
+          
+          const style = window.getComputedStyle(textarea);
+          const borderTop = parseFloat(style.borderTopWidth) || 0;
+          const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+
+          const left = markerRect.left - mirrorRect.left + borderLeft - textarea.scrollLeft;
+          const top = markerRect.top - mirrorRect.top + borderTop - textarea.scrollTop;
+          
+          setCaretPos({ left, top });
+        }
+      }, 0);
+    };
+
+    useEffect(() => {
+      const textarea = localRef.current;
+      if (!textarea) return;
+
+      const handleResize = () => updateCaret();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      updateCaret();
+      if (onChange) onChange(e);
+    };
+
+    const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      updateCaret();
+      if (onKeyUp) onKeyUp(e);
+    };
+
+    const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      updateCaret();
+      if (onSelect) onSelect(e);
+    };
+
+    const handleFocusEvent = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(true);
+      setTimeout(updateCaret, 10);
+      if (onFocus) onFocus(e);
+    };
+
+    const handleBlurEvent = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(false);
+      if (onBlur) onBlur(e);
+    };
+
+    const handleScrollEvent = (e: React.UIEvent<HTMLTextAreaElement>) => {
+      updateCaret();
+      if (onScroll) onScroll(e);
+    };
+
+    return (
+      <div className="relative w-full">
+        {/* Hidden Mirror Div */}
+        <div
+          ref={mirrorRef}
+          className="absolute opacity-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words"
+          style={{
+            fontFamily: localRef.current ? window.getComputedStyle(localRef.current).fontFamily : "inherit",
+            fontSize: localRef.current ? window.getComputedStyle(localRef.current).fontSize : "inherit",
+            lineHeight: localRef.current ? window.getComputedStyle(localRef.current).lineHeight : "inherit",
+            padding: localRef.current ? window.getComputedStyle(localRef.current).padding : "inherit",
+            border: localRef.current ? window.getComputedStyle(localRef.current).border : "inherit",
+            width: localRef.current ? `${localRef.current.clientWidth}px` : "100%",
+            top: 0,
+            left: 0,
+            zIndex: -9999,
+          }}
+        >
+          {mirrorText}
+          <span id="caret-marker">|</span>
+        </div>
+
+        <textarea
+          {...props}
+          ref={(node) => {
+            localRef.current = node;
+            if (typeof ref === "function") ref(node);
+            else if (ref) ref.current = node;
+          }}
+          onChange={handleChange}
+          onKeyUp={handleKeyUp}
+          onSelect={handleSelect}
+          onFocus={handleFocusEvent}
+          onBlur={handleBlurEvent}
+          onScroll={handleScrollEvent}
+          className={`${className} caret-transparent`}
+        />
+        {isFocused && (
+          <div
+            className="absolute pointer-events-none flex items-center transition-all duration-75"
+            style={{
+              left: `${caretPos.left}px`,
+              top: `${caretPos.top}px`,
+              height: "1.2em",
+            }}
+          >
+            {/* White Caret Bar */}
+            <div className="w-[2px] h-full bg-white shadow-[0_0_8px_#fff] custom-caret-bar" />
+            
+            {/* Glowing spotlight cone */}
+            <div 
+              className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
+              style={{
+                background: "radial-gradient(ellipse at left, rgba(230, 0, 39, 0.45) 0%, rgba(230, 0, 39, 0.15) 30%, transparent 70%)",
+                transform: "translateY(-50%)",
+                top: "50%",
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+GlowingCursorTextarea.displayName = "GlowingCursorTextarea";
+
+// =========================================================================
+// MAIN BOOKING FORM COMPONENT
+// =========================================================================
 
 interface BookingFormProps {
   initialTier: string;
@@ -308,16 +582,16 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     }`}>
       
       {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#E6C687]/5 rounded-full filter blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#e60027]/5 rounded-full filter blur-[100px] pointer-events-none" />
 
       {/* BLOCK BACKGROUND FORM PANEL WITH FROSTED GLASSMOPHISM */}
       <div className="glass-panel rounded-3xl p-8 md:p-12 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
         
         {/* UPPER RADIANT BARS */}
-        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#E6C687]/40 to-transparent" />
+        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#e60027]/40 to-transparent" />
         
         <div className="text-center mb-12">
-          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#E6C687] bg-[#E6C687]/5 border border-[#E6C687]/15 rounded-full px-4 py-1.5 inline-block mb-4">
+          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#e60027] bg-[#e60027]/5 border border-[#e60027]/15 rounded-full px-4 py-1.5 inline-block mb-4">
             Creative Intake
           </span>
           <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
@@ -336,36 +610,36 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               const isFullWidth = field.type === "textarea" || field.id === "selected_tier" || field.type === "checkbox";
               return (
                 <div key={field.id} className={`flex flex-col relative ${isFullWidth ? "md:col-span-2" : ""}`}>
-                  <label className="text-[10px] tracking-widest text-[#E6C687] font-mono uppercase mb-1 flex items-center justify-between">
+                  <label className="text-[10px] tracking-widest text-[#e60027] font-mono uppercase mb-1 flex items-center justify-between">
                     <span>{field.label} {field.required && "*"}</span>
                     {field.id === "name" && nameTouched && (
                       isNameValid ? (
-                        <span className="text-emerald-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
+                        <span className="text-red-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
                       ) : (
                         <span className="text-red-400 text-[9px]">Identity Empty</span>
                       )
                     )}
                     {field.id === "email" && emailTouched && (
                       isEmailValid ? (
-                        <span className="text-emerald-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
+                        <span className="text-red-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
                       ) : (
                         <span className="text-red-400 text-[9px]">Check format</span>
                       )
                     )}
                     {field.id === "brief" && brief.length > 0 && (
                       brief.length < 15 ? (
-                        <span className="text-amber-500 text-[9px]">Need {15 - brief.length} more chars</span>
+                        <span className="text-red-500 text-[9px]">Need {15 - brief.length} more chars</span>
                       ) : brief.length < 60 ? (
-                        <span className="text-emerald-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
+                        <span className="text-red-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
                       ) : (
-                        <span className="text-purple-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
+                        <span className="text-red-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
                       )
                     )}
                   </label>
 
                   {field.type === "textarea" ? (
                     <>
-                      <textarea
+                      <GlowingCursorTextarea
                         value={field.id === "brief" ? brief : customFields[field.id] || ""}
                         id={`input-${field.id}`}
                         onBlur={() => {
@@ -391,8 +665,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         placeholder={field.placeholder || ""}
                         className={`bg-transparent outline-none border-b ${
                           formErrors[field.id] 
-                            ? "border-red-500 text-red-150 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                            ? "border-red-500 text-red-100 placeholder-red-800" 
+                            : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base resize-none`}
                       />
                       {field.id === "brief" && (
@@ -403,15 +677,15 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                               type="button"
                               disabled={isOptimizing || brief.trim().length === 0}
                               onClick={optimizeBriefWithAI}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-purple-500/20 hover:border-purple-500/60 rounded-lg text-[#E6C687] hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
+                              className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-red-500/20 hover:border-red-500/60 rounded-lg text-[#e60027] hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
                             >
                               {isOptimizing ? (
                                 <>
-                                  <Sparkles className="w-3 h-3 animate-pulse text-[#E6C687]" /> Optimizing Brief...
+                                  <Sparkles className="w-3 h-3 animate-pulse text-[#e60027]" /> Optimizing Brief...
                                 </>
                               ) : (
                                 <>
-                                  <Sparkles className="w-3 h-3 text-purple-400" /> Optimize is AI-assisted
+                                  <Sparkles className="w-3 h-3 text-red-400" /> Optimize is AI-assisted
                                 </>
                               )}
                             </button>
@@ -440,7 +714,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                           });
                         }
                       }}
-                      className="bg-transparent outline-none border-b border-white/10 focus:border-[#E6C687] transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
+                      className="bg-transparent outline-none border-b border-white/10 focus:border-[#e60027] transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
                       style={{
                         colorScheme: "dark"
                       }}
@@ -462,7 +736,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                             setActiveDropdownFieldId(activeDropdownFieldId === field.id ? null : field.id);
                           }}
                           className={`bg-white/5 hover:bg-white/10 border-b ${
-                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#E6C687]"
+                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#e60027]"
                           } transition-all duration-300 py-3 px-3 text-white text-sm md:text-base flex items-center gap-2 rounded-t-lg cursor-pointer h-full`}
                         >
                           <span>{COUNTRIES.find(c => c.dialCode === (phoneCountry[field.id] || "+91"))?.flag || "🇮🇳"}</span>
@@ -509,7 +783,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                       </div>
 
                       {/* Telephone Input */}
-                      <input
+                      <GlowingCursorInput
                         type="tel"
                         pattern="[0-9]*"
                         inputMode="numeric"
@@ -529,13 +803,13 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         placeholder={field.placeholder || "e.g. 9876543210"}
                         className={`flex-1 bg-transparent outline-none border-b ${
                           formErrors[field.id] 
-                            ? "border-red-500 text-red-150 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                            ? "border-red-500 text-red-100 placeholder-red-800" 
+                            : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base font-mono`}
                       />
                     </div>
                   ) : (
-                    <input
+                    <GlowingCursorInput
                       type={field.type}
                       value={
                         field.id === "name" ? name :
@@ -573,7 +847,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                       className={`bg-transparent outline-none border-b ${
                         formErrors[field.id] 
                           ? "border-red-500 text-red-100 placeholder-red-800" 
-                          : "border-white/10 focus:border-[#E6C687] focus:shadow-[0_1px_0_0_#E6C687]"
+                          : "border-white/10 focus:border-[#e60027] focus:shadow-[0_1px_0_0_#e60027]"
                       } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
                     />
                   )}
@@ -608,7 +882,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 ...(siteSettings.booking_cta_color ? { backgroundColor: siteSettings.booking_cta_color, backgroundImage: 'none' } : {}),
                 ...(siteSettings.booking_cta_text_color ? { color: siteSettings.booking_cta_text_color } : {})
               }}
-              className="w-full md:w-auto md:px-12 py-4 rounded-2xl font-bold font-display tracking-tight text-white bg-gradient-to-r from-[#4A36B3] via-[#7a5ce0] to-[#E6C687] shadow-xl hover:shadow-[#4A36B3]/20 shadow-black/40 hover:opacity-95 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+              className="w-full md:w-auto md:px-12 py-4 rounded-2xl font-bold font-display tracking-tight text-white bg-gradient-to-r from-[#e60027] via-[#b3001a] to-[#800010] shadow-xl hover:shadow-[#e60027]/20 shadow-black/40 hover:opacity-95 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#050508]">
@@ -643,21 +917,21 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.85, y: 30, opacity: 0 }}
               transition={{ type: "spring", stiffness: 140, damping: 16 }}
-              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-[#E6C687]/30 shadow-2xl relative"
+              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-[#e60027]/30 shadow-2xl relative"
             >
               {/* HEADER DECORATION BAR */}
-              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#E6C687] to-transparent" />
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#e60027] to-transparent" />
               
               <button
-                _id="close-success-btn"
+                id="close-success-btn"
                 onClick={resetForm}
                 className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-16 h-16 rounded-full bg-[#E6C687]/10 border border-[#E6C687]/30 flex items-center justify-center text-[#E6C687] mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-[#E6C687] animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-[#e60027]/10 border border-[#e60027]/30 flex items-center justify-center text-[#e60027] mx-auto mb-6">
+                <CheckCircle className="w-8 h-8 text-[#e60027] animate-pulse" />
               </div>
 
               <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-3">
@@ -665,7 +939,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               </h3>
 
               <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                Greetings, <span className="text-[#E6C687] font-semibold">{name}</span>. Your creative matrix of metadata for 
+                Greetings, <span className="text-[#e60027] font-semibold">{name}</span>. Your creative matrix of metadata for 
                 <span className="text-white font-medium"> {company || "Independent Ventures"} </span> has breached our intake loop.
               </p>
 
@@ -676,7 +950,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Coordinate Slot:</span>
-                  <span className="text-[#E6C687] font-medium">{budget}</span>
+                  <span className="text-[#e60027] font-medium">{budget}</span>
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Lead Resolver:</span>
@@ -691,7 +965,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               <button
                 id="success-dismiss-btn"
                 onClick={resetForm}
-                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-[#E6C687] transition-all duration-300 cursor-pointer text-sm"
+                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-[#e60027] transition-all duration-300 cursor-pointer text-sm"
               >
                 Reset & Access Portfolio
               </button>

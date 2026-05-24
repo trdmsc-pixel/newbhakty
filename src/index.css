@@ -37,12 +37,14 @@ html, body {
 
 @layer components {
   .liquid-glass {
-    background: rgba(255, 255, 255, 0.01);
+    background: rgba(230, 0, 39, 0.02);
     background-blend-mode: luminosity;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: none;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 1px rgba(230, 0, 39, 0.1);
     position: relative;
     overflow: hidden;
   }
@@ -51,15 +53,14 @@ html, body {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.4px;
+    padding: 1.2px;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0) 40%,
-      rgba(255, 255, 255, 0) 60%,
-      rgba(255, 255, 255, 0.15) 80%,
-      rgba(255, 255, 255, 0.45) 100%
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(230, 0, 39, 0.2) 30%,
+      rgba(230, 0, 39, 0) 50%,
+      rgba(230, 0, 39, 0.2) 70%,
+      rgba(255, 255, 255, 0.4) 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -69,11 +70,14 @@ html, body {
 
   /* Glassmorphism utility classes augmented with liquid glass */
   .glass-panel {
-    background: rgba(15, 15, 25, 0.4);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    background: rgba(10, 5, 6, 0.55);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
     border: none;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 1px rgba(230, 0, 39, 0.15),
+      0 12px 30px -10px rgba(0, 0, 0, 0.7);
     position: relative;
     overflow: hidden;
   }
@@ -82,15 +86,14 @@ html, body {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.4px;
+    padding: 1.2px;
     background: linear-gradient(
-      180deg,
+      135deg,
       rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0) 40%,
-      rgba(255, 255, 255, 0) 60%,
-      rgba(255, 255, 255, 0.15) 80%,
-      rgba(255, 255, 255, 0.45) 100%
+      rgba(230, 0, 39, 0.2) 20%,
+      rgba(230, 0, 39, 0) 50%,
+      rgba(230, 0, 39, 0.15) 80%,
+      rgba(255, 255, 255, 0.35) 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -99,11 +102,14 @@ html, body {
   }
 
   .glass-panel-heavy {
-    background: rgba(10, 10, 20, 0.65);
-    backdrop-filter: blur(32px) saturate(180%);
-    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    background: rgba(8, 3, 4, 0.8);
+    backdrop-filter: blur(36px) saturate(180%);
+    -webkit-backdrop-filter: blur(36px) saturate(180%);
     border: none;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      inset 0 1px 1.5px rgba(255, 255, 255, 0.2),
+      inset 0 -1px 1.5px rgba(230, 0, 39, 0.25),
+      0 20px 40px -15px rgba(0, 0, 0, 0.9);
     position: relative;
     overflow: hidden;
   }
@@ -112,15 +118,14 @@ html, body {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.4px;
+    padding: 1.5px;
     background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0) 40%,
-      rgba(255, 255, 255, 0) 60%,
-      rgba(255, 255, 255, 0.15) 80%,
-      rgba(255, 255, 255, 0.45) 100%
+      135deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(230, 0, 39, 0.3) 25%,
+      rgba(230, 0, 39, 0) 50%,
+      rgba(230, 0, 39, 0.2) 75%,
+      rgba(255, 255, 255, 0.4) 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -129,11 +134,13 @@ html, body {
   }
 
   .glass-panel-light {
-    background: rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(16px) saturate(120%);
-    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    background: rgba(255, 255, 255, 0.015);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
     border: none;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.1),
+      inset 0 -1px 1px rgba(230, 0, 39, 0.05);
     position: relative;
     overflow: hidden;
   }
@@ -142,20 +149,48 @@ html, body {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.4px;
+    padding: 1.2px;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0) 40%,
-      rgba(255, 255, 255, 0) 60%,
-      rgba(255, 255, 255, 0.15) 80%,
-      rgba(255, 255, 255, 0.45) 100%
+      rgba(255, 255, 255, 0.25) 0%,
+      rgba(230, 0, 39, 0.1) 30%,
+      rgba(230, 0, 39, 0) 50%,
+      rgba(230, 0, 39, 0.1) 70%,
+      rgba(255, 255, 255, 0.25) 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
+  }
+
+  /* Pricing animated mesh gradient header */
+  @keyframes pricing-mesh {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  .active-pricing-header {
+    background: linear-gradient(135deg, #ffffff 0%, #ffcbd2 25%, #e60027 60%, #800010 100%);
+    background-size: 200% 200%;
+    animation: pricing-mesh 7s ease infinite;
+    position: relative;
+    border: none;
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.8),
+      0 10px 20px -5px rgba(230, 0, 39, 0.3);
+  }
+
+  /* Custom input typing cursor & spotlight */
+  @keyframes caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .custom-caret-bar {
+    animation: caret-blink 1s step-end infinite;
   }
 }
 
