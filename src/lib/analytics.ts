@@ -89,3 +89,48 @@ export const initializeMockAnalytics = () => {
     }
   } catch {}
 };
+
+/**
+ * Triggers Meta Ads Pixel tracking if initialized.
+ */
+export const trackMetaPixelEvent = (
+  eventName: string,
+  parameters?: Record<string, any>,
+  advancedMatching?: Record<string, any>
+) => {
+  if (typeof window !== "undefined") {
+    const fbq = (window as any).fbq;
+    if (fbq) {
+      try {
+        if (advancedMatching && Object.keys(advancedMatching).length > 0) {
+          const pixelId = (window as any)._metaPixelId || import.meta.env.VITE_META_PIXEL_ID;
+          if (pixelId) {
+            fbq('init', pixelId, advancedMatching);
+          }
+        }
+        fbq('track', eventName, parameters);
+        console.log(`[Meta Pixel] Tracked Event: ${eventName}`, parameters);
+      } catch (err) {
+        console.warn("Failed to dispatch Meta Ads Pixel event:", err);
+      }
+    }
+  }
+};
+
+export const trackMetaPixelCustomEvent = (
+  eventName: string,
+  parameters?: Record<string, any>
+) => {
+  if (typeof window !== "undefined") {
+    const fbq = (window as any).fbq;
+    if (fbq) {
+      try {
+        fbq('trackCustom', eventName, parameters);
+        console.log(`[Meta Pixel] Tracked Custom Event: ${eventName}`, parameters);
+      } catch (err) {
+        console.warn("Failed to dispatch Meta Ads Pixel custom event:", err);
+      }
+    }
+  }
+};
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
-import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu, Palette, Sliders } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Film, Play, Sparkles, ChevronDown, Compass, CheckCircle, Flame, Star, Cpu, Palette, Sliders, ArrowRight } from "lucide-react";
 import BackgroundGradients from "./components/BackgroundGradients";
 import Navbar from "./components/Navbar";
 import ShowcaseGrid from "./components/ShowcaseGrid";
@@ -9,15 +9,28 @@ import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
 import BrandMarquee from "./components/BrandMarquee";
 import AdminPanel from "./components/AdminPanel";
+import ChatWidget from "./components/ChatWidget";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
-import { trackEvent, initializeMockAnalytics } from "./lib/analytics";
+import { trackEvent, initializeMockAnalytics, trackMetaPixelEvent, trackMetaPixelCustomEvent } from "./lib/analytics";
 import { getActiveTheme, WEB_THEMES } from "./lib/themes";
 
 
 function AppContent() {
   const [selectedTier, setSelectedTier] = useState<string>("");
-  const { siteSettings, isLoading } = useSiteData();
+  const { siteSettings, isLoading, activePage } = useSiteData();
+  const isNavbarFullWidth = activePage === "live"
+    ? siteSettings.page2_navbar_full_width === "true"
+    : siteSettings.navbar_full_width === "true";
+
+  // Helper to dynamically resolve page-specific keys
+  const getSetting = (key: string, fallback: string = "") => {
+    if (activePage === "live") {
+      const page2Key = `page2_${key}`;
+      if (siteSettings[page2Key] !== undefined) return siteSettings[page2Key];
+    }
+    return siteSettings[key] || fallback;
+  };
 
   // Dynamic Theme
   const theme = getActiveTheme(siteSettings.website_theme);
@@ -39,9 +52,43 @@ function AppContent() {
     localStorage.setItem("theme_mode", themeMode);
   }, [themeMode]);
 
+  useEffect(() => {
+    if (activePage === "live") {
+      document.body.classList.add("theme-live");
+      document.documentElement.classList.add("theme-live");
+    } else {
+      document.body.classList.remove("theme-live");
+      document.documentElement.classList.remove("theme-live");
+    }
+  }, [activePage]);
+
   // Simple and ultra-resilient single-page router state
   const [path, setPath] = useState(window.location.pathname);
   const [hash, setHash] = useState(window.location.hash);
+  const [isHeroVisible, setIsHeroVisible] = useState(true);
+
+  // Monitor hero viewport intersection to unmount off-screen looping background video
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        setIsHeroVisible(entry.isIntersecting);
+      });
+    }, { threshold: 0.01 });
+
+    const currentHeros = document.querySelectorAll("#hero-section");
+    currentHeros.forEach((el) => observer.observe(el));
+
+    const mutationObserver = new MutationObserver(() => {
+      const heros = document.querySelectorAll("#hero-section");
+      heros.forEach((el) => observer.observe(el));
+    });
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [activePage]);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -54,6 +101,199 @@ function AppContent() {
       window.removeEventListener("popstate", handleLocationChange);
       window.removeEventListener("hashchange", handleLocationChange);
     };
+  }, []);
+
+  // Load dynamic Google Fonts based on siteSettings
+  useEffect(() => {
+    const fontsNeeded = new Set<string>();
+    const textTypes = ["headings", "paragraph", "h1", "h2", "h3", "h4", "h5", "h6"];
+    textTypes.forEach(type => {
+      const font = siteSettings[`font_${type}_family`];
+      if (font && font !== "Default Theme Font") {
+        fontsNeeded.add(font);
+      }
+    });
+
+    if (fontsNeeded.size > 0) {
+      // Filter out non-Google fonts if any, and map to family query parameter format
+      const googleFontsToLoad = Array.from(fontsNeeded)
+        .filter(font => font !== "Cal Sans" && font !== "Google Sans")
+        .map(font => `family=${font.replace(/ /g, "+")}:wght@300;400;500;600;700;800`);
+      
+      if (googleFontsToLoad.length > 0) {
+        const linkId = "dynamic-google-fonts";
+        let linkEl = document.getElementById(linkId) as HTMLLinkElement;
+        if (!linkEl) {
+          linkEl = document.createElement("link");
+          linkEl.id = linkId;
+          linkEl.rel = "stylesheet";
+          document.head.appendChild(linkEl);
+        }
+        linkEl.href = `https://fonts.googleapis.com/css2?${googleFontsToLoad.join("&")}&display=swap`;
+      }
+    }
+  }, [siteSettings]);
+
+  // Construct dynamic CSS rules for typography overrides
+  const getDynamicTypographyCss = () => {
+    let css = "";
+    
+    // Headings
+    if (siteSettings.font_headings_family && siteSettings.font_headings_family !== "Default Theme Font") {
+      css += `
+        .font-display, h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .package-title, .offer-highlight, .pricing-title {
+          font-family: "${siteSettings.font_headings_family}", sans-serif !important;
+        }
+      `;
+    }
+    if (siteSettings.font_headings_size) {
+      css += `
+        .font-display, h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .package-title, .offer-highlight, .pricing-title {
+          font-size: ${siteSettings.font_headings_size} !important;
+        }
+      `;
+    }
+    if (siteSettings.font_headings_bold) {
+      css += `
+        .font-display, h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .package-title, .offer-highlight, .pricing-title {
+          font-weight: ${siteSettings.font_headings_bold === "true" ? "bold" : "normal"} !important;
+        }
+      `;
+    }
+
+    // Paragraph
+    if (siteSettings.font_paragraph_family && siteSettings.font_paragraph_family !== "Default Theme Font") {
+      css += `
+        body, html, p, span, li, a, .font-sans {
+          font-family: "${siteSettings.font_paragraph_family}", sans-serif !important;
+        }
+      `;
+    }
+    if (siteSettings.font_paragraph_size) {
+      css += `
+        body, html, p, span, li, a, .font-sans {
+          font-size: ${siteSettings.font_paragraph_size} !important;
+        }
+      `;
+    }
+    if (siteSettings.font_paragraph_bold) {
+      css += `
+        body, html, p, span, li, a, .font-sans {
+          font-weight: ${siteSettings.font_paragraph_bold === "true" ? "bold" : "normal"} !important;
+        }
+      `;
+    }
+
+    // Individual H1-H6 tags
+    ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(tag => {
+      const family = siteSettings[`font_${tag}_family`];
+      const size = siteSettings[`font_${tag}_size`];
+      const bold = siteSettings[`font_${tag}_bold`];
+      
+      if (family && family !== "Default Theme Font") {
+        css += `
+          ${tag}, .${tag} {
+            font-family: "${family}", sans-serif !important;
+          }
+        `;
+      }
+      if (size) {
+        css += `
+          ${tag}, .${tag} {
+            font-size: ${size} !important;
+          }
+        `;
+      }
+      if (bold) {
+        css += `
+          ${tag}, .${tag} {
+            font-weight: ${bold === "true" ? "bold" : "normal"} !important;
+          }
+        `;
+      }
+    });
+
+    return css;
+  };
+
+  // Base Meta Ads Pixel Initialization
+  useEffect(() => {
+    const pixelId = (siteSettings.meta_pixel_id || "").trim() || (import.meta.env.VITE_META_PIXEL_ID || "").trim();
+    if (!pixelId) return;
+
+    (window as any)._metaPixelId = pixelId;
+
+    if (!(window as any).fbq) {
+      /* eslint-disable */
+      (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
+        if (f.fbq) return;
+        n = f.fbq = function() {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+      /* eslint-enable */
+
+      (window as any).fbq('init', pixelId);
+    }
+  }, [siteSettings.meta_pixel_id]);
+
+  // Listen for route transitions (path, page/activePage, hash) and fire PageView
+  useEffect(() => {
+    const fbq = (window as any).fbq;
+    if (fbq) {
+      fbq('track', 'PageView', {
+        path: path,
+        hash: hash,
+        activePage: activePage
+      });
+      console.log(`[Meta Pixel] Tracked PageView: path=${path}, hash=${hash}, activePage=${activePage}`);
+    }
+  }, [path, hash, activePage]);
+
+  // Track custom pipeline selections in page activePage updates
+  useEffect(() => {
+    if (activePage === "live") {
+      trackMetaPixelCustomEvent("SelectedPhysicalPipeline", { source: "navbar_toggle", page: "live" });
+    } else if (activePage === "ai") {
+      trackMetaPixelCustomEvent("SelectedDigitalPipeline", { source: "navbar_toggle", page: "ai" });
+    }
+  }, [activePage]);
+
+  // Scroll to hash on page load / mount
+  useEffect(() => {
+    const initialHash = window.location.hash;
+    if (initialHash) {
+      const targetId = initialHash.replace("#", "") + "-section";
+      const exactId = initialHash.replace("#", "");
+      
+      const attemptScroll = () => {
+        const el = document.getElementById(exactId) || document.getElementById(targetId);
+        if (el) {
+          const offsetTop = el.getBoundingClientRect().top + window.pageYOffset - 90;
+          window.scrollTo({
+            top: offsetTop,
+            behavior: "smooth"
+          });
+          return true;
+        }
+        return false;
+      };
+
+      if (!attemptScroll()) {
+        const timeout = setTimeout(attemptScroll, 800);
+        return () => clearTimeout(timeout);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -111,18 +351,7 @@ function AppContent() {
     }
   };
 
-  // Loader Bezel - Wait for persistence data to load from Supabase / LocalStorage
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-6 relative">
-        <BackgroundGradients />
-        <div className="flex flex-col items-center gap-3 relative z-10">
-          <div className="w-10 h-10 rounded-full border-t-2 border-r-2 border-[#ffea00] animate-spin" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Initializing Studio Engine...</span>
-        </div>
-      </div>
-    );
-  }
+  // Loader removed to allow instant rendering with cached local data
 
   // ----------------------------------------------------
   // ROUTE DISPATCHER: ADMIN SYSTEM
@@ -133,19 +362,31 @@ function AppContent() {
 
   // Spacing and layout control overrides for the hero section
   const heroStyle: React.CSSProperties = {
-    paddingTop: siteSettings.hero_padding_top || undefined,
-    paddingBottom: siteSettings.hero_padding_bottom || undefined,
-    marginTop: siteSettings.hero_margin_top || undefined,
-    marginBottom: siteSettings.hero_margin_bottom || undefined,
+    paddingTop: isNavbarFullWidth 
+      ? `calc(${getSetting("hero_padding_top") || "9rem"} + 40px)` 
+      : getSetting("hero_padding_top") || undefined,
+    paddingBottom: getSetting("hero_padding_bottom") || undefined,
+    marginTop: isNavbarFullWidth ? "0px" : (getSetting("hero_margin_top") || undefined),
+    marginBottom: getSetting("hero_margin_bottom") || undefined,
   };
 
   const heroTextStyle: React.CSSProperties = {
-    maxWidth: siteSettings.hero_text_width || undefined,
-    height: siteSettings.hero_text_height || undefined,
+    maxWidth: getSetting("hero_text_width") || undefined,
+    height: getSetting("hero_text_height") || undefined,
   };
 
+  const heroVideoBgUrl = getSetting("hero_video_bg_url", "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4");
+  const heroCtaBookingColor = getSetting("hero_cta_booking_color");
+  const heroCtaBookingTextColor = getSetting("hero_cta_booking_text_color");
+
   return (
-    <div className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-colors duration-500 overflow-hidden pb-16 pt-24 md:pt-28`}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className={`relative min-h-screen font-sans ${theme.style.bodyBg} transition-all duration-500 ease-in-out overflow-hidden pb-16 ${isNavbarFullWidth ? "pt-0" : "pt-24 md:pt-28"}`}
+    >
+      <style>{getDynamicTypographyCss()}</style>
       
       {/* 2-3 MASSIVE SMOOTH GRADIENT BULBS */}
       <BackgroundGradients />
@@ -153,141 +394,330 @@ function AppContent() {
       {/* FLOATING HEADER BAR */}
       <Navbar themeMode={themeMode} setThemeMode={setThemeMode} />
 
-      {/* HERO SECTION CONTAINER */}
-      <section 
-        id="hero-section" 
-        style={heroStyle}
-        className={`relative pt-36 pb-20 md:py-40 md:px-12 px-6 flex flex-col items-center justify-center text-center gap-16 rounded-3xl overflow-hidden mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl transition-all duration-500 ${
-          siteSettings.website_full_width === "true" 
-            ? "max-w-none w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] mx-4 md:mx-8" 
-            : "max-w-7xl mx-auto"
-        }`}
-      >
-        {/* Soft Looping background video or image centered in hero */}
-        <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
-          {(!siteSettings.hero_video_bg_url || !siteSettings.hero_video_bg_url.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
-            <video
-              src={siteSettings.hero_video_bg_url || "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4"}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <img
-              src={siteSettings.hero_video_bg_url}
-              alt="Studio Background"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          )}
-          {/* Subtle darkness layers so fonts pop beautifully */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/90 via-transparent to-[#050508]/90" />
-          <div className="absolute inset-0 bg-[#050508]/40" />
-        </div>
-
-        {/* Dynamic mouse-reactive interactive particles overlay */}
-        <InteractiveParticles />
-
-        {/* HERO CONTENT: CENTERED TEXTS & STATS */}
-        <motion.div 
-          style={heroTextStyle}
-          className="w-full max-w-3xl text-center flex flex-col items-center relative z-10"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
-          {/* Subtle micro identifier */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono tracking-widest text-[#ffea00] mb-6 shadow-md uppercase">
-            <Cpu className="w-3 h-3 text-[#ffea00]" />
-            {siteSettings.hero_badge_text || "Synthetic Arts Studio v4.1"}
-          </div>
-
-          <h1 className="font-display font-light text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.05] text-white max-w-2xl mb-8">
-            {siteSettings.hero_title_1 || "The Next Epoch"} <br />
-            <span className="italic font-serif text-[#ffea00] text-6xl sm:text-7xl md:text-8xl font-normal block my-1">
-              {siteSettings.hero_title_2 || "of Cinema."}
-            </span>
-            {siteSettings.hero_title_3 || "Synthesized."}
-          </h1>
-
-          <p className="text-gray-400 text-sm md:text-base mb-8 max-w-lg leading-relaxed font-light mx-auto">
-            {siteSettings.hero_description || "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media."}
-          </p>
-
-          {/* CALL TO ACTION BUTTON BAR */}
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
-            {/* Main squishy booking trigger button */}
-            <motion.button
-              id="hero-cta-booking"
-              onClick={() => {
-                trackEvent("click", "CTA: Book Creative Spot clicked");
-                scrollToSection("booking-section");
-              }}
-              whileHover={{ 
-                scale: 1.03,
-                transition: { type: "spring", stiffness: 350, damping: 10 }
-              }}
-              whileTap={{ 
-                scaleY: 0.9, 
-                scaleX: 1.1,
-                transition: { type: "spring", stiffness: 450, damping: 14 } 
-              }}
+      {/* HERO SECTION CONTAINER WITH DYNAMIC EXIT/ENTRY SLIDE TRANSITIONS */}
+      <AnimatePresence mode="wait">
+        {activePage === "live" ? (
+          <motion.div
+            key="live-hero"
+            initial={{ opacity: 0, x: 120, filter: "blur(20px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: -120, filter: "blur(20px)" }}
+            transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full"
+          >
+            {/* REDESIGNED FULLSCREEN LIVE-ACTION HERO */}
+            <section 
+              id="hero-section" 
+              className="relative w-full min-h-screen flex flex-col justify-center overflow-hidden"
               style={{
-                ...(siteSettings.hero_cta_booking_color ? { backgroundColor: siteSettings.hero_cta_booking_color, backgroundImage: "none" } : {}),
-                ...(siteSettings.hero_cta_booking_text_color ? { color: siteSettings.hero_cta_booking_text_color } : {})
+                marginTop: getSetting("hero_margin_top") || undefined,
+                marginBottom: getSetting("hero_margin_bottom") || undefined,
               }}
-              className="px-8 py-4 bg-[#ffea00] hover-glow-yellow text-black font-semibold font-display tracking-tight text-sm rounded-full cursor-pointer flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4 text-black" style={siteSettings.hero_cta_booking_text_color ? { color: siteSettings.hero_cta_booking_text_color } : undefined} />
-              {siteSettings.hero_cta_booking_text || "Book Creative Spot"}
-            </motion.button>
+              {/* Full-screen Background Video/Image */}
+              <div className="absolute inset-0 z-0 overflow-hidden">
+                {(!heroVideoBgUrl || !heroVideoBgUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
+                  isHeroVisible ? (
+                    <video
+                      src={heroVideoBgUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover"
+                      style={{
+                        opacity: getSetting("hero_bg_opacity", "1"),
+                        filter: getSetting("hero_bg_blur", "none") === "none" ? "none" : `blur(${getSetting("hero_bg_blur") === "sm" ? "4px" : getSetting("hero_bg_blur") === "md" ? "12px" : "24px"})`
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#050508]" />
+                  )
+                ) : (
+                  <img
+                    src={heroVideoBgUrl}
+                    alt="Live-action Background"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    style={{
+                      opacity: getSetting("hero_bg_opacity", "1"),
+                      filter: getSetting("hero_bg_blur", "none") === "none" ? "none" : `blur(${getSetting("hero_bg_blur") === "sm" ? "4px" : getSetting("hero_bg_blur") === "md" ? "12px" : "24px"})`
+                    }}
+                  />
+                )}
+                {/* Dark Overlay Layer */}
+                <div 
+                  className="absolute inset-0 bg-black"
+                  style={{
+                    opacity: parseFloat(getSetting("hero_bg_overlay", "0.4"))
+                  }}
+                />
+              </div>
 
-            {/* Showcase guide navigation */}
-            <button
-              id="hero-cta-work"
-              onClick={() => {
-                trackEvent("click", "CTA: Explore Curation clicked");
-                scrollToSection("work-section");
-              }}
-              className="px-6 py-4 rounded-2xl glass-panel-light text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold font-display tracking-tight text-sm border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
+              {/* Hero Content Container */}
+              <div 
+                className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 flex flex-col justify-center min-h-[calc(100vh-100px)]"
+                style={{
+                  paddingTop: isNavbarFullWidth 
+                    ? `calc(${getSetting("hero_padding_top", "clamp(40px, 8vw, 72px)")} + 90px)` 
+                    : getSetting("hero_padding_top", "clamp(40px, 8vw, 72px)")
+                }}
+              >
+                {/* Left/Center/Right aligned Content Block */}
+                <div 
+                  className={`w-full flex flex-col ${
+                    getSetting("hero_text_align", "left") === "center" 
+                      ? "items-center text-center mx-auto" 
+                      : getSetting("hero_text_align", "left") === "right"
+                        ? "items-end text-right ml-auto"
+                        : "items-start text-left mr-auto"
+                  }`}
+                  style={{
+                    maxWidth: getSetting("hero_max_width", "560px")
+                  }}
+                >
+
+
+                  {/* Hero Heading */}
+                  <motion.h1 
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                      hidden: { opacity: 0, y: 28 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] } }
+                    }}
+                    className="font-display tracking-tight leading-[1.05] mb-6"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: getSetting("hero_title_size", "clamp(1.65rem, 5vw, 3rem)"),
+                      letterSpacing: "-0.01em",
+                      color: getSetting("hero_title_color", "#ffffff")
+                    }}
+                  >
+                    {getSetting("hero_title_1", "Lock Down Your")} <br />
+                    <span 
+                      className="italic font-serif font-normal block my-1"
+                      style={{
+                        color: getSetting("hero_title_color_line2", "#ffffff"),
+                        backgroundImage: "var(--accent-gradient)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent"
+                      }}
+                    >
+                      {getSetting("hero_title_2", "Passwords with")}
+                    </span>
+                    {getSetting("hero_title_3", "Ironclad Security")}
+                  </motion.h1>
+
+                  {/* Hero Subtext */}
+                  <motion.p 
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                      hidden: { opacity: 0, y: 28 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] } }
+                    }}
+                    className="mb-8 leading-[1.65]"
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: getSetting("hero_subtitle_size", "clamp(0.9rem, 2.5vw, 1.1rem)"),
+                      color: getSetting("hero_subtitle_color", "#ffffff"),
+                      opacity: 0.8,
+                      maxWidth: "100%"
+                    }}
+                  >
+                    {getSetting("hero_description", "Zero stress, total control. VaultShield keeps you covered with unbreakable storage, one-tap access, and pro-grade tools for your non-stop world.")}
+                  </motion.p>
+
+                  {/* CTA Button */}
+                  <motion.div
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                      hidden: { opacity: 0, y: 28 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] } }
+                    }}
+                  >
+                    <motion.button
+                      onClick={() => {
+                        trackEvent("click", `CTA: Live Hero Booking clicked`);
+                        scrollToSection("booking-section");
+                      }}
+                      whileHover={{ 
+                        scale: 1.04,
+                        filter: "brightness(1.1)"
+                      }}
+                      whileTap={{ scale: 0.96 }}
+                      className="flex items-center justify-between gap-8 rounded-full font-semibold transition-all duration-300"
+                      style={{
+                        minWidth: "210px",
+                        padding: "17px 24px",
+                        background: getSetting("hero_cta_bg", "#7342E2"),
+                        color: getSetting("hero_cta_color", "#ffffff"),
+                        fontSize: getSetting("hero_cta_size", "clamp(0.9rem, 2vw, 1rem)"),
+                        boxShadow: getSetting("hero_cta_glow", "true") === "true" 
+                          ? `0 4px 24px ${getSetting("hero_cta_glow_color", "rgba(115,66,226,0.28)")}`
+                          : "none"
+                      }}
+                    >
+                      <span className="font-sans font-semibold tracking-tight">{getSetting("hero_cta_text", "Get It Free")}</span>
+                      <ArrowRight className="w-4 h-4 text-white" />
+                    </motion.button>
+                  </motion.div>
+                </div>
+              </div>
+            </section>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="ai-hero"
+            initial={{ opacity: 0, x: -120, filter: "blur(20px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: 120, filter: "blur(20px)" }}
+            transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full"
+          >
+            {/* ORIGINAL AI HERO SECTION */}
+            <section 
+              id="hero-section" 
+              style={heroStyle}
+              className={`relative pt-36 pb-20 md:py-40 md:px-12 px-6 flex flex-col items-center justify-center text-center gap-16 overflow-hidden transition-all duration-500 ${
+                isNavbarFullWidth
+                  ? "w-full max-w-none rounded-none mt-0 border-none bg-[#0c0c16]/10 backdrop-blur-[4px]"
+                  : `rounded-3xl mt-6 border border-white/[0.04] bg-[#0c0c16]/10 backdrop-blur-[4px] shadow-2xl ${
+                      siteSettings.website_full_width === "true" 
+                        ? "max-w-none w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] mx-4 md:mx-8" 
+                        : "max-w-7xl mx-auto"
+                    }`
+              }`}
             >
-              <Compass className="w-4 h-4 text-gray-400" />
-              {siteSettings.hero_cta_work_text || "Explore Curation"}
-            </button>
-          </div>
+              {/* Soft Looping background video or image centered in hero */}
+              <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
+                {(!heroVideoBgUrl || !heroVideoBgUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
+                  isHeroVisible ? (
+                    <video
+                      src={heroVideoBgUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#050508]" />
+                  )
+                ) : (
+                  <img
+                    src={heroVideoBgUrl}
+                    alt="Studio Background"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                {/* Subtle darkness layers so fonts pop beautifully */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/90 via-transparent to-[#050508]/90" />
+                <div className="absolute inset-0 bg-[#050508]/40" />
+              </div>
 
-          {/* SOCIAL PROOF STATS */}
-          <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md font-sans mx-auto">
-            <div>
-              <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
-                {siteSettings.hero_stat1_value || "400+"}
-              </span>
-              <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                {siteSettings.hero_stat1_label || "Synth Hours"}
-              </span>
-            </div>
-            <div>
-              <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
-                {siteSettings.hero_stat2_value || "8K UHD"}
-              </span>
-              <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                {siteSettings.hero_stat2_label || "Upscale Target"}
-              </span>
-            </div>
-            <div>
-              <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1 text-[#ffea00]">
-                {siteSettings.hero_stat3_value || "0%"}
-              </span>
-              <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
-                {siteSettings.hero_stat3_label || "Physical Camera"}
-              </span>
-            </div>
-          </div>
-        </motion.div>
+              {/* Dynamic mouse-reactive interactive particles overlay */}
+              <InteractiveParticles />
 
-      </section>
+              {/* HERO CONTENT: CENTERED TEXTS & STATS */}
+              <motion.div 
+                style={heroTextStyle}
+                className="w-full max-w-3xl text-center flex flex-col items-center relative z-10"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              >
+
+
+                <h1 className="font-display font-light text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.05] text-white max-w-2xl mb-8">
+                  {getSetting("hero_title_1", "The Next Epoch")} <br />
+                  <span className="italic font-serif text-accent text-6xl sm:text-7xl md:text-8xl font-normal block my-1">
+                    {getSetting("hero_title_2", "of Cinema.")}
+                  </span>
+                  {getSetting("hero_title_3", "Synthesized.")}
+                </h1>
+
+                <p className="text-gray-400 text-sm md:text-base mb-8 max-w-lg leading-relaxed font-light mx-auto">
+                  {getSetting("hero_description", "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media.")}
+                </p>
+
+                {/* CALL TO ACTION BUTTON BAR */}
+                <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
+                  {/* Main squishy booking trigger button */}
+                  <motion.button
+                    id="hero-cta-booking"
+                    onClick={() => {
+                      trackEvent("click", `CTA: Book Creative Spot clicked (${activePage})`);
+                      scrollToSection("booking-section");
+                    }}
+                    whileHover={{ 
+                      scale: 1.03,
+                      transition: { type: "spring", stiffness: 350, damping: 10 }
+                    }}
+                    whileTap={{ 
+                      scaleY: 0.9, 
+                      scaleX: 1.1,
+                      transition: { type: "spring", stiffness: 450, damping: 14 } 
+                    }}
+                    style={{
+                      ...(heroCtaBookingColor ? { backgroundColor: heroCtaBookingColor, backgroundImage: "none" } : {}),
+                      ...(heroCtaBookingTextColor ? { color: heroCtaBookingTextColor } : {})
+                    }}
+                    className="px-8 py-4 bg-accent hover-glow-yellow text-black font-semibold font-display tracking-tight text-sm rounded-full cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4 text-black" style={heroCtaBookingTextColor ? { color: heroCtaBookingTextColor } : undefined} />
+                    {getSetting("hero_cta_booking_text", "Book Creative Spot")}
+                  </motion.button>
+
+                  {/* Showcase guide navigation */}
+                  <button
+                    id="hero-cta-work"
+                    onClick={() => {
+                      trackEvent("click", "CTA: Explore Curation clicked");
+                      scrollToSection("work-section");
+                    }}
+                    className="px-6 py-4 rounded-2xl glass-panel-light text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold font-display tracking-tight text-sm border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Compass className="w-4 h-4 text-gray-400" />
+                    {getSetting("hero_cta_work_text", "Explore Curation")}
+                  </button>
+                </div>
+
+                {/* SOCIAL PROOF STATS */}
+                <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8 mt-12 w-full max-w-md font-sans mx-auto">
+                  <div>
+                    <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
+                      {getSetting("hero_stat1_value", "400+")}
+                    </span>
+                    <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
+                      {getSetting("hero_stat1_label", "Synth Hours")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1">
+                      {getSetting("hero_stat2_value", "8K UHD")}
+                    </span>
+                    <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
+                      {getSetting("hero_stat2_label", "Upscale Target")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-xl md:text-2xl font-display font-medium text-white mb-1 text-accent">
+                      {getSetting("hero_stat3_value", "0%")}
+                    </span>
+                    <span className="block text-[10px] font-mono uppercase text-gray-500 tracking-wide">
+                      {getSetting("hero_stat3_label", "Physical Camera")}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* SWIPE / SCROLL INDICATOR */}
       <div className="w-full flex justify-center pb-12">
@@ -295,10 +725,10 @@ function AppContent() {
           onClick={() => scrollToSection("work-section")}
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-          className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-[#ffea00] text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer"
+          className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-accent text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer"
         >
           <span>Begin Odyssey</span>
-          <ChevronDown className="w-4 h-4 text-gray-500 hover:text-[#ffea00]" />
+          <ChevronDown className="w-4 h-4 text-gray-500 hover:text-accent" />
         </motion.button>
       </div>
 
@@ -354,7 +784,7 @@ function AppContent() {
             </span>
             <span 
               onClick={() => navigate("#admin")}
-              className="text-[10px] uppercase font-mono tracking-widest text-[#ffea00] bg-[#ffea00]/5 px-3 py-1.5 rounded-full border border-[#ffea00]/20 hover:bg-[#ffea00]/15 transition-all cursor-pointer"
+              className="text-[10px] uppercase font-mono tracking-widest text-accent bg-accent/5 px-3 py-1.5 rounded-full border border-accent/20 hover:bg-accent/15 transition-all cursor-pointer"
             >
               🔐 Administrator Login
             </span>
@@ -379,7 +809,10 @@ function AppContent() {
         </div>
       </footer>
 
-    </div>
+      {/* CUSTOMER SUPPORT CONCIERGE CHAT WIDGET */}
+      <ChatWidget />
+
+    </motion.div>
   );
 }
 
@@ -392,4 +825,3 @@ export default function App() {
     </SiteDataProvider>
   );
 }
-

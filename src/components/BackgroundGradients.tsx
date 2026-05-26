@@ -3,11 +3,37 @@ import { useSiteData } from "../context/SiteDataContext";
 import { getActiveTheme } from "../lib/themes";
 
 export default function BackgroundGradients() {
-  const { siteSettings } = useSiteData();
+  const { siteSettings, activePage } = useSiteData();
   const theme = getActiveTheme(siteSettings.website_theme);
   
   // Extract background color class
   const bgClass = theme.style.bodyBg.split(" ").find(c => c.startsWith("bg-")) || "bg-[#050508]";
+
+  // Resolve dynamic gradient colors based on page
+  const isLive = activePage === "live";
+  const color1 = isLive 
+    ? (siteSettings.page2_bg_gradient_color_1 || "#b91c1c") 
+    : (siteSettings.bg_gradient_color_1 || "#7e22ce");
+  const color2 = isLive 
+    ? (siteSettings.page2_bg_gradient_color_2 || "#d97706") 
+    : (siteSettings.bg_gradient_color_2 || "#3b82f6");
+  const color3 = isLive 
+    ? (siteSettings.page2_bg_gradient_color_3 || "#000000") 
+    : (siteSettings.bg_gradient_color_3 || "#000000");
+
+  // Helper to convert hex to rgba
+  const hexToRgba = (hex: string, alpha: number) => {
+    try {
+      const cleaned = hex.startsWith("#") ? hex : "#" + hex;
+      const num = parseInt(cleaned.replace("#", ""), 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    } catch (e) {
+      return `rgba(255, 255, 255, ${alpha})`;
+    }
+  };
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -16,13 +42,11 @@ export default function BackgroundGradients() {
       
       {/* Mesh Glow 1 (Top Left area) */}
       <motion.div
-        className={`absolute w-[450px] md:w-[700px] h-[450px] md:h-[700px] rounded-full filter blur-[100px] md:blur-[140px] animate-mesh-1 opacity-70`}
+        className={`absolute w-[450px] md:w-[700px] h-[450px] md:h-[700px] rounded-full filter blur-[100px] md:blur-[140px] animate-mesh-1`}
         style={{
           top: "-5%",
           left: "5%",
-          background: theme.type === "dark" 
-            ? "radial-gradient(circle, rgba(230,0,39,0.14) 0%, rgba(10,5,5,0.02) 100%)"
-            : "radial-gradient(circle, rgba(230,0,39,0.08) 0%, rgba(255,255,255,0.02) 100%)"
+          background: `radial-gradient(circle, ${hexToRgba(color1, 0.15)} 0%, transparent 100%)`
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.8 }}
@@ -31,13 +55,11 @@ export default function BackgroundGradients() {
 
       {/* Mesh Glow 2 (Bottom Right area) */}
       <motion.div
-        className="absolute w-[500px] md:w-[850px] h-[500px] md:h-[850px] rounded-full filter blur-[110px] md:blur-[150px] animate-mesh-2 opacity-60"
+        className="absolute w-[500px] md:w-[850px] h-[500px] md:h-[850px] rounded-full filter blur-[110px] md:blur-[150px] animate-mesh-2"
         style={{
           bottom: "10%",
           right: "-10%",
-          background: theme.type === "dark"
-            ? "radial-gradient(circle, rgba(160,0,25,0.12) 0%, rgba(10,5,5,0.02) 100%)"
-            : "radial-gradient(circle, rgba(230,0,39,0.06) 0%, rgba(255,255,255,0.01) 100%)"
+          background: `radial-gradient(circle, ${hexToRgba(color2, 0.12)} 0%, transparent 100%)`
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.7 }}
@@ -46,14 +68,12 @@ export default function BackgroundGradients() {
 
       {/* Center Subtle Theme Gradient Glow Orb */}
       <motion.div
-        className="absolute w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full filter blur-[100px] md:blur-[120px] opacity-40"
+        className="absolute w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full filter blur-[100px] md:blur-[120px]"
         style={{
           top: "40%",
           left: "40%",
           transform: "translate(-50%, -50%)",
-          background: theme.type === "dark"
-            ? "radial-gradient(circle, rgba(230,0,39,0.08) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(230,0,39,0.04) 0%, transparent 70%)"
+          background: `radial-gradient(circle, ${hexToRgba(color3, 0.1)} 0%, transparent 75%)`
         }}
         animate={{
           scale: [1, 1.1, 0.95, 1],
@@ -77,3 +97,4 @@ export default function BackgroundGradients() {
     </div>
   );
 }
+

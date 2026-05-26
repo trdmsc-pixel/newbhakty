@@ -101,3 +101,35 @@ export const uploadToCloudinary = async (
     throw new Error(err?.message || "Cloudinary upload request failed.");
   }
 };
+
+/**
+ * Optimizes a video URL from Cloudinary by adding width and compression transformations.
+ */
+export const optimizeVideoUrl = (url: string): string => {
+  if (!url) return "";
+  if (url.includes("res.cloudinary.com")) {
+    if (url.includes("/video/upload/")) {
+      // Ensure we don't duplicate transformations
+      if (!url.includes("w_720") && !url.includes("q_auto")) {
+        return url.replace("/video/upload/", "/video/upload/w_720,q_auto,f_auto/");
+      }
+    }
+  }
+  return url;
+};
+
+/**
+ * Optimizes an image URL from Cloudinary by adding width and compression transformations.
+ */
+export const optimizeImageUrl = (url: string): string => {
+  if (!url) return "";
+  if (url.includes("res.cloudinary.com")) {
+    if (url.includes("/image/upload/")) {
+      // Ensure we don't duplicate transformations
+      if (!url.includes("w_1000") && !url.includes("q_auto")) {
+        return url.replace("/image/upload/", "/image/upload/w_1000,q_auto,f_auto/");
+      }
+    }
+  }
+  return url;
+};

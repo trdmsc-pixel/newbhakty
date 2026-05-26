@@ -1,19 +1,35 @@
 import React, { useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { Check, Flame, Hourglass, RotateCcw, Sliders } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 import { PricingTier } from "../types";
+import MilestoneSlider, { Milestone } from "./MilestoneSlider";
 
 interface PricingSectionProps {
   onSelectTier: (tierName: string) => void;
 }
 
 export default function PricingSection({ onSelectTier }: PricingSectionProps) {
-  const { pricingTiers = [], siteSettings } = useSiteData();
+  const { pricingTiers = [], siteSettings, activePage } = useSiteData();
   const [sliderIndex, setSliderIndex] = useState<number>(1); // Default to "Full Cinematic Studio" (index 1)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [cardMilestones, setCardMilestones] = useState<Record<string, Milestone>>({});
 
+  const spotlightText = activePage === "live"
+    ? (siteSettings.page2_pricing_spotlight_text || "Recommended")
+    : (siteSettings.pricing_spotlight_text || "Recommended");
 
+  const titleSize = activePage === "live"
+    ? siteSettings.page2_pricing_title_size
+    : siteSettings.pricing_title_size;
+
+  const pricingSectionTitle = activePage === "live"
+    ? (siteSettings.page2_pricing_title || "Production Tiers & Packages")
+    : (siteSettings.pricing_title || "Production Tiers & Packages");
+
+  const handleMilestoneChange = (tierId: string, milestone: Milestone) => {
+    setCardMilestones(prev => ({ ...prev, [tierId]: milestone }));
+  };
 
   const selectPackage = (tier: PricingTier) => {
     onSelectTier(tier.name);
@@ -25,6 +41,17 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
         behavior: "smooth"
       });
     }
+  };
+
+  // Pricing formula helper functions
+  const parsePrice = (priceStr: string): number => {
+    const numericStr = priceStr.replace(/[^0-9.]/g, "");
+    return parseFloat(numericStr) || 0;
+  };
+
+  const formatPrice = (value: number, originalStr: string): string => {
+    const currencySymbol = originalStr.match(/^[^0-9]*/)?.[0] || "$";
+    return `${currencySymbol}${Math.round(value).toLocaleString()}`;
   };
 
   return (
@@ -41,7 +68,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-xs uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4"
+          className="text-xs uppercase font-mono font-medium tracking-widest text-accent bg-accent/5 border border-accent/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
           Acquisition Pipeline
         </motion.span>
@@ -51,9 +78,10 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="font-display font-medium text-3xl md:text-5xl tracking-tight text-white mb-6"
+          className="font-display font-medium text-3xl md:text-5xl tracking-tight text-white mb-6 pricing-title"
+          style={titleSize ? { fontSize: titleSize } : undefined}
         >
-          Production Tiers & Packages
+          {pricingSectionTitle}
         </motion.h2>
         
         <motion.p
@@ -72,6 +100,23 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
         {pricingTiers.map((tier, index) => {
           // Whichever card is hovered gets highlighted. If no card is hovered, the selected card is highlighted.
           const isHighlighted = hoveredIndex !== null ? index === hoveredIndex : index === sliderIndex;
+
+          const selectedMilestone = cardMilestones[tier.id];
+          const hasSlider = tier.is_slider_enabled && tier.slider_milestones && tier.slider_milestones.length > 0;
+          
+          let displayPrice = tier.price;
+          let displayOriginalPrice = tier.originalPrice;
+          
+          if (hasSlider && selectedMilestone) {
+            const parsedBase = parsePrice(tier.price);
+            if (parsedBase > 0) {
+              const discounted = parsedBase * (1 - selectedMilestone.discount / 100);
+              displayPrice = formatPrice(discounted, tier.price);
+              if (selectedMilestone.discount > 0) {
+                displayOriginalPrice = tier.price;
+              }
+            }
+          }
 
           // Determine badge settings based on tier properties
           const getBadgeConfig = (glowTheme: string, tierId: string, discountText?: string) => {
@@ -129,15 +174,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               };
             }
             if (tierId === "cinematic" || tier.popular) {
-              return {
-                text: "MOST POPULAR",
-                gradient: "from-[#fff200] via-[#ffd600] to-[#ffaa00]", // Gold-yellow gradient matching image
-                glow: "rgba(255, 234, 0, 0.5)",
-                fold: "#806600",
-                iconColor: "text-black",
-                textColor: "text-black",
-                icon: Flame
-              };
+              return null;
             }
             if (tierId === "enterprise") {
               return {
@@ -172,12 +209,12 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
               }}
               transition={{ type: "spring", stiffness: 150, damping: 18 }}
               className={`rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 relative cursor-pointer shadow-xl border ${
-                isHighlighted ? "bg-[#0b0c05] shadow-2xl border-[#ffea00]/30" : "bg-[#070505]/45 border-white/5"
+                isHighlighted ? "bg-[#0b0c05] shadow-2xl border-accent/30" : "bg-[#070505]/45 border-white/5"
               }`}
             >
               {/* CARD ACCENT LINE */}
               {isHighlighted && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffea00] to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent" />
               )}
 
               {/* 3D RIBBON OVERLAY BADGE */}
@@ -268,21 +305,39 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   )}
 
                   <div>
-                    <div className={`font-mono text-xs font-bold tracking-widest mb-1 ${isHighlighted ? "text-black/60" : "text-[#ffea00]"}`}>
-                      {tier.name.toUpperCase().split(" ")[0]}
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className={`package-title h3 font-bold tracking-widest ${isHighlighted ? "text-black/60" : "text-accent"}`}>
+                        {tier.name.toUpperCase().split(" ")[0]}
+                      </h3>
+                      {tier.popular && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-gradient-to-r from-[#ffd600] to-[#ffaa00] text-black shadow-[0_0_12px_rgba(255,214,0,0.4)] border border-white/20 animate-pulse">
+                          {spotlightText}
+                        </span>
+                      )}
                     </div>
                     
                     {/* Price read-out */}
                     <div className="flex items-baseline flex-wrap gap-2 mt-2 mb-3">
-                      {tier.originalPrice && (
+                      {displayOriginalPrice && (
                         <span className={`text-lg font-mono line-through mr-1 decoration-yellow-500/50 ${isHighlighted ? "text-black/40" : "text-gray-500"}`}>
-                          {tier.originalPrice}
+                          {displayOriginalPrice}
                         </span>
                       )}
-                      <span className="text-4xl md:text-5xl font-display font-semibold tracking-tight">
-                        {tier.price}
-                      </span>
-                      <span className={`font-mono text-xs ${isHighlighted ? "text-black/60" : "text-gray-400"}`}>
+                      <div className="relative flex items-baseline overflow-visible">
+                        <AnimatePresence mode="popLayout">
+                          <motion.span
+                            key={displayPrice}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="text-4xl md:text-5xl font-display font-semibold tracking-tight inline-block whitespace-nowrap"
+                          >
+                            {displayPrice}
+                          </motion.span>
+                        </AnimatePresence>
+                      </div>
+                      <span className={`font-mono text-xs ${isHighlighted ? "text-black/60" : "text-gray-400"} self-end pb-1`}>
                         / {tier.period}
                       </span>
                     </div>
@@ -290,14 +345,14 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                     {/* Offer Highlight Box */}
                     {tier.offerText && (
                       <div 
-                        className={`mt-2 mb-3 px-3 py-1.5 rounded-xl text-center text-[10px] font-mono font-black uppercase tracking-widest ${
+                        className={`offer-highlight mt-2 mb-3 px-3 py-1.5 rounded-xl text-center text-[10px] font-black uppercase tracking-widest ${
                           tier.offerAnimation === "pulse" 
                             ? "animate-offer-pulse" 
                             : (tier.offerAnimation === "shimmer" ? "animate-offer-shimmer" : "")
                         }`}
                         style={{
                           color: tier.offerTextColor || "#ffffff",
-                          background: tier.offerBgColor || (isHighlighted ? "#000000" : "#ffea00"),
+                          background: tier.offerBgColor || (isHighlighted ? "#000000" : "var(--color-accent)"),
                           border: "1px solid rgba(255,255,255,0.08)"
                         }}
                       >
@@ -311,6 +366,18 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   </p>
                 </div>
 
+                {/* MILESTONE SLIDER */}
+                {hasSlider && (
+                  <div className="px-2 mb-6">
+                    <MilestoneSlider
+                      milestones={tier.slider_milestones || []}
+                      basePrice={tier.price}
+                      glowTheme={tier.glowTheme}
+                      onChange={(milestone) => handleMilestoneChange(tier.id, milestone)}
+                    />
+                  </div>
+                )}
+
                 {/* DELIVERABLES LIST */}
                 <div className="space-y-4 mb-8 px-2">
                   <h4 className="text-xs font-mono uppercase tracking-widest text-gray-400">
@@ -319,7 +386,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   <ul className="space-y-3">
                     {tier.deliverables.map((item, dIdx) => (
                       <li key={dIdx} className="flex items-start text-xs md:text-sm text-gray-300 gap-3">
-                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isHighlighted ? "text-[#ffea00] border-[#ffea00]/30 bg-[#ffea00]/5" : "text-gray-500"}`}>
+                        <span className={`p-0.5 rounded-full bg-white/5 mt-0.5 border border-white/10 flex-shrink-0 ${isHighlighted ? "text-accent border-accent/30 bg-accent/5" : "text-gray-500"}`}>
                           <Check className="w-3 h-3" />
                         </span>
                         <span>{item}</span>
@@ -356,7 +423,7 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
                   }}
                   className={`w-full py-3.5 rounded-2xl font-semibold font-display tracking-tight text-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
                     isHighlighted 
-                      ? "bg-[#ffea00] text-black shadow-xl shadow-[#ffea00]/10 hover-glow-yellow" 
+                      ? "bg-accent text-black shadow-xl shadow-accent/10 hover-glow-yellow" 
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"
                   }`}
                 >
@@ -376,15 +443,15 @@ export default function PricingSection({ onSelectTier }: PricingSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-16 max-w-4xl mx-auto"
+          className="w-full max-w-none px-0 mt-20"
         >
-          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-4 text-center md:text-left bg-gradient-to-r from-yellow-950/10 via-black/60 to-yellow-950/5 bg-black/40">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#ffea00]/5 rounded-full filter blur-2xl pointer-events-none" />
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#ffea00] shrink-0">
+          <div className="glass-panel rounded-none border-x-0 py-4 px-12 md:px-16 border-y border-white/10 shadow-2xl relative overflow-hidden flex flex-row items-center gap-6 text-left bg-gradient-to-r from-yellow-950/10 via-black/60 to-yellow-950/5 bg-black/40">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full filter blur-2xl pointer-events-none" />
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-accent shrink-0">
               <Sliders className="w-6 h-6" />
             </div>
             <div className="flex-1 space-y-1">
-              <h4 className="text-xs font-mono font-bold tracking-widest text-[#ffea00] uppercase">Custom Scope & Integrations</h4>
+              <h4 className="text-xs font-mono font-bold tracking-widest text-accent uppercase">Custom Scope & Integrations</h4>
               <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-sans">
                 {siteSettings.pricing_note_text}
               </p>

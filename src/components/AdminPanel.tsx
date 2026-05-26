@@ -3,19 +3,19 @@ import { motion, AnimatePresence } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
-import { VideoBlock, PricingTier } from "../types";
+import { VideoBlock, PricingTier, PortfolioTab } from "../types";
 import BackgroundGradients from "./BackgroundGradients";
 import { 
   Lock, Settings, Compass, HelpCircle, 
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
-  Upload, AlertTriangle, ArrowRight, ShieldCheck, Check, Edit2, Play, PlusCircle,
+  Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare
+  Palette, Sliders, Image, MessageSquare, Send, Type
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
-import { supabase } from "../lib/supabase";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -28,11 +28,79 @@ const generateUUID = () => {
   });
 };
 
+let notificationAudioContext: AudioContext | null = null;
+
+function getNotificationAudioContext() {
+  if (typeof window === "undefined") return null;
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!notificationAudioContext) {
+    notificationAudioContext = new AudioContextClass();
+  }
+  return notificationAudioContext;
+}
+
+function unlockNotificationAudio() {
+  const ctx = getNotificationAudioContext();
+  if (!ctx || ctx.state !== "suspended") return;
+  ctx.resume().catch((err) => {
+    console.warn("AudioContext failed to unlock notification sound:", err);
+  });
+}
+
+function playToneSequence(notes: number[], stepSeconds: number, peakGain: number, warnLabel: string) {
+  try {
+    const ctx = getNotificationAudioContext();
+    if (!ctx) return;
+
+    const play = () => {
+      const startTime = ctx.currentTime;
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime + idx * stepSeconds);
+        
+        gain.gain.setValueAtTime(0, startTime + idx * stepSeconds);
+        gain.gain.linearRampToValueAtTime(peakGain, startTime + idx * stepSeconds + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + idx * stepSeconds + 0.5);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(startTime + idx * stepSeconds);
+        osc.stop(startTime + idx * stepSeconds + 0.5);
+      });
+    };
+
+    if (ctx.state === "suspended") {
+      ctx.resume().then(play).catch((err) => {
+        console.warn(`AudioContext failed to play ${warnLabel} sound:`, err);
+      });
+      return;
+    }
+
+    play();
+  } catch (err) {
+    console.warn(`AudioContext failed to play ${warnLabel} sound:`, err);
+  }
+}
+
+function playChatNotificationSound() {
+  playToneSequence([587.33, 880], 0.1, 0.2, "chat");
+}
+
+function playIntakeNotificationSound() {
+  playToneSequence([261.63, 329.63, 392.00, 523.25], 0.12, 0.15, "intake");
+}
+
 export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => void }) {
   const {
     siteSettings,
     navigationMenu,
     portfolioWorks,
+    portfolioTabs = [],
     pricingTiers,
     isUsingSupabase,
     mediaAssets,
@@ -43,10 +111,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     updateNavigationMenu,
     updatePortfolioWorks,
     updatePricingTiers,
+    updatePortfolioTabs,
     addMediaAsset,
     deleteMediaAsset,
     updateBrandLogos,
     updateTestimonials,
+    activePage,
+    setActivePage,
   } = useSiteData();
 
 
@@ -69,6 +140,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       localStorage.setItem("bhakty_admin_auth", "true");
       sessionStorage.setItem("bhakty_admin_auth", "true");
       setAuthError("");
+      unlockNotificationAudio();
       toast.success("Security access granted. Welcome to Axiom Core.");
     } else {
       setAuthError("Unauthorized access key. Please verify security password.");
@@ -77,7 +149,104 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings">("settings");
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unlock = () => unlockNotificationAudio();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    window.addEventListener("touchstart", unlock);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, [isAuthenticated]);
+
+  // Chat console states
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [adminReplyText, setAdminReplyText] = useState("");
+  const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
+
+  // Synchronize siteSettings with local editSettings when context loads/updates
+  useEffect(() => {
+    if (siteSettings) {
+      setEditSettings(prev => ({ ...prev, ...siteSettings }));
+    }
+  }, [siteSettings]);
+
+  // Page Scope State for Scoped Settings, Forms, Portfolios, etc.
+  const [adminPageScope, setAdminPageScope] = useState<"ai" | "live">(activePage);
+
+  // Declare portfolio and pricing edit states here so they can be referenced in useEffect hooks
+  const [editWorks, setEditWorks] = useState<VideoBlock[]>([]);
+  const [editPricing, setEditPricing] = useState<PricingTier[]>([]);
+
+  // Synchronize local states when context data changes (e.g. active page switches)
+  useEffect(() => {
+    if (portfolioWorks) {
+      setEditWorks([...portfolioWorks]);
+    }
+  }, [portfolioWorks]);
+
+  useEffect(() => {
+    if (pricingTiers) {
+      setEditPricing([...pricingTiers]);
+    }
+  }, [pricingTiers]);
+
+  useEffect(() => {
+    if (portfolioTabs) {
+      setEditTabs([...portfolioTabs]);
+      if (portfolioTabs.length > 0) {
+        if (!adminActiveTabId || !portfolioTabs.some(t => t.id === adminActiveTabId)) {
+          setAdminActiveTabId(portfolioTabs[0].id);
+        }
+      } else {
+        setAdminActiveTabId("");
+      }
+    }
+  }, [portfolioTabs]);
+
+  // Scoped setting helpers
+  const handleSettingChangeScoped = (baseKey: string, value: string) => {
+    let key = baseKey;
+    if ([
+      "hero_badge_text", "hero_title_1", "hero_title_2", "hero_title_3", "hero_description",
+      "hero_cta_booking_text", "hero_cta_work_text", "hero_stat1_value", "hero_stat1_label",
+      "hero_stat2_value", "hero_stat2_label", "hero_stat3_value", "hero_stat3_label",
+      "hero_video_bg_url", "hero_padding_top", "hero_bg_opacity", "hero_bg_blur",
+      "hero_bg_overlay", "hero_text_align", "hero_max_width", "hero_title_size",
+      "hero_subtitle_size", "hero_title_color", "hero_title_color_line2", "hero_subtitle_color",
+      "hero_cta_text", "hero_cta_bg", "hero_cta_color", "hero_cta_size", "hero_cta_glow",
+      "hero_cta_glow_color", "hero_cta_icon", "navbar_full_width"
+    ].includes(baseKey)) {
+      key = adminPageScope === "live" ? `page2_${baseKey}` : baseKey;
+    }
+    setEditSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const getSettingValueScoped = (baseKey: string, fallback: string = "") => {
+    let key = baseKey;
+    if ([
+      "hero_badge_text", "hero_title_1", "hero_title_2", "hero_title_3", "hero_description",
+      "hero_cta_booking_text", "hero_cta_work_text", "hero_stat1_value", "hero_stat1_label",
+      "hero_stat2_value", "hero_stat2_label", "hero_stat3_value", "hero_stat3_label",
+      "hero_video_bg_url", "hero_padding_top", "hero_bg_opacity", "hero_bg_blur",
+      "hero_bg_overlay", "hero_text_align", "hero_max_width", "hero_title_size",
+      "hero_subtitle_size", "hero_title_color", "hero_title_color_line2", "hero_subtitle_color",
+      "hero_cta_text", "hero_cta_bg", "hero_cta_color", "hero_cta_size", "hero_cta_glow",
+      "hero_cta_glow_color", "hero_cta_icon", "navbar_full_width"
+    ].includes(baseKey)) {
+      key = adminPageScope === "live" ? `page2_${baseKey}` : baseKey;
+    }
+    return editSettings[key] || fallback;
+  };
 
   // Brand Logos & Testimonials Edit State
   const [editLogos, setEditLogos] = useState<BrandLogo[]>([]);
@@ -178,9 +347,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // Drag-and-drop targets
   const [dragOverIdxMenu, setDragOverIdxMenu] = useState<number | null>(null);
   const [dragOverIdxWorks, setDragOverIdxWorks] = useState<number | null>(null);
+  const [dragOverIdxPricing, setDragOverIdxPricing] = useState<number | null>(null);
 
-  // Portfolio manager sub-tab: video (Motion) vs image (Static)
-  const [portfolioSubTab, setPortfolioSubTab] = useState<"video" | "image">("video");
+  // Dynamic portfolio tabs manager states
+  const [editTabs, setEditTabs] = useState<PortfolioTab[]>([]);
+  const [adminActiveTabId, setAdminActiveTabId] = useState<string>("");
+  const [showAddTabModal, setShowAddTabModal] = useState(false);
 
   // Creative Intake (Form Submissions) State
   const [submissionsList, setSubmissionsList] = useState<any[]>(() => {
@@ -192,8 +364,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }
   });
 
+  // Load, poll and subscribe to bookings (Creative Intake Submissions)
   useEffect(() => {
-    async function loadSubmissions() {
+    let isMounted = true;
+
+    const loadSubmissions = async (notifyOnNew = true) => {
       if (isUsingSupabase && supabase) {
         try {
           const { data, error } = await supabase
@@ -203,18 +378,83 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           
           if (error) {
             console.error("Error fetching bookings from Supabase:", error);
-            toast.error("Failed to load submissions from database.");
             return;
           }
-          if (data) {
-            setSubmissionsList(data);
+          if (data && isMounted) {
+            setSubmissionsList(prevList => {
+              if (notifyOnNew && prevList.length > 0) {
+                // Check if there are new entries
+                const newEntries = data.filter(item => !prevList.some(p => p.id === item.id));
+                if (newEntries.length > 0) {
+                  playIntakeNotificationSound();
+                  toast.success("New Creative Intake proposal received!");
+                }
+              }
+              return data;
+            });
           }
         } catch (e) {
           console.error("Error in loadSubmissions:", e);
         }
+      } else {
+        // LocalStorage fallback check
+        try {
+          const stored = localStorage.getItem("bhakty_form_submissions");
+          const data = stored ? JSON.parse(stored) : [];
+          setSubmissionsList(prevList => {
+            if (notifyOnNew && prevList.length > 0) {
+              const newEntries = data.filter((item: any) => !prevList.some(p => p.id === item.id));
+              if (newEntries.length > 0) {
+                playIntakeNotificationSound();
+                toast.success("New Local Creative Intake proposal logged!");
+              }
+            }
+            return data;
+          });
+        } catch (err) {
+          console.error("Error loading local submissions:", err);
+        }
       }
-    }
+    };
+
     loadSubmissions();
+    const interval = setInterval(loadSubmissions, 4000);
+
+    let bookingsChannel: any;
+    if (isUsingSupabase && supabase) {
+      bookingsChannel = supabase
+        .channel("admin_bookings_realtime")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "bookings",
+          },
+          (payload) => {
+            const newSubmission = payload.new;
+            if (newSubmission) {
+              playIntakeNotificationSound();
+              toast.success("New Creative Intake proposal received!");
+              setSubmissionsList(prevList => (
+                prevList.some((item: any) => item.id === newSubmission.id)
+                  ? prevList
+                  : [newSubmission, ...prevList]
+              ));
+            }
+            loadSubmissions(false);
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      if (bookingsChannel) {
+        supabase.removeChannel(bookingsChannel);
+      }
+    };
   }, [isUsingSupabase]);
 
   useEffect(() => {
@@ -229,15 +469,397 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }
   }, [testimonials]);
 
-  const [analyzingSubId, setAnalyzingSubId] = useState<string | null>(null);
-  const [submissionAnalyses, setSubmissionAnalyses] = useState<Record<string, string>>(() => {
-    try {
-      const stored = localStorage.getItem("bhakty_submission_analyses");
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
+  // Load and poll chat sessions
+  useEffect(() => {
+    let isMounted = true;
+    setChatSessionsLoading(true);
+
+    const fetchSessions = async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("chat_sessions")
+            .select(`
+              *,
+              chat_users:user_id (
+                name,
+                email,
+                phone
+              )
+            `)
+            .order("last_message_at", { ascending: false });
+
+          if (error) {
+            console.error("Error fetching chat sessions:", error);
+            return;
+          }
+          if (data && isMounted) {
+            setChatSessions(prevSessions => {
+              if (prevSessions.length > 0) {
+                let shouldPlaySound = false;
+                data.forEach(newSess => {
+                  const oldSess = prevSessions.find(s => s.id === newSess.id);
+                  if (oldSess) {
+                    if (newSess.unread_count > oldSess.unread_count) {
+                      shouldPlaySound = true;
+                    }
+                  } else if (newSess.unread_count > 0) {
+                    shouldPlaySound = true;
+                  }
+                });
+                if (shouldPlaySound) {
+                  playChatNotificationSound();
+                }
+              }
+              return data;
+            });
+          }
+        } catch (e) {
+          console.error("Error in fetchSessions:", e);
+        } finally {
+          if (isMounted) setChatSessionsLoading(false);
+        }
+      } else {
+        // LocalStorage fallback
+        try {
+          const sessionsMap: Record<string, any> = {};
+          // Scan all localStorage keys
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith("local_chat_messages_")) {
+              const sessId = key.substring("local_chat_messages_".length);
+              const msgsStr = localStorage.getItem(key);
+              if (msgsStr) {
+                const msgs = JSON.parse(msgsStr);
+                const lastMsg = msgs[msgs.length - 1];
+                
+                const sessStr = localStorage.getItem(`local_chat_session_${sessId}`);
+                const sessionObj = sessStr ? JSON.parse(sessStr) : {};
+                
+                const userStr = sessionObj.user_id ? localStorage.getItem(`local_chat_user_${sessionObj.user_id}`) : null;
+                const userObj = userStr ? JSON.parse(userStr) : null;
+                
+                sessionsMap[sessId] = {
+                  ...sessionObj,
+                  id: sessId,
+                  created_at: sessionObj.created_at || msgs[0]?.created_at || new Date().toISOString(),
+                  last_message_at: sessionObj.last_message_at || lastMsg?.created_at || new Date().toISOString(),
+                  email: sessionObj.email || userObj?.email || null,
+                  status: sessionObj.status || "active",
+                  pause_ai: sessionObj.pause_ai || false,
+                  unread_count: sessionObj.unread_count || 0,
+                  last_message_text: lastMsg?.text || "",
+                  chat_users: userObj
+                };
+              }
+            }
+          }
+          
+          // Sort by last_message_at descending
+          const sessionsList = Object.values(sessionsMap).sort((a: any, b: any) => 
+            new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+          );
+          
+          if (isMounted) {
+            setChatSessions(prevSessions => {
+              if (prevSessions.length > 0) {
+                let shouldPlaySound = false;
+                sessionsList.forEach(newSess => {
+                  const oldSess = prevSessions.find(s => s.id === newSess.id);
+                  if (oldSess) {
+                    if (newSess.unread_count > oldSess.unread_count) {
+                      shouldPlaySound = true;
+                    }
+                  } else if (newSess.unread_count > 0) {
+                    shouldPlaySound = true;
+                  }
+                });
+                if (shouldPlaySound) {
+                  playChatNotificationSound();
+                }
+              }
+              return sessionsList;
+            });
+            setChatSessionsLoading(false);
+          }
+        } catch (err) {
+          console.error("Error loading local sessions:", err);
+          if (isMounted) setChatSessionsLoading(false);
+        }
+      }
+    };
+
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 3000);
+
+    // Subscribe to chat_sessions updates
+    let sessionChannel: any;
+    if (isSupabaseConfigured && supabase) {
+      sessionChannel = supabase
+        .channel("admin_chat_sessions_list")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "chat_sessions",
+          },
+          () => {
+            fetchSessions();
+          }
+        )
+        .subscribe();
     }
-  });
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      if (sessionChannel) {
+        supabase.removeChannel(sessionChannel);
+      }
+    };
+  }, []);
+
+  // Load and poll selected session messages
+  useEffect(() => {
+    if (activeTab !== "live_chats" || !selectedSessionId) {
+      setChatMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+    
+    const fetchMessages = async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("chat_messages")
+            .select("*")
+            .eq("session_id", selectedSessionId)
+            .order("created_at", { ascending: true });
+
+          if (error) {
+            console.error("Error fetching chat messages:", error);
+            return;
+          }
+          if (data && isMounted) {
+            setChatMessages(data);
+          }
+        } catch (e) {
+          console.error("Error in fetchMessages:", e);
+        }
+      } else {
+        // LocalStorage fallback
+        try {
+          const msgsStr = localStorage.getItem(`local_chat_messages_${selectedSessionId}`);
+          if (msgsStr && isMounted) {
+            setChatMessages(JSON.parse(msgsStr));
+          }
+        } catch (err) {
+          console.error("Error loading local messages:", err);
+        }
+      }
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+
+    // Subscribe to chat_messages changes for the active session
+    let messageChannel: any;
+    if (isSupabaseConfigured && supabase) {
+      messageChannel = supabase
+        .channel(`admin_chat_session_${selectedSessionId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "chat_messages",
+            filter: `session_id=eq.${selectedSessionId}`,
+          },
+          (payload) => {
+            if (payload.eventType === "INSERT") {
+              const newMsg = payload.new;
+              if (isMounted) {
+                setChatMessages((prev) => {
+                  if (prev.some((m) => m.id === newMsg.id)) return prev;
+                  return [...prev, newMsg];
+                });
+              }
+            } else if (payload.eventType === "UPDATE") {
+              const updatedMsg = payload.new;
+              if (isMounted) {
+                setChatMessages((prev) =>
+                  prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+                );
+              }
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      if (messageChannel) {
+        supabase.removeChannel(messageChannel);
+      }
+    };
+  }, [activeTab, selectedSessionId]);
+
+  // Mark session as read (set unread_count to 0) and mark client messages as read when opened by admin
+  useEffect(() => {
+    if (activeTab !== "live_chats" || !selectedSessionId) return;
+
+    const markAsRead = async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase
+            .from("chat_sessions")
+            .update({ unread_count: 0 })
+            .eq("id", selectedSessionId);
+            
+          await supabase
+            .from("chat_messages")
+            .update({ status: "read" })
+            .eq("session_id", selectedSessionId)
+            .eq("sender", "user")
+            .neq("status", "read");
+        } catch (e) {
+          console.warn("Failed to update status/unread in Supabase:", e);
+        }
+      } else {
+        localStorage.setItem(`local_chat_unread_${selectedSessionId}`, "0");
+        const localMsgs = localStorage.getItem(`local_chat_messages_${selectedSessionId}`);
+        if (localMsgs) {
+          const parsed = JSON.parse(localMsgs);
+          const updated = parsed.map((m: any) => m.sender === "user" ? { ...m, status: "read" } : m);
+          localStorage.setItem(`local_chat_messages_${selectedSessionId}`, JSON.stringify(updated));
+          localStorage.setItem(`local_chat_messages_updated_${selectedSessionId}`, Date.now().toString());
+        }
+      }
+    };
+
+    markAsRead();
+  }, [activeTab, selectedSessionId, chatMessages.length]);
+
+  const togglePauseAi = async (sessId: string, currentPauseVal: boolean) => {
+    const newVal = !currentPauseVal;
+    
+    // Update local state first for fast response
+    setChatSessions(prev => 
+      prev.map(s => s.id === sessId ? { ...s, pause_ai: newVal } : s)
+    );
+    
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase
+          .from("chat_sessions")
+          .update({ pause_ai: newVal })
+          .eq("id", sessId);
+
+        if (error) throw error;
+        toast.success(newVal ? "AI Concierge paused. You have taken control." : "AI Concierge resumed.");
+      } catch (err: any) {
+        console.error("Failed to toggle pause_ai in Supabase:", err);
+        toast.error("Failed to update status in database.");
+        // Revert local state
+        setChatSessions(prev => 
+          prev.map(s => s.id === sessId ? { ...s, pause_ai: currentPauseVal } : s)
+        );
+      }
+    } else {
+      localStorage.setItem(`local_chat_pause_${sessId}`, newVal.toString());
+      toast.success(newVal ? "Local AI Concierge paused. You have taken control." : "Local AI Concierge resumed.");
+    }
+  };
+
+  const handleSendAdminReply = async () => {
+    if (!selectedSessionId || !adminReplyText.trim()) return;
+    
+    const replyText = adminReplyText.trim();
+    setAdminReplyText("");
+    
+    // Generate a temporary message object to update the UI instantly
+    const newMsg = {
+      id: `msg-admin-temp-${Date.now()}`,
+      session_id: selectedSessionId,
+      sender: "admin" as const,
+      text: replyText,
+      created_at: new Date().toISOString(),
+      status: "sending" as const
+    };
+    
+    setChatMessages(prev => [...prev, newMsg]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // Automatically pause AI on takeover if not already paused
+        const { error: msgErr } = await supabase
+          .from("chat_messages")
+          .insert([{
+            session_id: selectedSessionId,
+            sender: "admin",
+            text: replyText,
+            status: "delivered"
+          }]);
+        
+        if (msgErr) throw msgErr;
+
+        // Update session meta: pause_ai to true (takeover), update last_message_at
+        const { error: sessErr } = await supabase
+          .from("chat_sessions")
+          .update({ 
+            pause_ai: true, 
+            last_message_at: new Date().toISOString() 
+          })
+          .eq("id", selectedSessionId);
+
+        if (sessErr) throw sessErr;
+        
+        // Update local session list if needed
+        setChatSessions(prev => 
+          prev.map(s => s.id === selectedSessionId ? { ...s, pause_ai: true, last_message_at: newMsg.created_at } : s)
+        );
+
+        toast.success("Message dispatched. AI paused.");
+      } catch (err: any) {
+        console.error("Failed to send admin reply in Supabase:", err);
+        toast.error("Failed to dispatch message to database.");
+      }
+    } else {
+      // LocalStorage fallback
+      try {
+        const msgsStr = localStorage.getItem(`local_chat_messages_${selectedSessionId}`);
+        const msgs = msgsStr ? JSON.parse(msgsStr) : [];
+        const fullMsg = {
+          id: `msg-admin-${Date.now()}`,
+          sender: "admin",
+          text: replyText,
+          created_at: new Date().toISOString(),
+          status: "delivered" as const
+        };
+        msgs.push(fullMsg);
+        localStorage.setItem(`local_chat_messages_${selectedSessionId}`, JSON.stringify(msgs));
+        localStorage.setItem(`local_chat_pause_${selectedSessionId}`, "true");
+        
+        // Refresh local messages
+        setChatMessages(msgs);
+        
+        // Refresh local sessions
+        setChatSessions(prev => 
+          prev.map(s => s.id === selectedSessionId ? { ...s, pause_ai: true, last_message_at: fullMsg.created_at } : s)
+        );
+        
+        toast.success("Local reply saved. AI paused.");
+      } catch (e) {
+        console.error("Local reply saving failed:", e);
+      }
+    }
+  };
+
+
 
   // AI Video Synthesizer States
   const [videoPrompt, setVideoPrompt] = useState("");
@@ -314,34 +936,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     toast.success("Ingestion record removed from register.");
   };
 
-  const runIntakeAIAnalysis = async (sub: any) => {
-    setAnalyzingSubId(sub.id);
-    try {
-      const res = await fetch("/api/gemini/analyze-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brief: sub.brief,
-          company: sub.company,
-          selectedTier: sub.selectedTier
-        })
-      });
-      const data = await res.json();
-      if (data.text) {
-        const nextAnalyses = { ...submissionAnalyses, [sub.id]: data.text };
-        setSubmissionAnalyses(nextAnalyses);
-        localStorage.setItem("bhakty_submission_analyses", JSON.stringify(nextAnalyses));
-        toast.success("AI Synthesis Blueprint compiled successfully.");
-      } else {
-        toast.error("Could not obtain AI briefing recommendations.");
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(`Ingestion analysis error: ${e.message}`);
-    } finally {
-      setAnalyzingSubId(null);
-    }
-  };
+
 
   // ----------------------------------------------------
   // TAB 5: GLOBAL ASSETS STATE & HANDLERS (Cloudinary Uploaders)
@@ -425,20 +1020,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url") => {
+    const resolvedKey = targetSetting === "hero_video_bg_url" ? (adminPageScope === "live" ? "page2_hero_video_bg_url" : "hero_video_bg_url") : targetSetting;
     setSaveStatus(prev => ({ ...prev, assets: "saving" }));
-    toast.info(`Applying selected asset to ${targetSetting === "hero_video_bg_url" ? "Hero Background" : "Navbar Logo"}...`);
+    toast.info(`Applying selected asset to ${resolvedKey === "page2_hero_video_bg_url" || resolvedKey === "hero_video_bg_url" ? "Hero Background" : "Navbar Logo"}...`);
     
     try {
-      if (targetSetting === "hero_video_bg_url") {
-        setEditSettings(p => ({ ...p, hero_video_bg_url: assetUrl }));
-      } else if (targetSetting === "logo_img_url") {
-        setEditSettings(p => ({ ...p, logo_img_url: assetUrl }));
-      }
+      setEditSettings(p => ({ ...p, [resolvedKey]: assetUrl }));
       
-      const success = await updateSiteSetting(targetSetting, assetUrl);
+      const success = await updateSiteSetting(resolvedKey, assetUrl);
       if (success) {
         setSaveStatus(prev => ({ ...prev, assets: "saved" }));
-        toast.success(`Setting '${targetSetting}' successfully modified!`);
+        toast.success(`Setting '${resolvedKey}' successfully modified!`);
         setTimeout(() => setSaveStatus(prev => ({ ...prev, assets: "idle" })), 3000);
       } else {
         setSaveStatus(prev => ({ ...prev, assets: "error" }));
@@ -507,7 +1099,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     toast.success("Navigation menu re-applied.");
   };
 
-  const recordWorksHistory = (pivotState = editWorks) => {
+  const recordWorksHistory = (pivotState = { works: editWorks, tabs: editTabs }) => {
     setWorksHistory(prev => {
       const nextHistory = [...prev, JSON.parse(JSON.stringify(pivotState))];
       if (nextHistory.length > 30) nextHistory.shift();
@@ -519,19 +1111,21 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const triggerWorksUndo = () => {
     if (worksHistory.length === 0) return;
     const previous = worksHistory[worksHistory.length - 1];
-    setWorksFuture(prev => [JSON.parse(JSON.stringify(editWorks)), ...prev]);
+    setWorksFuture(prev => [JSON.parse(JSON.stringify({ works: editWorks, tabs: editTabs })), ...prev]);
     setWorksHistory(prev => prev.slice(0, prev.length - 1));
-    setEditWorks(previous);
-    toast.success("Portfolio work state reverted.");
+    setEditWorks(previous.works || []);
+    setEditTabs(previous.tabs || []);
+    toast.success("Portfolio layout state reverted.");
   };
 
   const triggerWorksRedo = () => {
     if (worksFuture.length === 0) return;
     const next = worksFuture[0];
-    setWorksHistory(prev => [...prev, JSON.parse(JSON.stringify(editWorks))]);
+    setWorksHistory(prev => [...prev, JSON.parse(JSON.stringify({ works: editWorks, tabs: editTabs }))]);
     setWorksFuture(prev => prev.slice(1));
-    setEditWorks(next);
-    toast.success("Portfolio work state re-applied.");
+    setEditWorks(next.works || []);
+    setEditTabs(next.tabs || []);
+    toast.success("Portfolio layout state re-applied.");
   };
 
   const recordPricingHistory = (pivotState = editPricing) => {
@@ -804,6 +1398,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setSaveStatus(prev => ({ ...prev, brand_logos: "saving" }));
     try {
       await updateBrandLogos(editLogos);
+      await updateMultipleSiteSettings(editSettings);
       setSaveStatus(prev => ({ ...prev, brand_logos: "saved" }));
       toast.success("Brand logos successfully synchronized!");
       setTimeout(() => setSaveStatus(prev => ({ ...prev, brand_logos: "idle" })), 3000);
@@ -917,6 +1512,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setSaveStatus(prev => ({ ...prev, navigation: "saving" }));
     toast.info("Applying navigation modifications to core index...");
     try {
+      // Synchronize site settings (like navbar_full_width) alongside menu links
+      await updateMultipleSiteSettings(editSettings);
       const success = await updateNavigationMenu(editMenu);
       if (success) {
         setSaveStatus(prev => ({ ...prev, navigation: "saved" }));
@@ -935,44 +1532,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // ----------------------------------------------------
   // TAB 3: PORTFOLIO WORKS STATE & HANDLERS
   // ----------------------------------------------------
-  const [editWorks, setEditWorks] = useState<VideoBlock[]>([...portfolioWorks]);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Portfolio explicit upload states
   const [selectedPortfolioFiles, setSelectedPortfolioFiles] = useState<{ [workId: string]: File | null }>({});
   const [isUploadingPortfolioId, setIsUploadingPortfolioId] = useState<string | null>(null);
-  const [isSuggestingTagsId, setIsSuggestingTagsId] = useState<string | null>(null);
 
-  const runSuggestTagsAI = async (work: VideoBlock) => {
-    setIsSuggestingTagsId(work.id);
-    try {
-      const res = await fetch("/api/gemini/suggest-tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: work.title,
-          category: work.category,
-          description: work.description
-        })
-      });
-      const data = await res.json();
-      if (data.tags && Array.isArray(data.tags)) {
-        recordWorksHistory();
-        const updated = editWorks.map(item => 
-          item.id === work.id ? { ...item, tags: data.tags } : item
-        );
-        setEditWorks(updated);
-        toast.success("AI suggested tags generated and applied!");
-      } else {
-        toast.error("Could not obtain AI tags suggestions.");
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(`AI integration error: ${e.message}`);
-    } finally {
-      setIsSuggestingTagsId(null);
-    }
-  };
 
   const handleWorkChange = (id: string, field: keyof VideoBlock, value: any) => {
     setEditWorks(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -1028,7 +1593,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   const addWorkItem = () => {
     recordWorksHistory();
-    if (portfolioSubTab === "image") {
+    const activeTabObj = editTabs.find(t => t.id === adminActiveTabId) || editTabs[0];
+    const isImageTab = activeTabObj?.tab_type === "image";
+    
+    if (isImageTab) {
       const newItem: VideoBlock = {
         id: generateUUID(),
         title: "New Static Work",
@@ -1043,7 +1611,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
         tags: ["Static Design", "Graphic Design"],
         type: "image",
         imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-        subtext: "Brand identity layout"
+        subtext: "Brand identity layout",
+        tab_id: adminActiveTabId || activeTabObj?.id || ""
       };
       setEditWorks(prev => [...prev, newItem]);
     } else {
@@ -1059,7 +1628,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
         ratio: "landscape",
         aspectRatioClass: "aspect-square md:col-span-1",
         tags: ["Fluid Simulation", "Neural Render"],
-        type: "video"
+        type: "video",
+        tab_id: adminActiveTabId || activeTabObj?.id || ""
       };
       setEditWorks(prev => [...prev, newItem]);
     }
@@ -1068,6 +1638,52 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const deleteWorkItem = (id: string) => {
     recordWorksHistory();
     setEditWorks(prev => prev.filter(item => item.id !== id));
+  };
+
+  const addPortfolioTab = (type: "video" | "image") => {
+    recordWorksHistory();
+    const newTab: PortfolioTab = {
+      id: generateUUID(),
+      tab_title: type === "video" ? "New Video Portfolio" : "New Static Image Portfolio",
+      tab_type: type,
+      page: adminPageScope,
+      display_order: editTabs.length + 1
+    };
+    setEditTabs(prev => [...prev, newTab]);
+    setAdminActiveTabId(newTab.id);
+    setShowAddTabModal(false);
+    toast.success(`New ${type} portfolio tab added!`);
+  };
+
+  const handleTabTitleChange = (id: string, newTitle: string) => {
+    recordWorksHistory();
+    setEditTabs(prev => prev.map(t => t.id === id ? { ...t, tab_title: newTitle } : t));
+  };
+
+  const deletePortfolioTab = (id: string) => {
+    recordWorksHistory();
+    setEditWorks(prev => prev.filter(w => w.tab_id !== id));
+    setEditTabs(prev => prev.filter(t => t.id !== id));
+    toast.success("Portfolio tab deleted.");
+  };
+
+  const moveTab = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= editTabs.length) return;
+
+    recordWorksHistory();
+    const updated = [...editTabs];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    
+    // Update display_order
+    updated.forEach((t, idx) => {
+      t.display_order = idx + 1;
+    });
+    
+    setEditTabs(updated);
+    toast.success("Portfolio tab order adjusted.");
   };
 
   const handleAIVideoSynthesis = async () => {
@@ -1149,6 +1765,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const commitSynthesizedVideo = () => {
     if (!synthesizedVideoUrl) return;
     recordWorksHistory();
+    const activeTabObj = editTabs.find(t => t.id === adminActiveTabId) || editTabs[0];
     const newItem: VideoBlock = {
       id: `work-ai-${Date.now()}`,
       title: "AI Synthesis: " + (videoPrompt.trim().slice(0, 18) || "Veo") + "...",
@@ -1160,7 +1777,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       duration: "0:05",
       ratio: videoAspect,
       aspectRatioClass: videoAspect === "landscape" ? "aspect-video md:col-span-2" : "aspect-square md:col-span-1",
-      tags: synthesizedTags.length > 0 ? synthesizedTags : ["Generative", "DeepMind", "Veo"]
+      tags: synthesizedTags.length > 0 ? synthesizedTags : ["Generative", "DeepMind", "Veo"],
+      tab_id: adminActiveTabId || activeTabObj?.id || ""
     };
     
     setEditWorks(prev => [newItem, ...prev]);
@@ -1171,10 +1789,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const moveWorkItem = (index: number, direction: "up" | "down") => {
-    const isImage = editWorks[index]?.type === "image";
+    const activeTabObj = editTabs.find(t => t.id === adminActiveTabId) || editTabs[0];
     const filteredIndices = editWorks
-      .map((w, idx) => ({ type: w.type, idx }))
-      .filter(item => isImage ? item.type === "image" : item.type !== "image")
+      .map((w, idx) => ({ ...w, idx }))
+      .filter((w) => {
+        if (w.tab_id) {
+          return w.tab_id === adminActiveTabId;
+        }
+        return w.type === (activeTabObj?.tab_type || "video");
+      })
       .map(item => item.idx);
 
     const filteredIndex = filteredIndices.indexOf(index);
@@ -1195,15 +1818,21 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   const saveWorks = async () => {
     setSaveStatus(prev => ({ ...prev, portfolio: "saving" }));
-    toast.info("Re-indexing portfolio works in backend storage...");
+    toast.info("Re-indexing portfolio works and tabs in backend storage...");
     try {
       if (editSettings.portfolio_license_button_text !== siteSettings.portfolio_license_button_text) {
         await updateSiteSetting("portfolio_license_button_text", editSettings.portfolio_license_button_text || "Acquire License");
       }
+      
+      // Save dynamic tabs
+      const tabsSuccess = await updatePortfolioTabs(editTabs);
+      if (!tabsSuccess) throw new Error("Failed to save portfolio tabs");
+
+      // Save works
       const success = await updatePortfolioWorks(editWorks);
       if (success) {
         setSaveStatus(prev => ({ ...prev, portfolio: "saved" }));
-        toast.success("Portfolio works successfully re-indexed!");
+        toast.success("Portfolio layout and tabs successfully updated!");
         setTimeout(() => setSaveStatus(prev => ({ ...prev, portfolio: "idle" })), 3000);
       } else {
         setSaveStatus(prev => ({ ...prev, portfolio: "error" }));
@@ -1211,17 +1840,28 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       }
     } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, portfolio: "error" }));
-      toast.error(`Failed to re-index portfolio works: ${err?.message || "Unknown error"}`);
+      toast.error(`Failed to update portfolio layout: ${err?.message || "Unknown error"}`);
     }
   };
 
   // ----------------------------------------------------
   // TAB 4: PRICING TIERS STATE & HANDLERS
   // ----------------------------------------------------
-  const [editPricing, setEditPricing] = useState<PricingTier[]>([...pricingTiers]);
-
   const handlePricingChange = (id: string, field: keyof PricingTier, value: any) => {
     setEditPricing(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const movePricingItem = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= editPricing.length) return;
+
+    recordPricingHistory();
+    const updated = [...editPricing];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setEditPricing(updated);
+    toast.success("Pricing package order adjusted.");
   };
 
   const handleFeaturesChange = (id: string, index: number, value: string) => {
@@ -1255,17 +1895,73 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     }));
   };
 
+  const handleMilestonesChange = (id: string, index: number, field: "label" | "discount", value: any) => {
+    setEditPricing(prev => prev.map(item => {
+      if (item.id === id) {
+        const milestones = [...(item.slider_milestones || [])];
+        milestones[index] = { ...milestones[index], [field]: value };
+        return { ...item, slider_milestones: milestones };
+      }
+      return item;
+    }));
+  };
+
+  const addMilestone = (id: string) => {
+    recordPricingHistory();
+    setEditPricing(prev => prev.map(item => {
+      if (item.id === id) {
+        const milestones = [...(item.slider_milestones || [])];
+        return { ...item, slider_milestones: [...milestones, { label: "New Milestone", discount: 0 }] };
+      }
+      return item;
+    }));
+  };
+
+  const deleteMilestone = (id: string, index: number) => {
+    recordPricingHistory();
+    setEditPricing(prev => prev.map(item => {
+      if (item.id === id) {
+        const milestones = (item.slider_milestones || []).filter((_, idx) => idx !== index);
+        return { ...item, slider_milestones: milestones };
+      }
+      return item;
+    }));
+  };
+
   const savePricing = async () => {
     setSaveStatus(prev => ({ ...prev, pricing: "saving" }));
-    toast.info("Updating production tier packages on persistence server...");
+    toast.info("Updating production tier packages and discount badge settings...");
     try {
+      const discountSettingsToSave: Record<string, string> = {};
+      const discountKeys = [
+        "discount_badge_gradient_start",
+        "discount_badge_gradient_end",
+        "discount_badge_text_color",
+        "discount_badge_gradient_enabled",
+        "pricing_spotlight_text",
+        "page2_pricing_spotlight_text",
+        "pricing_title_size",
+        "page2_pricing_title_size",
+        "pricing_title",
+        "page2_pricing_title"
+      ];
+      discountKeys.forEach(key => {
+        if (editSettings[key] !== siteSettings[key]) {
+          discountSettingsToSave[key] = editSettings[key] || "";
+        }
+      });
+
+      if (Object.keys(discountSettingsToSave).length > 0) {
+        await updateMultipleSiteSettings(discountSettingsToSave);
+      }
+
       if (editSettings.pricing_note_text !== siteSettings.pricing_note_text) {
         await updateSiteSetting("pricing_note_text", editSettings.pricing_note_text || "");
       }
       const success = await updatePricingTiers(editPricing);
       if (success) {
         setSaveStatus(prev => ({ ...prev, pricing: "saved" }));
-        toast.success("Production tier packages successfully synchronized!");
+        toast.success("Production tiers and discount configurations synchronized!");
         setTimeout(() => setSaveStatus(prev => ({ ...prev, pricing: "idle" })), 3000);
       } else {
         setSaveStatus(prev => ({ ...prev, pricing: "error" }));
@@ -1273,7 +1969,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       }
     } catch (err: any) {
       setSaveStatus(prev => ({ ...prev, pricing: "error" }));
-      toast.error(`Failed to update pricing package rates: ${err?.message || "Unknown error"}`);
+      toast.error(`Failed to update pricing packages: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -1368,6 +2064,39 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             <p className="text-gray-400 text-sm font-light mt-1.5">
               Manage database settings, menu anchors, motion artifacts, and production price tiers.
             </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
+              <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">Active Workspace Scope:</span>
+              <div className="flex items-center gap-1 bg-black/40 border border-white/5 rounded-full p-1 shadow-inner">
+                <button
+                  onClick={() => {
+                    setAdminPageScope("ai");
+                    setActivePage("ai");
+                    toast.success("Switched editing scope to AI Production page.");
+                  }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+                    adminPageScope === "ai"
+                      ? "bg-[#ffea00] text-black"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  AI Production (Page 1)
+                </button>
+                <button
+                  onClick={() => {
+                    setAdminPageScope("live");
+                    setActivePage("live");
+                    toast.success("Switched editing scope to Live-action Production page.");
+                  }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+                    adminPageScope === "live"
+                      ? "bg-[#ffea00] text-black"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Live-action (Page 2)
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -1530,6 +2259,36 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <MessageSquare className="w-4 h-4" /> Testimonials Manager
             </button>
 
+            <button
+              onClick={() => setActiveTab("live_chats")}
+              className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-medium transition-all ${
+                activeTab === "live_chats"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <BrainCircuit className="w-4 h-4" />
+                <span>Live Chats Console</span>
+              </div>
+              {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0) > 0 && (
+                <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded-full animate-pulse">
+                  {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0)}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("chat_settings")}
+              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
+                activeTab === "chat_settings"
+                  ? "bg-white text-black font-semibold"
+                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
+              }`}
+            >
+              <Sliders className="w-4 h-4" /> Chat Widget Config
+            </button>
+
             {/* QUICK SCHEMA INST INSTRUCTIONS */}
             <div className="pt-6 mt-6 border-t border-white/5">
               <div className="glass-panel p-4 rounded-2xl text-xs space-y-2.5">
@@ -1589,244 +2348,571 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onFocusCapture={() => recordSettingsHistory()}>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Video Background Source (Looping)</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_video_bg_url}
-                        onChange={(e) => handleSettingChange("hero_video_bg_url", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
+                    {adminPageScope === "live" ? (
+                      <>
+                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2">
+                          <h4 className="text-sm font-semibold text-pink-500 font-display">Live-Action Viewport Background Settings</h4>
+                        </div>
+                        
+                        <div className="md:col-span-2 space-y-3">
+                          <label className="block text-xs font-mono uppercase text-gray-500">Hero Video/Image Source URL</label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Custom Media URL</label>
+                              <input
+                                type="text"
+                                value={getSettingValueScoped("hero_video_bg_url")}
+                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Choose from Assets Library</label>
+                              <select
+                                value={getSettingValueScoped("hero_video_bg_url") || ""}
+                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500/40"
+                              >
+                                <option value="">-- Apply an Asset --</option>
+                                {mediaAssets.map((asset) => (
+                                  <option key={asset.id} value={asset.url}>
+                                    {asset.name} ({asset.type})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Micro Badge Text</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_badge_text}
-                        onChange={(e) => handleSettingChange("hero_badge_text", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Footer Copyright Text</label>
-                      <input
-                        type="text"
-                        value={editSettings.footer_copyright}
-                        onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 1</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_title_1}
-                        onChange={(e) => handleSettingChange("hero_title_1", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 2 (Serif)</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_title_2}
-                        onChange={(e) => handleSettingChange("hero_title_2", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 3</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_title_3}
-                        onChange={(e) => handleSettingChange("hero_title_3", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Label</label>
-                      <input
-                        type="text"
-                        value={editSettings.hero_cta_booking_text}
-                        onChange={(e) => handleSettingChange("hero_cta_booking_text", e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Color (HEX)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={editSettings.hero_cta_booking_color || ""}
-                          onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
-                          placeholder="e.g. #ffea00"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                        />
-                        <input
-                          type="color"
-                          value={editSettings.hero_cta_booking_color && editSettings.hero_cta_booking_color.startsWith('#') && editSettings.hero_cta_booking_color.length === 7 ? editSettings.hero_cta_booking_color : "#ffea00"}
-                          onChange={(e) => handleSettingChange("hero_cta_booking_color", e.target.value)}
-                          className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Text Color (HEX)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={editSettings.hero_cta_booking_text_color || ""}
-                          onChange={(e) => handleSettingChange("hero_cta_booking_text_color", e.target.value)}
-                          placeholder="e.g. #FFFFFF"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                        />
-                        <input
-                          type="color"
-                          value={editSettings.hero_cta_booking_text_color && editSettings.hero_cta_booking_text_color.startsWith('#') && editSettings.hero_cta_booking_text_color.length === 7 ? editSettings.hero_cta_booking_text_color : "#FFFFFF"}
-                          onChange={(e) => handleSettingChange("hero_cta_booking_text_color", e.target.value)}
-                          className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
-                      <textarea
-                        value={editSettings.hero_description}
-                        onChange={(e) => handleSettingChange("hero_description", e.target.value)}
-                        rows={4}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 resize-none"
-                      />
-                    </div>
-
-                    {/* Stats */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2 grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 1 Value</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat1_value}
-                          onChange={(e) => handleSettingChange("hero_stat1_value", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                        <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat1_label}
-                          onChange={(e) => handleSettingChange("hero_stat1_label", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 2 Value</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat2_value}
-                          onChange={(e) => handleSettingChange("hero_stat2_value", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                        <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat2_label}
-                          onChange={(e) => handleSettingChange("hero_stat2_label", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 3 Value</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat3_value}
-                          onChange={(e) => handleSettingChange("hero_stat3_value", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                        <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                        <input
-                          type="text"
-                          value={editSettings.hero_stat3_label}
-                          onChange={(e) => handleSettingChange("hero_stat3_label", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
-                    </div>
-
-                    {/* HERO SPACING & LAYOUT CONTROLS */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <h3 className="text-sm font-semibold text-[#ffea00] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top (e.g. 2rem, 40px)</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Dark Overlay Opacity (0.0 to 1.0)</label>
                           <input
                             type="text"
-                            value={editSettings.hero_padding_top || ""}
-                            onChange={(e) => handleSettingChange("hero_padding_top", e.target.value)}
-                            placeholder="default (e.g. 8rem)"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_bg_overlay", "0.4")}
+                            onChange={(e) => handleSettingChangeScoped("hero_bg_overlay", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Bottom (e.g. 2rem)</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Cinematic Blur Effect</label>
+                          <select
+                            value={getSettingValueScoped("hero_bg_blur", "none")}
+                            onChange={(e) => handleSettingChangeScoped("hero_bg_blur", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                          >
+                            <option value="none">No Blur (Default)</option>
+                            <option value="sm">Subtle Blur (sm)</option>
+                            <option value="md">Medium Blur (md)</option>
+                            <option value="lg">Heavy Blur (lg)</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2 mt-4">
+                          <h4 className="text-sm font-semibold text-pink-500 font-display">Hero Typography & Alignment Settings</h4>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Micro Badge Text</label>
                           <input
                             type="text"
-                            value={editSettings.hero_padding_bottom || ""}
-                            onChange={(e) => handleSettingChange("hero_padding_bottom", e.target.value)}
-                            placeholder="default (e.g. 8rem)"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_badge_text")}
+                            onChange={(e) => handleSettingChangeScoped("hero_badge_text", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Top (e.g. 10px, 0px)</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Text Alignment Position</label>
+                          <select
+                            value={getSettingValueScoped("hero_text_align", "left")}
+                            onChange={(e) => handleSettingChangeScoped("hero_text_align", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                          >
+                            <option value="left">Left Aligned (Mockup)</option>
+                            <option value="center">Centered</option>
+                            <option value="right">Right Aligned</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 1</label>
                           <input
                             type="text"
-                            value={editSettings.hero_margin_top || ""}
-                            onChange={(e) => handleSettingChange("hero_margin_top", e.target.value)}
-                            placeholder="default"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_title_1")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_1", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Bottom (e.g. 10px)</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Size (CSS clamp or px)</label>
                           <input
                             type="text"
-                            value={editSettings.hero_margin_bottom || ""}
-                            onChange={(e) => handleSettingChange("hero_margin_bottom", e.target.value)}
-                            placeholder="default"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_title_size", "clamp(1.65rem, 5vw, 3rem)")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_size", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Width</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 2 (Serif/Middle)</label>
                           <input
                             type="text"
-                            value={editSettings.hero_text_width || ""}
-                            onChange={(e) => handleSettingChange("hero_text_width", e.target.value)}
-                            placeholder="e.g. 7xl or 800px"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_title_2")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_2", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Height</label>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Color - Lines 1 & 3 (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_title_color", "#ffffff")}
+                              onChange={(e) => handleSettingChangeScoped("hero_title_color", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_title_color").startsWith('#') && getSettingValueScoped("hero_title_color").length === 7 ? getSettingValueScoped("hero_title_color") : "#ffffff"}
+                              onChange={(e) => handleSettingChangeScoped("hero_title_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 3</label>
                           <input
                             type="text"
-                            value={editSettings.hero_text_height || ""}
-                            onChange={(e) => handleSettingChange("hero_text_height", e.target.value)}
-                            placeholder="e.g. auto"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            value={getSettingValueScoped("hero_title_3")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_3", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
                           />
                         </div>
-                      </div>
-                    </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Color - Line 2 (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_title_color_line2", "#ffffff")}
+                              onChange={(e) => handleSettingChangeScoped("hero_title_color_line2", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_title_color_line2").startsWith('#') && getSettingValueScoped("hero_title_color_line2").length === 7 ? getSettingValueScoped("hero_title_color_line2") : "#ffffff"}
+                              onChange={(e) => handleSettingChangeScoped("hero_title_color_line2", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
+                          <textarea
+                            value={getSettingValueScoped("hero_description")}
+                            onChange={(e) => handleSettingChangeScoped("hero_description", e.target.value)}
+                            rows={3}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Subtitle Font Size (CSS clamp or px)</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_subtitle_size", "clamp(0.9rem, 2.5vw, 1.1rem)")}
+                            onChange={(e) => handleSettingChangeScoped("hero_subtitle_size", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Subtitle Text Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_subtitle_color", "#ffffff")}
+                              onChange={(e) => handleSettingChangeScoped("hero_subtitle_color", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_subtitle_color").startsWith('#') && getSettingValueScoped("hero_subtitle_color").length === 7 ? getSettingValueScoped("hero_subtitle_color") : "#ffffff"}
+                              onChange={(e) => handleSettingChangeScoped("hero_subtitle_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Padding Top Spacing</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_padding_top", "clamp(40px, 8vw, 72px)")}
+                            onChange={(e) => handleSettingChangeScoped("hero_padding_top", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Text Column Max Width</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_max_width", "560px")}
+                            onChange={(e) => handleSettingChangeScoped("hero_max_width", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2 mt-4">
+                          <h4 className="text-sm font-semibold text-pink-500 font-display">Hero CTA Button Settings</h4>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Label Text</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_cta_text", "Get It Free")}
+                            onChange={(e) => handleSettingChangeScoped("hero_cta_text", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Background Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_cta_bg", "#7342E2")}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_bg", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_cta_bg").startsWith('#') && getSettingValueScoped("hero_cta_bg").length === 7 ? getSettingValueScoped("hero_cta_bg") : "#7342e2"}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_bg", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Text Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_cta_color", "#ffffff")}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_color", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_cta_color").startsWith('#') && getSettingValueScoped("hero_cta_color").length === 7 ? getSettingValueScoped("hero_cta_color") : "#ffffff"}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Text Size</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_cta_size", "clamp(0.9rem, 2vw, 1rem)")}
+                            onChange={(e) => handleSettingChangeScoped("hero_cta_size", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Glow (true/false)</label>
+                          <select
+                            value={getSettingValueScoped("hero_cta_glow", "true")}
+                            onChange={(e) => handleSettingChangeScoped("hero_cta_glow", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                          >
+                            <option value="true">Glow Enabled</option>
+                            <option value="false">Glow Disabled</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Glow Shadow Color (RGBA)</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_cta_glow_color", "rgba(115,66,226,0.28)")}
+                            onChange={(e) => handleSettingChangeScoped("hero_cta_glow_color", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="md:col-span-2 space-y-3">
+                          <label className="block text-xs font-mono uppercase text-gray-500">Hero Video Background Source (Looping)</label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Custom Media URL</label>
+                              <input
+                                type="text"
+                                value={getSettingValueScoped("hero_video_bg_url")}
+                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Choose from Assets Library</label>
+                              <select
+                                value={getSettingValueScoped("hero_video_bg_url") || ""}
+                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                              >
+                                <option value="">-- Apply an Asset --</option>
+                                {mediaAssets.map((asset) => (
+                                  <option key={asset.id} value={asset.url}>
+                                    {asset.name} ({asset.type})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Micro Badge Text</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_badge_text")}
+                            onChange={(e) => handleSettingChangeScoped("hero_badge_text", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Footer Copyright Text</label>
+                          <input
+                            type="text"
+                            value={editSettings.footer_copyright}
+                            onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 1</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_title_1")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_1", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 2 (Serif)</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_title_2")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_2", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 3</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_title_3")}
+                            onChange={(e) => handleSettingChangeScoped("hero_title_3", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Label</label>
+                          <input
+                            type="text"
+                            value={getSettingValueScoped("hero_cta_booking_text")}
+                            onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_cta_booking_color")}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_color", e.target.value)}
+                              placeholder="e.g. #ffea00"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_cta_booking_color") && getSettingValueScoped("hero_cta_booking_color").startsWith('#') && getSettingValueScoped("hero_cta_booking_color").length === 7 ? getSettingValueScoped("hero_cta_booking_color") : "#ffea00"}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Text Color (HEX)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_cta_booking_text_color")}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text_color", e.target.value)}
+                              placeholder="e.g. #FFFFFF"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            />
+                            <input
+                              type="color"
+                              value={getSettingValueScoped("hero_cta_booking_text_color") && getSettingValueScoped("hero_cta_booking_text_color").startsWith('#') && getSettingValueScoped("hero_cta_booking_text_color").length === 7 ? getSettingValueScoped("hero_cta_booking_text_color") : "#FFFFFF"}
+                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text_color", e.target.value)}
+                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
+                          <textarea
+                            value={getSettingValueScoped("hero_description")}
+                            onChange={(e) => handleSettingChangeScoped("hero_description", e.target.value)}
+                            rows={4}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 resize-none"
+                          />
+                        </div>
+
+                        {/* Stats */}
+                        <div className="border-t border-white/5 pt-6 md:col-span-2 grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 1 Value</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat1_value")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat1_value", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat1_label")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat1_label", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 2 Value</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat2_value")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat2_value", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat2_label")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat2_label", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 3 Value</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat3_value")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat3_value", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("hero_stat3_label")}
+                              onChange={(e) => handleSettingChangeScoped("hero_stat3_label", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* HERO SPACING & LAYOUT CONTROLS */}
+                        <div className="border-t border-white/5 pt-6 md:col-span-2">
+                          <h3 className="text-sm font-semibold text-[#ffea00] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_padding_top || ""}
+                                onChange={(e) => handleSettingChange("hero_padding_top", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Bottom</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_padding_bottom || ""}
+                                onChange={(e) => handleSettingChange("hero_padding_bottom", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Top</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_margin_top || ""}
+                                onChange={(e) => handleSettingChange("hero_margin_top", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Bottom</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_margin_bottom || ""}
+                                onChange={(e) => handleSettingChange("hero_margin_bottom", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Width</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_text_width || ""}
+                                onChange={(e) => handleSettingChange("hero_text_width", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Height</label>
+                              <input
+                                type="text"
+                                value={editSettings.hero_text_height || ""}
+                                onChange={(e) => handleSettingChange("hero_text_height", e.target.value)}
+                                placeholder="default"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {/* BRAND / PARAMS: NAVIGATION LOGO STYLING */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
@@ -1969,88 +3055,270 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
-                    {/* DISCOUNT BADGE CONTROLS */}
+                    {/* GLOBAL NAVIGATION BAR SIZING */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <div className="flex items-center gap-2 mb-3">
                         <Sliders className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Discount Badge Color & Gradient Configuration</h3>
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Global Navigation Bar Sizing</h3>
                       </div>
                       <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
-                        Customize the visual aesthetics of the pricing discount ribbon badges. Adjust gradient colors, text colors, and choose whether to apply a gradient or a solid color.
+                        Configure the design spacing of the main navigation bar. Toggling full-width stretches the header to screen boundaries, disabling borders and pill-style roundings for a modern cinematic borderless look.
                       </p>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient Start / Solid Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={editSettings.discount_badge_gradient_start || "#10ac84"}
-                              onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
-                              placeholder="#10ac84"
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={editSettings.discount_badge_gradient_start && editSettings.discount_badge_gradient_start.startsWith('#') && editSettings.discount_badge_gradient_start.length === 7 ? editSettings.discount_badge_gradient_start : "#10ac84"}
-                              onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient End Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={editSettings.discount_badge_gradient_end || "#01a3a4"}
-                              onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
-                              placeholder="#01a3a4"
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={editSettings.discount_badge_gradient_end && editSettings.discount_badge_gradient_end.startsWith('#') && editSettings.discount_badge_gradient_end.length === 7 ? editSettings.discount_badge_gradient_end : "#01a3a4"}
-                              onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Badge Text Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={editSettings.discount_badge_text_color || "#ffffff"}
-                              onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
-                              placeholder="#ffffff"
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={editSettings.discount_badge_text_color && editSettings.discount_badge_text_color.startsWith('#') && editSettings.discount_badge_text_color.length === 7 ? editSettings.discount_badge_text_color : "#ffffff"}
-                              onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center gap-3">
-                        <label className="text-xs font-mono text-gray-400 uppercase flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={editSettings.discount_badge_gradient_enabled !== "false"}
-                            onChange={(e) => handleSettingChange("discount_badge_gradient_enabled", e.target.checked ? "true" : "false")}
-                            className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
-                          />
-                          Enable Gradient Fill
-                        </label>
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSettingChangeScoped("navbar_full_width", "false");
+                            toast.info(`Switched ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation to Compact Floating Capsule.`);
+                          }}
+                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                            (getSettingValueScoped("navbar_full_width") !== "true")
+                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          Compact Floating Capsule (Default)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSettingChangeScoped("navbar_full_width", "true");
+                            toast.info(`Switched ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation to Cinematic Full Width.`);
+                          }}
+                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                            (getSettingValueScoped("navbar_full_width") === "true")
+                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          Cinematic Full Width (Edge-to-Edge)
+                        </button>
                       </div>
                     </div>
 
+                    {/* BACKGROUND GRADIENT TINT SETTINGS */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Palette className="w-4 h-4 text-[#ffea00]" />
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Background Gradient Tint Customization</h3>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                        Customize the background ambient gradient tints for the AI Production page and the Live Action page.
+                      </p>
+                      
+                      <div className="space-y-6">
+                        {/* AI Production Page Gradients */}
+                        <div>
+                          <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase mb-3">AI Production Page (Page 1) Tints</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 1 (Default: #7e22ce)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.bg_gradient_color_1 || "#7e22ce"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_1", e.target.value)}
+                                  placeholder="#7e22ce"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.bg_gradient_color_1 && editSettings.bg_gradient_color_1.startsWith('#') && editSettings.bg_gradient_color_1.length === 7 ? editSettings.bg_gradient_color_1 : "#7e22ce"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_1", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 2 (Default: #3b82f6)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.bg_gradient_color_2 || "#3b82f6"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_2", e.target.value)}
+                                  placeholder="#3b82f6"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.bg_gradient_color_2 && editSettings.bg_gradient_color_2.startsWith('#') && editSettings.bg_gradient_color_2.length === 7 ? editSettings.bg_gradient_color_2 : "#3b82f6"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_2", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 3 (Default: #000000)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.bg_gradient_color_3 || "#000000"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_3", e.target.value)}
+                                  placeholder="#000000"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.bg_gradient_color_3 && editSettings.bg_gradient_color_3.startsWith('#') && editSettings.bg_gradient_color_3.length === 7 ? editSettings.bg_gradient_color_3 : "#000000"}
+                                  onChange={(e) => handleSettingChange("bg_gradient_color_3", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Live Action Page Gradients */}
+                        <div>
+                          <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase mb-3">Live Action Page (Page 2) Tints</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 1 (Default: #b91c1c)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.page2_bg_gradient_color_1 || "#b91c1c"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_1", e.target.value)}
+                                  placeholder="#b91c1c"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.page2_bg_gradient_color_1 && editSettings.page2_bg_gradient_color_1.startsWith('#') && editSettings.page2_bg_gradient_color_1.length === 7 ? editSettings.page2_bg_gradient_color_1 : "#b91c1c"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_1", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 2 (Default: #d97706)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.page2_bg_gradient_color_2 || "#d97706"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_2", e.target.value)}
+                                  placeholder="#d97706"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.page2_bg_gradient_color_2 && editSettings.page2_bg_gradient_color_2.startsWith('#') && editSettings.page2_bg_gradient_color_2.length === 7 ? editSettings.page2_bg_gradient_color_2 : "#d97706"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_2", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 3 (Default: #000000)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editSettings.page2_bg_gradient_color_3 || "#000000"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_3", e.target.value)}
+                                  placeholder="#000000"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                />
+                                <input
+                                  type="color"
+                                  value={editSettings.page2_bg_gradient_color_3 && editSettings.page2_bg_gradient_color_3.startsWith('#') && editSettings.page2_bg_gradient_color_3.length === 7 ? editSettings.page2_bg_gradient_color_3 : "#000000"}
+                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_3", e.target.value)}
+                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TYPOGRAPHY & FONT CUSTOMIZATION */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Type className="w-4 h-4 text-[#ffea00]" />
+                        <h3 className="text-sm font-semibold text-gray-300 font-display">Typography & Font Customization</h3>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                        Configure font selection, text size, and bold toggle globally across the website. Standard web-safe fallback configurations are applied automatically.
+                      </p>
+
+                      <div className="space-y-6">
+                        {[
+                          { key: "headings", label: "Global Headings (h1, h2, h3, h4, h5, h6)" },
+                          { key: "paragraph", label: "Paragraphs & Body Text (p, span, li, a)" },
+                          { key: "h1", label: "H1 Element Overrides" },
+                          { key: "h2", label: "H2 Element Overrides" },
+                          { key: "h3", label: "H3 Element Overrides" },
+                          { key: "h4", label: "H4 Element Overrides" },
+                          { key: "h5", label: "H5 Element Overrides" },
+                          { key: "h6", label: "H6 Element Overrides" }
+                        ].map((elem) => {
+                          const fontVal = editSettings[`font_${elem.key}_family`] || "Default Theme Font";
+                          const sizeVal = editSettings[`font_${elem.key}_size`] || "";
+                          const boldVal = editSettings[`font_${elem.key}_bold`] === "true";
+
+                          return (
+                            <div key={elem.key} className="bg-black/20 border border-white/[0.03] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                              <div>
+                                <label className="block text-[11px] font-mono uppercase text-gray-400 mb-1">{elem.label}</label>
+                                <span className="text-[10px] text-gray-500 font-mono">Select active family</span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:col-span-2">
+                                <div>
+                                  <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Font Family</label>
+                                  <select
+                                    value={fontVal}
+                                    onChange={(e) => handleSettingChange(`font_${elem.key}_family`, e.target.value)}
+                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                                  >
+                                    {[
+                                      "Default Theme Font",
+                                      "Outfit",
+                                      "Plus Jakarta Sans",
+                                      "DM Sans",
+                                      "Lexend",
+                                      "Urbanist",
+                                      "Lexend Deca",
+                                      "Krona One",
+                                      "Cal Sans",
+                                      "Google Sans",
+                                      "Anton SC",
+                                      "Poppins"
+                                    ].map((font) => (
+                                      <option key={font} value={font}>
+                                        {font}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex gap-4 items-end">
+                                  <div className="flex-1">
+                                    <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Font Size (e.g. 2rem, 28px)</label>
+                                    <input
+                                      type="text"
+                                      value={sizeVal}
+                                      onChange={(e) => handleSettingChange(`font_${elem.key}_size`, e.target.value)}
+                                      placeholder="Default size"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                    />
+                                  </div>
+                                  <div className="flex items-center pb-2">
+                                    <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={boldVal}
+                                        onChange={(e) => handleSettingChange(`font_${elem.key}_bold`, e.target.checked ? "true" : "false")}
+                                        className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                                      />
+                                      Bold
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                   </div>
                 </div>
@@ -2183,6 +3451,49 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     ))}
                   </div>
 
+                  {/* NAVIGATION BAR WIDTH CONFIGURATION */}
+                  <div className="border-t border-white/5 pt-6 mt-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <h3 className="text-sm font-semibold text-gray-300 font-display">
+                        Navigation Bar Width Mode ({adminPageScope === "live" ? "Live Action" : "AI Production"})
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                      Configure whether the navigation bar is shown as a floating capsule in the middle of the screen or stretches edge-to-edge as a full-width cinematic bar.
+                    </p>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSettingChangeScoped("navbar_full_width", "false");
+                          toast.info(`Set ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation bar mode to Compact Floating Capsule. Press 'Synchronize menu' to save.`);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                          (getSettingValueScoped("navbar_full_width") !== "true")
+                            ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                            : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        Compact Floating Capsule
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSettingChangeScoped("navbar_full_width", "true");
+                          toast.info(`Set ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation bar mode to Cinematic Full Width. Press 'Synchronize menu' to save.`);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                          (getSettingValueScoped("navbar_full_width") === "true")
+                            ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                            : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        Cinematic Full-Width
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -2234,29 +3545,105 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  <div className="flex gap-2 p-1 bg-black/40 border border-white/5 rounded-xl w-fit mb-6">
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioSubTab("video")}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
-                        portfolioSubTab === "video"
-                          ? "bg-white text-black shadow-lg"
-                          : "text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      Motion Portfolio (Videos)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioSubTab("image")}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
-                        portfolioSubTab === "image"
-                          ? "bg-white text-black shadow-lg"
-                          : "text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      Static Portfolio (Images)
-                    </button>
+                  {/* Dynamic Tabs Manager Section */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-4 md:p-6 mb-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-white font-display">Manage Portfolio Tabs</h4>
+                        <p className="text-xs text-gray-500">Add, rename, reorder, or delete your portfolio tabs.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddTabModal(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ffea00] hover:bg-[#ffcc00] text-black rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" /> Add New Tab
+                      </button>
+                    </div>
+
+                    {/* Tabs list */}
+                    <div className="space-y-3">
+                      {editTabs.map((tab, idx) => (
+                        <div 
+                          key={tab.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/40 border border-white/5 rounded-xl p-3"
+                        >
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <span className="text-xs font-mono text-gray-600 bg-white/5 border border-white/10 w-6 h-6 rounded-full flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <div className="flex flex-col gap-1 w-full sm:w-64">
+                              <input
+                                type="text"
+                                value={tab.tab_title}
+                                onChange={(e) => handleTabTitleChange(tab.id, e.target.value)}
+                                className="bg-black/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#ffea00]/50"
+                                placeholder="Tab Title"
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border border-white/5 bg-white/5 text-gray-400">
+                              {tab.tab_type}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            {/* Move Up */}
+                            <button
+                              type="button"
+                              onClick={() => moveTab(idx, "up")}
+                              disabled={idx === 0}
+                              className="p-1.5 rounded bg-white/5 text-gray-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Move Down */}
+                            <button
+                              type="button"
+                              onClick={() => moveTab(idx, "down")}
+                              disabled={idx === editTabs.length - 1}
+                              className="p-1.5 rounded bg-white/5 text-gray-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => deletePortfolioTab(tab.id)}
+                              className="p-1.5 rounded bg-red-950/20 text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-900/35 transition-all cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {editTabs.length === 0 && (
+                        <div className="text-center py-6 text-xs text-gray-500 font-mono">
+                          No portfolio tabs defined. Click "Add New Tab" to create one.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Selected Editing Tab Selector */}
+                  <div className="space-y-2 mb-6">
+                    <span className="text-xs text-gray-400 font-mono uppercase tracking-wider block">Editing Works Under Tab:</span>
+                    <div className="flex flex-wrap gap-2 p-1 bg-black/40 border border-white/5 rounded-xl w-fit">
+                      {editTabs.map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setAdminActiveTabId(tab.id)}
+                          className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
+                            adminActiveTabId === tab.id
+                              ? "bg-white text-black shadow-lg"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {tab.tab_title} ({tab.tab_type})
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Licensing CTA config panel */}
@@ -2295,7 +3682,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   >
                     {editWorks
                       .map((work, idx) => ({ work, idx }))
-                      .filter(({ work }) => portfolioSubTab === "image" ? work.type === "image" : work.type !== "image")
+                      .filter(({ work }) => {
+                        const activeTabObj = editTabs.find(t => t.id === adminActiveTabId) || editTabs[0];
+                        if (work.tab_id) {
+                          return work.tab_id === adminActiveTabId;
+                        }
+                        return work.type === (activeTabObj?.tab_type || "video");
+                      })
                       .map(({ work, idx: index }, filteredIndex, filteredArray) => {
                         const isImage = work.type === "image";
                         return (
@@ -2386,22 +3779,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <div className="md:col-span-2">
                                 <div className="flex items-center justify-between mb-1">
                                   <label className="block text-[10px] font-mono uppercase text-gray-500">Tags (Comma Separated)</label>
-                                  <button
-                                    type="button"
-                                    disabled={isSuggestingTagsId === work.id}
-                                    onClick={() => runSuggestTagsAI(work)}
-                                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-[#ffea00] hover:text-white hover:border-purple-500 text-[9px] font-mono transition-all uppercase cursor-pointer disabled:opacity-40 animate-pulse"
-                                  >
-                                    {isSuggestingTagsId === work.id ? (
-                                      <>
-                                        <Sparkles className="w-3 h-3 animate-spin text-[#ffea00]" /> Auto suggesting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <BrainCircuit className="w-3 h-3 text-purple-400" /> AI Tag Generator
-                                      </>
-                                    )}
-                                  </button>
                                 </div>
                                 <input
                                   type="text"
@@ -2614,6 +3991,54 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       })}
                   </div>
 
+                  {/* Custom Tab Type Selection Modal */}
+                  {showAddTabModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+                      <div className="bg-[#0b0b0e] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+                        <h4 className="font-display font-medium text-lg text-white mb-2">Create New Portfolio Tab</h4>
+                        <p className="text-xs text-gray-400 mb-6">
+                          Select the layout format for this tab. Video tabs render the fluid accordion player, and Static Image tabs render layout creatives.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <button
+                            type="button"
+                            onClick={() => addPortfolioTab("video")}
+                            className="flex flex-col items-center gap-3 p-5 rounded-xl border border-white/5 bg-black/40 hover:bg-white/5 hover:border-white/10 text-center transition-all group cursor-pointer"
+                          >
+                            <Video className="w-8 h-8 text-accent group-hover:scale-110 transition-transform" />
+                            <div>
+                              <span className="block text-xs font-semibold text-white">Video Portfolio</span>
+                              <span className="block text-[10px] text-gray-500 mt-1">Accordion fluid player</span>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => addPortfolioTab("image")}
+                            className="flex flex-col items-center gap-3 p-5 rounded-xl border border-white/5 bg-black/40 hover:bg-white/5 hover:border-white/10 text-center transition-all group cursor-pointer"
+                          >
+                            <Image className="w-8 h-8 text-accent group-hover:scale-110 transition-transform" />
+                            <div>
+                              <span className="block text-xs font-semibold text-white">Static Image Portfolio</span>
+                              <span className="block text-[10px] text-gray-500 mt-1">Image showcase grid</span>
+                            </div>
+                          </button>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddTabModal(false)}
+                            className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white cursor-pointer transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
 
@@ -2657,24 +4082,242 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </button>
                   </div>
 
+                  {/* DISCOUNT BADGE CONTROLS */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-3">
+                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <h3 className="text-sm font-semibold text-gray-300 font-display">Discount Badge Color & Gradient Configuration</h3>
+                    </div>
+                    <p className="text-xs text-gray-400 max-w-2xl leading-relaxed font-light">
+                      Customize the visual aesthetics of the pricing discount ribbon badges. Adjust gradient colors, text colors, and choose whether to apply a gradient or a solid color. Note: these settings are saved when you click "Sync Pricing" above.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient Start / Solid Color (HEX)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editSettings.discount_badge_gradient_start || "#10ac84"}
+                            onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
+                            placeholder="#10ac84"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                          <input
+                            type="color"
+                            value={editSettings.discount_badge_gradient_start && editSettings.discount_badge_gradient_start.startsWith('#') && editSettings.discount_badge_gradient_start.length === 7 ? editSettings.discount_badge_gradient_start : "#10ac84"}
+                            onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
+                            className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Gradient End Color (HEX)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editSettings.discount_badge_gradient_end || "#01a3a4"}
+                            onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
+                            placeholder="#01a3a4"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                          <input
+                            type="color"
+                            value={editSettings.discount_badge_gradient_end && editSettings.discount_badge_gradient_end.startsWith('#') && editSettings.discount_badge_gradient_end.length === 7 ? editSettings.discount_badge_gradient_end : "#01a3a4"}
+                            onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
+                            className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Badge Text Color (HEX)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editSettings.discount_badge_text_color || "#ffffff"}
+                            onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
+                            placeholder="#ffffff"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                          <input
+                            type="color"
+                            value={editSettings.discount_badge_text_color && editSettings.discount_badge_text_color.startsWith('#') && editSettings.discount_badge_text_color.length === 7 ? editSettings.discount_badge_text_color : "#ffffff"}
+                            onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
+                            className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-3">
+                      <label className="text-xs font-mono text-gray-400 uppercase flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={editSettings.discount_badge_gradient_enabled !== "false"}
+                          onChange={(e) => handleSettingChange("discount_badge_gradient_enabled", e.target.checked ? "true" : "false")}
+                          className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                        />
+                        Enable Gradient Fill
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* PRICING SYSTEM SETTINGS */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-3">
+                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <h3 className="text-sm font-semibold text-gray-300 font-display">Pricing Title & Spotlight Text Size Controls</h3>
+                    </div>
+                    <p className="text-xs text-gray-400 max-w-2xl leading-relaxed font-light">
+                      Configure the spotlight text (for recommended tier badges) and pricing table header text size independently for both AI Production and Live Action pages.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* AI Production Page settings */}
+                      <div className="space-y-4 border-r border-white/5 pr-0 md:pr-6">
+                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase">AI Production Page (Page 1) Settings</h4>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Spotlight Badge Text (e.g. Recommended, Best Value)</label>
+                          <input
+                            type="text"
+                            value={editSettings.pricing_spotlight_text || ""}
+                            onChange={(e) => handleSettingChange("pricing_spotlight_text", e.target.value)}
+                            placeholder="Recommended"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Pricing Title Font Size (e.g. 3rem, 42px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.pricing_title_size || ""}
+                            onChange={(e) => handleSettingChange("pricing_title_size", e.target.value)}
+                            placeholder="Default (3rd/5th size)"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Pricing Section Title Text</label>
+                          <input
+                            type="text"
+                            value={editSettings.pricing_title || ""}
+                            onChange={(e) => handleSettingChange("pricing_title", e.target.value)}
+                            placeholder="Production Tiers & Packages"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Live Action Page settings */}
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase">Live Action Page (Page 2) Settings</h4>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Spotlight Badge Text (e.g. Recommended, Best Value)</label>
+                          <input
+                            type="text"
+                            value={editSettings.page2_pricing_spotlight_text || ""}
+                            onChange={(e) => handleSettingChange("page2_pricing_spotlight_text", e.target.value)}
+                            placeholder="Recommended"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Pricing Title Font Size (e.g. 3rem, 42px)</label>
+                          <input
+                            type="text"
+                            value={editSettings.page2_pricing_title_size || ""}
+                            onChange={(e) => handleSettingChange("page2_pricing_title_size", e.target.value)}
+                            placeholder="Default (3rd/5th size)"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Pricing Section Title Text</label>
+                          <input
+                            type="text"
+                            value={editSettings.page2_pricing_title || ""}
+                            onChange={(e) => handleSettingChange("page2_pricing_title", e.target.value)}
+                            placeholder="Production Tiers & Packages"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div 
                     className="space-y-8"
                     onFocusCapture={() => recordPricingHistory()}
                   >
-                    {editPricing.map((tier) => (
+                    <p className="text-xs text-gray-500 font-mono italic">
+                      💡 Drag package blocks using their background bounds to arrange their sequence in the website's pricing section, or use the Up/Down arrow buttons.
+                    </p>
+
+                    {editPricing.map((tier, index) => (
                       <div 
                         key={tier.id}
-                        className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4"
+                        draggable="true"
+                        onDragStart={(e) => {
+                          recordPricingHistory();
+                          e.dataTransfer.setData("text/plain", index.toString());
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverIdxPricing(index);
+                        }}
+                        onDragEnd={() => setDragOverIdxPricing(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                          if (!isNaN(sourceIdx) && sourceIdx !== index) {
+                            const updated = [...editPricing];
+                            const [removed] = updated.splice(sourceIdx, 1);
+                            updated.splice(index, 0, removed);
+                            setEditPricing(updated);
+                            toast.success("Pricing package sequence adjusted.");
+                          }
+                          setDragOverIdxPricing(null);
+                        }}
+                        className={`border p-6 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 space-y-4 ${
+                          dragOverIdxPricing === index 
+                            ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
+                            : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.01]"
+                        }`}
                       >
                         <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3 select-none">
+                            <GripVertical className="w-4 h-4 text-gray-500" />
+                            <span className="text-xs font-mono text-[#ffea00] font-semibold">Package 0{index + 1}</span>
                             <span className="w-2.5 h-2.5 rounded-full" style={{
                               backgroundColor: tier.glowTheme === "emerald" ? "#10b981" : (tier.glowTheme === "saffron" ? "#ffea00" : "#4A36B3")
                             }} />
                             <span className="font-display font-semibold text-lg text-white">{tier.name}</span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3 select-none">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => movePricingItem(index, "up")}
+                                disabled={index === 0}
+                                className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => movePricingItem(index, "down")}
+                                disabled={index === editPricing.length - 1}
+                                className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="w-[1px] h-4 bg-white/10 mx-1" />
+
                             <label className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -2753,6 +4396,18 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
                               />
                               Enable Discount Badge
+                            </label>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-4 md:mt-0">
+                            <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={tier.is_slider_enabled || false}
+                                onChange={(e) => handlePricingChange(tier.id, "is_slider_enabled", e.target.checked)}
+                                className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                              />
+                              Enable Milestone Slider
                             </label>
                           </div>
 
@@ -2912,6 +4567,63 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           </div>
                         </div>
 
+                        {/* Milestone Slider Config */}
+                        {tier.is_slider_enabled && (
+                          <div className="space-y-3 border-t border-white/5 pt-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono uppercase text-gray-400">Milestone Pricing Steps</span>
+                              <button
+                                type="button"
+                                onClick={() => addMilestone(tier.id)}
+                                className="flex items-center gap-1 text-[10px] font-mono text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" /> Add milestone step
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {(tier.slider_milestones || []).map((milestone, mIdx) => (
+                                <div key={mIdx} className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-black/10 border border-white/[0.03] p-2.5 rounded-xl items-end">
+                                  <div>
+                                    <label className="block text-[8px] font-mono uppercase text-gray-500 mb-1">Milestone Label (e.g. 10 Videos)</label>
+                                    <input
+                                      type="text"
+                                      value={milestone.label}
+                                      onChange={(e) => handleMilestonesChange(tier.id, mIdx, "label", e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                                      placeholder="e.g. 10 Videos"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8px] font-mono uppercase text-gray-500 mb-1">Discount Rate (0 - 100%)</label>
+                                    <input
+                                      type="number"
+                                      value={milestone.discount}
+                                      onChange={(e) => handleMilestonesChange(tier.id, mIdx, "discount", parseInt(e.target.value) || 0)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                                      placeholder="e.g. 20"
+                                      min="0"
+                                      max="100"
+                                    />
+                                  </div>
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteMilestone(tier.id, mIdx)}
+                                      className="px-2.5 py-1.5 text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-xl text-xs flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {(tier.slider_milestones || []).length === 0 && (
+                                <p className="text-[10px] text-gray-500 italic">No milestones defined. Click "Add milestone step" above to configure.</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* List Inputs (Deliverables feature lists) */}
                         <div className="space-y-2 border-t border-white/5 pt-4">
                           <div className="flex items-center justify-between">
@@ -2994,6 +4706,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             if (editSettings.hero_video_bg_url) {
                               await updateSiteSetting("hero_video_bg_url", editSettings.hero_video_bg_url);
                             }
+                            if (editSettings.page2_hero_video_bg_url) {
+                              await updateSiteSetting("page2_hero_video_bg_url", editSettings.page2_hero_video_bg_url);
+                            }
                             if (editSettings.logo_img_url) {
                               await updateSiteSetting("logo_img_url", editSettings.logo_img_url);
                             }
@@ -3027,16 +4742,18 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 border border-white/5 p-6 rounded-2xl">
                     <div>
                       <h3 className="text-xs font-mono uppercase text-[#ffea00] mb-3 tracking-wide flex items-center gap-2">
-                        <Play className="w-3.5 h-3.5" /> Hero Background (Img or Video)
+                        <Play className="w-3.5 h-3.5" /> Hero Background (Img or Video) {adminPageScope === "live" ? "(Live Action)" : "(AI Production)"}
                       </h3>
                       <div className="space-y-3">
                         <div className="flex gap-2 text-xs truncate bg-[#11111c] border border-white/5 rounded-xl px-4 py-3 text-gray-300">
                           <span className="text-gray-500 font-mono">Active Link:</span>
-                          <span className="truncate flex-1 font-mono">{siteSettings.hero_video_bg_url || "Default Glowing Fluid Video"}</span>
+                          <span className="truncate flex-1 font-mono">
+                            {(adminPageScope === "live" ? siteSettings.page2_hero_video_bg_url : siteSettings.hero_video_bg_url) || "Default Glowing Fluid Video"}
+                          </span>
                         </div>
                         <select
                           onChange={(e) => handleSelectAssetForSetting(e.target.value, "hero_video_bg_url")}
-                          value={siteSettings.hero_video_bg_url || ""}
+                          value={(adminPageScope === "live" ? siteSettings.page2_hero_video_bg_url : siteSettings.hero_video_bg_url) || ""}
                           className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50"
                         >
                           <option value="">-- Apply an Asset --</option>
@@ -3332,40 +5049,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 <h4 className="text-[10px] font-mono uppercase text-gray-500">Selected package rate</h4>
                                 <p className="text-xs font-semibold text-white mt-0.5">{sub.selectedTier || "Custom Inquiring / Discovery"}</p>
                               </div>
-
-                              {/* AI synthesis action */}
-                              <button
-                                type="button"
-                                disabled={analyzingSubId === sub.id}
-                                onClick={() => runIntakeAIAnalysis(sub)}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#ffea00] hover:text-white hover:border-purple-500 transition-all font-sans font-semibold text-xs cursor-pointer disabled:opacity-40"
-                              >
-                                {analyzingSubId === sub.id ? (
-                                  <>
-                                    <Sparkles className="w-4 h-4 animate-spin text-[#ffea00]" /> Compiling synthesis...
-                                  </>
-                                ) : (
-                                  <>
-                                    <BrainCircuit className="w-4 h-4 text-purple-400 animate-pulse" /> AI Orchestration blueprint
-                                  </>
-                                )}
-                              </button>
                             </div>
                           </div>
-
-                          {/* AI analysis response */}
-                          {submissionAnalyses[sub.id] && (
-                            <div className="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-5 space-y-3">
-                              <div className="flex items-center gap-2 text-xs font-mono text-[#ffea00] border-b border-purple-500/15 pb-2">
-                                <Sparkles className="w-4 h-4 text-purple-400" />
-                                <span className="uppercase tracking-widest font-semibold">Gemini Ingestion Assessment Plan</span>
-                              </div>
-                              <p className="text-xs text-purple-100 font-sans leading-relaxed whitespace-pre-wrap font-light">
-                                {submissionAnalyses[sub.id]}
-                              </p>
-                            </div>
-                          )}
-
                         </div>
                       ))}
                     </div>
@@ -3418,8 +5103,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form Main Title</label>
                         <input
                           type="text"
-                          value={editSettings.booking_form_title || "Book Creative Studio"}
-                          onChange={(e) => handleSettingChange("booking_form_title", e.target.value)}
+                          value={getSettingValueScoped("booking_form_title", "Book Creative Studio")}
+                          onChange={(e) => handleSettingChangeScoped("booking_form_title", e.target.value)}
                           className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
                         />
                       </div>
@@ -3428,8 +5113,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form CTA Button Text</label>
                         <input
                           type="text"
-                          value={editSettings.booking_cta_text || "Request Synthesis Pipeline"}
-                          onChange={(e) => handleSettingChange("booking_cta_text", e.target.value)}
+                          value={getSettingValueScoped("booking_cta_text", "Request Synthesis Pipeline")}
+                          onChange={(e) => handleSettingChangeScoped("booking_cta_text", e.target.value)}
                           className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
                         />
                       </div>
@@ -3438,8 +5123,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Form Subtitle Description</label>
                         <textarea
                           rows={2}
-                          value={editSettings.booking_form_subtitle || ""}
-                          onChange={(e) => handleSettingChange("booking_form_subtitle", e.target.value)}
+                          value={getSettingValueScoped("booking_form_subtitle")}
+                          onChange={(e) => handleSettingChangeScoped("booking_form_subtitle", e.target.value)}
                           className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white resize-none"
                         />
                       </div>
@@ -3449,15 +5134,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            value={editSettings.booking_cta_color || ""}
-                            onChange={(e) => handleSettingChange("booking_cta_color", e.target.value)}
+                            value={getSettingValueScoped("booking_cta_color")}
+                            onChange={(e) => handleSettingChangeScoped("booking_cta_color", e.target.value)}
                             placeholder="e.g. #7a5ce0 (defaults to gradient)"
                             className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
                           />
                           <input
                             type="color"
-                            value={editSettings.booking_cta_color && editSettings.booking_cta_color.startsWith('#') && editSettings.booking_cta_color.length === 7 ? editSettings.booking_cta_color : "#7a5ce0"}
-                            onChange={(e) => handleSettingChange("booking_cta_color", e.target.value)}
+                            value={getSettingValueScoped("booking_cta_color") && getSettingValueScoped("booking_cta_color").startsWith('#') && getSettingValueScoped("booking_cta_color").length === 7 ? getSettingValueScoped("booking_cta_color") : "#7a5ce0"}
+                            onChange={(e) => handleSettingChangeScoped("booking_cta_color", e.target.value)}
                             className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
                           />
                         </div>
@@ -3468,15 +5153,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            value={editSettings.booking_cta_text_color || ""}
-                            onChange={(e) => handleSettingChange("booking_cta_text_color", e.target.value)}
+                            value={getSettingValueScoped("booking_cta_text_color")}
+                            onChange={(e) => handleSettingChangeScoped("booking_cta_text_color", e.target.value)}
                             placeholder="e.g. #FFFFFF"
                             className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
                           />
                           <input
                             type="color"
-                            value={editSettings.booking_cta_text_color && editSettings.booking_cta_text_color.startsWith('#') && editSettings.booking_cta_text_color.length === 7 ? editSettings.booking_cta_text_color : "#FFFFFF"}
-                            onChange={(e) => handleSettingChange("booking_cta_text_color", e.target.value)}
+                            value={getSettingValueScoped("booking_cta_text_color") && getSettingValueScoped("booking_cta_text_color").startsWith('#') && getSettingValueScoped("booking_cta_text_color").length === 7 ? getSettingValueScoped("booking_cta_text_color") : "#FFFFFF"}
+                            onChange={(e) => handleSettingChangeScoped("booking_cta_text_color", e.target.value)}
                             className="w-8 h-8 bg-black/40 border border-white/5 rounded-lg p-0.5 cursor-pointer shrink-0"
                           />
                         </div>
@@ -3778,36 +5463,97 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  {/* Marquee Direction Settings block */}
+                  {/* Logos Section Configuration block */}
                   <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
                     <div className="border-b border-white/5 pb-3">
-                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Marquee Flow Configuration</span>
+                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Global Logos Section Config</span>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Direction:</span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => updateSiteSetting("marquee_direction", "left")}
-                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                            siteSettings.marquee_direction === "left"
-                              ? "bg-[#ffea00] text-black border-[#ffea00]"
-                              : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                          }`}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Section Title Text</label>
+                        <input
+                          type="text"
+                          value={getSettingValueScoped("brand_logos_title")}
+                          onChange={(e) => handleSettingChangeScoped("brand_logos_title", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          placeholder={adminPageScope === "ai" ? "Trusted By Leading Brands" : "Trusted By Industry Leaders"}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Title Font Size Class</label>
+                        <select
+                          value={getSettingValueScoped("brand_logos_title_size", "text-xs")}
+                          onChange={(e) => handleSettingChangeScoped("brand_logos_title_size", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
                         >
-                          Scroll Left
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateSiteSetting("marquee_direction", "right")}
-                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                            siteSettings.marquee_direction === "right"
-                              ? "bg-[#ffea00] text-black border-[#ffea00]"
-                              : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                          }`}
-                        >
-                          Scroll Right
-                        </button>
+                          <option value="text-xs">text-xs (Extra Small)</option>
+                          <option value="text-sm">text-sm (Small)</option>
+                          <option value="text-base">text-base (Regular)</option>
+                          <option value="text-lg">text-lg (Large)</option>
+                          <option value="text-xl">text-xl (Extra Large)</option>
+                          <option value="text-2xl">text-2xl (2XL)</option>
+                          <option value="text-3xl">text-3xl (3XL)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-6 border-t border-white/5 pt-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Motion:</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "true")}
+                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              getSettingValueScoped("brand_logos_marquee_enabled", "true") === "true"
+                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                            }`}
+                          >
+                            Enabled
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "false")}
+                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              getSettingValueScoped("brand_logos_marquee_enabled", "true") === "false"
+                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                            }`}
+                          >
+                            Disabled (Center Static)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Flow Direction:</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateSiteSetting("marquee_direction", "left")}
+                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              siteSettings.marquee_direction === "left"
+                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                            }`}
+                          >
+                            Scroll Left
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSiteSetting("marquee_direction", "right")}
+                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              siteSettings.marquee_direction === "right"
+                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                            }`}
+                          >
+                            Scroll Right
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -4157,6 +5903,415 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 11: LIVE CHATS HUMAN TAKEOVER CONSOLE */}
+              {activeTab === "live_chats" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="font-display font-medium text-xl text-white">
+                      Live Customer Support Console
+                    </h2>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Monitor active client sessions, check historical interactions, toggle manual takeover, and reply directly as a producer.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* SESSIONS LIST */}
+                    <div className="lg:col-span-1 space-y-3">
+                      <h3 className="font-display font-medium text-sm text-gray-300 uppercase tracking-wider text-left">
+                        Sessions ({chatSessions.length})
+                      </h3>
+                      
+                      <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                        {chatSessionsLoading ? (
+                          <div className="flex items-center justify-center py-12 text-gray-500">
+                            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                            <span className="text-xs font-mono">Loading sessions...</span>
+                          </div>
+                        ) : chatSessions.length === 0 ? (
+                          <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl text-gray-500 text-xs font-sans">
+                            No active chat sessions found.
+                          </div>
+                        ) : (
+                          chatSessions.map((session) => {
+                            const isSelected = selectedSessionId === session.id;
+                            const formattedTime = new Date(session.last_message_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                            const displayName = session.email || `Client (${session.id.substring(0, 8)})`;
+                            return (
+                              <div
+                                key={session.id}
+                                onClick={() => setSelectedSessionId(session.id)}
+                                className={`p-4 rounded-2xl cursor-pointer transition-all duration-300 border text-left ${
+                                  isSelected
+                                    ? "bg-accent/15 border-accent shadow-[0_0_15px_rgba(var(--color-accent-rgb-custom),0.15)]"
+                                    : "bg-white/[0.02] border-white/10 hover:bg-white/5"
+                                }`}
+                              >
+                                <div className="flex justify-between items-start gap-2 mb-1.5">
+                                  <span className={`text-xs font-bold truncate ${isSelected ? "text-accent" : "text-white"}`}>
+                                    {displayName}
+                                  </span>
+                                  <span className="text-[9px] font-mono text-gray-500 shrink-0 uppercase">
+                                    {formattedTime}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-gray-400 truncate line-clamp-1 mb-2">
+                                  {session.last_message_text || "Attachment or empty message"}
+                                </p>
+                                <div className="flex justify-between items-center">
+                                  {session.unread_count > 0 && (
+                                    <span className="w-5 h-5 rounded-full bg-red-500 text-white font-mono text-[9px] font-bold flex items-center justify-center border border-black shadow ml-auto animate-pulse">
+                                      {session.unread_count}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* MESSAGES VIEWPORT */}
+                    <div className="lg:col-span-2 flex flex-col min-h-[400px]">
+                      {selectedSessionId ? (
+                        <>
+                          {/* Chat Session Header */}
+                          {(() => {
+                            const activeSess = chatSessions.find(s => s.id === selectedSessionId);
+                            if (!activeSess) return null;
+                            const u = activeSess.chat_users;
+                            return (
+                              <div className="space-y-0">
+                                <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white/[0.02] border border-white/10 rounded-t-2xl p-4 gap-4">
+                                  <div className="text-left">
+                                    <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                                      {u?.name ? `${u.name} (Client)` : `Session ID: ${activeSess.id}`}
+                                    </h4>
+                                    <p className="text-[10px] text-gray-500 font-sans mt-0.5">
+                                      Created: {new Date(activeSess.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Lead Information Grid Panel */}
+                                <div className="bg-black/35 border-x border-white/10 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans text-left text-gray-300 border-b">
+                                  <div className="space-y-1">
+                                    <h5 className="text-[9px] font-mono uppercase text-gray-500">Contact Details</h5>
+                                    <p className="text-white font-medium">{u?.name || "N/A"}</p>
+                                    <p className="text-gray-400">{u?.email || activeSess.email || "N/A"}</p>
+                                    <p className="text-gray-400">{u?.phone || "N/A"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <h5 className="text-[9px] font-mono uppercase text-gray-500 font-semibold">Intake Info</h5>
+                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                      <div>
+                                        <span className="text-gray-500 text-[8px] block">Pipeline Type</span>
+                                        <span className="text-accent uppercase font-mono text-[9px] font-bold">
+                                          {activeSess.production_type || "bot flow incomplete"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500 text-[8px] block">Grade/Tier</span>
+                                        <span className="text-white uppercase font-mono text-[9px] font-semibold">
+                                          {activeSess.production_grade || "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500 text-[8px] block">Est. Budget</span>
+                                        <span className="text-emerald-400 font-mono text-[9px] font-medium">
+                                          {activeSess.budget || "N/A"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {activeSess.requirements_brief && (
+                                    <div className="md:col-span-2 space-y-1 bg-white/[0.02] border border-white/5 p-2 rounded-lg mt-1">
+                                      <h5 className="text-[9px] font-mono uppercase text-gray-500">Intake Requirements Brief</h5>
+                                      <p className="text-gray-300 whitespace-pre-wrap leading-relaxed italic">{activeSess.requirements_brief}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Message List viewport */}
+                          <div className="flex-1 min-h-[300px] max-h-[360px] overflow-y-auto p-4 bg-black/40 border-x border-b border-white/10 space-y-4">
+                            {chatMessages.length === 0 ? (
+                              <div className="flex items-center justify-center h-full text-gray-500 text-xs font-mono">
+                                No messages in this session.
+                              </div>
+                            ) : (
+                              chatMessages.map((msg) => {
+                                const isUser = msg.sender === "user";
+                                return (
+                                  <div
+                                    key={msg.id}
+                                    className={`flex flex-col ${isUser ? "items-start" : "items-end"}`}
+                                  >
+                                    <div
+                                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs font-sans leading-relaxed text-white relative border border-white/5 shadow-md text-left ${
+                                        isUser
+                                          ? "bg-white/[0.04]"
+                                          : msg.sender === "admin"
+                                          ? "bg-accent/15 border-accent/25"
+                                          : msg.sender === "bot"
+                                          ? "bg-white/[0.02] border-dashed border-white/10"
+                                          : "bg-purple-950/20 border-purple-500/25"
+                                      }`}
+                                    >
+                                      {msg.media_url && (
+                                        <div className="mb-2 max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                                          <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
+                                            <img src={msg.media_url} alt="Attached Media" className="w-full h-auto object-cover max-h-40 hover:opacity-80 transition-opacity" />
+                                          </a>
+                                        </div>
+                                      )}
+                                      <span className="whitespace-pre-wrap">{msg.text}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 mt-1 pl-1 pr-1">
+                                      <span className="text-[8px] font-mono text-gray-500 uppercase">
+                                        {isUser ? "Client" : msg.sender === "admin" ? "You (Producer)" : "Assistant"} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                      {msg.sender === "admin" && (
+                                        msg.status === "read" ? (
+                                          <CheckCheck className="w-3 h-3 text-emerald-500" />
+                                        ) : msg.status === "sending" ? (
+                                          <Loader2 className="w-2.5 h-2.5 animate-spin text-gray-500" />
+                                        ) : (
+                                          <Check className="w-3 h-3 text-cyan-500" />
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Send reply box */}
+                          <div className="flex items-center gap-2 mt-3">
+                            <textarea
+                              value={adminReplyText}
+                              onChange={(e) => setAdminReplyText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendAdminReply();
+                                }
+                              }}
+                              placeholder="Type reply and press Enter..."
+                              className="flex-1 bg-black/40 border border-white/10 hover:border-white/20 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-accent font-sans min-h-[50px] max-h-[100px] resize-none text-left"
+                            />
+                            <button
+                              onClick={handleSendAdminReply}
+                              disabled={!adminReplyText.trim()}
+                              className="p-3.5 bg-accent text-black hover:bg-accent-dark rounded-2xl disabled:opacity-40 transition-all cursor-pointer shrink-0"
+                            >
+                              <Send className="w-4.5 h-4.5" />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl p-8 text-center text-gray-500 min-h-[400px]">
+                          <MessageSquare className="w-8 h-8 mb-3 text-gray-600" />
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">No Session Selected</h4>
+                          <p className="text-[11px] text-gray-400 max-w-xs mt-2 leading-relaxed font-sans">
+                            Select an active customer support session from the list on the left to review their messages, toggle human takeover mode, and write back.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 12: CHAT WIDGET CONFIGURATION & THEMING */}
+              {activeTab === "chat_settings" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="text-left">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Chat Widget Configuration & Theming
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Customize launcher label, rotating glowing aura gradients, and colors to match your brand theme.
+                      </p>
+                    </div>
+                    <button
+                      onClick={saveSettings}
+                      disabled={saveStatus.settings === "saving"}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                    >
+                      {saveStatus.settings === "saving" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Synchronizing...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" /> Synchronize settings
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onFocusCapture={() => recordSettingsHistory()}>
+                    {/* Widget General Configuration */}
+                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 text-left">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 mb-3">General Content settings</h3>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-mono uppercase text-gray-500">Launcher Text Label</label>
+                        <input
+                          type="text"
+                          value={editSettings.chat_launcher_label || "Ask AI"}
+                          onChange={(e) => handleSettingChange("chat_launcher_label", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-sans"
+                          placeholder="e.g. Ask AI"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-mono uppercase text-gray-500">AI Fallback Rate-Limit Message</label>
+                        <textarea
+                          value={editSettings.chat_ai_fallback_message || "I am processing high volumes. I have alerted our human producers—please leave your email!"}
+                          onChange={(e) => handleSettingChange("chat_ai_fallback_message", e.target.value)}
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-sans min-h-[80px]"
+                          placeholder="Rate limit/quota fallback message..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rotating Aura Colors */}
+                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 text-left">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 mb-3">Glowing Fluid Aura Colors</h3>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 1 (Cyan)</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editSettings.chat_aura_color_1 && editSettings.chat_aura_color_1.startsWith('#') && editSettings.chat_aura_color_1.length === 7 ? editSettings.chat_aura_color_1 : "#06b6d4"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_1", e.target.value)}
+                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={editSettings.chat_aura_color_1 || "#06b6d4"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_1", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 2 (Purple)</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editSettings.chat_aura_color_2 && editSettings.chat_aura_color_2.startsWith('#') && editSettings.chat_aura_color_2.length === 7 ? editSettings.chat_aura_color_2 : "#8b5cf6"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_2", e.target.value)}
+                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={editSettings.chat_aura_color_2 || "#8b5cf6"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_2", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 3 (Blue)</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editSettings.chat_aura_color_3 && editSettings.chat_aura_color_3.startsWith('#') && editSettings.chat_aura_color_3.length === 7 ? editSettings.chat_aura_color_3 : "#3b82f6"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_3", e.target.value)}
+                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={editSettings.chat_aura_color_3 || "#3b82f6"}
+                              onChange={(e) => handleSettingChange("chat_aura_color_3", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Chat Panel Window Theme */}
+                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 md:col-span-2 text-left">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 mb-3">Chat Interface Window & Bubbles Theme</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Widget Background (Solid/Glass)</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editSettings.chat_theme_bg && editSettings.chat_theme_bg.startsWith('#') && editSettings.chat_theme_bg.length === 7 ? editSettings.chat_theme_bg : "#0c0c16"}
+                              onChange={(e) => handleSettingChange("chat_theme_bg", e.target.value)}
+                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={editSettings.chat_theme_bg || "#0c0c16"}
+                              onChange={(e) => handleSettingChange("chat_theme_bg", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Primary Theme Accent Color</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editSettings.chat_theme_primary && editSettings.chat_theme_primary.startsWith('#') && editSettings.chat_theme_primary.length === 7 ? editSettings.chat_theme_primary : "#7342e2"}
+                              onChange={(e) => handleSettingChange("chat_theme_primary", e.target.value)}
+                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={editSettings.chat_theme_primary || "#7342e2"}
+                              onChange={(e) => handleSettingChange("chat_theme_primary", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">User Message Bubble Style</label>
+                          <input
+                            type="text"
+                            value={editSettings.chat_theme_bubble_user || "rgba(115, 66, 226, 0.25)"}
+                            onChange={(e) => handleSettingChange("chat_theme_bubble_user", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            placeholder="e.g. rgba(115, 66, 226, 0.25) or hex color"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">AI Response Bubble Style</label>
+                          <input
+                            type="text"
+                            value={editSettings.chat_theme_bubble_ai || "rgba(255, 255, 255, 0.05)"}
+                            onChange={(e) => handleSettingChange("chat_theme_bubble_ai", e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
+                            placeholder="e.g. rgba(255, 255, 255, 0.05) or hex color"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

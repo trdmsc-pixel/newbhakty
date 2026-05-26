@@ -12,7 +12,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:15",
     ratio: "landscape",
     aspectRatioClass: "aspect-video md:col-span-2",
-    tags: ["Fluid Simulation", "Neural Render", "Luxury"]
+    tags: ["Fluid Simulation", "Neural Render", "Luxury"],
+    page: "ai"
   },
   {
     id: "cosmic-nebula",
@@ -25,7 +26,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:20",
     ratio: "landscape",
     aspectRatioClass: "aspect-square md:col-span-1",
-    tags: ["Cosmology", "Stable Diffusion XL", "CineScale"]
+    tags: ["Cosmology", "Stable Diffusion XL", "CineScale"],
+    page: "ai"
   },
   {
     id: "algorithmic-currents",
@@ -38,7 +40,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:12",
     ratio: "landscape",
     aspectRatioClass: "aspect-square md:col-span-1",
-    tags: ["Audio-Reactive", "C4D Cinema", "Deep-Noise"]
+    tags: ["Audio-Reactive", "C4D Cinema", "Deep-Noise"],
+    page: "ai"
   },
   {
     id: "neuro-chroma",
@@ -51,7 +54,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:18",
     ratio: "landscape",
     aspectRatioClass: "aspect-video md:col-span-2",
-    tags: ["Sora Prototype", "Ray-Tracing", "Cyberpunk"]
+    tags: ["Sora Prototype", "Ray-Tracing", "Cyberpunk"],
+    page: "ai"
   },
   {
     id: "vector-horizon",
@@ -64,7 +68,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:16",
     ratio: "landscape",
     aspectRatioClass: "aspect-square md:col-span-1",
-    tags: ["Projection Mapping", "Vector Synth", "Luminous"]
+    tags: ["Projection Mapping", "Vector Synth", "Luminous"],
+    page: "ai"
   },
   {
     id: "chronocentric-core",
@@ -77,7 +82,8 @@ export const PORTFOLIO_VIDEOS: VideoBlock[] = [
     duration: "0:15",
     ratio: "landscape",
     aspectRatioClass: "aspect-square md:col-span-1",
-    tags: ["Organic Physics", "4K Video Loop", "Jelly Core"]
+    tags: ["Organic Physics", "4K Video Loop", "Jelly Core"],
+    page: "ai"
   }
 ];
 
@@ -98,7 +104,8 @@ export const PRICING_TIERS: PricingTier[] = [
     ],
     turnaround: "5 working days",
     revisionRound: "2 Rounds",
-    glowTheme: "emerald"
+    glowTheme: "emerald",
+    page: "ai"
   },
   {
     id: "cinematic",
@@ -117,7 +124,8 @@ export const PRICING_TIERS: PricingTier[] = [
     ],
     turnaround: "12 working days",
     revisionRound: "4 Rounds",
-    glowTheme: "saffron"
+    glowTheme: "saffron",
+    page: "ai"
   },
   {
     id: "enterprise",
@@ -136,6 +144,7 @@ export const PRICING_TIERS: PricingTier[] = [
     ],
     turnaround: "24 working days",
     revisionRound: "Unlimited Revisions",
-    glowTheme: "violet"
+    glowTheme: "violet",
+    page: "ai"
   }
 ];

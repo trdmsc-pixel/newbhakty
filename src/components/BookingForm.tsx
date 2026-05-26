@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle, Check } from "lucide-react";
 import { BookingSubmission } from "../types";
-import { trackEvent } from "../lib/analytics";
+import { trackEvent, trackMetaPixelEvent } from "../lib/analytics";
 import { useSiteData } from "../context/SiteDataContext";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
@@ -296,7 +296,13 @@ interface BookingFormProps {
 }
 
 export default function BookingForm({ initialTier }: BookingFormProps) {
-  const { siteSettings } = useSiteData();
+  const { siteSettings, activePage } = useSiteData();
+
+  // Helper to dynamically resolve page-specific keys
+  const getSetting = (key: string, fallback: string = "") => {
+    return siteSettings[key] || fallback;
+  };
+
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
@@ -313,8 +319,9 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
   // Parse form schema from settings
   const getFormFields = () => {
     try {
-      if (siteSettings.booking_form_fields_json) {
-        return JSON.parse(siteSettings.booking_form_fields_json);
+      const json = getSetting("booking_form_fields_json");
+      if (json) {
+        return JSON.parse(json);
       }
     } catch (e) {
       console.error("Failed to parse booking_form_fields_json:", e);
@@ -331,7 +338,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
 
   const fields = React.useMemo(() => {
     return getFormFields();
-  }, [siteSettings.booking_form_fields_json]);
+  }, [siteSettings.booking_form_fields_json, activePage]);
 
   // Initialize custom fields state
   useEffect(() => {
@@ -445,31 +452,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     return Object.keys(errors).length === 0;
   };
 
-  const [isOptimizing, setIsOptimizing] = useState(false);
 
-  const optimizeBriefWithAI = async () => {
-    if (!brief.trim()) return;
-    setIsOptimizing(true);
-    trackEvent("click", "Triggered AI Brief Optimization", { length: brief.length });
-    try {
-      const res = await fetch("/api/gemini/optimize-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief }),
-      });
-      const data = await res.json();
-      if (data.text) {
-        setBrief(data.text);
-        trackEvent("click", "AI Brief Optimizer returned enriched contents", { previousLength: brief.length, nextLength: data.text.length });
-      } else {
-        console.error("AI error response", data);
-      }
-    } catch (e) {
-      console.error("Failed to call brief optimizer API:", e);
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -516,8 +499,38 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
         };
         submissionsList.push(newSubmission);
         localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
-        trackEvent("click", "Booking proposal successfully compiled & logged with local store", { id: newSubmission.id, selectedTier });
       }
+
+      // Extract phone if exists
+      const phoneField = fields.find((f: any) => f.type === "phone");
+      const phoneValue = phoneField ? `${phoneCountry[phoneField.id] || "+91"}${customFields[phoneField.id] || ""}`.replace(/\D/g, "") : undefined;
+
+      const parseBudgetToNumeric = (bracket: string): number => {
+        const numbers = bracket.match(/\d[\d,.]*/g);
+        if (numbers && numbers.length > 0) {
+          const lastNumStr = numbers[numbers.length - 1].replace(/,/g, "");
+          const num = parseFloat(lastNumStr);
+          return isNaN(num) ? 0 : num;
+        }
+        return 0;
+      };
+      const numericBudget = parseBudgetToNumeric(budget);
+
+      // Track Meta Pixel Lead event with Advanced Matching
+      trackMetaPixelEvent(
+        "Lead", 
+        {
+          value: numericBudget,
+          currency: "USD",
+          content_name: "Creative Intake Submit",
+          content_category: selectedTier
+        }, 
+        {
+          em: email.trim().toLowerCase(),
+          fn: name.trim().toLowerCase(),
+          ph: phoneValue
+        }
+      );
 
       // Add a slight delay for high fidelity digital ingestion animation feel
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -610,7 +623,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={`text-sm ${i < Math.round(rating) ? "text-[#ffea00]" : "text-gray-700"}`}>★</span>
+      <span key={i} className={`text-sm ${i < Math.round(rating) ? "text-accent" : "text-gray-700"}`}>★</span>
     ));
   };
 
@@ -624,18 +637,18 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     }`}>
       
       {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#ffea00]/5 rounded-full filter blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-accent/5 rounded-full filter blur-[100px] pointer-events-none" />
 
       {/* SECTION HEADER */}
       <div className="text-center mb-12">
-        <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4">
+        <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-accent bg-accent/5 border border-accent/15 rounded-full px-4 py-1.5 inline-block mb-4">
           Creative Intake
         </span>
         <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
-          {siteSettings.booking_form_title || "Book Creative Studio"}
+          {getSetting("booking_form_title", "Book Creative Studio")}
         </h2>
         <p className="text-gray-400 text-sm md:text-base max-w-lg mx-auto">
-          {siteSettings.booking_form_subtitle || "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours."}
+          {getSetting("booking_form_subtitle", "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.")}
         </p>
       </div>
 
@@ -661,7 +674,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         className="absolute inset-0 glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden"
                       >
                         {/* Upper radiant line */}
-                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/30 to-transparent" />
+                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
 
                         <div className="flex-1 flex flex-col justify-center">
                           {/* Rating Stars */}
@@ -681,6 +694,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                                 src={t.video_url}
                                 controls
                                 playsInline
+                                preload="none"
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -709,7 +723,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 <div className="flex items-center justify-center gap-4 mt-6">
                   <button
                     onClick={goToPrevTestimonial}
-                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#ffea00]/40 transition-all cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-accent/40 transition-all cursor-pointer"
                   >
                     ←
                   </button>
@@ -722,7 +736,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         onClick={() => setActiveTestimonialIdx(idx)}
                         className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
                           idx === activeTestimonialIdx 
-                            ? "bg-[#ffea00] w-6" 
+                            ? "bg-accent w-6" 
                             : "bg-white/20 hover:bg-white/40"
                         }`}
                       />
@@ -731,7 +745,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
 
                   <button
                     onClick={goToNextTestimonial}
-                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#ffea00]/40 transition-all cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-accent/40 transition-all cursor-pointer"
                   >
                     →
                   </button>
@@ -745,7 +759,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
         <div className={`${hasTestimonials ? "lg:w-[55%]" : "w-full"}`}>
           <div className="glass-panel rounded-3xl p-8 md:p-10 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
             {/* UPPER RADIANT BARS */}
-            <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffea00]/40 to-transparent" />
+            <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
 
         {/* INPUT LAYOUT FORM */}
         <form onSubmit={handleSubmit} className="space-y-8" id="booking-form-element">
@@ -755,7 +769,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               const isFullWidth = field.type === "textarea" || field.id === "selected_tier" || field.type === "checkbox";
               return (
                 <div key={field.id} className={`flex flex-col relative ${isFullWidth ? "md:col-span-2" : ""}`}>
-                  <label className="text-[10px] tracking-widest text-[#ffea00] font-mono uppercase mb-1 flex items-center justify-between">
+                  <label className="text-[10px] tracking-widest text-accent font-mono uppercase mb-1 flex items-center justify-between">
                     <span>{field.label} {field.required && "*"}</span>
                     {field.id === "name" && nameTouched && (
                       isNameValid ? (
@@ -811,29 +825,13 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         className={`bg-transparent outline-none border-b ${
                           formErrors[field.id] 
                             ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
+                            : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base resize-none`}
                       />
                       {field.id === "brief" && (
                         !formErrors.brief ? (
                           <span className="text-[10px] text-gray-500 font-mono mt-1 flex items-center justify-between w-full">
                             <span>Minimum criteria: 15 chars ({brief.length} active)</span>
-                            <button
-                              type="button"
-                              disabled={isOptimizing || brief.trim().length === 0}
-                              onClick={optimizeBriefWithAI}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-yellow-500/20 hover:border-yellow-500/60 rounded-lg text-[#ffea00] hover:text-black hover:bg-[#ffea00] transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none select-none text-[10px] ml-auto uppercase"
-                            >
-                              {isOptimizing ? (
-                                <>
-                                  <Sparkles className="w-3 h-3 animate-pulse text-[#ffea00]" /> Optimizing Brief...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-3 h-3 text-yellow-400" /> Optimize is AI-assisted
-                                </>
-                              )}
-                            </button>
                           </span>
                         ) : null
                       )}
@@ -859,7 +857,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                           });
                         }
                       }}
-                      className="bg-transparent outline-none border-b border-white/10 focus:border-[#ffea00] transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
+                      className="bg-transparent outline-none border-b border-white/10 focus:border-accent transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
                       style={{
                         colorScheme: "dark"
                       }}
@@ -881,7 +879,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                             setActiveDropdownFieldId(activeDropdownFieldId === field.id ? null : field.id);
                           }}
                           className={`bg-white/5 hover:bg-white/10 border-b ${
-                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-[#ffea00]"
+                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-accent"
                           } transition-all duration-300 py-3 px-3 text-white text-sm md:text-base flex items-center gap-2 rounded-t-lg cursor-pointer h-full`}
                         >
                           <span>{COUNTRIES.find(c => c.dialCode === (phoneCountry[field.id] || "+91"))?.flag || "🇮🇳"}</span>
@@ -949,7 +947,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                         className={`flex-1 bg-transparent outline-none border-b ${
                           formErrors[field.id] 
                             ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
+                            : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
                         } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base font-mono`}
                       />
                     </div>
@@ -992,7 +990,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                       className={`bg-transparent outline-none border-b ${
                         formErrors[field.id] 
                           ? "border-red-500 text-red-100 placeholder-red-800" 
-                          : "border-white/10 focus:border-[#ffea00] focus:shadow-[0_1px_0_0_#ffea00]"
+                          : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
                       } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
                     />
                   )}
@@ -1008,8 +1006,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
             })}
           </div>
 
-          {/* JELLY SQUISH SUBMIT BUTTON */}
-          <div className="pt-6 text-center">
+          {/* JELLY SQUISH SUBMIT BUTTON & WHATSAPP BUTTON */}
+          <div className="pt-6 flex flex-col md:flex-row items-center justify-center gap-4">
             <motion.button
               type="submit"
               id="booking-submit-button"
@@ -1024,10 +1022,10 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 transition: { type: "spring", stiffness: 450, damping: 14 } 
               }}
               style={{
-                ...(siteSettings.booking_cta_color ? { backgroundColor: siteSettings.booking_cta_color, backgroundImage: 'none' } : {}),
-                ...(siteSettings.booking_cta_text_color ? { color: siteSettings.booking_cta_text_color } : {})
+                ...(getSetting("booking_cta_color") ? { backgroundColor: getSetting("booking_cta_color"), backgroundImage: 'none' } : {}),
+                ...(getSetting("booking_cta_text_color") ? { color: getSetting("booking_cta_text_color") } : {})
               }}
-              className="w-full md:w-auto md:px-12 py-4 rounded-full font-bold font-display tracking-tight text-black bg-[#ffea00] hover-glow-yellow shadow-xl shadow-[#ffea00]/10 shadow-black/40 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+              className="w-full md:w-auto md:px-12 py-4 rounded-full font-bold font-display tracking-tight text-black bg-accent hover-glow-yellow shadow-xl shadow-accent/10 shadow-black/40 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#050508]">
@@ -1036,10 +1034,33 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  {siteSettings.booking_cta_text || "Request Synthesis Pipeline"}
+                  {getSetting("booking_cta_text", "Request Synthesis Pipeline")}
                 </>
               )}
             </motion.button>
+
+            <motion.a
+              href="https://wa.me/919958194155"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ 
+                scale: 1.02,
+                transition: { type: "spring", stiffness: 350, damping: 10 }
+              }}
+              whileTap={{ 
+                scaleY: 0.95, 
+                scaleX: 1.05,
+                transition: { type: "spring", stiffness: 450, damping: 14 } 
+              }}
+              className="w-full md:w-auto pl-5 pr-1.5 py-1.5 rounded-full bg-[#128c7e] hover:bg-[#075e54] text-white flex items-center justify-between gap-3 shadow-[0_0_20px_rgba(18,140,126,0.3)] hover:shadow-[0_0_30px_rgba(18,140,126,0.65)] transition-all border border-emerald-400/30 hover:border-emerald-400/50 cursor-pointer group shrink-0"
+            >
+              <svg className="w-5 h-5 fill-current text-white shrink-0 group-hover:animate-bounce" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.216 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              <span className="px-5 py-2.5 rounded-full bg-white text-black font-semibold text-xs md:text-sm shadow-inner tracking-wide flex items-center justify-center font-display backdrop-blur-md bg-opacity-95 hover:bg-opacity-100 transition-all select-none whitespace-nowrap">
+                Chat with us
+              </span>
+            </motion.a>
           </div>
 
         </form>
@@ -1064,10 +1085,10 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.85, y: 30, opacity: 0 }}
               transition={{ type: "spring", stiffness: 140, damping: 16 }}
-              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-[#ffea00]/30 shadow-2xl relative"
+              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-accent/30 shadow-2xl relative"
             >
               {/* HEADER DECORATION BAR */}
-              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffea00] to-transparent" />
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent" />
               
               <button
                 id="close-success-btn"
@@ -1077,8 +1098,8 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-16 h-16 rounded-full bg-[#ffea00]/10 border border-[#ffea00]/30 flex items-center justify-center text-[#ffea00] mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-[#ffea00] animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent mx-auto mb-6">
+                <CheckCircle className="w-8 h-8 text-accent animate-pulse" />
               </div>
 
               <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-3">
@@ -1086,7 +1107,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               </h3>
 
               <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                Greetings, <span className="text-[#ffea00] font-semibold">{name}</span>. Your creative matrix of metadata for 
+                Greetings, <span className="text-accent font-semibold">{name}</span>. Your creative matrix of metadata for 
                 <span className="text-white font-medium"> {company || "Independent Ventures"} </span> has breached our intake loop.
               </p>
 
@@ -1097,7 +1118,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Coordinate Slot:</span>
-                  <span className="text-[#ffea00] font-medium">{budget}</span>
+                  <span className="text-accent font-medium">{budget}</span>
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Lead Resolver:</span>
@@ -1112,7 +1133,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
               <button
                 id="success-dismiss-btn"
                 onClick={resetForm}
-                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-[#ffea00] transition-all duration-300 cursor-pointer text-sm"
+                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-accent transition-all duration-300 cursor-pointer text-sm"
               >
                 Reset & Access Portfolio
               </button>

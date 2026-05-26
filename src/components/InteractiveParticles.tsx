@@ -25,6 +25,9 @@ export default function InteractiveParticles() {
     let animationFrameId: number;
     let particles: Particle[] = [];
     const particleCount = 45;
+    let isIntersecting = true;
+    let isTabVisible = !document.hidden;
+    let isRunning = false;
 
     const handleResize = () => {
       if (!canvas) return;
@@ -76,6 +79,8 @@ export default function InteractiveParticles() {
     }
 
     const draw = () => {
+      if (!isRunning) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       const mouse = mouseRef.current;
@@ -143,13 +148,52 @@ export default function InteractiveParticles() {
       animationFrameId = requestAnimationFrame(draw);
     };
 
+    const startLoop = () => {
+      if (!isRunning && isIntersecting && isTabVisible) {
+        isRunning = true;
+        animationFrameId = requestAnimationFrame(draw);
+      }
+    };
+
+    const stopLoop = () => {
+      if (isRunning) {
+        isRunning = false;
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        isIntersecting = entry.isIntersecting;
+        if (isIntersecting) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      });
+    }, { threshold: 0.01 });
+
+    observer.observe(canvas);
+
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible) {
+        startLoop();
+      } else {
+        stopLoop();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Initialize layout dimensions
     handleResize();
     window.addEventListener("resize", handleResize);
-    draw();
+    startLoop();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      stopLoop();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("resize", handleResize);
       if (parent) {
         parent.removeEventListener("mousemove", handleMouseMove);

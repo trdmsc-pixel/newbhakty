@@ -1,68 +1,168 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Film, Image as ImageIcon, Volume2, VolumeX, X } from "lucide-react";
+import { Film, Image as ImageIcon, Volume2, VolumeX } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
+import { optimizeVideoUrl, optimizeImageUrl } from "../lib/cloudinary";
+
+export const getVideoThumbnail = (videoUrl: string): string => {
+  if (!videoUrl) return "";
+  if (videoUrl.includes("res.cloudinary.com")) {
+    let optimized = videoUrl;
+    if (optimized.includes("/video/upload/")) {
+      optimized = optimized.replace("/video/upload/", "/video/upload/so_0,q_auto,f_auto,w_600/");
+    }
+    optimized = optimized.replace(/\.[a-zA-Z0-9]+$/, ".jpg");
+    return optimized;
+  }
+  return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+};
 
 export default function ShowcaseGrid() {
-  const { portfolioWorks = [], siteSettings } = useSiteData();
+  const { portfolioWorks = [], portfolioTabs = [], siteSettings, activePage } = useSiteData();
 
-  // Split works into videos and images
-  const motionWorks = portfolioWorks.filter((w) => (w.type || "video") === "video");
-  const staticWorks = portfolioWorks.filter((w) => w.type === "image");
+  // State to track the active portfolio tab id
+  const [activeTabId, setActiveTabId] = useState<string>("");
+  const [visibleCardIds, setVisibleCardIds] = useState<Set<string>>(new Set());
 
-  // Accordion active item state (defaults to the first item of each list)
+  // Default to the first available tab for this page, resetting when switching page context
+  useEffect(() => {
+    if (portfolioTabs.length > 0) {
+      const isValid = portfolioTabs.some((t) => t.id === activeTabId);
+      if (!isValid) {
+        setActiveTabId(portfolioTabs[0].id);
+      }
+    } else {
+      setActiveTabId("");
+    }
+  }, [portfolioTabs, activePage, activeTabId]);
+
+  const activeTab = portfolioTabs.find((t) => t.id === activeTabId) || portfolioTabs[0];
+
+  // Filter works matching the active tab ID, falling back to tab type if tab_id is unassigned
+  const activeWorks = portfolioWorks.filter((w) => {
+    if (w.tab_id) {
+      return w.tab_id === activeTabId;
+    }
+    return w.type === (activeTab?.tab_type || "video");
+  });
+
+  // Accordion active item state
   const [activeVideoId, setActiveVideoId] = useState<string>("");
-  const [activeImageId, setActiveImageId] = useState<string>("");
-  
-  // Audio state: track which video is currently unmuted
   const [unmutedVideoId, setUnmutedVideoId] = useState<string | null>(null);
-  
-  // Image preview popup modal state
-  const [selectedImage, setSelectedImage] = useState<any | null>(null);
+  const [activeImageId, setActiveImageId] = useState<string>("");
+
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Set up IntersectionObserver to track visible cards in viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisibleCardIds((prev) => {
+          const next = new Set(prev);
+          entries.forEach((entry) => {
+            const id = entry.target.getAttribute("data-card-id");
+            if (id) {
+              if (entry.intersectionRatio >= 0.5) {
+                next.add(id);
+              } else {
+                next.delete(id);
+              }
+            }
+          });
+          return next;
+        });
+      },
+      {
+        threshold: [0.1, 0.5, 0.9],
+        rootMargin: "-10% 0px -10% 0px",
+      }
+    );
+
+    const observedElements = new Set<HTMLDivElement>();
+    cardRefs.current.forEach((el) => {
+      observer.observe(el);
+      observedElements.add(el);
+    });
+
+    return () => {
+      observedElements.forEach((el) => {
+        try {
+          observer.unobserve(el);
+        } catch (e) {}
+      });
+      observer.disconnect();
+    };
+  }, [activeWorks]);
 
   // Refs for all video elements to control audio
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   const setVideoRef = useCallback((id: string, el: HTMLVideoElement | null) => {
     if (el) {
+      el.muted = id !== unmutedVideoId;
+      el.defaultMuted = true;
+      el.playsInline = true;
       videoRefs.current.set(id, el);
+      
+      // Snappy play/pause sync when ref mounts
+      if (id === activeVideoId) {
+        el.play().catch(() => {});
+      } else {
+        el.pause();
+      }
     } else {
       videoRefs.current.delete(id);
     }
-  }, []);
+  }, [unmutedVideoId, activeVideoId]);
 
+  // Sync the DOM element's muted state and play/pause state dynamically
   useEffect(() => {
-    if (motionWorks.length > 0 && !activeVideoId) {
-      setActiveVideoId(motionWorks[0].id);
-    }
-  }, [motionWorks, activeVideoId]);
+    videoRefs.current.forEach((el, id) => {
+      if (el) {
+        // Mute/unmute sync
+        const shouldMute = id !== unmutedVideoId;
+        if (el.muted !== shouldMute) {
+          el.muted = shouldMute;
+        }
 
-  useEffect(() => {
-    if (staticWorks.length > 0 && !activeImageId) {
-      setActiveImageId(staticWorks[0].id);
-    }
-  }, [staticWorks, activeImageId]);
-
-  // Mute all videos except the active unmuted one
-  useEffect(() => {
-    videoRefs.current.forEach((videoEl, id) => {
-      if (id === unmutedVideoId) {
-        videoEl.muted = false;
-      } else {
-        videoEl.muted = true;
+        // Active video play/pause sync
+        const isActive = id === activeVideoId;
+        if (isActive) {
+          el.play().catch((err) => {
+            console.debug("Autoplay play() request was interrupted:", err);
+          });
+        } else {
+          el.pause();
+        }
       }
     });
-  }, [unmutedVideoId]);
+  }, [unmutedVideoId, activeVideoId, activeWorks]);
 
-  // Handle video card click - toggle audio
+  // Handle auto-defaulting active cards when activeWorks or activeTabId changes
+  useEffect(() => {
+    if (activeWorks.length > 0) {
+      if (activeTab?.tab_type === "video") {
+        if (!activeWorks.some(w => w.id === activeVideoId)) {
+          setActiveVideoId(activeWorks[0].id);
+          setUnmutedVideoId(null);
+        }
+      } else {
+        if (!activeWorks.some(w => w.id === activeImageId)) {
+          setActiveImageId(activeWorks[0].id);
+        }
+      }
+    }
+  }, [activeWorks, activeTab, activeVideoId, activeImageId]);
+
+  // Handle video card click
   const handleVideoCardClick = (workId: string) => {
     if (activeVideoId === workId) {
-      // Already active - toggle audio
+      // Toggle audio on active card click
       setUnmutedVideoId(prev => prev === workId ? null : workId);
     } else {
-      // Switch to this card and unmute it
+      // Switch card but keep it muted by default
       setActiveVideoId(workId);
-      setUnmutedVideoId(workId);
+      setUnmutedVideoId(null);
     }
   };
 
@@ -70,7 +170,6 @@ export default function ShowcaseGrid() {
   const handleVideoHover = (workId: string) => {
     if (workId !== activeVideoId) {
       setActiveVideoId(workId);
-      // Mute previous when switching via hover
       setUnmutedVideoId(null);
     }
   };
@@ -89,7 +188,7 @@ export default function ShowcaseGrid() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-xs uppercase font-mono font-medium tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-full px-4 py-1.5 inline-block mb-4"
+          className="text-xs uppercase font-mono font-medium tracking-widest text-accent bg-accent/5 border border-accent/15 rounded-full px-4 py-1.5 inline-block mb-4"
         >
           Visual Artifacts
         </motion.span>
@@ -113,227 +212,284 @@ export default function ShowcaseGrid() {
         </motion.p>
       </div>
 
-      <div className="space-y-20">
-        {/* ==================================================== */}
-        {/* SECTION 1: MOTION PORTFOLIO (VIDEOS ACCORDION)       */}
-        {/* ==================================================== */}
-        {motionWorks.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-3 flex-wrap">
-              <Film className="w-5 h-5 text-[#ffea00]" />
-              <h3 className="font-display font-medium text-xl text-white">Motion Portfolio</h3>
-              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                {motionWorks.length} Synths
-              </span>
-              <span className="text-[10px] font-mono text-gray-500 italic ml-auto hidden sm:inline">
-                (Click on the thumbnail to enable sound)
-              </span>
-            </div>
-
-            {/* Accordion List Wrapper */}
-            <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
-              {motionWorks.map((work) => {
-                const isActive = activeVideoId === work.id;
-                const isUnmuted = unmutedVideoId === work.id;
-                return (
-                  <div
-                    key={work.id}
-                    onMouseEnter={() => handleVideoHover(work.id)}
-                    onClick={() => handleVideoCardClick(work.id)}
-                    className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
-                      isActive 
-                        ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
-                        : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
+      {/* TABS SELECTOR */}
+      {portfolioTabs.length > 0 && (
+        <div className="flex justify-center mb-12">
+          <div className="relative flex items-center p-1.5 rounded-full bg-[#0a0a0c]/65 backdrop-blur-xl border border-white/5 shadow-2xl">
+            {portfolioTabs.map((tab) => {
+              const isActive = tab.id === activeTabId;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTabId(tab.id)}
+                  className="relative px-6 py-2.5 rounded-full text-xs font-mono tracking-wider uppercase transition-colors duration-300 select-none cursor-pointer focus:outline-none z-10"
+                >
+                  <span
+                    className={`relative z-20 transition-colors duration-300 ${
+                      isActive ? "text-white font-semibold" : "text-gray-400 hover:text-gray-200"
                     }`}
                   >
-                    {/* Media container */}
-                    <div className="absolute inset-0 z-0 bg-black/45">
-                      <video
-                        ref={(el) => setVideoRef(work.id, el)}
-                        src={work.videoUrl}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        className="w-full h-full object-cover opacity-80"
-                      />
-                      {/* Dark overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
-                    </div>
+                    {tab.tab_title}
+                  </span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabGlow"
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-white/10 to-white/5 border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)] overflow-hidden z-0"
+                      style={{
+                        willChange: "transform, opacity",
+                        translateZ: 0,
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 350,
+                        damping: 22,
+                        mass: 0.9,
+                      }}
+                    >
+                      {/* Volumetric radial glow overlay */}
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.12)_0%,_transparent_65%)]" />
+                    </motion.div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                    {/* Audio indicator icon at top-right when expanded and unmuted */}
-                    {isActive && (
-                      <div className="absolute top-4 right-4 z-30 pointer-events-none">
-                        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider transition-all duration-300 ${
-                          isUnmuted 
-                            ? "bg-[#ffea00]/20 border border-[#ffea00]/40 text-[#ffea00]" 
-                            : "bg-white/5 border border-white/10 text-gray-400"
-                        }`}>
-                          {isUnmuted ? (
-                            <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+      {/* CONTENT AREA WITH ANIMATEPRESENCE */}
+      <div className="relative min-h-[460px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTabId}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="w-full"
+          >
+            {activeTab?.tab_type === "video" ? (
+              activeWorks.length > 0 ? (
+                <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
+                  {activeWorks.map((work) => {
+                    const isActive = activeVideoId === work.id;
+                    const isUnmuted = unmutedVideoId === work.id;
+                    const isCardVisible = visibleCardIds.has(work.id);
+                    const shouldRenderVideo = isActive && isCardVisible;
+
+                    return (
+                      <div
+                        key={work.id}
+                        ref={(el) => {
+                          if (el) {
+                            cardRefs.current.set(work.id, el);
+                          } else {
+                            cardRefs.current.delete(work.id);
+                          }
+                        }}
+                        data-card-id={work.id}
+                        onMouseEnter={() => handleVideoHover(work.id)}
+                        onClick={() => handleVideoCardClick(work.id)}
+                        className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
+                          isActive 
+                            ? "flex-[4] shadow-2xl border-white/10 shadow-accent/5" 
+                            : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
+                        }`}
+                      >
+                        {/* Media container */}
+                        <div className="absolute inset-0 z-0 bg-black/45 overflow-hidden">
+                          {/* Blurred background replica (video when playing and visible, image otherwise) */}
+                          {shouldRenderVideo ? (
+                            <video
+                              src={optimizeVideoUrl(work.videoUrl)}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              preload="none"
+                              className="absolute inset-0 w-full h-full object-cover opacity-35 filter blur-2xl scale-110 pointer-events-none"
+                            />
                           ) : (
-                            <VolumeX className="w-3.5 h-3.5" />
+                            <img
+                              src={optimizeImageUrl(work.imageUrl || getVideoThumbnail(work.videoUrl))}
+                              alt=""
+                              draggable="false"
+                              loading="lazy"
+                              className="absolute inset-0 w-full h-full object-cover opacity-35 filter blur-2xl scale-110 pointer-events-none"
+                            />
                           )}
-                          <span className="hidden sm:inline">{isUnmuted ? "Sound On" : "Muted"}</span>
+                          
+                          {/* Foreground crisp media */}
+                          {shouldRenderVideo ? (
+                            <video
+                              ref={(el) => setVideoRef(work.id, el)}
+                              src={optimizeVideoUrl(work.videoUrl)}
+                              muted={!isUnmuted}
+                              loop
+                              playsInline
+                              preload="none"
+                              className="transition-all duration-700 relative z-10 w-full h-full object-contain p-6 opacity-100"
+                            />
+                          ) : (
+                            <img
+                              src={optimizeImageUrl(work.imageUrl || getVideoThumbnail(work.videoUrl))}
+                              alt={work.title}
+                              draggable="false"
+                              loading="lazy"
+                              className={`transition-all duration-700 relative z-10 w-full h-full ${
+                                isActive 
+                                  ? "object-contain p-6 opacity-100" 
+                                  : "object-cover opacity-80"
+                              }`}
+                            />
+                          )}
+                          {/* Dark overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-20" />
+                        </div>
+
+                        {/* "TOUCH TO PLAY" overlay for paused video thumbnails */}
+                        <AnimatePresence>
+                          {!isActive && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              transition={{ duration: 0.35, ease: "easeOut" }}
+                              className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none select-none"
+                            >
+                              <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white/90 bg-[#050508]/85 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-white/10 shadow-lg backdrop-blur-xs transition-all duration-300 select-none whitespace-nowrap md:-rotate-90">
+                                TOUCH TO PLAY
+                              </span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Audio indicator icon at top-right when expanded and unmuted */}
+                        {isActive && (
+                          <div className="absolute top-4 right-4 z-30 pointer-events-auto">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUnmutedVideoId(prev => prev === work.id ? null : work.id);
+                              }}
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider transition-all duration-300 cursor-pointer hover:bg-white/10 border ${
+                                isUnmuted 
+                                  ? "bg-accent/20 border-accent/40 text-accent" 
+                                  : "bg-white/5 border-white/10 text-gray-400"
+                              }`}
+                            >
+                              {isUnmuted ? (
+                                <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+                              ) : (
+                                <VolumeX className="w-3.5 h-3.5" />
+                              )}
+                              <span className="hidden sm:inline">{isUnmuted ? "Sound On" : "Muted"}</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Bottom-left overlay info */}
+                        <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
+                          <div 
+                            className={`flex flex-col select-none transition-all duration-700 ${
+                              isActive 
+                                ? "opacity-100 translate-x-0 w-auto max-w-full" 
+                                : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                            }`}
+                          >
+                            <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
+                              {work.title}
+                            </h4>
+                            <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
+                              {work.category}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    )}
-
-                    {/* Bottom-left overlay info */}
-                    <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
-                      {/* Text details (Fades in dynamically) */}
-                      <div 
-                        className={`flex flex-col select-none transition-all duration-700 ${
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center border border-white/5 rounded-[2rem] bg-[#050508]/40 h-[460px] text-gray-400 font-mono text-sm tracking-wide">
+                  No video items found in this category.
+                </div>
+              )
+            ) : (
+              activeWorks.length > 0 ? (
+                <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
+                  {activeWorks.map((work) => {
+                    const isActive = activeImageId === work.id;
+                    return (
+                      <div
+                        key={work.id}
+                        onMouseEnter={() => setActiveImageId(work.id)}
+                        onClick={() => {
+                          if (!isActive) {
+                            setActiveImageId(work.id);
+                          }
+                        }}
+                        className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                           isActive 
-                            ? "opacity-100 translate-x-0 w-auto max-w-full" 
-                            : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                            ? "flex-[4] shadow-2xl border-white/10 shadow-accent/5" 
+                            : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
                         }`}
                       >
-                        <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
-                          {work.title}
-                        </h4>
-                        <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
-                          {work.category}
-                        </p>
+                        {/* Media container */}
+                        <div className="absolute inset-0 z-0 bg-[#050508]/95 flex items-center justify-center overflow-hidden">
+                          {/* Blurred background replica */}
+                          <img
+                            src={optimizeImageUrl(work.imageUrl || work.videoUrl)}
+                            alt=""
+                            draggable="false"
+                            className="absolute inset-0 w-full h-full object-cover opacity-35 filter blur-2xl scale-110 pointer-events-none"
+                          />
+                          
+                          {/* Foreground crisp image */}
+                          <img
+                            src={optimizeImageUrl(work.imageUrl || work.videoUrl)}
+                            alt={work.title}
+                            draggable="false"
+                            className={`transition-all duration-700 relative z-10 ${
+                              isActive 
+                                ? "w-full h-full object-contain p-6 opacity-100" 
+                                : "w-full h-full object-cover opacity-75"
+                            }`}
+                          />
+                          {/* Dark overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-20" />
+                        </div>
+
+                        {/* Bottom-left overlay info */}
+                        <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
+                          <div 
+                            className={`flex flex-col select-none transition-all duration-700 ${
+                              isActive 
+                                ? "opacity-100 translate-x-0 w-auto max-w-full" 
+                                : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                            }`}
+                          >
+                            <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
+                              {work.title}
+                            </h4>
+                            <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
+                              {work.category}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ==================================================== */}
-        {/* SECTION 2: STATIC DESIGN (IMAGES ACCORDION)          */}
-        {/* ==================================================== */}
-        {staticWorks.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
-              <ImageIcon className="w-5 h-5 text-[#ffea00]" />
-              <h3 className="font-display font-medium text-xl text-white">Static Design</h3>
-              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                {staticWorks.length} Layers
-              </span>
-            </div>
-
-            {/* Accordion List Wrapper */}
-            <div className="flex flex-col md:flex-row gap-3.5 w-full h-[520px] md:h-[460px] overflow-hidden select-none">
-              {staticWorks.map((work) => {
-                const isActive = activeImageId === work.id;
-                return (
-                  <div
-                    key={work.id}
-                    onMouseEnter={() => setActiveImageId(work.id)}
-                    onClick={() => {
-                      if (isActive) {
-                        setSelectedImage(work);
-                      } else {
-                        setActiveImageId(work.id);
-                      }
-                    }}
-                    className={`relative rounded-[2rem] overflow-hidden cursor-pointer border border-white/5 bg-[#050508]/80 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
-                      isActive 
-                        ? "flex-[4] shadow-2xl border-white/10 shadow-[#ffea00]/5" 
-                        : "flex-[0.5] hover:flex-[0.7] opacity-65 hover:opacity-90"
-                    }`}
-                  >
-                    {/* Media container: uses object-contain when active for original aspect ratios */}
-                    <div className="absolute inset-0 z-0 bg-[#050508]/95 flex items-center justify-center">
-                      <img
-                        src={work.imageUrl || work.videoUrl}
-                        alt={work.title}
-                        draggable="false"
-                        className={`transition-all duration-700 ${
-                          isActive 
-                            ? "w-full h-full object-contain p-6 opacity-100" 
-                            : "w-full h-full object-cover opacity-75"
-                        }`}
-                      />
-                      {/* Dark overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
-                    </div>
-
-                    {/* Bottom-left overlay info */}
-                    <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 z-20 pointer-events-none">
-                      {/* Text details (Fades in dynamically) */}
-                      <div 
-                        className={`flex flex-col select-none transition-all duration-700 ${
-                          isActive 
-                            ? "opacity-100 translate-x-0 w-auto max-w-full" 
-                            : "opacity-0 -translate-x-4 w-0 overflow-hidden"
-                        }`}
-                      >
-                        <h4 className="font-display font-black text-base md:text-lg text-white tracking-tight truncate leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
-                          {work.title}
-                        </h4>
-                        <p className="text-[10px] text-gray-300 font-mono tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mt-0.5">
-                          {work.category}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* COMPACT SECURE PREVIEW MODAL FOR IMAGES ONLY (z-index sits below top navigation bar) */}
-      <AnimatePresence>
-        {selectedImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedImage(null)}
-            className="fixed inset-0 z-[9998] bg-[#050508]/85 backdrop-blur-md flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 26 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-panel-heavy rounded-3xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl relative flex flex-col border border-white/10 p-4"
-            >
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedImage(null)}
-                className="absolute top-3 right-3 z-50 p-2 rounded-full bg-black/60 border border-white/10 text-gray-300 hover:text-white hover:border-[#ffea00] transition-all duration-200 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Image Frame */}
-              <div className="w-full overflow-hidden rounded-2xl flex items-center justify-center bg-black/40 p-2">
-                <img
-                  src={selectedImage.imageUrl || selectedImage.videoUrl}
-                  alt={selectedImage.title}
-                  draggable="false"
-                  className="max-h-[60vh] object-contain rounded-xl w-full"
-                />
-              </div>
-
-              {/* Text Meta info */}
-              <div className="pt-4 px-2">
-                <h4 className="font-display font-bold text-lg text-white tracking-tight leading-tight">
-                  {selectedImage.title}
-                </h4>
-                <p className="text-xs text-gray-400 font-mono tracking-wide uppercase mt-1">
-                  {selectedImage.category}
-                </p>
-                {selectedImage.description && (
-                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                    {selectedImage.description}
-                  </p>
-                )}
-              </div>
-            </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center border border-white/5 rounded-[2rem] bg-[#050508]/40 h-[460px] text-gray-400 font-mono text-sm tracking-wide">
+                  No image items found in this category.
+                </div>
+              )
+            )}
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </div>
     </section>
   );
 }

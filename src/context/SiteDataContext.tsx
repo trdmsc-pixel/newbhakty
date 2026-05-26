@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
-import { VideoBlock, PricingTier } from "../types";
+import { VideoBlock, PricingTier, PortfolioTab } from "../types";
 import { PORTFOLIO_VIDEOS, PRICING_TIERS } from "../data";
 
 const isValidUUID = (str: string): boolean => {
@@ -32,6 +32,7 @@ export interface BrandLogo {
   url: string;
   name: string;
   display_order: number;
+  page?: string;
 }
 
 export interface Testimonial {
@@ -47,10 +48,13 @@ export interface Testimonial {
 
 interface SiteDataContextProps {
   isLoading: boolean;
+  activePage: "ai" | "live";
+  setActivePage: (page: "ai" | "live") => void;
   siteSettings: SiteSettings;
   navigationMenu: NavigationMenuItem[];
   portfolioWorks: VideoBlock[];
   pricingTiers: PricingTier[];
+  portfolioTabs: PortfolioTab[];
   isUsingSupabase: boolean;
   mediaAssets: MediaAsset[];
   brandLogos: BrandLogo[];
@@ -61,6 +65,7 @@ interface SiteDataContextProps {
   updateNavigationMenu: (menuItems: NavigationMenuItem[]) => Promise<boolean>;
   updatePortfolioWorks: (works: VideoBlock[]) => Promise<boolean>;
   updatePricingTiers: (tiers: PricingTier[]) => Promise<boolean>;
+  updatePortfolioTabs: (tabs: PortfolioTab[]) => Promise<boolean>;
   addMediaAsset: (name: string, url: string, type: "image" | "video") => Promise<MediaAsset | null>;
   deleteMediaAsset: (id: string) => Promise<boolean>;
   updateBrandLogos: (logos: BrandLogo[]) => Promise<boolean>;
@@ -92,6 +97,8 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   booking_cta_color: "",
   booking_cta_text_color: "",
   pricing_note_text: "All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds.",
+  pricing_title: "Production Tiers & Packages",
+  page2_pricing_title: "Production Tiers & Packages",
   hero_cta_booking_color: "",
   hero_cta_booking_text_color: "",
   hero_padding_top: "",
@@ -103,11 +110,52 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   portfolio_license_button_text: "Acquire License",
   marquee_direction: "left",
   booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
+  
+  // Global Brand Logos settings
+  brand_logos_title: "Trusted By Leading Brands",
+  brand_logos_title_size: "text-xs",
+  brand_logos_marquee_enabled: "true",
+  navbar_full_width: "false",
+  page2_navbar_full_width: "false",
+
+  // Page 2 (Live-action) Hero settings (Mockup-style)
+  page2_hero_video_bg_url: "https://assets.mixkit.co/videos/preview/mixkit-cameraman-filming-a-scene-40439-large.mp4",
+  page2_hero_bg_opacity: "1",
+  page2_hero_bg_blur: "none",
+  page2_hero_bg_overlay: "0.4",
+  page2_hero_badge_text: "Live-action Production v1.0",
+  page2_hero_title_1: "Lock Down Your",
+  page2_hero_title_2: "Passwords with",
+  page2_hero_title_3: "Ironclad Security",
+  page2_hero_description: "Zero stress, total control. VaultShield keeps you covered with unbreakable storage, one-tap access, and pro-grade tools for your non-stop world.",
+  page2_hero_text_align: "left",
+  page2_hero_padding_top: "clamp(40px, 8vw, 72px)",
+  page2_hero_margin_bottom: "24px",
+  page2_hero_max_width: "560px",
+  page2_hero_title_size: "clamp(1.65rem, 5vw, 3rem)",
+  page2_hero_subtitle_size: "clamp(0.9rem, 2.5vw, 1.1rem)",
+  page2_hero_title_color: "#ffffff",
+  page2_hero_title_color_line2: "#ffffff",
+  page2_hero_subtitle_color: "#ffffff",
+  page2_hero_cta_text: "Get It Free",
+  page2_hero_cta_bg: "#7342E2",
+  page2_hero_cta_color: "#ffffff",
+  page2_hero_cta_size: "clamp(0.9rem, 2vw, 1rem)",
+  page2_hero_cta_glow: "true",
+  page2_hero_cta_glow_color: "rgba(115,66,226,0.28)",
+  page2_hero_cta_icon: "ArrowRight",
 };
 
 const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
   { id: "menu-work", label: "Our Work", target_url: "work-section", display_order: 1 },
   { id: "menu-packages", label: "Production Tiers", target_url: "pricing-section", display_order: 2 }
+];
+
+const DEFAULT_PORTFOLIO_TABS: PortfolioTab[] = [
+  { id: "default-ai-video", tab_title: "AI Motion Portfolio", tab_type: "video", page: "ai", display_order: 1 },
+  { id: "default-ai-image", tab_title: "Generative Static Creatives", tab_type: "image", page: "ai", display_order: 2 },
+  { id: "default-live-video", tab_title: "Live Action Videos", tab_type: "video", page: "live", display_order: 1 },
+  { id: "default-live-image", tab_title: "Live Shoot Images & Creatives", tab_type: "image", page: "live", display_order: 2 }
 ];
 
 const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
@@ -139,12 +187,53 @@ const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
 
 export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [activePage, setActivePage] = useState<"ai" | "live">("ai");
   
   // Synchronous local storage initializers to eliminate initial rendering flash and timing races
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
-  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(DEFAULT_NAVIGATION_MENU);
-  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(PORTFOLIO_VIDEOS);
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_site_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_SITE_SETTINGS, ...parsed };
+      }
+    } catch (e) {}
+    return DEFAULT_SITE_SETTINGS;
+  });
+  const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_navigation_menu");
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return DEFAULT_NAVIGATION_MENU;
+  });
+  const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_portfolio_works");
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return PORTFOLIO_VIDEOS.map(w => ({
+      ...w,
+      tab_id: w.tab_id || (w.type === "image" ? "default-ai-image" : "default-ai-video")
+    }));
+  });
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_pricing_tiers");
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return PRICING_TIERS;
+  });
+  const [portfolioTabs, setPortfolioTabs] = useState<PortfolioTab[]>(() => {
+    try {
+      const stored = localStorage.getItem("bhakty_portfolio_tabs");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_PORTFOLIO_TABS;
+  });
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(DEFAULT_MEDIA_ASSETS);
   const [brandLogos, setBrandLogos] = useState<BrandLogo[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -170,6 +259,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Fetch Portfolio Works
         const { data: worksData, error: worksError } = await supabase
           .from("portfolio_works")
+          .select("*")
+          .order("display_order", { ascending: true });
+
+        // Fetch Portfolio Tabs
+        const { data: tabsData, error: tabsError } = await supabase
+          .from("portfolio_tabs")
           .select("*")
           .order("display_order", { ascending: true });
 
@@ -214,6 +309,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               url: l.url,
               name: l.name || "",
               display_order: l.display_order || 0,
+              page: l.page || "ai",
             })));
           }
         } catch (tableErr) {
@@ -251,10 +347,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
           const merged = { ...DEFAULT_SITE_SETTINGS, ...settingsObj };
           setSiteSettings(merged);
+          localStorage.setItem("bhakty_site_settings", JSON.stringify(merged));
         }
 
         if (!menuError && menuData && menuData.length > 0) {
           setNavigationMenu(menuData);
+          localStorage.setItem("bhakty_navigation_menu", JSON.stringify(menuData));
         }
 
         if (!worksError && worksData && worksData.length > 0) {
@@ -272,9 +370,12 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: Array.isArray(w.tags) ? w.tags : JSON.parse(w.tags || "[]"),
             type: w.type || "video",
             imageUrl: w.image_url || "",
-            subtext: w.subtext || ""
+            subtext: w.subtext || "",
+            page: w.page || "ai",
+            tab_id: w.tab_id || "",
           }));
           setPortfolioWorks(mappedWorks);
+          localStorage.setItem("bhakty_portfolio_works", JSON.stringify(mappedWorks));
         }
 
         if (!pricingError && pricingData && pricingData.length > 0) {
@@ -299,8 +400,31 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             offerTextColor: t.offer_text_color || "",
             offerBgColor: t.offer_bg_color || "",
             offerAnimation: t.offer_animation || "none",
+            page: t.page || "ai",
+            is_slider_enabled: t.is_slider_enabled || false,
+            slider_milestones: Array.isArray(t.slider_milestones) 
+              ? t.slider_milestones 
+              : (typeof t.slider_milestones === "string" 
+                  ? (() => { try { return JSON.parse(t.slider_milestones); } catch (e) { return []; } })()
+                  : []),
           }));
           setPricingTiers(mappedTiers);
+          localStorage.setItem("bhakty_pricing_tiers", JSON.stringify(mappedTiers));
+        }
+
+        if (!tabsError && tabsData && tabsData.length > 0) {
+          const mappedTabs: PortfolioTab[] = tabsData.map((t) => ({
+            id: t.id,
+            tab_title: t.tab_title,
+            tab_type: t.tab_type as "video" | "image",
+            page: t.page || "ai",
+            display_order: t.display_order || 0
+          }));
+          setPortfolioTabs(mappedTabs);
+          localStorage.setItem("bhakty_portfolio_tabs", JSON.stringify(mappedTabs));
+        } else if (!tabsData || tabsData.length === 0) {
+          setPortfolioTabs(DEFAULT_PORTFOLIO_TABS);
+          localStorage.setItem("bhakty_portfolio_tabs", JSON.stringify(DEFAULT_PORTFOLIO_TABS));
         }
 
         success = true;
@@ -322,7 +446,11 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // 1. UPDATE SINGLE SITE SETTING
   const updateSiteSetting = async (key: string, value: string): Promise<boolean> => {
-    setSiteSettings((prev) => ({ ...prev, [key]: value }));
+    setSiteSettings((prev) => {
+      const updated = { ...prev, [key]: value };
+      localStorage.setItem("bhakty_site_settings", JSON.stringify(updated));
+      return updated;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -343,7 +471,11 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // UPDATE MULTIPLE SITE SETTINGS BULK
   const updateMultipleSiteSettings = async (settings: SiteSettings): Promise<boolean> => {
-    setSiteSettings((prev) => ({ ...prev, ...settings }));
+    setSiteSettings((prev) => {
+      const updated = { ...prev, ...settings };
+      localStorage.setItem("bhakty_site_settings", JSON.stringify(updated));
+      return updated;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -366,6 +498,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // 2. UPDATE ALL NAVIGATION MENU
   const updateNavigationMenu = async (menuItems: NavigationMenuItem[]): Promise<boolean> => {
     setNavigationMenu(menuItems);
+    localStorage.setItem("bhakty_navigation_menu", JSON.stringify(menuItems));
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -408,17 +541,28 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // 3. UPDATE PORTFOLIO WORKS
   const updatePortfolioWorks = async (works: VideoBlock[]): Promise<boolean> => {
-    setPortfolioWorks(works);
+    const taggedWorks = works.map(w => ({ ...w, page: activePage }));
+    setPortfolioWorks(prev => {
+      const otherPageWorks = prev.filter(w => (w.page || "ai") !== activePage);
+      return [...otherPageWorks, ...taggedWorks];
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // First delete any items not in the updated list
+        // First delete any items not in the updated list for this page
         const activeIds = works.map(w => w.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("portfolio_works").delete().not("id", "in", `(${activeIds.join(",")})`);
+          const { error: delErr } = await supabase
+            .from("portfolio_works")
+            .delete()
+            .eq("page", activePage)
+            .not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
-          const { error: delErr } = await supabase.from("portfolio_works").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          const { error: delErr } = await supabase
+            .from("portfolio_works")
+            .delete()
+            .eq("page", activePage);
           if (delErr) throw new Error(delErr.message);
         }
 
@@ -438,7 +582,9 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             type: w.type || "video",
             image_url: w.imageUrl || "",
             subtext: w.subtext || "",
-            display_order: i + 1
+            page: activePage,
+            display_order: i + 1,
+            tab_id: w.tab_id || null
           };
           let saveErr;
           if (isValidUUID(w.id)) {
@@ -463,17 +609,30 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // 4. UPDATE PRICING TIERS
   const updatePricingTiers = async (tiers: PricingTier[]): Promise<boolean> => {
-    setPricingTiers(tiers);
+    const taggedTiers = tiers.map(t => ({ ...t, page: activePage }));
+    setPricingTiers(prev => {
+      const otherPageTiers = prev.filter(t => (t.page || "ai") !== activePage);
+      const updated = [...otherPageTiers, ...taggedTiers];
+      localStorage.setItem("bhakty_pricing_tiers", JSON.stringify(updated));
+      return updated;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // First delete any items not in the updated list
+        // First delete any items not in the updated list for this page
         const activeIds = tiers.map(t => t.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("pricing_tiers").delete().not("id", "in", `(${activeIds.join(",")})`);
+          const { error: delErr } = await supabase
+            .from("pricing_tiers")
+            .delete()
+            .eq("page", activePage)
+            .not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
-          const { error: delErr } = await supabase.from("pricing_tiers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          const { error: delErr } = await supabase
+            .from("pricing_tiers")
+            .delete()
+            .eq("page", activePage);
           if (delErr) throw new Error(delErr.message);
         }
 
@@ -499,7 +658,10 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             offer_text_color: t.offerTextColor || "",
             offer_bg_color: t.offerBgColor || "",
             offer_animation: t.offerAnimation || "none",
-            display_order: i + 1
+            page: activePage,
+            display_order: i + 1,
+            is_slider_enabled: t.is_slider_enabled || false,
+            slider_milestones: t.slider_milestones || []
           };
           let saveErr;
           if (isValidUUID(t.id)) {
@@ -516,6 +678,64 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return true;
       } catch (e) {
         console.error("Supabase update pricing tiers error", e);
+        throw e;
+      }
+    }
+    return true;
+  };
+
+  // 4b. UPDATE PORTFOLIO TABS
+  const updatePortfolioTabs = async (tabs: PortfolioTab[]): Promise<boolean> => {
+    const taggedTabs = tabs.map((t, idx) => ({ ...t, page: activePage, display_order: idx + 1 }));
+    setPortfolioTabs(prev => {
+      const otherPageTabs = prev.filter(t => (t.page || "ai") !== activePage);
+      const merged = [...otherPageTabs, ...taggedTabs].sort((a, b) => a.display_order - b.display_order);
+      localStorage.setItem("bhakty_portfolio_tabs", JSON.stringify(merged));
+      return merged;
+    });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // First delete any items not in the updated list for this page
+        const activeIds = tabs.map(t => t.id).filter(isValidUUID);
+        if (activeIds.length > 0) {
+          const { error: delErr } = await supabase
+            .from("portfolio_tabs")
+            .delete()
+            .eq("page", activePage)
+            .not("id", "in", `(${activeIds.join(",")})`);
+          if (delErr) throw new Error(delErr.message);
+        } else {
+          const { error: delErr } = await supabase
+            .from("portfolio_tabs")
+            .delete()
+            .eq("page", activePage);
+          if (delErr) throw new Error(delErr.message);
+        }
+
+        for (let i = 0; i < tabs.length; i++) {
+          const t = tabs[i];
+          const payload: any = {
+            tab_title: t.tab_title,
+            tab_type: t.tab_type,
+            page: activePage,
+            display_order: i + 1
+          };
+          let saveErr;
+          if (isValidUUID(t.id)) {
+            payload.id = t.id;
+            const { error } = await supabase.from("portfolio_tabs").upsert(payload, { onConflict: "id" });
+            saveErr = error;
+          } else {
+            const { error } = await supabase.from("portfolio_tabs").insert(payload);
+            saveErr = error;
+          }
+          if (saveErr) throw new Error(saveErr.message);
+        }
+        await loadData(true);
+        return true;
+      } catch (e) {
+        console.error("Supabase update portfolio tabs error", e);
         throw e;
       }
     }
@@ -592,16 +812,27 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // 7. UPDATE BRAND LOGOS
   const updateBrandLogos = async (logos: BrandLogo[]): Promise<boolean> => {
-    setBrandLogos(logos);
+    const taggedLogos = logos.map(l => ({ ...l, page: "ai" }));
+    setBrandLogos(prev => {
+      const otherPageLogos = prev.filter(l => (l.page || "ai") !== "ai");
+      return [...otherPageLogos, ...taggedLogos];
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
         const activeIds = logos.map(l => l.id).filter(isValidUUID);
         if (activeIds.length > 0) {
-          const { error: delErr } = await supabase.from("brand_logos").delete().not("id", "in", `(${activeIds.join(",")})`);
+          const { error: delErr } = await supabase
+            .from("brand_logos")
+            .delete()
+            .eq("page", "ai")
+            .not("id", "in", `(${activeIds.join(",")})`);
           if (delErr) throw new Error(delErr.message);
         } else {
-          const { error: delErr } = await supabase.from("brand_logos").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          const { error: delErr } = await supabase
+            .from("brand_logos")
+            .delete()
+            .eq("page", "ai");
           if (delErr) throw new Error(delErr.message);
         }
 
@@ -610,6 +841,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const payload: any = {
             url: l.url,
             name: l.name || "",
+            page: "ai",
             display_order: i + 1,
           };
           let saveErr;
@@ -680,30 +912,52 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   };
 
+  // Memoize filtered arrays to avoid reference changes on every provider render
+  const filteredWorks = React.useMemo(() => portfolioWorks.filter((w) => (w.page || "ai") === activePage), [portfolioWorks, activePage]);
+  const filteredTiers = React.useMemo(() => pricingTiers.filter((t) => (t.page || "ai") === activePage), [pricingTiers, activePage]);
+  const filteredTabs = React.useMemo(() => portfolioTabs.filter((t) => (t.page || "ai") === activePage), [portfolioTabs, activePage]);
+  const filteredLogos = React.useMemo(() => brandLogos.filter((l) => (l.page || "ai") === "ai"), [brandLogos]);
+
+  // Memoize the full context value object
+  const contextValue = React.useMemo(() => ({
+    isLoading,
+    activePage,
+    setActivePage,
+    siteSettings,
+    navigationMenu,
+    portfolioWorks: filteredWorks,
+    pricingTiers: filteredTiers,
+    portfolioTabs: filteredTabs,
+    isUsingSupabase: isSupabaseConfigured,
+    mediaAssets,
+    brandLogos: filteredLogos,
+    testimonials,
+    refreshAllData,
+    updateSiteSetting,
+    updateMultipleSiteSettings,
+    updateNavigationMenu,
+    updatePortfolioWorks,
+    updatePricingTiers,
+    updatePortfolioTabs,
+    addMediaAsset,
+    deleteMediaAsset,
+    updateBrandLogos,
+    updateTestimonials,
+  }), [
+    isLoading,
+    activePage,
+    siteSettings,
+    navigationMenu,
+    filteredWorks,
+    filteredTiers,
+    filteredTabs,
+    filteredLogos,
+    testimonials,
+    mediaAssets
+  ]);
+
   return (
-    <SiteDataContext.Provider
-      value={{
-        isLoading,
-        siteSettings,
-        navigationMenu,
-        portfolioWorks,
-        pricingTiers,
-        isUsingSupabase: isSupabaseConfigured,
-        mediaAssets,
-        brandLogos,
-        testimonials,
-        refreshAllData,
-        updateSiteSetting,
-        updateMultipleSiteSettings,
-        updateNavigationMenu,
-        updatePortfolioWorks,
-        updatePricingTiers,
-        addMediaAsset,
-        deleteMediaAsset,
-        updateBrandLogos,
-        updateTestimonials,
-      }}
-    >
+    <SiteDataContext.Provider value={contextValue}>
       {children}
     </SiteDataContext.Provider>
   );
