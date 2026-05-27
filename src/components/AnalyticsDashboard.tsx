@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, RefreshCw, Trash2, Eye, Play, MousePointerClick, Hourglass, HelpCircle } from "lucide-react";
+import { 
+  BarChart3, 
+  TrendingUp, 
+  RefreshCw, 
+  Trash2, 
+  Eye, 
+  Play, 
+  MousePointerClick, 
+  Hourglass, 
+  HelpCircle,
+  Download,
+  Activity,
+  Layers
+} from "lucide-react";
 import { useToast } from "../context/ToastContext";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 interface AnalyticsEvent {
   id: string;
-  category: "click" | "video_play" | "scroll";
-  action: string;
+  eventType: "click" | "video_play" | "scroll" | "form_field";
+  actionName: string;
   metadata?: any;
   timestamp: string;
 }
@@ -21,17 +35,17 @@ export default function AnalyticsDashboard() {
       const res = await fetch("/api/analytics/board");
       if (res.ok) {
         const data = await res.json();
-        setEvents(data.events || []);
+        setEvents(data.logs || []);
       } else {
         // Fallback to localStorage directly if server fails
-        const cached = localStorage.getItem("bhakty_analytics_events");
+        const cached = localStorage.getItem("bhakty_analytics_logs");
         if (cached) {
           setEvents(JSON.parse(cached));
         }
       }
     } catch (e) {
-      console.warn("Server analytics fetch error, recovering mock state:", e);
-      const cached = localStorage.getItem("bhakty_analytics_events");
+      console.warn("Server analytics fetch error, recovering local state:", e);
+      const cached = localStorage.getItem("bhakty_analytics_logs");
       if (cached) {
         setEvents(JSON.parse(cached));
       }
@@ -42,11 +56,53 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => {
     fetchAnalytics();
+
+    // 1. Same-window custom event listener
+    const handleLocalEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<AnalyticsEvent>;
+      if (customEvent.detail) {
+        setEvents(prev => {
+          if (prev.some(evt => evt.id === customEvent.detail.id)) return prev;
+          return [customEvent.detail, ...prev];
+        });
+      }
+    };
+    window.addEventListener("bhakty_new_analytics_event", handleLocalEvent);
+
+    // 2. Supabase Realtime Broadcast subscription
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      try {
+        channel = supabase
+          .channel("analytics-channel")
+          .on("broadcast", { event: "new-interaction" }, (payload: any) => {
+            if (payload && payload.payload) {
+              const newEvent = payload.payload as AnalyticsEvent;
+              setEvents(prev => {
+                if (prev.some(evt => evt.id === newEvent.id)) return prev;
+                return [newEvent, ...prev];
+              });
+            }
+          })
+          .subscribe();
+      } catch (err) {
+        console.warn("Supabase realtime analytics channel subscribe failed:", err);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("bhakty_new_analytics_event", handleLocalEvent);
+      if (channel) {
+        try {
+          supabase?.removeChannel(channel);
+        } catch (err) {}
+      }
+    };
   }, []);
 
   const clearLogs = () => {
     try {
-      localStorage.setItem("bhakty_analytics_events", JSON.stringify([]));
+      localStorage.setItem("bhakty_analytics_logs", JSON.stringify([]));
       setEvents([]);
       toast.success("Analytics telemetry logs cleared.");
     } catch (e) {
@@ -54,12 +110,79 @@ export default function AnalyticsDashboard() {
     }
   };
 
+  const downloadAnalyticsTxt = () => {
+    try {
+      const summary = `==================================================
+BHAKTY STUDIO REAL-TIME ANALYTICS TELEMETRY LOG
+Exported At: ${new Date().toLocaleString()}
+==================================================
+
+SUMMARY METRICS:
+- Total Interactions: ${totalCount}
+- Live Tracking Status: ${isSupabaseConfigured ? "Connected (Supabase Realtime)" : "Local Tab Sync Loop"}
+- Core CTA Clicks: ${ctaClicks}
+- Video Modal Plays: ${videoInteractions}
+- Estimated Hover Hours: ${hoverHours} hrs
+- Model Overlays: ${modelOverlays}
+- Booking Intake Trials: ${bookingSubmissions}
+
+DETAILED EVENT LOGS:
+--------------------------------------------------
+${events.map((e, idx) => {
+  const ts = new Date(e.timestamp).toISOString();
+  const meta = e.metadata ? ` | Metadata: ${JSON.stringify(e.metadata)}` : "";
+  return `[${ts}] [${e.eventType.toUpperCase()}] ${e.actionName}${meta}`;
+}).join("\n")}
+==================================================
+`;
+      const blob = new Blob([summary], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bhakty_analytics_export_${Date.now()}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Analytics telemetry exported successfully.");
+    } catch (e: any) {
+      toast.error(`Export failed: ${e.message}`);
+    }
+  };
+
   // Compute breakdown stats
   const totalCount = events.length;
-  const ctaClicks = events.filter(e => e.category === "click" && e.action.toLowerCase().includes("cta")).length;
-  const bookingSubmissions = events.filter(e => e.action.toLowerCase().includes("booking proposal") || e.action.toLowerCase().includes("submitted")).length;
-  const videoInteractions = events.filter(e => e.category === "video_play" || e.action.toLowerCase().includes("video") || e.action.toLowerCase().includes("play")).length;
-  const scrollSights = events.filter(e => e.category === "scroll").length;
+  
+  const ctaClicks = events.filter(e => 
+    e.eventType === "click" && 
+    (e.actionName.toLowerCase().includes("cta") || 
+     e.actionName.toLowerCase().includes("pricing") || 
+     e.actionName.toLowerCase().includes("contact") ||
+     e.actionName.toLowerCase().includes("proposal"))
+  ).length;
+
+  const videoInteractions = events.filter(e => 
+    e.eventType === "video_play" || 
+    e.actionName.toLowerCase().includes("video") || 
+    e.actionName.toLowerCase().includes("play")
+  ).length;
+
+  const bookingSubmissions = events.filter(e => 
+    e.eventType === "form_field" || 
+    e.actionName.toLowerCase().includes("booking proposal") || 
+    e.actionName.toLowerCase().includes("submitted") ||
+    e.actionName.toLowerCase().includes("submit")
+  ).length;
+
+  const hoverEventsCount = events.filter(e => e.actionName.toLowerCase().includes("hover")).length;
+  const hoverHours = parseFloat(((hoverEventsCount * 12 + videoInteractions * 30) / 3600).toFixed(4));
+
+  const modelOverlays = events.filter(e => 
+    e.actionName.toLowerCase().includes("overlay") || 
+    e.actionName.toLowerCase().includes("modal") ||
+    e.actionName.toLowerCase().includes("popup") ||
+    e.actionName.toLowerCase().includes("window")
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -74,6 +197,14 @@ export default function AnalyticsDashboard() {
         </div>
         
         <div className="flex items-center gap-2">
+          <button
+            onClick={downloadAnalyticsTxt}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 rounded-xl text-xs text-accent hover:text-accent/90 transition-all cursor-pointer font-mono uppercase tracking-wider"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export Data
+          </button>
+
           <button
             onClick={fetchAnalytics}
             disabled={isLoading}
@@ -94,38 +225,66 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* GRAPHIC OVERVIEW CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         
         {/* CARD 1: TOTAL */}
-        <div className="bg-[#11111c] border border-white/5 p-5 rounded-2xl relative overflow-hidden">
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest whitespace-nowrap block">Total Interactions</span>
-          <span className="block mt-2 text-3xl font-display font-semibold text-white">{totalCount}</span>
-          <p className="text-[9px] text-[#E6C687] font-mono mt-1">Live tracking active</p>
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest whitespace-nowrap block">Total Interactions</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{totalCount}</span>
+          <p className="text-[8px] text-[#E6C687] font-mono mt-1">Live tracking active</p>
         </div>
 
-        {/* CARD 2: CTA CLICKS */}
-        <div className="bg-[#11111c] border border-white/5 p-5 rounded-2xl relative">
+        {/* CARD 2: LIVE STATUS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
+          <Activity className={`absolute top-4 right-4 w-4 h-4 ${isSupabaseConfigured ? "text-emerald-400" : "text-amber-400"}`} />
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Live Status</span>
+          <span className="block mt-2 text-base font-mono font-semibold text-white truncate">
+            {isSupabaseConfigured ? "Supabase Sync" : "Local Sync Only"}
+          </span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">
+            {isSupabaseConfigured ? "Realtime connected" : "Same-window loop fallback"}
+          </p>
+        </div>
+
+        {/* CARD 3: CTA CLICKS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
           <MousePointerClick className="absolute top-4 right-4 w-4 h-4 text-purple-400" />
-          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block">Core CTA Clicks</span>
-          <span className="block mt-2 text-3xl font-display font-semibold text-white">{ctaClicks}</span>
-          <p className="text-[9px] text-gray-500 font-mono mt-1">Booking & Curation CTA</p>
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Core CTA Clicks</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{ctaClicks}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Contact & Pricing CTAs</p>
         </div>
 
-        {/* CARD 3: VIDEO INTERACTIONS */}
-        <div className="bg-[#11111c] border border-white/5 p-5 rounded-2xl relative">
+        {/* CARD 4: VIDEO PLAYS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
           <Play className="absolute top-4 right-4 w-4 h-4 text-amber-400" />
-          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block">Video Modal & Play</span>
-          <span className="block mt-2 text-3xl font-display font-semibold text-white">{videoInteractions}</span>
-          <p className="text-[9px] text-gray-500 font-mono mt-1">Hovers & Modal overlays</p>
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Video Plays</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{videoInteractions}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Hovers & Play clicks</p>
         </div>
 
-        {/* CARD 4: ACTIONS AND SUBMISSIONS */}
-        <div className="bg-[#11111c] border border-white/5 p-5 rounded-2xl relative">
-          <Eye className="absolute top-4 right-4 w-4 h-4 text-blue-400" />
-          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block">Booking Intake Trials</span>
-          <span className="block mt-2 text-3xl font-display font-semibold text-white">{bookingSubmissions}</span>
-          <p className="text-[9px] text-gray-500 font-mono mt-1">Form interactions recorded</p>
+        {/* CARD 5: HOVER HOURS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
+          <Hourglass className="absolute top-4 right-4 w-4 h-4 text-sky-400" />
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Hover Hours</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{hoverHours}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Estimated dwell duration</p>
+        </div>
+
+        {/* CARD 6: MODEL OVERLAYS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
+          <Layers className="absolute top-4 right-4 w-4 h-4 text-indigo-400" />
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Model Overlays</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{modelOverlays}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Overlays & state popups</p>
+        </div>
+
+        {/* CARD 7: BOOKING TRIALS */}
+        <div className="bg-[#11111c] border border-white/5 p-4 rounded-2xl relative">
+          <Eye className="absolute top-4 right-4 w-4 h-4 text-rose-400" />
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Booking Trials</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{bookingSubmissions}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Form interactions recorded</p>
         </div>
 
       </div>
@@ -151,25 +310,26 @@ export default function AnalyticsDashboard() {
       ) : (
         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden">
           <div className="h-[280px] overflow-y-auto space-y-2.5 pr-2 custom-scrollbar font-mono text-[10.5px]">
-            {events.slice(0).reverse().map((event, idx) => {
+            {events.slice(0).map((event, idx) => {
               const dateText = new Date(event.timestamp).toLocaleTimeString();
               const catColors: Record<string, string> = {
                 click: "text-purple-400 bg-purple-500/10 border-purple-500/20",
                 video_play: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                scroll: "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                scroll: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+                form_field: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
               };
 
               return (
                 <div 
                   key={event.id || idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-[#0a0a0f]/80 border border-white/[0.03] rounded-xl hover:border-white/10 transition-all"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-[#0a0a0f]/80 border border-white/[0.03] rounded-xl hover:border-white/10 transition-all animate-fadeIn"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-gray-600">{dateText}</span>
-                    <span className={`px-2 py-0.5 rounded text-[8px] uppercase border font-semibold ${catColors[event.category] || "text-gray-400 bg-gray-500/10"}`}>
-                      {event.category}
+                    <span className={`px-2 py-0.5 rounded text-[8px] uppercase border font-semibold ${catColors[event.eventType] || "text-gray-400 bg-gray-500/10"}`}>
+                      {event.eventType}
                     </span>
-                    <span className="text-gray-200 font-medium font-sans">{event.action}</span>
+                    <span className="text-gray-200 font-medium font-sans">{event.actionName}</span>
                   </div>
                   
                   {event.metadata && Object.keys(event.metadata).length > 0 && (

@@ -9,16 +9,163 @@ import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
 import BrandMarquee from "./components/BrandMarquee";
 import AdminPanel from "./components/AdminPanel";
+import MobileAppView from "./components/MobileAppView";
 import ChatWidget from "./components/ChatWidget";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
 import { trackEvent, initializeMockAnalytics, trackMetaPixelEvent, trackMetaPixelCustomEvent } from "./lib/analytics";
 import { getActiveTheme, WEB_THEMES } from "./lib/themes";
+import { optimizeHeroVideoUrl } from "./lib/cloudinary";
 
 
 function AppContent() {
+  const { siteSettings, activePage } = useSiteData();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [path, setPath] = useState(window.location.pathname);
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobileOrTablet = windowWidth < 1024;
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setPath(window.location.pathname);
+      setHash(window.location.hash);
+    };
+    window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("hashchange", handleLocationChange);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("hashchange", handleLocationChange);
+    };
+  }, []);
+
+  // Load dynamic Google Fonts based on siteSettings
+  useEffect(() => {
+    const fontsNeeded = new Set<string>();
+    const textTypes = ["headings", "paragraph", "h1", "h2", "h3", "h4", "h5", "h6"];
+    textTypes.forEach(type => {
+      const font = siteSettings[`font_${type}_family`];
+      if (font && font !== "Default Theme Font") {
+        fontsNeeded.add(font);
+      }
+    });
+
+    if (fontsNeeded.size > 0) {
+      const googleFontsToLoad = Array.from(fontsNeeded)
+        .filter(font => font !== "Cal Sans" && font !== "Google Sans")
+        .map(font => `family=${font.replace(/ /g, "+")}:wght@300;400;500;600;700;800`);
+      
+      if (googleFontsToLoad.length > 0) {
+        const linkId = "dynamic-google-fonts";
+        let linkEl = document.getElementById(linkId) as HTMLLinkElement;
+        if (!linkEl) {
+          linkEl = document.createElement("link");
+          linkEl.id = linkId;
+          linkEl.rel = "stylesheet";
+          document.head.appendChild(linkEl);
+        }
+        linkEl.href = `https://fonts.googleapis.com/css2?${googleFontsToLoad.join("&")}&display=swap`;
+      }
+    }
+  }, [siteSettings]);
+
+  // Base Meta Ads Pixel Initialization
+  useEffect(() => {
+    const pixelId = (siteSettings.meta_pixel_id || "").trim() || (import.meta.env.VITE_META_PIXEL_ID || "").trim();
+    if (!pixelId) return;
+
+    (window as any)._metaPixelId = pixelId;
+
+    if (!(window as any).fbq) {
+      /* eslint-disable */
+      (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
+        if (f.fbq) return;
+        n = f.fbq = function() {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+      /* eslint-enable */
+
+      (window as any).fbq('init', pixelId);
+    }
+  }, [siteSettings.meta_pixel_id]);
+
+  // Listen for route transitions (path, page/activePage, hash) and fire PageView
+  useEffect(() => {
+    const fbq = (window as any).fbq;
+    if (fbq) {
+      fbq('track', 'PageView', {
+        path: path,
+        hash: hash,
+        activePage: activePage
+      });
+      console.log(`[Meta Pixel] Tracked PageView: path=${path}, hash=${hash}, activePage=${activePage}`);
+    }
+  }, [path, hash, activePage]);
+
+  // Track custom pipeline selections in page activePage updates
+  useEffect(() => {
+    if (activePage === "live") {
+      trackMetaPixelCustomEvent("SelectedPhysicalPipeline", { source: "navbar_toggle", page: "live" });
+    } else if (activePage === "ai") {
+      trackMetaPixelCustomEvent("SelectedDigitalPipeline", { source: "navbar_toggle", page: "ai" });
+    }
+  }, [activePage]);
+
+  const navigate = (to: string) => {
+    if (to.startsWith("#")) {
+      window.location.hash = to;
+      setHash(to);
+    } else {
+      window.history.pushState({}, "", to);
+      setPath(to);
+      setHash("");
+    }
+  };
+
+  // ----------------------------------------------------
+  // ROUTE DISPATCHER: ADMIN & MOBILE PREVIEW SYSTEM
+  // ----------------------------------------------------
+  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
+    return <AdminPanel onNavigateHome={() => navigate("/")} />;
+  }
+
+  if (path === "/mobile-app" || hash === "#mobile-app" || hash === "/mobile-app") {
+    return <MobileAppView onExit={() => navigate("/")} />;
+  }
+
+  if (isMobileOrTablet) {
+    return <MobileAppView onExit={() => {}} />;
+  }
+
+  return <DesktopWebsiteView path={path} hash={hash} navigate={navigate} />;
+}
+
+interface DesktopWebsiteViewProps {
+  path: string;
+  hash: string;
+  navigate: (to: string) => void;
+}
+
+function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
   const [selectedTier, setSelectedTier] = useState<string>("");
-  const { siteSettings, isLoading, activePage } = useSiteData();
+  const { siteSettings, activePage } = useSiteData();
   const isNavbarFullWidth = activePage === "live"
     ? siteSettings.page2_navbar_full_width === "true"
     : siteSettings.navbar_full_width === "true";
@@ -62,77 +209,28 @@ function AppContent() {
     }
   }, [activePage]);
 
-  // Simple and ultra-resilient single-page router state
-  const [path, setPath] = useState(window.location.pathname);
-  const [hash, setHash] = useState(window.location.hash);
   const [isHeroVisible, setIsHeroVisible] = useState(true);
 
   // Monitor hero viewport intersection to unmount off-screen looping background video
   useEffect(() => {
+    setIsHeroVisible(true);
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         setIsHeroVisible(entry.isIntersecting);
       });
     }, { threshold: 0.01 });
 
-    const currentHeros = document.querySelectorAll("#hero-section");
-    currentHeros.forEach((el) => observer.observe(el));
-
-    const mutationObserver = new MutationObserver(() => {
-      const heros = document.querySelectorAll("#hero-section");
-      heros.forEach((el) => observer.observe(el));
-    });
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
+    const timer = setTimeout(() => {
+      const heroEl = document.getElementById("hero-section");
+      if (heroEl) observer.observe(heroEl);
+    }, 1100);
 
     return () => {
+      clearTimeout(timer);
       observer.disconnect();
-      mutationObserver.disconnect();
     };
   }, [activePage]);
-
-  useEffect(() => {
-    const handleLocationChange = () => {
-      setPath(window.location.pathname);
-      setHash(window.location.hash);
-    };
-    window.addEventListener("popstate", handleLocationChange);
-    window.addEventListener("hashchange", handleLocationChange);
-    return () => {
-      window.removeEventListener("popstate", handleLocationChange);
-      window.removeEventListener("hashchange", handleLocationChange);
-    };
-  }, []);
-
-  // Load dynamic Google Fonts based on siteSettings
-  useEffect(() => {
-    const fontsNeeded = new Set<string>();
-    const textTypes = ["headings", "paragraph", "h1", "h2", "h3", "h4", "h5", "h6"];
-    textTypes.forEach(type => {
-      const font = siteSettings[`font_${type}_family`];
-      if (font && font !== "Default Theme Font") {
-        fontsNeeded.add(font);
-      }
-    });
-
-    if (fontsNeeded.size > 0) {
-      // Filter out non-Google fonts if any, and map to family query parameter format
-      const googleFontsToLoad = Array.from(fontsNeeded)
-        .filter(font => font !== "Cal Sans" && font !== "Google Sans")
-        .map(font => `family=${font.replace(/ /g, "+")}:wght@300;400;500;600;700;800`);
-      
-      if (googleFontsToLoad.length > 0) {
-        const linkId = "dynamic-google-fonts";
-        let linkEl = document.getElementById(linkId) as HTMLLinkElement;
-        if (!linkEl) {
-          linkEl = document.createElement("link");
-          linkEl.id = linkId;
-          linkEl.rel = "stylesheet";
-          document.head.appendChild(linkEl);
-        }
-        linkEl.href = `https://fonts.googleapis.com/css2?${googleFontsToLoad.join("&")}&display=swap`;
-      }
-    }
-  }, [siteSettings]);
 
   // Construct dynamic CSS rules for typography overrides
   const getDynamicTypographyCss = () => {
@@ -216,59 +314,6 @@ function AppContent() {
     return css;
   };
 
-  // Base Meta Ads Pixel Initialization
-  useEffect(() => {
-    const pixelId = (siteSettings.meta_pixel_id || "").trim() || (import.meta.env.VITE_META_PIXEL_ID || "").trim();
-    if (!pixelId) return;
-
-    (window as any)._metaPixelId = pixelId;
-
-    if (!(window as any).fbq) {
-      /* eslint-disable */
-      (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
-        if (f.fbq) return;
-        n = f.fbq = function() {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-        };
-        if (!f._fbq) f._fbq = n;
-        n.push = n;
-        n.loaded = !0;
-        n.version = '2.0';
-        n.queue = [];
-        t = b.createElement(e);
-        t.async = !0;
-        t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s);
-      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-      /* eslint-enable */
-
-      (window as any).fbq('init', pixelId);
-    }
-  }, [siteSettings.meta_pixel_id]);
-
-  // Listen for route transitions (path, page/activePage, hash) and fire PageView
-  useEffect(() => {
-    const fbq = (window as any).fbq;
-    if (fbq) {
-      fbq('track', 'PageView', {
-        path: path,
-        hash: hash,
-        activePage: activePage
-      });
-      console.log(`[Meta Pixel] Tracked PageView: path=${path}, hash=${hash}, activePage=${activePage}`);
-    }
-  }, [path, hash, activePage]);
-
-  // Track custom pipeline selections in page activePage updates
-  useEffect(() => {
-    if (activePage === "live") {
-      trackMetaPixelCustomEvent("SelectedPhysicalPipeline", { source: "navbar_toggle", page: "live" });
-    } else if (activePage === "ai") {
-      trackMetaPixelCustomEvent("SelectedDigitalPipeline", { source: "navbar_toggle", page: "ai" });
-    }
-  }, [activePage]);
-
   // Scroll to hash on page load / mount
   useEffect(() => {
     const initialHash = window.location.hash;
@@ -309,7 +354,6 @@ function AppContent() {
       });
     }, { threshold: 0.15 });
 
-    // Delay observer start slightly to make sure page elements are fully mounted
     const delayObserve = setTimeout(() => {
       trackedSections.forEach((id) => {
         const el = document.getElementById(id);
@@ -322,19 +366,6 @@ function AppContent() {
       observer.disconnect();
     };
   }, []);
-
-
-  const navigate = (to: string) => {
-    if (to.startsWith("#")) {
-      window.location.hash = to;
-      setHash(to);
-    } else {
-      // Clear physical URL hash and update path
-      window.history.pushState({}, "", to);
-      setPath(to);
-      setHash("");
-    }
-  };
 
   const handleSelectTier = (tierName: string) => {
     setSelectedTier(tierName);
@@ -351,15 +382,6 @@ function AppContent() {
     }
   };
 
-  // Loader removed to allow instant rendering with cached local data
-
-  // ----------------------------------------------------
-  // ROUTE DISPATCHER: ADMIN SYSTEM
-  // ----------------------------------------------------
-  if (path === "/admin" || hash === "#admin" || hash === "/admin") {
-    return <AdminPanel onNavigateHome={() => navigate("/")} />;
-  }
-
   // Spacing and layout control overrides for the hero section
   const heroStyle: React.CSSProperties = {
     paddingTop: isNavbarFullWidth 
@@ -375,7 +397,8 @@ function AppContent() {
     height: getSetting("hero_text_height") || undefined,
   };
 
-  const heroVideoBgUrl = getSetting("hero_video_bg_url", "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4");
+  const rawHeroVideoBgUrl = getSetting("hero_video_bg_url", "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4");
+  const heroVideoBgUrl = optimizeHeroVideoUrl(rawHeroVideoBgUrl);
   const heroCtaBookingColor = getSetting("hero_cta_booking_color");
   const heroCtaBookingTextColor = getSetting("hero_cta_booking_text_color");
 
@@ -417,22 +440,18 @@ function AppContent() {
               {/* Full-screen Background Video/Image */}
               <div className="absolute inset-0 z-0 overflow-hidden">
                 {(!heroVideoBgUrl || !heroVideoBgUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
-                  isHeroVisible ? (
-                    <video
-                      src={heroVideoBgUrl}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="w-full h-full object-cover"
-                      style={{
-                        opacity: getSetting("hero_bg_opacity", "1"),
-                        filter: getSetting("hero_bg_blur", "none") === "none" ? "none" : `blur(${getSetting("hero_bg_blur") === "sm" ? "4px" : getSetting("hero_bg_blur") === "md" ? "12px" : "24px"})`
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-[#050508]" />
-                  )
+                  <video
+                    src={heroVideoBgUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                    style={{
+                      opacity: getSetting("hero_bg_opacity", "1"),
+                      filter: getSetting("hero_bg_blur", "none") === "none" ? "none" : `blur(${getSetting("hero_bg_blur") === "sm" ? "4px" : getSetting("hero_bg_blur") === "md" ? "12px" : "24px"})`
+                    }}
+                  />
                 ) : (
                   <img
                     src={heroVideoBgUrl}
@@ -580,7 +599,7 @@ function AppContent() {
             {/* ORIGINAL AI HERO SECTION */}
             <section 
               id="hero-section" 
-              style={heroStyle}
+              style={{...heroStyle, isolation: "isolate"}}
               className={`relative pt-36 pb-20 md:py-40 md:px-12 px-6 flex flex-col items-center justify-center text-center gap-16 overflow-hidden transition-all duration-500 ${
                 isNavbarFullWidth
                   ? "w-full max-w-none rounded-none mt-0 border-none bg-[#0c0c16]/10 backdrop-blur-[4px]"
@@ -594,18 +613,14 @@ function AppContent() {
               {/* Soft Looping background video or image centered in hero */}
               <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none select-none">
                 {(!heroVideoBgUrl || !heroVideoBgUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)/i)) ? (
-                  isHeroVisible ? (
-                    <video
-                      src={heroVideoBgUrl}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-[#050508]" />
-                  )
+                  <video
+                    src={heroVideoBgUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <img
                     src={heroVideoBgUrl}
@@ -811,7 +826,6 @@ function AppContent() {
 
       {/* CUSTOMER SUPPORT CONCIERGE CHAT WIDGET */}
       <ChatWidget />
-
     </motion.div>
   );
 }

@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from "./supabase";
+
 /**
  * Bhakty Analytics Tracking Utility
  * Stores logged events in both localStorage and syncs with the server API
@@ -35,6 +37,25 @@ export const trackEvent = async (
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 150)));
   } catch (err) {
     console.warn("Could not cache analytics event in localStorage:", err);
+  }
+
+  // Dispatch custom local event for instant same-window tab notifications
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("bhakty_new_analytics_event", { detail: event }));
+  }
+
+  // Broadcast the tracked event to Supabase Realtime Channel
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const channel = supabase.channel("analytics-channel");
+      channel.send({
+        type: "broadcast",
+        event: "new-interaction",
+        payload: event
+      });
+    } catch (err) {
+      console.warn("Supabase realtime broadcast failed:", err);
+    }
   }
 
   try {

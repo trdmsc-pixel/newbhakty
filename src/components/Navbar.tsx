@@ -265,6 +265,7 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
                     : "bg-black/75 backdrop-blur-xl"
                 }`
           } ${isFullWidth ? "px-6 md:px-12" : "px-4 md:px-6"}`}
+          style={{ isolation: "isolate" }}
         >
           {/* LEFT: Logo & Optional Switcher Toggle (Compact Mode Only) */}
           <div className="flex items-center gap-4">

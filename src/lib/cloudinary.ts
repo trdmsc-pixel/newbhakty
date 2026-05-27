@@ -133,3 +133,26 @@ export const optimizeImageUrl = (url: string): string => {
   }
   return url;
 };
+
+/**
+ * Optimizes a hero background video URL from Cloudinary.
+ * Uses aggressive compression (480p, low quality) since hero videos
+ * are purely atmospheric backgrounds behind overlays and text.
+ */
+export const optimizeHeroVideoUrl = (url: string): string => {
+  if (!url) return "";
+  if (url.includes("res.cloudinary.com")) {
+    try {
+      // Strip any Cloudinary transformation segments from the path (e.g. /video/upload/w_854,q_auto:low/v12345/...)
+      // Keep only version parameters if present.
+      const cleaned = url.replace(/\/video\/upload\/[^/]+?\/v\d+\//, (match) => {
+        const versionMatch = match.match(/\/v\d+\//);
+        return `/video/upload${versionMatch ? versionMatch[0] : "/"}`;
+      }).replace(/\/video\/upload\/[^/]+?\/(?![v\d])/, "/video/upload/");
+      return cleaned;
+    } catch (e) {
+      return url;
+    }
+  }
+  return url;
+};

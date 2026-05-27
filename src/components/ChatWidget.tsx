@@ -726,17 +726,9 @@ export default function ChatWidget() {
           --chat-bubble-user: ${bubbleUser};
           --chat-bubble-ai: ${bubbleAi};
         }
-        @keyframes rotateAura {
-          0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
-          50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.08); }
-          100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
-        }
         @keyframes voiceOrbPulse {
           0%, 100% { transform: scale(1); box-shadow: 0 0 35px var(--chat-aura-2), 0 0 70px var(--chat-aura-1); }
           50% { transform: scale(1.06); box-shadow: 0 0 55px var(--chat-aura-2), 0 0 110px var(--chat-aura-3); }
-        }
-        .animate-aura-spin {
-          animation: rotateAura 6s infinite linear;
         }
         .animate-voice-orb {
           animation: voiceOrbPulse 2.5s infinite ease-in-out;
@@ -758,8 +750,6 @@ export default function ChatWidget() {
                 setShowTooltip(false);
               }}
             >
-              {/* Glowing aura background for the tooltip */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[var(--chat-aura-1)]/10 via-[var(--chat-aura-2)]/10 to-[var(--chat-aura-3)]/10 opacity-30 -z-10 blur-sm" />
               
               {/* Close/Cross button */}
               <button
@@ -819,8 +809,6 @@ export default function ChatWidget() {
             }}
             className="relative w-14 h-14 rounded-full flex items-center justify-center cursor-pointer overflow-visible pointer-events-auto shadow-2xl border border-white/5 bg-black"
           >
-          {/* Glowing fluid aura */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-gradient-to-r from-[var(--chat-aura-1)] via-[var(--chat-aura-2)] to-[var(--chat-aura-3)] opacity-60 blur-md -z-10 animate-aura-spin" />
           
           <div className="absolute inset-[2px] rounded-full bg-zinc-950 flex items-center justify-center">
             {isOpen ? (

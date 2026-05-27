@@ -69,6 +69,7 @@ html, body {
       inset 0 -1px 1px rgba(var(--color-accent-rgb-custom), 0.1);
     position: relative;
     overflow: hidden;
+    isolation: isolate;
   }
   .liquid-glass::before {
     content: '';
@@ -102,6 +103,8 @@ html, body {
       0 12px 30px -10px rgba(0, 0, 0, 0.7);
     position: relative;
     overflow: hidden;
+    isolation: isolate;
+    contain: paint;
   }
   .glass-panel::before {
     content: '';
@@ -134,6 +137,8 @@ html, body {
       0 20px 40px -15px rgba(0, 0, 0, 0.9);
     position: relative;
     overflow: hidden;
+    isolation: isolate;
+    contain: paint;
   }
   .glass-panel-heavy::before {
     content: '';
@@ -165,6 +170,7 @@ html, body {
       inset 0 -1px 1px rgba(var(--color-accent-rgb-custom), 0.05);
     position: relative;
     overflow: hidden;
+    isolation: isolate;
   }
   .glass-panel-light::before {
     content: '';
@@ -471,6 +477,20 @@ body.light-mode .mesh-glow-orb {
 }
 
 /* ========================================= */
+/* GPU GRADIENT PULSE (CSS replaces Framer Motion infinite JS loop) */
+/* ========================================= */
+@keyframes gradient-pulse {
+  0%   { transform: translate(-50%, -50%) scale(1);    opacity: 0.4; }
+  30%  { transform: translate(-50%, -50%) scale(1.1);   opacity: 0.6; }
+  65%  { transform: translate(-50%, -50%) scale(0.95);  opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(1);    opacity: 0.4; }
+}
+
+.animate-gradient-pulse {
+  animation: gradient-pulse 18s ease-in-out infinite;
+}
+
+/* ========================================= */
 /* TESTIMONIAL CAROUSEL                      */
 /* ========================================= */
 
@@ -490,7 +510,7 @@ body.light-mode .mesh-glow-orb {
 /* ========================================= */
 /* MOBILE PERFORMANCE & THERMAL OPTIMIZATIONS */
 /* ========================================= */
-@media (max-w: 767px) {
+@media (max-width: 767px) {
   .liquid-glass {
     backdrop-filter: blur(4px) !important;
     -webkit-backdrop-filter: blur(4px) !important;
@@ -605,6 +625,137 @@ body.light-mode .mesh-glow-orb {
   border-color: rgba(52, 211, 153, 0.5) !important;
   box-shadow: 0 0 12px rgba(52, 211, 153, 0.4) !important;
   background-color: rgba(52, 211, 153, 0.15) !important;
+}
+
+/* ========================================= */
+/* ADMIN PANEL DAY/LIGHT MODE OVERRIDES       */
+/* ========================================= */
+
+.admin-light-mode {
+  background-color: #faf9f6 !important;
+  background-image: none !important;
+  color: #18181b !important;
+}
+
+.admin-light-mode p,
+.admin-light-mode span,
+.admin-light-mode h1,
+.admin-light-mode h2,
+.admin-light-mode h3,
+.admin-light-mode h4,
+.admin-light-mode h5,
+.admin-light-mode h6,
+.admin-light-mode label,
+.admin-light-mode li,
+.admin-light-mode select {
+  color: #18181b !important;
+}
+
+/* Specific elements that should keep white color or have high contrast */
+.admin-light-mode .text-white,
+.admin-light-mode .text-gray-100,
+.admin-light-mode .text-gray-200,
+.admin-light-mode .text-gray-300,
+.admin-light-mode .text-gray-400 {
+  color: #18181b !important;
+}
+
+.admin-light-mode .text-gray-500,
+.admin-light-mode .text-gray-600 {
+  color: #52525b !important;
+}
+
+/* Glass panel and container overrides */
+.admin-light-mode .glass-panel,
+.admin-light-mode .glass-panel-heavy,
+.admin-light-mode .glass-panel-light,
+.admin-light-mode .liquid-glass,
+.admin-light-mode aside,
+.admin-light-mode main {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 12px 30px -10px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #18181b !important;
+}
+
+.admin-light-mode .glass-panel::before,
+.admin-light-mode .glass-panel-heavy::before,
+.admin-light-mode .glass-panel-light::before,
+.admin-light-mode .liquid-glass::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(0, 0, 0, 0.03) 50%,
+    rgba(255, 255, 255, 0.4) 100%
+  ) !important;
+}
+
+/* Invert form elements */
+.admin-light-mode input,
+.admin-light-mode textarea,
+.admin-light-mode select {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #18181b !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-light-mode input::placeholder,
+.admin-light-mode textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Background overlay colors and headers */
+.admin-light-mode .bg-black\/30,
+.admin-light-mode .bg-black\/40,
+.admin-light-mode .bg-black\/60,
+.admin-light-mode .bg-white\/\[0\.01\],
+.admin-light-mode .bg-white\/\[0\.02\],
+.admin-light-mode .bg-white\/5,
+.admin-light-mode .bg-\[\#11111c\],
+.admin-light-mode .bg-\[\#0a0a0f\]\/80,
+.admin-light-mode .bg-\[\#0a0a0c\]\/65 {
+  background-color: rgba(245, 245, 243, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.admin-light-mode .border-white\/5,
+.admin-light-mode .border-white\/10,
+.admin-light-mode .border-white\/20,
+.admin-light-mode .border-white\/\[0\.03\] {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Custom buttons */
+.admin-light-mode button {
+  color: #18181b;
+}
+
+.admin-light-mode button.bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.admin-light-mode button.bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.admin-light-mode .text-gray-400 {
+  color: #52525b !important;
+}
+
+/* Hide scrollbar utility for showcase carousel */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 

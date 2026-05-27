@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Chanting Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&amp;family=Outfit:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-tint": "#615e52",
+                      "primary-fixed-dim": "#cbc6b7",
+                      "outline": "#7a776e",
+                      "secondary-container": "#f6e200",
+                      "on-primary-fixed": "#1d1c12",
+                      "on-secondary-fixed-variant": "#4f4800",
+                      "on-secondary-fixed": "#1f1c00",
+                      "secondary": "#695f00",
+                      "secondary-fixed-dim": "#dbc900",
+                      "on-error": "#ffffff",
+                      "border-light": "#E5E7EB",
+                      "surface-bright": "#f9f9f9",
+                      "surface": "#f9f9f9",
+                      "inverse-on-surface": "#f0f1f1",
+                      "tertiary-fixed": "#e8e0e9",
+                      "on-tertiary": "#ffffff",
+                      "muted-text": "#6B7280",
+                      "on-tertiary-fixed-variant": "#49454c",
+                      "on-background": "#1a1c1c",
+                      "surface-container-high": "#e8e8e8",
+                      "surface-container-low": "#f3f3f4",
+                      "background": "#f9f9f9",
+                      "on-surface-variant": "#49473f",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-container": "#6d6400",
+                      "inverse-surface": "#2f3131",
+                      "inverse-primary": "#cbc6b7",
+                      "secondary-fixed": "#fae500",
+                      "error": "#ba1a1a",
+                      "primary-fixed": "#e8e2d2",
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#49473b",
+                      "on-primary-container": "#878476",
+                      "primary": "#000000",
+                      "tertiary-fixed-dim": "#cbc4cd",
+                      "primary-container": "#1d1c12",
+                      "on-tertiary-container": "#87828a",
+                      "surface-dim": "#dadada",
+                      "accent-error": "#FF0066",
+                      "on-tertiary-fixed": "#1d1a21",
+                      "on-surface": "#1a1c1c",
+                      "surface-alt": "#F9F9F9",
+                      "surface-variant": "#e2e2e2",
+                      "surface-container": "#eeeeee",
+                      "on-secondary": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "surface-container-highest": "#e2e2e2",
+                      "outline-variant": "#cbc6bc",
+                      "tertiary-container": "#1d1a21",
+                      "error-container": "#ffdad6",
+                      "tertiary": "#000000"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "section-gap": "128px",
+                      "unit": "8px",
+                      "margin-mobile": "16px",
+                      "margin-desktop": "64px",
+                      "container-max": "1280px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Outfit"
+                      ],
+                      "display-lg-mobile": [
+                              "Outfit"
+                      ],
+                      "label-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-md": [
+                              "Outfit"
+                      ],
+                      "display-lg": [
+                              "Outfit"
+                      ],
+                      "body-lg": [
+                              "Outfit"
+                      ],
+                      "headline-sm": [
+                              "Outfit"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "40px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-mono": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "64px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-sm": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+      </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased md:hidden selection:bg-primary-fixed selection:text-on-primary-fixed pt-20 pb-20">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-on-background/80 backdrop-blur-md border-b border-border-light dark:border-outline-variant shadow-sm transition-transform duration-200" id="top-nav">
+<div class="flex justify-between items-center px-margin-mobile h-20 max-w-container-max mx-auto">
+<a class="font-display-lg-mobile text-headline-sm tracking-tighter text-on-background dark:text-surface-bright" href="#">The Chanting Studio</a>
+</div>
+</nav>
+<main class="w-full max-w-container-max mx-auto">
+<!-- Home Tab -->
+<div class="block" id="tab-home">
+<!-- Hero Section -->
+<section class="relative w-full h-[85vh] flex flex-col justify-end p-margin-mobile pb-12 overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Hero Cinematic Still" class="w-full h-full object-cover" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0ugGv4EBRCoTFdbF5B6J2ckBy7M64V6ttsIKpr6PmNROuLF6ilpK8cbjP-uJofNQze-5ifNZSJUAw-u1eA-9jcY9M8JVirNL5BhXzY7RWMCphtpLmifG2bs4q1Q_-pCbOpuei1yFXTWs3K6plzC_gnT_P3dFiHompHLI9GO_VehTGFIN_HJVSjoVWB_sevO6ZkUgmglcvR1WNrS835i045DibIn6E0NEa84JSXSFY1gbk4H4dK1LK9fFnQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+</div>
+<div class="relative z-10 flex flex-col gap-6 w-full">
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-center">The Next Epoch of Cinema.<br/>Synthesized.</h1>
+<div class="flex flex-col gap-3 w-full">
+<button class="w-full py-4 px-6 bg-primary text-on-primary font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:opacity-90 active:scale-[0.98] transition-all duration-200 flex justify-center items-center gap-2" onclick="switchTab('book')">
+                        Book Creative Spot
+                    </button>
+<button class="w-full py-4 px-6 bg-transparent border border-primary text-primary font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:bg-surface-dim active:scale-[0.98] transition-all duration-200 flex justify-center items-center gap-2" onclick="switchTab('work')">
+                        Explore Curation
+                    </button>
+</div>
+</div>
+</section>
+<!-- Brands Section -->
+<section class="w-full py-16 border-y border-border-light bg-surface-bright overflow-hidden">
+<div class="flex items-center gap-8 px-margin-mobile overflow-x-auto hide-scrollbar whitespace-nowrap opacity-60 grayscale">
+<span class="font-headline-md text-headline-sm tracking-tighter shrink-0">VERSACE</span>
+<span class="font-headline-md text-headline-sm tracking-tighter shrink-0">mamaearth</span>
+<span class="font-headline-md text-headline-sm tracking-tighter shrink-0">KLEIO</span>
+<span class="font-headline-md text-headline-sm tracking-tighter shrink-0">Flipkart</span>
+<span class="font-headline-md text-headline-sm tracking-tighter shrink-0">uppercase</span>
+</div>
+</section>
+<!-- Footer -->
+<footer class="relative w-full bg-surface-bright dark:bg-on-background border-t border-border-light dark:border-outline-variant flat no shadows">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center py-section-gap px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter w-full pb-24">
+<div class="flex flex-col gap-4">
+<span class="font-display-lg text-headline-sm text-on-background dark:text-surface-bright">The Chanting Studio</span>
+<p class="font-body-md text-body-md text-muted-text dark:text-outline-variant">© 2024 The Chanting Studio. All rights reserved.</p>
+</div>
+<div class="flex flex-col gap-3 font-label-mono text-label-mono uppercase mt-8 md:mt-0">
+<a class="text-muted-text dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors duration-200 opacity-100 hover:opacity-70" href="#">Instagram</a>
+<a class="text-muted-text dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors duration-200 opacity-100 hover:opacity-70" href="#">Vimeo</a>
+<a class="text-muted-text dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors duration-200 opacity-100 hover:opacity-70" href="#">LinkedIn</a>
+<a class="text-muted-text dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors duration-200 opacity-100 hover:opacity-70 mt-4" href="#">Privacy Policy</a>
+</div>
+</div>
+</footer>
+</div>
+<!-- Work Tab -->
+<div class="hidden" id="tab-work">
+<!-- Visual Curation Section -->
+<section class="w-full py-20 px-margin-mobile flex flex-col gap-8 min-h-screen">
+<div class="flex flex-col gap-2">
+<h2 class="font-headline-md text-headline-md">Our Visual Curation</h2>
+<div class="h-px w-12 bg-primary"></div>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<div class="w-full aspect-[1.78] rounded-xl overflow-hidden bg-surface-container shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-border-light relative group">
+<img alt="Cinematic curation shot 1" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0uhMTovzDydwmmmTjVWgglELoTaDlL4_8fnLbvVWkB1Vk06rlL7U0iVrkO2pT-Jzq6m1GUmA_OIYKjx4NbSJm8zjVCMasSoEX2h4eZ87aAgR_hro-JJBN-WgUThifHf1E0KB6pgUiwBcIVU-I5qErm_aZGdKQEl5BG5J7P6XEgA7Z0hkXHLMeJh36yxx8s_xWiQ3gC2kq-ugpp8iH4iyyF_eJgH0zp8vV9ZGSko24pw8uXbiJ5sRsNKf"/>
+<div class="absolute bottom-4 left-4 right-4 flex gap-2">
+<span class="bg-surface-bright/90 backdrop-blur text-primary font-label-mono text-label-mono px-3 py-1.5 rounded-DEFAULT">Cinematic</span>
+</div>
+</div>
+<div class="w-full aspect-[2.33] rounded-xl overflow-hidden bg-surface-container shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-border-light relative group">
+<img alt="Cinematic curation shot 2" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0ujHXtdvIjsVbGK6FSxO4tUsM6EGkPqqywSpnTsmHr1sfdVZfo5PIiRK6i75FOk-0SZDY6gKvGSPjpH0LY7KryEQ-wQ1nFkm1dJj8iUs6NUbmBNgvRA_bLzuCmOP-Y0JWJovVOsUUlvs3O2xvlYi2UpFBUkPcobxG5mIWR6Z47R0g8w41LQV_G6ZfZS6AKvp8ol0BsZYUQON0QD4idH_RygRSTrzb9MjcNPbb-f58PRKnnEux2Ua08hL"/>
+</div>
+<div class="w-full aspect-[2.33] rounded-xl overflow-hidden bg-surface-container shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-border-light relative group">
+<img alt="Cinematic curation shot 3" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0uhHqqV3kt97bFw-sG_N7h4NuO_zGiQQNqcGHfy_oZhvjNL_UGJWAabMtp7nUoQahg9TrS1QkYCN9VIPsSNvvjDnuTWu4Y9gGW-WDMQZ--n8BRfjoySmldrunyQ1MGT95g7PjtSu1LmWICizDaIog9LxrvAJLtUrkof4FN1GsfqJM5jg3JQf8VFTE4K0Yn1F6BLJ5N48E2iAOMHTEYOzmS42Pq6LEuj4NQ3ithKkH9VuR4Vmumoegncs4A"/>
+</div>
+</div>
+</section>
+</div>
+<!-- Tiers Tab -->
+<div class="hidden" id="tab-tiers">
+<!-- Production Tiers Section -->
+<section class="w-full py-20 px-margin-mobile bg-surface-bright flex flex-col gap-12 min-h-screen">
+<div class="flex flex-col gap-2 items-center text-center">
+<h2 class="font-headline-md text-headline-md">Production Tiers</h2>
+<p class="font-body-md text-body-md text-muted-text max-w-md mx-auto">Scalable solutions tailored for varying scales of creative ambition.</p>
+</div>
+<div class="flex flex-col gap-6">
+<!-- Tier 1 -->
+<div class="bg-surface-container-lowest border border-border-light rounded-xl p-8 flex flex-col gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline-sm text-headline-sm">Studio</h3>
+<p class="font-body-md text-body-md text-muted-text mt-1">Essential setups for focused shoots.</p>
+</div>
+</div>
+<ul class="flex flex-col gap-3 font-body-md text-body-md">
+<li class="flex items-center gap-3 border-b border-border-light pb-3">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="check">check</span>
+<span>Single Camera Setup</span>
+</li>
+<li class="flex items-center gap-3 border-b border-border-light pb-3">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="check">check</span>
+<span>Basic Lighting Grid</span>
+</li>
+</ul>
+<button class="mt-4 w-full py-3 px-4 bg-transparent border border-primary text-primary font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:bg-surface-dim active:scale-[0.98] transition-all duration-200">
+                        Acquire Studio
+                    </button>
+</div>
+<!-- Tier 2 (Highlighted) -->
+<div class="bg-primary text-on-primary border border-primary rounded-xl p-8 flex flex-col gap-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] relative overflow-hidden">
+<div class="absolute top-0 right-0 bg-secondary-container text-on-secondary-container font-label-mono text-label-mono px-4 py-1.5 rounded-bl-lg font-bold">
+                        Most Popular
+                    </div>
+<div class="flex justify-between items-start z-10">
+<div>
+<h3 class="font-headline-sm text-headline-sm">Content</h3>
+<p class="font-body-md text-body-md text-primary-fixed-dim mt-1">Comprehensive package for digital campaigns.</p>
+</div>
+</div>
+<ul class="flex flex-col gap-3 font-body-md text-body-md z-10">
+<li class="flex items-center gap-3 border-b border-on-primary-fixed-variant pb-3">
+<span class="material-symbols-outlined text-secondary-container text-[20px]" data-icon="check">check</span>
+<span>Multi-Camera Setup</span>
+</li>
+<li class="flex items-center gap-3 border-b border-on-primary-fixed-variant pb-3">
+<span class="material-symbols-outlined text-secondary-container text-[20px]" data-icon="check">check</span>
+<span>Advanced Lighting Control</span>
+</li>
+<li class="flex items-center gap-3 border-b border-on-primary-fixed-variant pb-3">
+<span class="material-symbols-outlined text-secondary-container text-[20px]" data-icon="check">check</span>
+<span>On-set Editor</span>
+</li>
+</ul>
+<button class="mt-4 w-full py-3 px-4 bg-secondary-container text-on-secondary-fixed font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:bg-secondary-fixed active:scale-[0.98] transition-all duration-200 z-10 font-bold">
+                        Acquire Content
+                    </button>
+</div>
+<!-- Tier 3 -->
+<div class="bg-surface-container-lowest border border-border-light rounded-xl p-8 flex flex-col gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline-sm text-headline-sm">Cinema</h3>
+<p class="font-body-md text-body-md text-muted-text mt-1">Full-scale production for feature narratives.</p>
+</div>
+</div>
+<ul class="flex flex-col gap-3 font-body-md text-body-md">
+<li class="flex items-center gap-3 border-b border-border-light pb-3">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="check">check</span>
+<span>ARRI Alexa Mini LF Package</span>
+</li>
+<li class="flex items-center gap-3 border-b border-border-light pb-3">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="check">check</span>
+<span>Full Grip &amp; Lighting Truck</span>
+</li>
+</ul>
+<button class="mt-4 w-full py-3 px-4 bg-transparent border border-primary text-primary font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:bg-surface-dim active:scale-[0.98] transition-all duration-200">
+                        Acquire Cinema
+                    </button>
+</div>
+</div>
+</section>
+</div>
+<!-- Book Tab -->
+<div class="hidden" id="tab-book">
+<!-- Booking Form Section -->
+<section class="w-full py-20 px-margin-mobile flex flex-col gap-8 min-h-screen">
+<div class="flex flex-col gap-2">
+<h2 class="font-headline-md text-headline-md">Book Creative Studio</h2>
+<p class="font-body-md text-body-md text-muted-text">Detail your production requirements below.</p>
+</div>
+<form class="flex flex-col gap-6 w-full">
+<div class="flex flex-col gap-2">
+<label class="font-label-mono text-label-mono uppercase text-muted-text" for="name">Full Name / Agency</label>
+<input class="w-full bg-surface-container-lowest border border-border-light rounded-DEFAULT px-4 py-3 font-body-md text-body-md focus:border-primary focus:ring-0 transition-colors duration-200 outline-none placeholder:text-surface-dim" id="name" placeholder="Jane Doe" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-mono text-label-mono uppercase text-muted-text" for="email">Work Email</label>
+<input class="w-full bg-surface-container-lowest border border-border-light rounded-DEFAULT px-4 py-3 font-body-md text-body-md focus:border-primary focus:ring-0 transition-colors duration-200 outline-none placeholder:text-surface-dim" id="email" placeholder="jane@agency.com" type="email"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-mono text-label-mono uppercase text-muted-text" for="project_type">Project Tier</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-border-light rounded-DEFAULT px-4 py-3 font-body-md text-body-md focus:border-primary focus:ring-0 transition-colors duration-200 outline-none appearance-none cursor-pointer" id="project_type">
+<option>Content Tier</option>
+<option>Studio Tier</option>
+<option>Cinema Tier</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-text" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-mono text-label-mono uppercase text-muted-text" for="details">Production Brief</label>
+<textarea class="w-full bg-surface-container-lowest border border-border-light rounded-DEFAULT px-4 py-3 font-body-md text-body-md focus:border-primary focus:ring-0 transition-colors duration-200 outline-none resize-none placeholder:text-surface-dim" id="details" placeholder="Briefly describe your creative vision..." rows="4"></textarea>
+</div>
+<button class="w-full mt-4 py-4 px-6 bg-primary text-on-primary font-label-mono text-label-mono uppercase tracking-wider rounded-DEFAULT hover:opacity-90 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_20px_rgba(0,0,0,0.12)]" type="button">
+                    Submit Your Requirement
+                </button>
+</form>
+</section>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 w-full z-50 bg-primary border-t border-surface-tint pb-safe">
+<div class="flex justify-between items-center h-20 max-w-container-max mx-auto px-2">
+<button class="flex-1 flex flex-col items-center justify-center gap-1 text-secondary-container transition-colors duration-200 pt-2 pb-4" id="btn-home" onclick="switchTab('home')">
+<span class="material-symbols-outlined text-[24px]">home</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Home</span>
+</button>
+<button class="flex-1 flex flex-col items-center justify-center gap-1 text-surface-dim hover:text-on-primary transition-colors duration-200 pt-2 pb-4" id="btn-work" onclick="switchTab('work')">
+<span class="material-symbols-outlined text-[24px]">movie</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Work</span>
+</button>
+<button class="flex-1 flex flex-col items-center justify-center gap-1 text-surface-dim hover:text-on-primary transition-colors duration-200 pt-2 pb-4" id="btn-tiers" onclick="switchTab('tiers')">
+<span class="material-symbols-outlined text-[24px]">layers</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Tiers</span>
+</button>
+<button class="flex-1 flex flex-col items-center justify-center gap-1 text-surface-dim hover:text-on-primary transition-colors duration-200 pt-2 pb-4" id="btn-book" onclick="switchTab('book')">
+<span class="material-symbols-outlined text-[24px]">calendar_month</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Book</span>
+</button>
+</div>
+</nav>
+<script>
+  function switchTab(tabId) {
+    // Hide all tabs
+    document.getElementById('tab-home').classList.add('hidden');
+    document.getElementById('tab-home').classList.remove('block');
+    
+    document.getElementById('tab-work').classList.add('hidden');
+    document.getElementById('tab-work').classList.remove('block');
+    
+    document.getElementById('tab-tiers').classList.add('hidden');
+    document.getElementById('tab-tiers').classList.remove('block');
+    
+    document.getElementById('tab-book').classList.add('hidden');
+    document.getElementById('tab-book').classList.remove('block');
+
+    // Show selected tab
+    document.getElementById('tab-' + tabId).classList.remove('hidden');
+    document.getElementById('tab-' + tabId).classList.add('block');
+
+    // Reset all buttons
+    const btns = ['home', 'work', 'tiers', 'book'];
+    btns.forEach(id => {
+      const btn = document.getElementById('btn-' + id);
+      btn.classList.remove('text-secondary-container');
+      btn.classList.add('text-surface-dim');
+    });
+
+    // Activate selected button
+    const activeBtn = document.getElementById('btn-' + tabId);
+    activeBtn.classList.remove('text-surface-dim');
+    activeBtn.classList.add('text-secondary-container');
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+  }
+</script>
+</body></html>

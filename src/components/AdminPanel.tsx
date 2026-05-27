@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
@@ -10,7 +10,7 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare, Send, Type
+  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
@@ -122,6 +122,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
 
 
+  const [isLightMode, setIsLightMode] = useState<boolean>(() => {
+    return localStorage.getItem("bhakty_admin_light_mode") === "true";
+  });
+
+  const toggleLightMode = () => {
+    const next = !isLightMode;
+    setIsLightMode(next);
+    localStorage.setItem("bhakty_admin_light_mode", String(next));
+    toast.success(`Switched to ${next ? "Day" : "Night"} Mode.`);
+  };
+
   const theme = getActiveTheme(siteSettings.website_theme);
   const toast = useToast();
 
@@ -172,6 +183,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [adminReplyText, setAdminReplyText] = useState("");
   const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of support messages whenever chatMessages changes
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
 
   // Synchronize siteSettings with local editSettings when context loads/updates
   useEffect(() => {
@@ -181,7 +200,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   }, [siteSettings]);
 
   // Page Scope State for Scoped Settings, Forms, Portfolios, etc.
-  const [adminPageScope, setAdminPageScope] = useState<"ai" | "live">(activePage);
+  const [adminPageScope, setAdminPageScope] = useState<"ai" | "live" | "app">(activePage);
+
+  const getScopeStyle = () => {
+    if (adminPageScope === "live") {
+      return {
+        accentBg: "bg-pink-600 hover:bg-pink-500 text-white",
+        focusBorder: "focus:border-pink-500/40",
+        focusRing: "focus:ring-pink-500/20",
+        headingText: "text-pink-500",
+        labelText: "text-pink-400",
+        label: "Live-Action Production",
+      };
+    } else if (adminPageScope === "app") {
+      return {
+        accentBg: "bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/20",
+        focusBorder: "focus:border-violet-500/40",
+        focusRing: "focus:ring-violet-500/20",
+        headingText: "text-violet-400",
+        labelText: "text-violet-400/90",
+        label: "Mobile App Version",
+      };
+    } else {
+      return {
+        accentBg: "bg-[#ffea00] hover:bg-[#ffcc00] text-black",
+        focusBorder: "focus:border-[#ffea00]/40",
+        focusRing: "focus:ring-[#ffea00]/20",
+        headingText: "text-yellow-400",
+        labelText: "text-yellow-400/90",
+        label: "AI Production",
+      };
+    }
+  };
+  const scopeStyle = getScopeStyle();
+
+  // Global Assets state for tabs & collapse/expand toggles
+  const [assetTabFilter, setAssetTabFilter] = useState<"all" | "image" | "video">("all");
+  const [isAssetLibraryExpanded, setIsAssetLibraryExpanded] = useState<boolean>(true);
 
   // Declare portfolio and pricing edit states here so they can be referenced in useEffect hooks
   const [editWorks, setEditWorks] = useState<VideoBlock[]>([]);
@@ -226,7 +281,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       "hero_cta_text", "hero_cta_bg", "hero_cta_color", "hero_cta_size", "hero_cta_glow",
       "hero_cta_glow_color", "hero_cta_icon", "navbar_full_width"
     ].includes(baseKey)) {
-      key = adminPageScope === "live" ? `page2_${baseKey}` : baseKey;
+      if (adminPageScope === "live") {
+        key = `page2_${baseKey}`;
+      } else if (adminPageScope === "app") {
+        key = `app_${baseKey}`;
+      } else {
+        key = baseKey;
+      }
     }
     setEditSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -243,7 +304,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       "hero_cta_text", "hero_cta_bg", "hero_cta_color", "hero_cta_size", "hero_cta_glow",
       "hero_cta_glow_color", "hero_cta_icon", "navbar_full_width"
     ].includes(baseKey)) {
-      key = adminPageScope === "live" ? `page2_${baseKey}` : baseKey;
+      if (adminPageScope === "live") {
+        key = `page2_${baseKey}`;
+      } else if (adminPageScope === "app") {
+        key = `app_${baseKey}`;
+      } else {
+        key = baseKey;
+      }
     }
     return editSettings[key] || fallback;
   };
@@ -1020,9 +1087,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url") => {
-    const resolvedKey = targetSetting === "hero_video_bg_url" ? (adminPageScope === "live" ? "page2_hero_video_bg_url" : "hero_video_bg_url") : targetSetting;
+    const resolvedKey = targetSetting === "hero_video_bg_url" 
+      ? (adminPageScope === "live" ? "page2_hero_video_bg_url" : adminPageScope === "app" ? "app_hero_video_bg_url" : "hero_video_bg_url") 
+      : (adminPageScope === "app" ? "app_logo_img_url" : targetSetting);
     setSaveStatus(prev => ({ ...prev, assets: "saving" }));
-    toast.info(`Applying selected asset to ${resolvedKey === "page2_hero_video_bg_url" || resolvedKey === "hero_video_bg_url" ? "Hero Background" : "Navbar Logo"}...`);
+    toast.info(`Applying selected asset to ${resolvedKey.includes("hero_video_bg_url") ? "Hero Background" : "Navbar Logo"}...`);
     
     try {
       setEditSettings(p => ({ ...p, [resolvedKey]: assetUrl }));
@@ -1566,8 +1635,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       return;
     }
 
-    const targetWork = editWorks.find(w => w.id === workId);
-    const isImage = targetWork?.type === "image";
+    const isImageFile = file.type.startsWith("image/");
 
     setIsUploadingPortfolioId(workId);
     try {
@@ -1575,7 +1643,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       const uploadedUrl = await runUploadWithModal(file, () => 
         uploadToCloudinary(file)
       );
-      if (isImage) {
+      if (isImageFile) {
         handleWorkChange(workId, "imageUrl", uploadedUrl);
       } else {
         handleWorkChange(workId, "videoUrl", uploadedUrl);
@@ -2046,266 +2114,341 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   }
 
   return (
-    <div className={`min-h-screen ${theme.style.bodyBg} flex flex-col pt-24 pb-16 px-4 md:px-8 relative transition-colors duration-500`}>
+    <div className={`w-screen h-screen ${isLightMode ? "admin-light-mode" : theme.style.bodyBg} flex flex-col overflow-hidden relative transition-colors duration-500 font-sans`}>
       <BackgroundGradients />
 
-      <div className="max-w-7xl w-full mx-auto relative z-10">
-        {/* HEADER SECTION */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-12 pb-8 border-b border-white/10">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="font-display font-medium text-2xl md:text-3xl tracking-tighter italic text-white">
-                bhakty<span className="text-[#ffea00]">.</span>admin
-              </span>
-              <span className="text-[10px] uppercase font-mono tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 rounded-full px-2.5 py-1 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-[#ffea00]" /> Connected
-              </span>
-            </div>
-            <p className="text-gray-400 text-sm font-light mt-1.5">
-              Manage database settings, menu anchors, motion artifacts, and production price tiers.
-            </p>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
-              <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">Active Workspace Scope:</span>
-              <div className="flex items-center gap-1 bg-black/40 border border-white/5 rounded-full p-1 shadow-inner">
-                <button
-                  onClick={() => {
-                    setAdminPageScope("ai");
-                    setActivePage("ai");
-                    toast.success("Switched editing scope to AI Production page.");
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
-                    adminPageScope === "ai"
-                      ? "bg-[#ffea00] text-black"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  AI Production (Page 1)
-                </button>
-                <button
-                  onClick={() => {
-                    setAdminPageScope("live");
-                    setActivePage("live");
-                    toast.success("Switched editing scope to Live-action Production page.");
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
-                    adminPageScope === "live"
-                      ? "bg-[#ffea00] text-black"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Live-action (Page 2)
-                </button>
-              </div>
-            </div>
+      {/* HEADER SECTION (Sticky Top) */}
+      <div className="sticky top-0 z-50 w-full bg-black/40 backdrop-blur-md border-b border-white/10 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative z-20">
+        <div className="md:w-1/3 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="font-display font-medium text-xl md:text-2xl tracking-tighter italic text-white">
+              bhakty<span className="text-[#ffea00]">.</span>admin
+            </span>
+            <span className="text-[10px] uppercase font-mono tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 rounded-full px-2.5 py-1 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-[#ffea00]" /> Connected
+            </span>
           </div>
+          <p className="text-gray-400 text-[11px] font-light mt-1 text-left">
+            Manage database settings, menu anchors, motion artifacts, and production price tiers.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {isUsingSupabase ? (
-              <span className="text-xs text-emerald-400 font-mono bg-emerald-500/5 px-3 py-1.5 rounded-lg border border-emerald-500/10">
-                ● Live Supabase Connected
-              </span>
-            ) : (
-              <span className="text-xs text-amber-400 font-mono bg-amber-500/5 px-3 py-1.5 rounded-lg border border-amber-500/10" title="Values persist instantly in localStorage fallback driver">
-                ▲ LocalStorage Database Engaged
-              </span>
-            )}
-            
-             <button
-              type="button"
-              onClick={onNavigateHome}
-              className="text-xs md:text-sm font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-5 py-2 rounded-xl text-white hover:border-[#ffea00]/40 hover:text-[#ffea00] transition-all cursor-pointer"
-            >
-              Exit to Studio
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem("bhakty_admin_auth");
-                sessionStorage.removeItem("bhakty_admin_auth");
-                setIsAuthenticated(false);
-                toast.success("Security access terminated. Logged out.");
-              }}
-              className="text-xs md:text-sm font-medium font-display tracking-tight bg-red-950/20 border border-red-500/25 px-5 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <Lock className="w-3.5 h-3.5" /> Logout
-            </button>
+        {/* Center: Active Workspace Scope Toggle Selector */}
+        <div className="flex flex-col items-center justify-center md:w-1/3 my-2 md:my-0">
+          <span className="text-[8px] sm:text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-1.5 font-bold">Active Workspace Scope</span>
+          <div className="relative flex items-center p-1 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl w-full max-w-[280px] sm:max-w-sm">
+            <div className="relative flex w-full">
+              {/* Sliding Background Capsule */}
+              <motion.div
+                className={`absolute top-0 bottom-0 left-0 w-1/3 rounded-full bg-gradient-to-r shadow-[0_0_15px_rgba(255,255,255,0.15)] backdrop-blur-sm ${
+                  adminPageScope === "ai" 
+                    ? "from-[#ffea00]/80 to-[#ffb700]/80" 
+                    : adminPageScope === "live"
+                    ? "from-fuchsia-500 to-pink-600"
+                    : "from-violet-500 to-purple-600"
+                }`}
+                animate={{ x: adminPageScope === "ai" ? "0%" : adminPageScope === "live" ? "100%" : "200%" }}
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+              <button
+                onClick={() => {
+                  setAdminPageScope("ai");
+                  setActivePage("ai");
+                  toast.success("Switched editing scope to AI Production page.");
+                }}
+                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
+                  adminPageScope === "ai" ? "text-black" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                AI Prod
+              </button>
+              <button
+                onClick={() => {
+                  setAdminPageScope("live");
+                  setActivePage("live");
+                  toast.success("Switched editing scope to Live-action Production page.");
+                }}
+                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
+                  adminPageScope === "live" ? "text-black" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Live Action
+              </button>
+              <button
+                onClick={() => {
+                  setAdminPageScope("app");
+                  toast.success("Switched editing scope to Mobile App Version settings.");
+                }}
+                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
+                  adminPageScope === "app" ? "text-white" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                App Version
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* WORKSPACE LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="md:w-1/3 flex items-center justify-start md:justify-end gap-3 flex-wrap">
+          {isUsingSupabase ? (
+            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/5 px-2.5 py-1.5 rounded-lg border border-emerald-500/10">
+              ● Live Supabase Connected
+            </span>
+          ) : (
+            <span className="text-[10px] text-amber-400 font-mono bg-amber-500/5 px-2.5 py-1.5 rounded-lg border border-amber-500/10" title="Values persist instantly in localStorage fallback driver">
+              ▲ LocalStorage Database Engaged
+            </span>
+          )}
           
-          {/* SIDEBAR TABS */}
-          <div className="lg:col-span-1 space-y-2">
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "settings"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Settings className="w-4 h-4" /> Global Copy & Media
-            </button>
-            <button
-              onClick={() => setActiveTab("navigation")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "navigation"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Compass className="w-4 h-4" /> Navigation Menu
-            </button>
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "portfolio"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Play className="w-4 h-4" /> Portfolio Manager
-            </button>
-            <button
-              onClick={() => setActiveTab("pricing")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "pricing"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <ArrowDown className="w-4 h-4 rotate-45" /> Pricing packages
-            </button>
+          <button
+            type="button"
+            onClick={onNavigateHome}
+            className="text-[11px] font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-4 py-2 rounded-xl text-white hover:border-[#ffea00]/40 hover:text-[#ffea00] transition-all cursor-pointer"
+          >
+            Exit to Studio
+          </button>
 
-            <button
-              onClick={() => setActiveTab("assets")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "assets"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Upload className="w-4 h-4" /> Global Assets Manager
-            </button>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem("bhakty_admin_auth");
+              sessionStorage.removeItem("bhakty_admin_auth");
+              setIsAuthenticated(false);
+              toast.success("Security access terminated. Logged out.");
+            }}
+            className="text-[11px] font-medium font-display tracking-tight bg-red-950/20 border border-red-500/25 px-4 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Lock className="w-3 h-3" /> Logout
+          </button>
 
-            <button
-              onClick={() => setActiveTab("submissions")}
-              className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-medium transition-all ${
-                activeTab === "submissions"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
+          {/* Responsive Day/Night Theme Toggle Switch */}
+          <button
+            type="button"
+            onClick={toggleLightMode}
+            className="relative w-12 h-6.5 rounded-full transition-all duration-300 cursor-pointer flex items-center p-0.5 border"
+            style={{
+              background: isLightMode ? "rgba(240, 240, 240, 0.8)" : "rgba(10, 10, 15, 0.6)",
+              borderColor: isLightMode ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
+            }}
+            title={isLightMode ? "Switch to Night Mode" : "Switch to Day Mode"}
+          >
+            <motion.div
+              layout
+              className="w-5 h-5 rounded-full transition-all duration-300 relative flex items-center justify-center text-[10px]"
+              style={{
+                marginLeft: isLightMode ? "auto" : "0px",
+                background: isLightMode 
+                  ? "linear-gradient(135deg, #ff9e00, #ff6d00)" 
+                  : "linear-gradient(135deg, #7342e2, #2b5cf6)",
+                boxShadow: isLightMode 
+                  ? "0 0 10px rgba(255, 109, 0, 0.6)" 
+                  : "0 0 10px rgba(115, 66, 226, 0.6)",
+              }}
             >
-              <div className="flex items-center gap-3">
-                <FileText className="w-4 h-4" /> 
-                <span className="truncate">Creative Intake Entries</span>
+              {isLightMode ? "☀️" : "🌙"}
+            </motion.div>
+          </button>
+        </div>
+      </div>
+
+      {/* WORKSPACE LAYOUT (Full width flex) */}
+      <div className="flex flex-1 overflow-hidden w-full relative z-10">
+        
+        {/* SIDEBAR NAVIGATION (Sticky left navigation track) */}
+        <aside className="sticky left-0 h-full w-72 shrink-0 border-r border-white/10 bg-black/30 backdrop-blur-md p-5 flex flex-col gap-2 overflow-y-auto">
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "settings"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Settings className="w-3.5 h-3.5" /> Global Copy & Media
+          </button>
+          
+          <button
+            onClick={() => setActiveTab("navigation")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "navigation"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Compass className="w-3.5 h-3.5" /> Navigation Menu
+          </button>
+
+          <button
+            onClick={() => setActiveTab("portfolio")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "portfolio"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Play className="w-3.5 h-3.5" /> Portfolio Manager
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pricing")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "pricing"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <ArrowDown className="w-3.5 h-3.5 rotate-45" /> Pricing packages
+          </button>
+
+          <button
+            onClick={() => setActiveTab("assets")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "assets"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Upload className="w-3.5 h-3.5" /> Global Assets Manager
+          </button>
+
+          <button
+            onClick={() => setActiveTab("submissions")}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "submissions"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="w-3.5 h-3.5 shrink-0" /> 
+              <span className="truncate">Creative Intake Entries</span>
+            </div>
+            {(() => {
+              const pendingCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
+              if (pendingCount > 0) {
+                return (
+                  <span className="shrink-0 ml-2 bg-red-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    {pendingCount}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "analytics"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <BarChart3 className="w-3.5 h-3.5" /> Real-time Analytics Board
+          </button>
+
+          <button
+            onClick={() => setActiveTab("intake_form")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "intake_form"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Sliders className="w-3.5 h-3.5" /> Ingestion Form Config
+          </button>
+
+          <button
+            onClick={() => setActiveTab("brand_logos")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "brand_logos"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Image className="w-3.5 h-3.5" /> Brand Logos Manager
+          </button>
+
+          <button
+            onClick={() => setActiveTab("testimonials")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "testimonials"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> Testimonials Manager
+          </button>
+
+          <button
+            onClick={() => setActiveTab("live_chats")}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "live_chats"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Live Chats Console</span>
+            </div>
+            {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0) > 0 && (
+              <span className="px-2 py-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
+                {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0)}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("chat_settings")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "chat_settings"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <Sliders className="w-3.5 h-3.5" /> Chat Widget Config
+          </button>
+
+          {/* QUICK SCHEMA INST INSTRUCTIONS */}
+          <div className="pt-4 mt-4 border-t border-white/5">
+            <div className="glass-panel p-3.5 rounded-2xl text-[10px] space-y-2">
+              <div className="flex items-center gap-1.5 text-gray-300 font-mono">
+                <HelpCircle className="w-3 h-3 text-gray-400" />
+                <span>Configuring Supabase</span>
               </div>
-              {(() => {
-                const pendingCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
-                if (pendingCount > 0) {
-                  return (
-                    <span className="shrink-0 ml-2 bg-red-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                      {pendingCount}
-                    </span>
-                  );
-                }
-                return null;
-              })()}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("analytics")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "analytics"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" /> Real-time Analytics Board
-            </button>
-
-            <button
-              onClick={() => setActiveTab("intake_form")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "intake_form"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Sliders className="w-4 h-4" /> Ingestion Form Config
-            </button>
-
-            <button
-              onClick={() => setActiveTab("brand_logos")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "brand_logos"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Image className="w-4 h-4" /> Brand Logos Manager
-            </button>
-
-            <button
-              onClick={() => setActiveTab("testimonials")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "testimonials"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" /> Testimonials Manager
-            </button>
-
-            <button
-              onClick={() => setActiveTab("live_chats")}
-              className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-medium transition-all ${
-                activeTab === "live_chats"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <BrainCircuit className="w-4 h-4" />
-                <span>Live Chats Console</span>
-              </div>
-              {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0) > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded-full animate-pulse">
-                  {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0)}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("chat_settings")}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === "chat_settings"
-                  ? "bg-white text-black font-semibold"
-                  : "text-gray-400 hover:text-white glass-panel-light hover:bg-white/5"
-              }`}
-            >
-              <Sliders className="w-4 h-4" /> Chat Widget Config
-            </button>
-
-            {/* QUICK SCHEMA INST INSTRUCTIONS */}
-            <div className="pt-6 mt-6 border-t border-white/5">
-              <div className="glass-panel p-4 rounded-2xl text-xs space-y-2.5">
-                <div className="flex items-center gap-1.5 text-gray-300 font-mono">
-                  <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Configuring Supabase</span>
-                </div>
-                <p className="text-gray-500 leading-relaxed">
-                  Provide <code className="text-amber-200/90 font-mono">VITE_SUPABASE_URL</code> alongside keys inside <code className="text-amber-200/90 font-mono">.env</code> to redirect queries from fallback structures into Supabase cloud databases automatically.
-                </p>
-              </div>
+              <p className="text-gray-500 leading-relaxed text-left">
+                Provide <code className="text-amber-200/90 font-mono text-[9px]">VITE_SUPABASE_URL</code> inside <code className="text-amber-200/90 font-mono text-[9px]">.env</code> to redirect queries into Supabase automatically.
+              </p>
             </div>
           </div>
+        </aside>
 
-          {/* EDIT ZONE */}
-          <div className="lg:col-span-3">
-            <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 min-h-[500px]">
+        {/* CENTRAL MAIN CONTENT WINDOW WRAPPER */}
+        <main className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
+
+          {/* EDIT ZONE (Wrapped in a Framer Motion animation layer for hardware-accelerated fade transitions) */}
+          <motion.div
+            key={adminPageScope}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 min-h-[500px]"
+          >
               
               {/* TAB 1: SITE SETTINGS */}
               {activeTab === "settings" && (
@@ -2341,7 +2484,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveSettings}
                       disabled={saveStatus.settings === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className={`flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all cursor-pointer shrink-0 ml-auto sm:ml-0 ${scopeStyle.accentBg}`}
                     >
                       <Save className="w-4 h-4" /> Synchronize settings
                     </button>
@@ -2662,7 +2805,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="text"
                                 value={getSettingValueScoped("hero_video_bg_url")}
                                 onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
                               />
                             </div>
                             <div>
@@ -2670,7 +2813,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <select
                                 value={getSettingValueScoped("hero_video_bg_url") || ""}
                                 onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none ${scopeStyle.focusBorder}`}
                               >
                                 <option value="">-- Apply an Asset --</option>
                                 {mediaAssets.map((asset) => (
@@ -2689,7 +2832,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={getSettingValueScoped("hero_badge_text")}
                             onChange={(e) => handleSettingChangeScoped("hero_badge_text", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2699,7 +2842,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={editSettings.footer_copyright}
                             onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2709,7 +2852,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={getSettingValueScoped("hero_title_1")}
                             onChange={(e) => handleSettingChangeScoped("hero_title_1", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2719,7 +2862,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={getSettingValueScoped("hero_title_2")}
                             onChange={(e) => handleSettingChangeScoped("hero_title_2", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2729,7 +2872,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={getSettingValueScoped("hero_title_3")}
                             onChange={(e) => handleSettingChangeScoped("hero_title_3", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2739,7 +2882,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="text"
                             value={getSettingValueScoped("hero_cta_booking_text")}
                             onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
                           />
                         </div>
 
@@ -2751,7 +2894,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               value={getSettingValueScoped("hero_cta_booking_color")}
                               onChange={(e) => handleSettingChangeScoped("hero_cta_booking_color", e.target.value)}
                               placeholder="e.g. #ffea00"
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                              className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
                             />
                             <input
                               type="color"
@@ -2770,7 +2913,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               value={getSettingValueScoped("hero_cta_booking_text_color")}
                               onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text_color", e.target.value)}
                               placeholder="e.g. #FFFFFF"
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                              className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
                             />
                             <input
                               type="color"
@@ -2787,7 +2930,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={getSettingValueScoped("hero_description")}
                             onChange={(e) => handleSettingChangeScoped("hero_description", e.target.value)}
                             rows={4}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 resize-none"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} resize-none`}
                           />
                         </div>
 
@@ -2847,7 +2990,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                         {/* HERO SPACING & LAYOUT CONTROLS */}
                         <div className="border-t border-white/5 pt-6 md:col-span-2">
-                          <h3 className="text-sm font-semibold text-[#ffea00] font-display mb-3">Hero Section Spacing & Layout Controls</h3>
+                          <h3 className={`text-sm font-semibold ${scopeStyle.headingText} font-display mb-3`}>Hero Section Spacing & Layout Controls</h3>
                           <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
                             <div>
                               <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top</label>
@@ -2856,7 +2999,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_padding_top || ""}
                                 onChange={(e) => handleSettingChange("hero_padding_top", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                             <div>
@@ -2866,7 +3009,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_padding_bottom || ""}
                                 onChange={(e) => handleSettingChange("hero_padding_bottom", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                             <div>
@@ -2876,7 +3019,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_margin_top || ""}
                                 onChange={(e) => handleSettingChange("hero_margin_top", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                             <div>
@@ -2886,7 +3029,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_margin_bottom || ""}
                                 onChange={(e) => handleSettingChange("hero_margin_bottom", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                             <div>
@@ -2896,7 +3039,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_text_width || ""}
                                 onChange={(e) => handleSettingChange("hero_text_width", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                             <div>
@@ -2906,7 +3049,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 value={editSettings.hero_text_height || ""}
                                 onChange={(e) => handleSettingChange("hero_text_height", e.target.value)}
                                 placeholder="default"
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
                               />
                             </div>
                           </div>
@@ -3826,43 +3969,99 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                     </select>
                                   </div>
 
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Custom Video Thumbnail (App & Desktop)</label>
+                                    <input
+                                      type="text"
+                                      value={work.imageUrl || ""}
+                                      onChange={(e) => handleWorkChange(work.id, "imageUrl", e.target.value)}
+                                      placeholder="https://res.cloudinary.com/... or choose below"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Image Assets for Thumbnail</label>
+                                    <select
+                                      onChange={(e) => {
+                                        const selectedUrl = e.target.value;
+                                        if (selectedUrl) {
+                                          handleWorkChange(work.id, "imageUrl", selectedUrl);
+                                        }
+                                      }}
+                                      value={work.imageUrl || ""}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                    >
+                                      <option value="">-- Apply a Thumbnail Asset --</option>
+                                      {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
+                                        <option key={asset.id} value={asset.url}>
+                                          {asset.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
-                                  <div className="md:col-span-2">
+                                  <div className="md:col-span-2 space-y-3">
                                     <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
-                                    <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <Upload className="w-3.5 h-3.5 text-gray-400" />
-                                          <span className="truncate max-w-[200px] text-gray-300">
-                                            {selectedPortfolioFiles[work.id] 
-                                              ? `Selected: ${selectedPortfolioFiles[work.id]?.name}` 
-                                              : "No video selected"}
-                                          </span>
-                                        </div>
-                                        <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
-                                          <span>Choose File</span>
-                                          <input
-                                            type="file"
-                                            accept="video/*"
-                                            onChange={(e) => handlePortfolioFileChange(e, work.id)}
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                          />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Upload className="w-3.5 h-3.5 text-gray-400" />
+                                            <span className="truncate max-w-[120px] text-gray-300">
+                                              {selectedPortfolioFiles[work.id] && !selectedPortfolioFiles[work.id].type.startsWith("image/")
+                                                ? `Video: ${selectedPortfolioFiles[work.id]?.name}` 
+                                                : "No video selected"}
+                                            </span>
+                                          </div>
+                                          <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
+                                            <span>Choose Video</span>
+                                            <input
+                                              type="file"
+                                              accept="video/*"
+                                              onChange={(e) => handlePortfolioFileChange(e, work.id)}
+                                              className="absolute inset-0 opacity-0 cursor-pointer"
+                                            />
+                                          </div>
                                         </div>
                                       </div>
-                                      
-                                      {selectedPortfolioFiles[work.id] && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handlePortfolioUpload(work.id)}
-                                          disabled={isUploadingPortfolioId === work.id}
-                                          className="w-full mt-1 bg-[#ffea00] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
-                                        >
-                                          {isUploadingPortfolioId === work.id 
-                                            ? "Uploading Track..." 
-                                            : "Upload Video Track"}
-                                        </button>
-                                      )}
+
+                                      <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Upload className="w-3.5 h-3.5 text-gray-400" />
+                                            <span className="truncate max-w-[120px] text-gray-300">
+                                              {selectedPortfolioFiles[work.id] && selectedPortfolioFiles[work.id].type.startsWith("image/")
+                                                ? `Thumbnail: ${selectedPortfolioFiles[work.id]?.name}` 
+                                                : "No image selected"}
+                                            </span>
+                                          </div>
+                                          <div className="relative cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded text-[10px] text-white">
+                                            <span>Choose Image</span>
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handlePortfolioFileChange(e, work.id)}
+                                              className="absolute inset-0 opacity-0 cursor-pointer"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
                                     </div>
+                                    
+                                    {selectedPortfolioFiles[work.id] && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handlePortfolioUpload(work.id)}
+                                        disabled={isUploadingPortfolioId === work.id}
+                                        className="w-full mt-1 bg-[#ffea00] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                                      >
+                                        {isUploadingPortfolioId === work.id 
+                                          ? "Uploading File..." 
+                                          : `Upload Selected ${selectedPortfolioFiles[work.id].type.startsWith("image/") ? "Thumbnail Image" : "Video Track"}`}
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               ) : (
@@ -4899,66 +5098,144 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  {/* DECLARED ASSETS LIBRARY GRID */}
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-mono uppercase text-gray-400 tracking-wider">
-                      Assets Collection Library ({mediaAssets.length} items)
-                    </h3>
+                  {/* DECLARED ASSETS LIBRARY GRID - CATEGORIZED & COLLAPSIBLE */}
+                  <div className="bg-[#11111c]/40 border border-white/5 rounded-2xl overflow-hidden transition-all duration-300">
+                    {/* Collapsible Header */}
+                    <button
+                      type="button"
+                      onClick={() => setIsAssetLibraryExpanded(!isAssetLibraryExpanded)}
+                      className="w-full flex items-center justify-between p-4 bg-[#11111c]/80 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer select-none text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Sliders className="w-4 h-4 text-[#ffea00]" />
+                        <span className="text-xs font-mono uppercase text-gray-200 tracking-wider font-bold">
+                          Assets Collection Library ({mediaAssets.filter(item => {
+                            if (assetTabFilter === "image") return item.type === "image";
+                            if (assetTabFilter === "video") return item.type === "video";
+                            return true;
+                          }).length} of {mediaAssets.length} items)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isAssetLibraryExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </button>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {mediaAssets.map((item) => (
-                        <div 
-                          key={item.id}
-                          className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
+                    <AnimatePresence initial={false}>
+                      {isAssetLibraryExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
                         >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            {/* THUMBNAIL PREVIEW */}
-                            <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                              {item.type === "video" ? (
-                                <Play className="w-4 h-4 text-gray-500 font-bold" />
-                              ) : (
-                                <img src={item.url} alt="Thumb" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as any).src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=40&q=40" }} />
-                              )}
+                          <div className="p-4 space-y-4">
+                            {/* Filters Tab Row */}
+                            <div className="flex items-center gap-1.5 p-1 bg-black/45 border border-white/5 rounded-xl w-fit">
+                              {(["all", "image", "video"] as const).map((filter) => (
+                                <button
+                                  key={filter}
+                                  type="button"
+                                  onClick={() => setAssetTabFilter(filter)}
+                                  className={`px-3.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold transition-all cursor-pointer ${
+                                    assetTabFilter === filter
+                                      ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/10"
+                                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                                  }`}
+                                >
+                                  {filter === "all" ? "All Formats" : filter === "image" ? "Images Only" : "Videos Only"}
+                                </button>
+                              ))}
                             </div>
 
-                            <div className="min-w-0 flex-1 font-sans">
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
-                                {item.url.startsWith("blob:") && (
-                                  <span className="text-[8px] uppercase tracking-wider font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
-                                    Temp Preview
-                                  </span>
-                                )}
+                            {/* Files Grid */}
+                            {mediaAssets.filter(item => {
+                              if (assetTabFilter === "image") return item.type === "image";
+                              if (assetTabFilter === "video") return item.type === "video";
+                              return true;
+                            }).length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {mediaAssets
+                                  .filter(item => {
+                                    if (assetTabFilter === "image") return item.type === "image";
+                                    if (assetTabFilter === "video") return item.type === "video";
+                                    return true;
+                                  })
+                                  .map((item) => (
+                                    <div 
+                                      key={item.id}
+                                      className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
+                                    >
+                                      {/* THUMBNAIL PREVIEW & META */}
+                                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                          {item.type === "video" ? (
+                                            <Play className="w-4 h-4 text-gray-500 font-bold" />
+                                          ) : (
+                                            <img 
+                                              src={item.url} 
+                                              alt="Thumb" 
+                                              className="w-full h-full object-cover" 
+                                              referrerPolicy="no-referrer" 
+                                              onError={(e) => { 
+                                                (e.target as any).src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=40&q=40";
+                                              }} 
+                                            />
+                                          )}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1 font-sans">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="text-xs font-semibold text-white truncate">{item.name}</h4>
+                                            {item.url.startsWith("blob:") && (
+                                              <span className="text-[8px] uppercase tracking-wider font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                                                Temp Preview
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{item.type} • {item.url}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                                        <button
+                                          onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          title="Set as Hero Background Video / Image"
+                                        >
+                                          Background
+                                        </button>
+                                        <button
+                                          onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          title="Set as Navbar Logo Image"
+                                        >
+                                          Logo
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteAsset(item.id)}
+                                          className="p-1 px-1.5 text-red-500 hover:text-red-400 bg-red-400/5 hover:bg-red-400/10 border border-red-400/10 rounded cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
                               </div>
-                              <p className="text-[9px] font-mono text-gray-500 uppercase truncate mt-0.5">{item.type} • {item.url}</p>
-                            </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center border border-white/5 rounded-2xl bg-black/20 h-28 text-gray-500 font-mono text-xs tracking-wide">
+                                No media assets found matching the selected type filter.
+                              </div>
+                            )}
                           </div>
-
-                          <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                            <button
-                              onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
-                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20"
-                              title="Set as Hero Background Video / Image"
-                            >
-                              Background
-                            </button>
-                            <button
-                              onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
-                              className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20"
-                              title="Set as Navbar Logo Image"
-                            >
-                              Logo
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAsset(item.id)}
-                              className="p-1 px-1.5 text-red-500 hover:text-red-400 bg-red-400/5 hover:bg-red-400/10 border border-red-400/10 rounded"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
@@ -5940,7 +6217,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           chatSessions.map((session) => {
                             const isSelected = selectedSessionId === session.id;
                             const formattedTime = new Date(session.last_message_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                            const displayName = session.email || `Client (${session.id.substring(0, 8)})`;
+                            const clientName = session.chat_users?.name || "Anonymous Client";
+                            const clientID = session.id;
                             return (
                               <div
                                 key={session.id}
@@ -5952,10 +6230,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 }`}
                               >
                                 <div className="flex justify-between items-start gap-2 mb-1.5">
-                                  <span className={`text-xs font-bold truncate ${isSelected ? "text-accent" : "text-white"}`}>
-                                    {displayName}
-                                  </span>
-                                  <span className="text-[9px] font-mono text-gray-500 shrink-0 uppercase">
+                                  <div className="flex flex-col min-w-0">
+                                    <span className={`text-xs font-bold truncate ${isSelected ? "text-accent" : "text-white"}`}>
+                                      {clientName}
+                                    </span>
+                                    <span className="text-[9px] font-mono text-gray-500 truncate mt-0.5">
+                                      ID: {clientID}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] font-mono text-gray-500 shrink-0 uppercase mt-0.5">
                                     {formattedTime}
                                   </span>
                                 </div>
@@ -5989,10 +6272,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <div className="space-y-0">
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white/[0.02] border border-white/10 rounded-t-2xl p-4 gap-4">
                                   <div className="text-left">
-                                    <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-                                      {u?.name ? `${u.name} (Client)` : `Session ID: ${activeSess.id}`}
+                                    <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                                      {u?.name || "Anonymous Client"}
                                     </h4>
-                                    <p className="text-[10px] text-gray-500 font-sans mt-0.5">
+                                    <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                      Session ID: {activeSess.id}
+                                    </p>
+                                    <p className="text-[9px] text-gray-500 font-sans mt-0.5">
                                       Created: {new Date(activeSess.created_at).toLocaleString()}
                                     </p>
                                   </div>
@@ -6092,6 +6378,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 );
                               })
                             )}
+                            <div ref={chatEndRef} />
                           </div>
 
                           {/* Send reply box */}
@@ -6140,7 +6427,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         Chat Widget Configuration & Theming
                       </h2>
                       <p className="text-gray-500 text-xs mt-1">
-                        Customize launcher label, rotating glowing aura gradients, and colors to match your brand theme.
+                        Customize launcher label and colors to match your brand theme.
                       </p>
                     </div>
                     <button
@@ -6187,69 +6474,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
-                    {/* Rotating Aura Colors */}
-                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 text-left">
-                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 mb-3">Glowing Fluid Aura Colors</h3>
-                      
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 1 (Cyan)</label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="color"
-                              value={editSettings.chat_aura_color_1 && editSettings.chat_aura_color_1.startsWith('#') && editSettings.chat_aura_color_1.length === 7 ? editSettings.chat_aura_color_1 : "#06b6d4"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_1", e.target.value)}
-                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
-                            />
-                            <input
-                              type="text"
-                              value={editSettings.chat_aura_color_1 || "#06b6d4"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_1", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 2 (Purple)</label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="color"
-                              value={editSettings.chat_aura_color_2 && editSettings.chat_aura_color_2.startsWith('#') && editSettings.chat_aura_color_2.length === 7 ? editSettings.chat_aura_color_2 : "#8b5cf6"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_2", e.target.value)}
-                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
-                            />
-                            <input
-                              type="text"
-                              value={editSettings.chat_aura_color_2 || "#8b5cf6"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_2", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Color 3 (Blue)</label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="color"
-                              value={editSettings.chat_aura_color_3 && editSettings.chat_aura_color_3.startsWith('#') && editSettings.chat_aura_color_3.length === 7 ? editSettings.chat_aura_color_3 : "#3b82f6"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_3", e.target.value)}
-                              className="w-10 h-10 bg-transparent border-0 cursor-pointer rounded-lg overflow-hidden shrink-0"
-                            />
-                            <input
-                              type="text"
-                              value={editSettings.chat_aura_color_3 || "#3b82f6"}
-                              onChange={(e) => handleSettingChange("chat_aura_color_3", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-accent font-mono"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Chat Panel Window Theme */}
-                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 md:col-span-2 text-left">
+                    <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 md:col-span-2 text-left font-sans">
                       <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 mb-3">Chat Interface Window & Bubbles Theme</h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -6316,8 +6542,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                 </div>
               )}
 
-            </div>
-          </div>
+            </motion.div>
+          </main>
 
           {/* CUSTOM GLOWING UPLOAD MODAL (Replicating Image 4 style) */}
           <AnimatePresence>
@@ -6383,6 +6609,5 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           </AnimatePresence>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }

@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { useSiteData } from "../context/SiteDataContext";
 import { getActiveTheme } from "../lib/themes";
 
@@ -36,53 +35,43 @@ export default function BackgroundGradients() {
   };
 
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" style={{ isolation: "isolate", contain: "strict" }}>
       {/* Background base radial fade matching theme background */}
       <div className={`absolute inset-0 ${bgClass} transition-colors duration-500`} />
       
-      {/* Mesh Glow 1 (Top Left area) */}
-      <motion.div
-        className={`absolute w-[450px] md:w-[700px] h-[450px] md:h-[700px] rounded-full filter blur-[100px] md:blur-[140px] animate-mesh-1`}
+      {/* Mesh Glow 1 (Top Left area) — CSS-only fade-in + looping drift */}
+      <div
+        className="absolute w-[450px] md:w-[700px] h-[450px] md:h-[700px] rounded-full filter blur-[100px] md:blur-[140px] animate-mesh-1"
         style={{
           top: "-5%",
           left: "5%",
-          background: `radial-gradient(circle, ${hexToRgba(color1, 0.15)} 0%, transparent 100%)`
+          background: `radial-gradient(circle, ${hexToRgba(color1, 0.15)} 0%, transparent 100%)`,
+          opacity: 0.8,
+          willChange: "transform",
         }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.8 }}
-        transition={{ duration: 2 }}
       />
 
-      {/* Mesh Glow 2 (Bottom Right area) */}
-      <motion.div
+      {/* Mesh Glow 2 (Bottom Right area) — CSS-only fade-in + looping drift */}
+      <div
         className="absolute w-[500px] md:w-[850px] h-[500px] md:h-[850px] rounded-full filter blur-[110px] md:blur-[150px] animate-mesh-2"
         style={{
           bottom: "10%",
           right: "-10%",
-          background: `radial-gradient(circle, ${hexToRgba(color2, 0.12)} 0%, transparent 100%)`
+          background: `radial-gradient(circle, ${hexToRgba(color2, 0.12)} 0%, transparent 100%)`,
+          opacity: 0.7,
+          willChange: "transform",
         }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.7 }}
-        transition={{ duration: 2.5 }}
       />
 
-      {/* Center Subtle Theme Gradient Glow Orb */}
-      <motion.div
-        className="absolute w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full filter blur-[100px] md:blur-[120px]"
+      {/* Center Subtle Theme Gradient Glow Orb — Pure CSS animation replaces infinite Framer Motion loop */}
+      <div
+        className="absolute w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full filter blur-[100px] md:blur-[120px] animate-gradient-pulse"
         style={{
           top: "40%",
           left: "40%",
           transform: "translate(-50%, -50%)",
-          background: `radial-gradient(circle, ${hexToRgba(color3, 0.1)} 0%, transparent 75%)`
-        }}
-        animate={{
-          scale: [1, 1.1, 0.95, 1],
-          opacity: [0.4, 0.6, 0.5, 0.4],
-        }}
-        transition={{
-          duration: 18,
-          repeat: Infinity,
-          ease: "easeInOut"
+          background: `radial-gradient(circle, ${hexToRgba(color3, 0.1)} 0%, transparent 75%)`,
+          willChange: "transform, opacity",
         }}
       />
       
