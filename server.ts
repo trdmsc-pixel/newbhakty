@@ -73,12 +73,23 @@ app.use(express.json());
     }
   };
 
+  const clearTelemetryBoard = (req: any, res: any) => {
+    try {
+      serverAnalyticsLogs.length = 0;
+      res.json({ success: true, message: "Server analytics logs cleared" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
   app.post("/api/session-telemetry", logTelemetryEvent);
   app.get("/api/telemetry-board", getTelemetryBoard);
+  app.delete("/api/telemetry-board", clearTelemetryBoard);
 
   // Legacy aliases
   app.post("/api/analytics/log", logTelemetryEvent);
   app.get("/api/analytics/board", getTelemetryBoard);
+  app.delete("/api/analytics/board", clearTelemetryBoard);
 
   // ----------------------------------------------------
   // API ROUTE: VISITOR GEOLOCATION (EDGE SYNC)

@@ -175,13 +175,63 @@ export default function AnalyticsDashboard() {
     };
   }, []);
 
-  const clearLogs = () => {
+  const clearLogs = async () => {
+    const confirmClear = window.confirm("Are you sure you want to permanently delete all analytics events and visitor location logs from the database, server, and local cache? This will free up storage on Supabase.");
+    if (!confirmClear) return;
+
+    setIsLoading(true);
+    setIsLocationsLoading(true);
+
     try {
+      // 1. Clear local storage
       localStorage.setItem("bhakty_analytics_logs", JSON.stringify([]));
+
+      // 2. Clear server in-memory logs
+      try {
+        await fetch("/api/telemetry-board", { method: "DELETE" });
+      } catch (err) {
+        console.warn("Failed to clear server in-memory logs:", err);
+      }
+
+      // 3. Clear Supabase tables
+      if (isSupabaseConfigured && supabase) {
+        // Delete all rows in analytics_events
+        const { error: errEvents } = await supabase
+          .from("analytics_events")
+          .delete()
+          .gt("timestamp", "1970-01-01T00:00:00Z");
+        
+        if (errEvents) {
+          console.error("Failed to delete events from Supabase:", errEvents);
+        }
+
+        // Delete all rows in visitor_locations
+        const { error: errLocs } = await supabase
+          .from("visitor_locations")
+          .delete()
+          .gt("created_at", "1970-01-01T00:00:00Z");
+
+        if (errLocs) {
+          console.error("Failed to delete locations from Supabase:", errLocs);
+        }
+
+        if (errEvents || errLocs) {
+          toast.error("Some database tables could not be fully cleared. Check console.");
+        } else {
+          toast.success("All analytics and geolocation data cleared from database, server, and cache!");
+        }
+      } else {
+        toast.success("Local cache and server analytics cleared!");
+      }
+
+      // 4. Update local states
       setEvents([]);
-      toast.success("Analytics telemetry logs cleared.");
-    } catch (e) {
-      console.error(e);
+      setLocations([]);
+    } catch (e: any) {
+      toast.error(`Clear failed: ${e.message}`);
+    } finally {
+      setIsLoading(false);
+      setIsLocationsLoading(false);
     }
   };
 
