@@ -11,7 +11,12 @@ import {
   HelpCircle,
   Download,
   Activity,
-  Layers
+  Layers,
+  MapPin,
+  Globe,
+  Laptop,
+  Tablet,
+  Smartphone
 } from "lucide-react";
 import { useToast } from "../context/ToastContext";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
@@ -28,6 +33,8 @@ export default function AnalyticsDashboard() {
   const toast = useToast();
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [isLocationsLoading, setIsLocationsLoading] = useState(true);
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
@@ -51,6 +58,27 @@ export default function AnalyticsDashboard() {
       }
     } finally {
       setIsLoading(false);
+    }
+
+    // Fetch visitor locations from database
+    setIsLocationsLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from("visitor_locations")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100);
+
+        if (error) {
+          throw error;
+        }
+        setLocations(data || []);
+      }
+    } catch (err: any) {
+      console.warn("Could not retrieve visitor locations from Supabase:", err);
+    } finally {
+      setIsLocationsLoading(false);
     }
   };
 
@@ -183,6 +211,10 @@ ${events.map((e, idx) => {
     e.actionName.toLowerCase().includes("popup") ||
     e.actionName.toLowerCase().includes("window")
   ).length;
+
+  const totalLocationsCount = locations.length;
+  const uniqueCities = new Set(locations.map(loc => loc.city).filter(Boolean)).size;
+  const uniqueCountries = new Set(locations.map(loc => loc.country).filter(Boolean)).size;
 
   return (
     <div className="space-y-6">
@@ -337,6 +369,88 @@ ${events.map((e, idx) => {
                       {JSON.stringify(event.metadata)}
                     </span>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* GEOLOCATION AUDIENCE MAP */}
+      <h3 className="font-display font-medium text-sm text-white pt-6 flex items-center gap-2 border-t border-white/5 mt-6">
+        <Globe className="w-4 h-4 text-[#E6C687]" /> Vercel Edge-IP Audience Geolocation Logs
+      </h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* STATS */}
+        <div className="bg-[#11111c]/60 border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Total Geotargets</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{totalLocationsCount}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Unique Vercel routing sessions</p>
+        </div>
+        <div className="bg-[#11111c]/60 border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Unique Cities</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{uniqueCities}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Granular edge IP headers</p>
+        </div>
+        <div className="bg-[#11111c]/60 border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Unique Countries</span>
+          <span className="block mt-2 text-2xl font-display font-semibold text-white">{uniqueCountries}</span>
+          <p className="text-[8px] text-gray-500 font-mono mt-1">Global market outreach</p>
+        </div>
+      </div>
+
+      {isLocationsLoading ? (
+        <div className="py-12 bg-black/20 border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-3">
+          <Hourglass className="w-8 h-8 text-gray-600 animate-spin" />
+          <span className="text-xs text-gray-500 font-mono">Loading audience locations...</span>
+        </div>
+      ) : locations.length === 0 ? (
+        <div className="text-center py-12 bg-black/20 border border-white/5 rounded-2xl p-8">
+          <MapPin className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+          <h3 className="text-sm font-semibold text-white">No geolocation data recorded yet</h3>
+          <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto leading-relaxed">
+            Visiting from a deployed Vercel URL will automatically trigger edge tracking headers.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden">
+          <div className="h-[285px] overflow-y-auto space-y-2.5 pr-2 custom-scrollbar font-mono text-[10.5px]">
+            {locations.map((loc, idx) => {
+              const dateText = new Date(loc.created_at).toLocaleString();
+              
+              const getDeviceIcon = (type: string) => {
+                switch (type?.toLowerCase()) {
+                  case "mobile":
+                    return <Smartphone className="w-3.5 h-3.5 text-emerald-400" />;
+                  case "tablet":
+                    return <Tablet className="w-3.5 h-3.5 text-blue-400" />;
+                  default:
+                    return <Laptop className="w-3.5 h-3.5 text-[#E6C687]" />;
+                }
+              };
+
+              return (
+                <div 
+                  key={loc.id || idx}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-[#0a0a0f]/80 border border-white/[0.03] rounded-xl hover:border-white/10 transition-all animate-fadeIn"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                    <span className="text-gray-200 font-sans font-medium text-xs">
+                      {loc.city}, {loc.region && loc.region !== loc.city ? `${loc.region}, ` : ""}{loc.country}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 rounded-lg px-2 py-1">
+                      {getDeviceIcon(loc.device_type)}
+                      <span className="text-[9px] uppercase tracking-wider text-gray-400 font-mono">
+                        {loc.device_type || "desktop"}
+                      </span>
+                    </div>
+                    <span className="text-gray-500 text-[9px]">{dateText}</span>
+                  </div>
                 </div>
               );
             })}

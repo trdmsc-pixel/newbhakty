@@ -73,9 +73,10 @@ interface ChatMessage {
 
 interface MobileAppViewProps {
   onExit: () => void;
+  navigate?: (to: string) => void;
 }
 
-export default function MobileAppView({ onExit }: MobileAppViewProps) {
+export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) {
   const toast = useToast();
   const { 
     siteSettings, 
@@ -1843,6 +1844,47 @@ export default function MobileAppView({ onExit }: MobileAppViewProps) {
                     <a className="hover:text-black dark:hover:text-white transition-colors" href="#">Vimeo</a>
                     <span>•</span>
                     <a className="hover:text-black dark:hover:text-white transition-colors" href="#">LinkedIn</a>
+                  </div>
+                  
+                  <div className="flex justify-center gap-2.5 text-[8px] font-mono text-zinc-500 mt-2 select-none flex-wrap border-t border-zinc-200/10 dark:border-zinc-800/50 pt-2">
+                    <button 
+                      onClick={() => {
+                        if (navigate) navigate("/privacy");
+                        else {
+                          window.history.pushState({}, "", "/privacy");
+                          window.dispatchEvent(new Event("popstate"));
+                        }
+                      }} 
+                      className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Privacy Policy
+                    </button>
+                    <span>•</span>
+                    <button 
+                      onClick={() => {
+                        if (navigate) navigate("/terms");
+                        else {
+                          window.history.pushState({}, "", "/terms");
+                          window.dispatchEvent(new Event("popstate"));
+                        }
+                      }} 
+                      className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Terms of Service
+                    </button>
+                    <span>•</span>
+                    <button 
+                      onClick={() => {
+                        if (navigate) navigate("/refunds");
+                        else {
+                          window.history.pushState({}, "", "/refunds");
+                          window.dispatchEvent(new Event("popstate"));
+                        }
+                      }} 
+                      className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Refund Policy
+                    </button>
                   </div>
                 </div>
               </footer>

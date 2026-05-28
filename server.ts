@@ -73,6 +73,34 @@ app.use(express.json());
   });
 
   // ----------------------------------------------------
+  // API ROUTE: VISITOR GEOLOCATION
+  // ----------------------------------------------------
+  app.get("/api/locate", (req, res) => {
+    try {
+      const rawCity = req.headers["x-vercel-ip-city"] as string;
+      const rawRegion = req.headers["x-vercel-ip-country-region"] as string;
+      const rawCountry = req.headers["x-vercel-ip-country"] as string;
+
+      const decodeHeader = (val: string | undefined, fallback: string): string => {
+        if (!val) return fallback;
+        try {
+          return decodeURIComponent(val);
+        } catch (e) {
+          return val;
+        }
+      };
+
+      res.json({
+        city: decodeHeader(rawCity, "Unknown City"),
+        region: decodeHeader(rawRegion, "Unknown Region"),
+        country: decodeHeader(rawCountry, "Unknown Country")
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to determine geolocation parameters" });
+    }
+  });
+
+  // ----------------------------------------------------
   // API ROUTE: AI VIDEO GENERATION
   // ----------------------------------------------------
   app.post("/api/generate-video", async (req, res) => {

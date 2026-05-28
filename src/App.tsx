@@ -11,11 +11,13 @@ import BrandMarquee from "./components/BrandMarquee";
 import AdminPanel from "./components/AdminPanel";
 import MobileAppView from "./components/MobileAppView";
 import ChatWidget from "./components/ChatWidget";
+import LegalPage from "./components/LegalPages";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
 import { trackEvent, initializeMockAnalytics, trackMetaPixelEvent, trackMetaPixelCustomEvent } from "./lib/analytics";
 import { getActiveTheme, WEB_THEMES } from "./lib/themes";
 import { optimizeHeroVideoUrl } from "./lib/cloudinary";
+import { supabase, isSupabaseConfigured } from "./lib/supabase";
 
 
 function AppContent() {
@@ -28,6 +30,56 @@ function AppContent() {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Zero-Overhead Visitor Location Tracking
+  useEffect(() => {
+    const trackVisitorLocation = async () => {
+      try {
+        if (sessionStorage.getItem("session_geo_logged") === "true") {
+          return;
+        }
+
+        const res = await fetch("/api/locate");
+        if (!res.ok) {
+          throw new Error("Failed to load locator API response");
+        }
+        
+        const data = await res.json();
+        const city = data.city || "Unknown City";
+        const region = data.region || "Unknown Region";
+        const country = data.country || "Unknown Country";
+
+        let deviceType = "desktop";
+        const width = window.innerWidth;
+        if (width < 768) {
+          deviceType = "mobile";
+        } else if (width < 1024) {
+          deviceType = "tablet";
+        }
+
+        if (isSupabaseConfigured && supabase) {
+          const { error } = await supabase
+            .from("visitor_locations")
+            .insert({
+              city,
+              region,
+              country,
+              device_type: deviceType
+            });
+            
+          if (error) {
+            console.error("Error writing visitor location to database:", error);
+          }
+        }
+        
+        sessionStorage.setItem("session_geo_logged", "true");
+      } catch (err) {
+        console.warn("Visitor location tracking aborted/failed:", err);
+      }
+    };
+
+    trackVisitorLocation();
   }, []);
 
   const isMobileOrTablet = windowWidth < 1024;
@@ -138,20 +190,31 @@ function AppContent() {
       setHash("");
     }
   };
+  // ----------------------------------------------------
+  // ROUTE DISPATCHER: LEGAL PAGES, ADMIN & MOBILE PREVIEW SYSTEM
+  // ----------------------------------------------------
+  if (path === "/privacy" || hash === "#privacy" || hash === "/privacy") {
+    return <LegalPage type="privacy" onBack={() => navigate("/")} />;
+  }
 
-  // ----------------------------------------------------
-  // ROUTE DISPATCHER: ADMIN & MOBILE PREVIEW SYSTEM
-  // ----------------------------------------------------
+  if (path === "/terms" || hash === "#terms" || hash === "/terms") {
+    return <LegalPage type="terms" onBack={() => navigate("/")} />;
+  }
+
+  if (path === "/refunds" || hash === "#refunds" || hash === "/refunds") {
+    return <LegalPage type="refunds" onBack={() => navigate("/")} />;
+  }
+
   if (path === "/admin" || hash === "#admin" || hash === "/admin") {
     return <AdminPanel onNavigateHome={() => navigate("/")} />;
   }
 
   if (path === "/mobile-app" || hash === "#mobile-app" || hash === "/mobile-app") {
-    return <MobileAppView onExit={() => navigate("/")} />;
+    return <MobileAppView onExit={() => navigate("/")} navigate={navigate} />;
   }
 
   if (isMobileOrTablet) {
-    return <MobileAppView onExit={() => {}} />;
+    return <MobileAppView onExit={() => {}} navigate={navigate} />;
   }
 
   return <DesktopWebsiteView path={path} hash={hash} navigate={navigate} />;
@@ -814,12 +877,25 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
           <div>
             All generative pipelines run on proprietary fine-tunes. Real-time media licensed under CC-BY v4.0.
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap justify-center">
             <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="hover:text-gray-400 transition-colors">Return top</button>
             <span>•</span>
             <button onClick={() => scrollToSection("work-section")} className="hover:text-gray-400 transition-colors">Portfolios</button>
             <span>•</span>
             <button onClick={() => scrollToSection("pricing-section")} className="hover:text-gray-400 transition-colors">Licensing packages</button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-gray-600 border-t border-white/5 pt-4 mt-4 w-full">
+          <div>
+            The Chanting Studio // Computational Visualizer Curation Framework.
+          </div>
+          <div className="flex gap-4 flex-wrap justify-center">
+            <button onClick={() => navigate("/privacy")} className="hover:text-gray-400 transition-colors">Privacy Policy</button>
+            <span>•</span>
+            <button onClick={() => navigate("/terms")} className="hover:text-gray-400 transition-colors">Terms of Service</button>
+            <span>•</span>
+            <button onClick={() => navigate("/refunds")} className="hover:text-gray-400 transition-colors">Refund Policy</button>
           </div>
         </div>
       </footer>
