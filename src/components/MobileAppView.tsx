@@ -156,8 +156,16 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
     setActivePage(nextPage);
   }, [activePage, setActivePage]);
 
-  // ── Meta Pixel: Track every virtual page navigation in the mobile app ──
+  // ── Track tab / page switches in both Meta Pixel and local analytics ──
   useEffect(() => {
+    // 1. Local Analytics Dashboard
+    trackEvent(
+      "click", 
+      `Mobile App: Navigated to ${activeTab.toUpperCase()} (${activePage === "live" ? "Live Action" : "AI Production"})`, 
+      { tab: activeTab, page: activePage }
+    );
+
+    // 2. Meta Pixel
     const fbq = (window as any).fbq;
     if (fbq) {
       fbq('track', 'PageView', {
@@ -199,6 +207,41 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
   const [activeTabId, setActiveTabId] = useState("");
   const [activeVideoId, setActiveVideoId] = useState("");
   const [unmutedVideoId, setUnmutedVideoId] = useState<string | null>(null);
+
+  // Scroll tracking state & milestones
+  const targetScrollMilestones = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    targetScrollMilestones.current = new Set();
+  }, [activeTab]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollHeight === target.clientHeight) return;
+    
+    const scrollPercent = Math.round((target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100);
+    const scrollMilestones = [25, 50, 75, 100];
+    
+    scrollMilestones.forEach(milestone => {
+      if (scrollPercent >= milestone && !targetScrollMilestones.current.has(milestone)) {
+        targetScrollMilestones.current.add(milestone);
+        trackEvent(
+          "scroll", 
+          `Mobile App: Scrolled ${milestone}% of ${activeTab.toUpperCase()} tab`, 
+          { tab: activeTab, depth: `${milestone}%` }
+        );
+      }
+    });
+  };
+
+  // Track category filter switching
+  useEffect(() => {
+    if (activeTabId && activeTab === "work") {
+      const selectedTab = portfolioTabs.find(t => t.id === activeTabId);
+      const tabLabel = selectedTab ? selectedTab.label : activeTabId;
+      trackEvent("click", `Mobile App: Filtered Work category: ${tabLabel}`, { categoryId: activeTabId, categoryLabel: tabLabel });
+    }
+  }, [activeTabId, activeTab, portfolioTabs]);
 
   // Segmented capsule indicator refs + state
   const segmentedContainerRef = useRef<HTMLDivElement>(null);
@@ -507,6 +550,7 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
   };
 
   const handleAcquireTier = (tierName: string) => {
+    trackEvent("click", "Mobile App: Selected Pricing Tier CTA", { tier: tierName });
     toast.success(`Pipeline spot requested for ${tierName}. Redirecting to booking form...`);
     setSelectedTier(tierName);
     if (tierName.includes("Short-Form")) {
@@ -972,6 +1016,8 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
     const text = chatInputText;
     setChatInputText("");
 
+    trackEvent("click", "Mobile App: Sent customer support message", { textLength: text.length });
+
     const userMsg = {
       session_id: sessionId,
       sender: "user" as const,
@@ -1148,7 +1194,10 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
         </nav>
 
         {/* Scrollable Main tab Body */}
-        <div className="flex-1 overflow-y-auto pb-4 hide-scrollbar relative flex flex-col">
+        <div 
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto pb-4 hide-scrollbar relative flex flex-col"
+        >
           
           <AnimatePresence mode="wait" initial={false}>
           {activeTab === "home" && (
