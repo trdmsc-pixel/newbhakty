@@ -186,6 +186,13 @@ export default function MobileAppView({ onExit, navigate }: MobileAppViewProps) 
     }
   }, [activePage]);
 
+  // Synchronize active app state to window for tracking
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any)._activePipeline = "mobile_app";
+    }
+  }, []);
+
   // Hero variables
   const heroTitle1 = getSetting("hero_title_1", "The Next Epoch");
   const heroTitle2 = getSetting("hero_title_2", "of Cinema.");

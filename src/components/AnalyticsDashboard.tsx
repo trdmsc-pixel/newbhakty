@@ -27,34 +27,80 @@ interface AnalyticsEvent {
   actionName: string;
   metadata?: any;
   timestamp: string;
+  source_page?: "ai_production" | "live_action" | "mobile_app";
 }
+
+interface LocationLog {
+  id: string;
+  city: string;
+  region: string;
+  country: string;
+  device_type: string;
+  source_page?: "ai_production" | "live_action" | "mobile_app";
+  created_at: string;
+}
+
+const mapEvent = (row: any): AnalyticsEvent => ({
+  id: row.id,
+  eventType: row.event_type || row.eventType || "click",
+  actionName: row.action_name || row.actionName || "unknown",
+  metadata: row.metadata,
+  timestamp: row.timestamp || new Date().toISOString(),
+  source_page: row.source_page
+});
 
 export default function AnalyticsDashboard() {
   const toast = useToast();
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<LocationLog[]>([]);
   const [isLocationsLoading, setIsLocationsLoading] = useState(true);
+  const [dashboardFilter, setDashboardFilter] = useState<"ai_production" | "live_action" | "mobile_app">("ai_production");
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/analytics/board");
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(data.logs || []);
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from("analytics_events")
+          .select("*")
+          .order("timestamp", { ascending: false })
+          .limit(300);
+
+        if (error) {
+          throw error;
+        }
+        setEvents((data || []).map(mapEvent));
       } else {
-        // Fallback to localStorage directly if server fails
-        const cached = localStorage.getItem("bhakty_analytics_logs");
-        if (cached) {
-          setEvents(JSON.parse(cached));
+        const res = await fetch("/api/telemetry-board");
+        if (res.ok) {
+          const data = await res.json();
+          setEvents((data.logs || []).map(mapEvent));
+        } else {
+          const cached = localStorage.getItem("bhakty_analytics_logs");
+          if (cached) {
+            setEvents((JSON.parse(cached) || []).map(mapEvent));
+          }
         }
       }
     } catch (e) {
-      console.warn("Server analytics fetch error, recovering local state:", e);
-      const cached = localStorage.getItem("bhakty_analytics_logs");
-      if (cached) {
-        setEvents(JSON.parse(cached));
+      console.warn("Supabase analytics fetch error, recovering local/server state:", e);
+      try {
+        const res = await fetch("/api/telemetry-board");
+        if (res.ok) {
+          const data = await res.json();
+          setEvents((data.logs || []).map(mapEvent));
+        } else {
+          const cached = localStorage.getItem("bhakty_analytics_logs");
+          if (cached) {
+            setEvents((JSON.parse(cached) || []).map(mapEvent));
+          }
+        }
+      } catch (err) {
+        const cached = localStorage.getItem("bhakty_analytics_logs");
+        if (cached) {
+          setEvents((JSON.parse(cached) || []).map(mapEvent));
+        }
       }
     } finally {
       setIsLoading(false);
@@ -87,11 +133,12 @@ export default function AnalyticsDashboard() {
 
     // 1. Same-window custom event listener
     const handleLocalEvent = (e: Event) => {
-      const customEvent = e as CustomEvent<AnalyticsEvent>;
+      const customEvent = e as CustomEvent<any>;
       if (customEvent.detail) {
+        const mapped = mapEvent(customEvent.detail);
         setEvents(prev => {
-          if (prev.some(evt => evt.id === customEvent.detail.id)) return prev;
-          return [customEvent.detail, ...prev];
+          if (prev.some(evt => evt.id === mapped.id)) return prev;
+          return [mapped, ...prev];
         });
       }
     };
@@ -105,10 +152,10 @@ export default function AnalyticsDashboard() {
           .channel("analytics-channel")
           .on("broadcast", { event: "new-interaction" }, (payload: any) => {
             if (payload && payload.payload) {
-              const newEvent = payload.payload as AnalyticsEvent;
+              const mapped = mapEvent(payload.payload);
               setEvents(prev => {
-                if (prev.some(evt => evt.id === newEvent.id)) return prev;
-                return [newEvent, ...prev];
+                if (prev.some(evt => evt.id === mapped.id)) return prev;
+                return [mapped, ...prev];
               });
             }
           })
@@ -178,10 +225,18 @@ ${events.map((e, idx) => {
     }
   };
 
+  // Filter events based on active dashboard tab
+  const filteredEvents = events.filter(e => {
+    if (dashboardFilter === "ai_production") {
+      return e.source_page === "ai_production" || !e.source_page;
+    }
+    return e.source_page === dashboardFilter;
+  });
+
   // Compute breakdown stats
-  const totalCount = events.length;
+  const totalCount = filteredEvents.length;
   
-  const ctaClicks = events.filter(e => 
+  const ctaClicks = filteredEvents.filter(e => 
     e.eventType === "click" && 
     (e.actionName.toLowerCase().includes("cta") || 
      e.actionName.toLowerCase().includes("pricing") || 
@@ -189,32 +244,40 @@ ${events.map((e, idx) => {
      e.actionName.toLowerCase().includes("proposal"))
   ).length;
 
-  const videoInteractions = events.filter(e => 
+  const videoInteractions = filteredEvents.filter(e => 
     e.eventType === "video_play" || 
     e.actionName.toLowerCase().includes("video") || 
     e.actionName.toLowerCase().includes("play")
   ).length;
 
-  const bookingSubmissions = events.filter(e => 
+  const bookingSubmissions = filteredEvents.filter(e => 
     e.eventType === "form_field" || 
     e.actionName.toLowerCase().includes("booking proposal") || 
     e.actionName.toLowerCase().includes("submitted") ||
     e.actionName.toLowerCase().includes("submit")
   ).length;
 
-  const hoverEventsCount = events.filter(e => e.actionName.toLowerCase().includes("hover")).length;
+  const hoverEventsCount = filteredEvents.filter(e => e.actionName.toLowerCase().includes("hover")).length;
   const hoverHours = parseFloat(((hoverEventsCount * 12 + videoInteractions * 30) / 3600).toFixed(4));
 
-  const modelOverlays = events.filter(e => 
+  const modelOverlays = filteredEvents.filter(e => 
     e.actionName.toLowerCase().includes("overlay") || 
     e.actionName.toLowerCase().includes("modal") ||
     e.actionName.toLowerCase().includes("popup") ||
     e.actionName.toLowerCase().includes("window")
   ).length;
 
-  const totalLocationsCount = locations.length;
-  const uniqueCities = new Set(locations.map(loc => loc.city).filter(Boolean)).size;
-  const uniqueCountries = new Set(locations.map(loc => loc.country).filter(Boolean)).size;
+  // Filter locations based on active dashboard tab
+  const filteredLocations = locations.filter(loc => {
+    if (dashboardFilter === "ai_production") {
+      return loc.source_page === "ai_production" || !loc.source_page;
+    }
+    return loc.source_page === dashboardFilter;
+  });
+
+  const totalLocationsCount = filteredLocations.length;
+  const uniqueCities = new Set(filteredLocations.map(loc => loc.city).filter(Boolean)).size;
+  const uniqueCountries = new Set(filteredLocations.map(loc => loc.country).filter(Boolean)).size;
 
   return (
     <div className="space-y-6">
@@ -254,6 +317,43 @@ ${events.map((e, idx) => {
             Clear Data
           </button>
         </div>
+      </div>
+
+      {/* Category Filter Tabs */}
+      <div className="flex flex-wrap gap-2 bg-white/[0.02] border border-white/5 rounded-2xl p-1.5 w-fit select-none font-mono text-[10px] uppercase tracking-wider">
+        <button
+          type="button"
+          onClick={() => setDashboardFilter("ai_production")}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer ${
+            dashboardFilter === "ai_production"
+              ? "bg-[#ffea00] text-black font-bold shadow-md shadow-[#ffea00]/10"
+              : "text-gray-400 hover:text-white hover:bg-white/5"
+          }`}
+        >
+          AI Production (Desktop)
+        </button>
+        <button
+          type="button"
+          onClick={() => setDashboardFilter("live_action")}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer ${
+            dashboardFilter === "live_action"
+              ? "bg-fuchsia-600 text-white font-bold shadow-md shadow-fuchsia-600/10"
+              : "text-gray-400 hover:text-white hover:bg-white/5"
+          }`}
+        >
+          Live Action (Desktop)
+        </button>
+        <button
+          type="button"
+          onClick={() => setDashboardFilter("mobile_app")}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer ${
+            dashboardFilter === "mobile_app"
+              ? "bg-violet-600 text-white font-bold shadow-md shadow-violet-600/10"
+              : "text-gray-400 hover:text-white hover:bg-white/5"
+          }`}
+        >
+          Mobile App Version
+        </button>
       </div>
 
       {/* GRAPHIC OVERVIEW CARDS */}
@@ -331,7 +431,7 @@ ${events.map((e, idx) => {
           <Hourglass className="w-8 h-8 text-gray-600 animate-spin" />
           <span className="text-xs text-gray-500 font-mono">Digesting interaction matrices...</span>
         </div>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <div className="text-center py-12 bg-black/20 border border-white/5 rounded-2xl p-8">
           <HelpCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-white">No analytical traces captured yet</h3>
@@ -342,7 +442,7 @@ ${events.map((e, idx) => {
       ) : (
         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden">
           <div className="h-[280px] overflow-y-auto space-y-2.5 pr-2 custom-scrollbar font-mono text-[10.5px]">
-            {events.slice(0).map((event, idx) => {
+            {filteredEvents.slice(0).map((event, idx) => {
               const dateText = new Date(event.timestamp).toLocaleTimeString();
               const catColors: Record<string, string> = {
                 click: "text-purple-400 bg-purple-500/10 border-purple-500/20",
@@ -405,7 +505,7 @@ ${events.map((e, idx) => {
           <Hourglass className="w-8 h-8 text-gray-600 animate-spin" />
           <span className="text-xs text-gray-500 font-mono">Loading audience locations...</span>
         </div>
-      ) : locations.length === 0 ? (
+      ) : filteredLocations.length === 0 ? (
         <div className="text-center py-12 bg-black/20 border border-white/5 rounded-2xl p-8">
           <MapPin className="w-12 h-12 text-gray-600 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-white">No geolocation data recorded yet</h3>
@@ -416,7 +516,7 @@ ${events.map((e, idx) => {
       ) : (
         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden">
           <div className="h-[285px] overflow-y-auto space-y-2.5 pr-2 custom-scrollbar font-mono text-[10.5px]">
-            {locations.map((loc, idx) => {
+            {filteredLocations.map((loc, idx) => {
               const dateText = new Date(loc.created_at).toLocaleString();
               
               const getDeviceIcon = (type: string) => {

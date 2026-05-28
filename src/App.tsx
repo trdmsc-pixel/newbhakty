@@ -40,12 +40,32 @@ function AppContent() {
           return;
         }
 
-        const res = await fetch("/api/locate");
+        const res = await fetch("/api/edge-sync");
         if (!res.ok) {
           throw new Error("Failed to load locator API response");
         }
         
-        const data = await res.json();
+        let data = await res.json();
+        
+        // Fallback to client-side geolocation if edge headers are missing (e.g. local testing)
+        if (!data.city || data.city === "Unknown City") {
+          try {
+            const geoRes = await fetch("https://ipapi.co/json/");
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              if (geoData.city) {
+                data = {
+                  city: geoData.city,
+                  region: geoData.region || "Unknown Region",
+                  country: geoData.country_name || geoData.country || "Unknown Country"
+                };
+              }
+            }
+          } catch (geoErr) {
+            console.warn("Client-side geolocation API fallback failed:", geoErr);
+          }
+        }
+
         const city = data.city || "Unknown City";
         const region = data.region || "Unknown Region";
         const country = data.country || "Unknown Country";
@@ -58,6 +78,15 @@ function AppContent() {
           deviceType = "tablet";
         }
 
+        // Determine source_page
+        let resolvedSource: "ai_production" | "live_action" | "mobile_app" = "ai_production";
+        const isMobile = width < 1024;
+        if (window.location.pathname === "/mobile-app" || window.location.hash === "#mobile-app" || (isMobile && window.location.pathname !== "/admin")) {
+          resolvedSource = "mobile_app";
+        } else {
+          resolvedSource = activePage === "live" ? "live_action" : "ai_production";
+        }
+
         if (isSupabaseConfigured && supabase) {
           const { error } = await supabase
             .from("visitor_locations")
@@ -65,7 +94,8 @@ function AppContent() {
               city,
               region,
               country,
-              device_type: deviceType
+              device_type: deviceType,
+              source_page: resolvedSource
             });
             
           if (error) {
@@ -80,7 +110,7 @@ function AppContent() {
     };
 
     trackVisitorLocation();
-  }, []);
+  }, [activePage]);
 
   const isMobileOrTablet = windowWidth < 1024;
 
@@ -177,6 +207,13 @@ function AppContent() {
       trackMetaPixelCustomEvent("SelectedPhysicalPipeline", { source: "navbar_toggle", page: "live" });
     } else if (activePage === "ai") {
       trackMetaPixelCustomEvent("SelectedDigitalPipeline", { source: "navbar_toggle", page: "ai" });
+    }
+  }, [activePage]);
+
+  // Synchronize active page pipeline to window for adblock-bypassed trackEvent detection
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any)._activePipeline = activePage === "live" ? "live_action" : "ai_production";
     }
   }, [activePage]);
 

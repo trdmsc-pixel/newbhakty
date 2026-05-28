@@ -11,6 +11,7 @@ export interface AnalyticsEvent {
   actionName: string;
   metadata?: Record<string, any>;
   timestamp: string;
+  source_page?: "ai_production" | "live_action" | "mobile_app";
 }
 
 const STORAGE_KEY = "bhakty_analytics_logs";
@@ -18,14 +19,34 @@ const STORAGE_KEY = "bhakty_analytics_logs";
 export const trackEvent = async (
   eventType: AnalyticsEvent["eventType"],
   actionName: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
+  sourcePage?: AnalyticsEvent["source_page"]
 ) => {
+  let resolvedSource = sourcePage;
+  if (!resolvedSource) {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      const isMobile = window.innerWidth < 1024;
+      
+      if (path === "/mobile-app" || hash === "#mobile-app" || (isMobile && path !== "/admin")) {
+        resolvedSource = "mobile_app";
+      } else {
+        const win = window as any;
+        resolvedSource = win._activePipeline === "live_action" ? "live_action" : "ai_production";
+      }
+    } else {
+      resolvedSource = "ai_production";
+    }
+  }
+
   const event: AnalyticsEvent = {
     id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     eventType,
     actionName,
     metadata,
     timestamp: new Date().toISOString(),
+    source_page: resolvedSource
   };
 
   try {
@@ -58,9 +79,30 @@ export const trackEvent = async (
     }
   }
 
+  // Write directly to Supabase analytics_events table for persistence across page refreshes
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from("analytics_events")
+        .insert({
+          id: event.id,
+          event_type: event.eventType,
+          action_name: event.actionName,
+          metadata: event.metadata || {},
+          source_page: resolvedSource,
+          timestamp: event.timestamp
+        });
+      if (error) {
+        console.warn("Failed to write event to Supabase table:", error);
+      }
+    } catch (err) {
+      console.warn("Failed to write event to Supabase table (exception):", err);
+    }
+  }
+
   try {
-    // 2. Transmit to server API
-    await fetch("/api/analytics/log", {
+    // 2. Transmit to server API (using non-adblock-blocked endpoint)
+    await fetch("/api/session-telemetry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(event),

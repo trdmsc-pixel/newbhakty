@@ -39,19 +39,20 @@ app.use(express.json());
 
 
   // ----------------------------------------------------
-  // API ROUTE: ANALYTICS LOGGER
+  // API ROUTE: ANALYTICS LOGGER (UNSUSPICIOUS PATHS FOR ADBLOCK BYPASS)
   // ----------------------------------------------------
   const serverAnalyticsLogs: any[] = [];
   const mockOperationsProgress = new Map<string, number>();
 
-  app.post("/api/analytics/log", (req, res) => {
+  const logTelemetryEvent = (req: any, res: any) => {
     try {
-      const { id, eventType, actionName, metadata, timestamp } = req.body;
+      const { id, eventType, actionName, metadata, timestamp, source_page } = req.body;
       const event = {
         id: id || `evt-srv-${Date.now()}`,
         eventType: eventType || "click",
         actionName: actionName || "unknown",
         metadata: metadata || {},
+        source_page: source_page || "ai_production",
         timestamp: timestamp || new Date().toISOString()
       };
       serverAnalyticsLogs.unshift(event);
@@ -62,20 +63,27 @@ app.use(express.json());
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
-  });
+  };
 
-  app.get("/api/analytics/board", (req, res) => {
+  const getTelemetryBoard = (req: any, res: any) => {
     try {
       res.json({ logs: serverAnalyticsLogs });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
-  });
+  };
+
+  app.post("/api/session-telemetry", logTelemetryEvent);
+  app.get("/api/telemetry-board", getTelemetryBoard);
+
+  // Legacy aliases
+  app.post("/api/analytics/log", logTelemetryEvent);
+  app.get("/api/analytics/board", getTelemetryBoard);
 
   // ----------------------------------------------------
-  // API ROUTE: VISITOR GEOLOCATION
+  // API ROUTE: VISITOR GEOLOCATION (EDGE SYNC)
   // ----------------------------------------------------
-  app.get("/api/locate", (req, res) => {
+  const getGeoLocation = (req: any, res: any) => {
     try {
       const rawCity = req.headers["x-vercel-ip-city"] as string;
       const rawRegion = req.headers["x-vercel-ip-country-region"] as string;
@@ -98,7 +106,10 @@ app.use(express.json());
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Failed to determine geolocation parameters" });
     }
-  });
+  };
+
+  app.get("/api/edge-sync", getGeoLocation);
+  app.get("/api/locate", getGeoLocation); // Legacy alias
 
   // ----------------------------------------------------
   // API ROUTE: AI VIDEO GENERATION
