@@ -10,7 +10,7 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp
+  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
@@ -333,14 +333,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     statusText: "",
   });
 
-  const runUploadWithModal = async (file: File, uploadFn: () => Promise<string>): Promise<string> => {
+  const runUploadWithModal = async (
+    file: File, 
+    uploadFn: () => Promise<string>,
+    options?: { fileIndex?: number; totalFiles?: number }
+  ): Promise<string> => {
     const sizeKb = (file.size / 1024).toFixed(2) + " KB";
+    const prefix = options && options.fileIndex && options.totalFiles ? `[${options.fileIndex}/${options.totalFiles}] ` : "";
     setUploadModal({
       active: true,
       filename: file.name,
       filesize: sizeKb,
       percentage: 0,
-      statusText: "Initiating upload handshake...",
+      statusText: `${prefix}Initiating upload handshake...`,
     });
 
     const interval = setInterval(() => {
@@ -355,9 +360,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           return {
             ...prev,
             percentage: nextPercent,
-            statusText: nextPercent < 30 ? "Negotiating security cipher keys..." :
+            statusText: prefix + (nextPercent < 30 ? "Negotiating security cipher keys..." :
                        nextPercent < 60 ? "Transporting file segments to GitHub CDN..." :
-                       "Syncing cache nodes at edges...",
+                       "Syncing cache nodes at edges..."),
           };
         }
         return prev;
@@ -370,7 +375,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       setUploadModal((prev) => ({
         ...prev,
         percentage: 100,
-        statusText: "Ingestion and edge cache syncing completed!",
+        statusText: `${prefix}Ingestion and edge cache syncing completed!`,
       }));
       await new Promise((resolve) => setTimeout(resolve, 800));
       setUploadModal((prev) => ({ ...prev, active: false }));
@@ -380,7 +385,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       setUploadModal((prev) => ({
         ...prev,
         percentage: 0,
-        statusText: `Handshake rejected: ${err?.message || "Unknown Error"}`,
+        statusText: `${prefix}Handshake rejected: ${err?.message || "Unknown Error"}`,
       }));
       await new Promise((resolve) => setTimeout(resolve, 2000));
       setUploadModal((prev) => ({ ...prev, active: false }));
@@ -1008,54 +1013,179 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // ----------------------------------------------------
   // TAB 5: GLOBAL ASSETS STATE & HANDLERS (Cloudinary Uploaders)
   // ----------------------------------------------------
-  const [selectedAssetFile, setSelectedAssetFile] = useState<File | null>(null);
+  const [selectedAssetFiles, setSelectedAssetFiles] = useState<{ id: string; file: File; customName: string; type: "image" | "video" }[]>([]);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
   const [newAssetUrl, setNewAssetUrl] = useState("");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetType, setNewAssetType] = useState("image");
 
 
-  // Show selected file and configure default name/type before upload in Assets
+  // Show selected files and configure default names/types before upload in Assets
   const handleAssetFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      setSelectedAssetFile(file);
-      setNewAssetName(file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
-      setNewAssetType(file.type.startsWith("video/") ? "video" : "image");
-      toast.info(`Selected file: ${file.name}. Ready for explicit upload.`);
+      const newItems = Array.from(files).map((file: File) => {
+        const cleanName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        const fileType: "image" | "video" = file.type.startsWith("video/") ? "video" : "image";
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          file,
+          customName: cleanName,
+          type: fileType
+        };
+      });
+      setSelectedAssetFiles((prev) => [...prev, ...newItems]);
+      toast.info(`Added ${newItems.length} file(s) to the upload queue.`);
+      e.target.value = ""; // Clear input value
     }
   };
 
+  const handleQueueNameChange = (id: string, name: string) => {
+    setSelectedAssetFiles((prev) => prev.map((item) => item.id === id ? { ...item, customName: name } : item));
+  };
+
+  const handleQueueTypeChange = (id: string, type: "image" | "video") => {
+    setSelectedAssetFiles((prev) => prev.map((item) => item.id === id ? { ...item, type } : item));
+  };
+
+  const removeQueueItem = (id: string) => {
+    setSelectedAssetFiles((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const handleAssetUpload = async () => {
-    if (!selectedAssetFile) {
-      toast.warning("Please choose a file first.");
+    if (selectedAssetFiles.length === 0) {
+      toast.warning("Please choose one or more files first.");
       return;
     }
 
     setIsUploadingAsset(true);
+    let successCount = 0;
+    
     try {
-      const uploadedUrl = await runUploadWithModal(selectedAssetFile, () => 
-        uploadToCloudinary(selectedAssetFile)
-      );
+      for (let i = 0; i < selectedAssetFiles.length; i++) {
+        const item = selectedAssetFiles[i];
+        const fileIndex = i + 1;
+        const totalFiles = selectedAssetFiles.length;
+        
+        const uploadedUrl = await runUploadWithModal(
+          item.file,
+          () => uploadToCloudinary(item.file),
+          { fileIndex, totalFiles }
+        );
 
-      const newAsset = await addMediaAsset(
-        newAssetName || selectedAssetFile.name,
-        uploadedUrl,
-        newAssetType as "image" | "video"
-      );
+        const newAsset = await addMediaAsset(
+          item.customName || item.file.name,
+          uploadedUrl,
+          item.type
+        );
 
-      if (newAsset) {
-        toast.success(`Success: ${newAssetName || selectedAssetFile.name} loaded and persisted!`);
-        setSelectedAssetFile(null);
-        setNewAssetName("");
-      } else {
-        toast.error("Failed to persist uploaded asset details to the database.");
+        if (newAsset) {
+          successCount++;
+        }
       }
+
+      if (successCount === selectedAssetFiles.length) {
+        toast.success(`Success: Successfully uploaded and persisted all ${successCount} asset(s)!`);
+      } else {
+        toast.warning(`Uploaded ${successCount} of ${selectedAssetFiles.length} asset(s).`);
+      }
+      setSelectedAssetFiles([]);
     } catch (err: any) {
       toast.error(`Upload error: ${err?.message || "Verify your GitHub/Supabase setup & connection."}`);
     } finally {
       setIsUploadingAsset(false);
+    }
+  };
+
+  const handleBulkAction = async (actionType: string) => {
+    if (selectedAssetIds.length === 0) {
+      toast.warning("No assets selected for bulk action.");
+      return;
+    }
+
+    const selectedAssets = mediaAssets.filter(asset => selectedAssetIds.includes(asset.id));
+    if (selectedAssets.length === 0) return;
+
+    if (actionType === "portfolio_create_individual") {
+      recordWorksHistory();
+      const activeTabObj = editTabs.find(t => t.id === adminActiveTabId) || editTabs[0];
+      const newItems: VideoBlock[] = selectedAssets.map(asset => {
+        const isVideo = asset.type === "video";
+        return {
+          id: generateUUID(),
+          title: asset.name,
+          category: isVideo ? "AI Commercial / Fluid Dynamics" : "Graphic Design / Brand Curation",
+          videoUrl: isVideo ? asset.url : "",
+          highResVideoUrl: isVideo ? asset.url : "",
+          imageUrl: isVideo ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80" : asset.url,
+          description: `${asset.type === "video" ? "Motion piece" : "Static asset"} uploaded and assigned to portfolio.`,
+          creator: "bhakty.synth",
+          duration: isVideo ? "0:15" : "",
+          ratio: "landscape",
+          aspectRatioClass: "aspect-square md:col-span-1",
+          tags: isVideo ? ["Fluid Simulation", "Neural Render"] : ["Static Design", "Graphic Design"],
+          type: asset.type,
+          tab_id: adminActiveTabId || activeTabObj?.id || ""
+        };
+      });
+      setEditWorks(prev => [...prev, ...newItems]);
+      toast.success(`Generated ${newItems.length} portfolio card(s) under the active portfolio tab! Click 'Sync Portfolio' to save.`);
+      setSelectedAssetIds([]);
+    } else if (actionType === "navigation_add") {
+      recordMenuHistory();
+      const newItems: NavigationMenuItem[] = selectedAssets.map((asset, index) => ({
+        id: generateUUID(),
+        label: asset.name,
+        target_url: asset.url,
+        display_order: editMenu.length + index + 1
+      }));
+      setEditMenu(prev => [...prev, ...newItems]);
+      toast.success(`Added ${newItems.length} item(s) to Navigation Menu! Click 'Synchronize menu' to save.`);
+      setSelectedAssetIds([]);
+    } else if (actionType === "brand_logos_add") {
+      const imageAssets = selectedAssets.filter(a => a.type === "image");
+      if (imageAssets.length === 0) {
+        toast.warning("Only images can be added to the Brand Logos Marquee.");
+        return;
+      }
+      const newLogos = imageAssets.map((asset, index) => ({
+        id: generateUUID(),
+        url: asset.url,
+        name: asset.name,
+        display_order: editLogos.length + index + 1
+      }));
+      setEditLogos(prev => [...prev, ...newLogos]);
+      toast.success(`Added ${newLogos.length} image(s) to Brand Logos Marquee!`);
+      setSelectedAssetIds([]);
+    } else if (actionType.startsWith("setting_assign_")) {
+      const settingKey = actionType.replace("setting_assign_", "");
+      const firstAsset = selectedAssets[0];
+      recordSettingsHistory();
+      
+      let resolvedKey = settingKey;
+      if (settingKey === "hero_video_bg_url") {
+        resolvedKey = adminPageScope === "live" ? "page2_hero_video_bg_url" : adminPageScope === "app" ? "app_hero_video_bg_url" : "hero_video_bg_url";
+      } else if (settingKey === "logo_img_url") {
+        resolvedKey = adminPageScope === "app" ? "app_logo_img_url" : "logo_img_url";
+      }
+
+      setEditSettings(prev => ({
+        ...prev,
+        [resolvedKey]: firstAsset.url
+      }));
+      toast.success(`Assigned '${firstAsset.name}' to ${resolvedKey}! Click 'Synchronize settings' to save.`);
+      setSelectedAssetIds([]);
+    } else if (actionType === "delete_selected") {
+      if (window.confirm(`Are you sure you want to delete ${selectedAssets.length} selected asset(s) from the library?`)) {
+        let deletedCount = 0;
+        for (const asset of selectedAssets) {
+          const success = await deleteMediaAsset(asset.id);
+          if (success) deletedCount++;
+        }
+        toast.success(`Removed ${deletedCount} asset(s) from Library.`);
+        setSelectedAssetIds([]);
+      }
     }
   };
 
@@ -5017,25 +5147,77 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#ffea00]/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
                           <Upload className="w-6 h-6 text-gray-400 mb-2" />
                           <span className="text-xs font-medium text-white">
-                            {selectedAssetFile ? `Selected: ${selectedAssetFile.name}` : "Click or Drop Asset File"}
+                            Click or Drop Asset Files
                           </span>
-                          <span className="text-[10px] text-gray-500 mt-1 uppercase font-mono">Supports MP4, JPG, PNG, WEBP</span>
+                          <span className="text-[10px] text-gray-500 mt-1 uppercase font-mono">Supports MP4, JPG, PNG, WEBP (Select Multiple)</span>
                           <input
                             type="file"
                             accept="image/*,video/mp4"
+                            multiple
                             onChange={handleAssetFileChange}
                             className="hidden"
                           />
                         </label>
-                        {selectedAssetFile && (
-                          <button
-                            type="button"
-                            onClick={handleAssetUpload}
-                            disabled={isUploadingAsset}
-                            className="w-full py-2.5 bg-[#ffea00] text-black text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
-                          >
-                            {isUploadingAsset ? "Uploading to GitHub CDN..." : "Upload Asset to GitHub CDN"}
-                          </button>
+
+                        {/* Selected Files Queue */}
+                        {selectedAssetFiles.length > 0 && (
+                          <div className="space-y-2 mt-4 max-h-60 overflow-y-auto pr-1">
+                            <span className="text-[10px] font-mono uppercase text-gray-400 block mb-1">Upload Queue ({selectedAssetFiles.length} files)</span>
+                            {selectedAssetFiles.map((item) => (
+                              <div key={item.id} className="bg-black/30 border border-white/5 rounded-xl p-3 flex flex-col gap-2 relative">
+                                <button
+                                  type="button"
+                                  onClick={() => removeQueueItem(item.id)}
+                                  className="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                                  title="Remove from queue"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                                
+                                <div className="flex items-center gap-2 min-w-0 pr-6">
+                                  <span className="text-[10px] text-gray-500 font-mono shrink-0 uppercase px-1.5 py-0.5 rounded bg-white/5 border border-white/10">
+                                    {item.file.type.split('/')[1] || "file"}
+                                  </span>
+                                  <span className="text-xs font-medium text-gray-300 truncate font-mono">
+                                    {(item.file.size / 1024).toFixed(1)} KB - {item.file.name}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 mt-1">
+                                  <div className="col-span-2">
+                                    <label className="block text-[9px] font-mono text-gray-500 uppercase mb-0.5">Asset Name</label>
+                                    <input
+                                      type="text"
+                                      value={item.customName}
+                                      onChange={(e) => handleQueueNameChange(item.id, e.target.value)}
+                                      placeholder="Asset Name"
+                                      className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[9px] font-mono text-gray-500 uppercase mb-0.5">Type</label>
+                                    <select
+                                      value={item.type}
+                                      onChange={(e) => handleQueueTypeChange(item.id, e.target.value as "image" | "video")}
+                                      className="w-full bg-black/40 border border-white/10 rounded-lg px-1.5 py-1 text-xs text-white"
+                                    >
+                                      <option value="image">Image</option>
+                                      <option value="video">Video</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={handleAssetUpload}
+                              disabled={isUploadingAsset}
+                              className="w-full mt-2 py-2.5 bg-[#ffea00] text-black text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              {isUploadingAsset ? "Uploading Queue to GitHub CDN..." : `Upload ${selectedAssetFiles.length} Assets to GitHub CDN`}
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -5136,21 +5318,101 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         >
                           <div className="p-4 space-y-4">
                             {/* Filters Tab Row */}
-                            <div className="flex items-center gap-1.5 p-1 bg-black/45 border border-white/5 rounded-xl w-fit">
-                              {(["all", "image", "video"] as const).map((filter) => (
-                                <button
-                                  key={filter}
-                                  type="button"
-                                  onClick={() => setAssetTabFilter(filter)}
-                                  className={`px-3.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold transition-all cursor-pointer ${
-                                    assetTabFilter === filter
-                                      ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/10"
-                                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                                  }`}
-                                >
-                                  {filter === "all" ? "All Formats" : filter === "image" ? "Images Only" : "Videos Only"}
-                                </button>
-                              ))}
+                            <div className="flex flex-col gap-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-1.5 p-1 bg-black/45 border border-white/5 rounded-xl w-fit">
+                                  {(["all", "image", "video"] as const).map((filter) => (
+                                    <button
+                                      key={filter}
+                                      type="button"
+                                      onClick={() => setAssetTabFilter(filter)}
+                                      className={`px-3.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold transition-all cursor-pointer ${
+                                        assetTabFilter === filter
+                                          ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/10"
+                                          : "text-gray-400 hover:text-white hover:bg-white/5"
+                                      }`}
+                                    >
+                                      {filter === "all" ? "All Formats" : filter === "image" ? "Images Only" : "Videos Only"}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {/* Selection actions / Toggle select all */}
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const visibleAssetIds = mediaAssets.filter(item => {
+                                        if (assetTabFilter === "image") return item.type === "image";
+                                        if (assetTabFilter === "video") return item.type === "video";
+                                        return true;
+                                      }).map(item => item.id);
+                                      
+                                      const allSelected = visibleAssetIds.every(id => selectedAssetIds.includes(id));
+                                      if (allSelected) {
+                                        setSelectedAssetIds(prev => prev.filter(id => !visibleAssetIds.includes(id)));
+                                      } else {
+                                        setSelectedAssetIds(prev => Array.from(new Set([...prev, ...visibleAssetIds])));
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg text-[10px] uppercase font-bold tracking-wider cursor-pointer transition-all"
+                                  >
+                                    {mediaAssets.filter(item => {
+                                      if (assetTabFilter === "image") return item.type === "image";
+                                      if (assetTabFilter === "video") return item.type === "video";
+                                      return true;
+                                    }).every(item => selectedAssetIds.includes(item.id)) ? "Deselect All" : "Select All Visible"}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* BULK ACTION PANEL */}
+                              {selectedAssetIds.length > 0 && (
+                                <div className="bg-[#11111c] border border-[#ffea00]/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                  <div className="flex items-center gap-2 font-mono text-gray-300">
+                                    <span className="w-2 h-2 rounded-full bg-[#ffea00] animate-pulse"></span>
+                                    <span>Selected <strong>{selectedAssetIds.length}</strong> asset(s)</span>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <select
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          handleBulkAction(e.target.value);
+                                          e.target.value = ""; // Reset
+                                        }
+                                      }}
+                                      className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#ffea00]"
+                                    >
+                                      <option value="">-- Choose Bulk Action / Assignment --</option>
+                                      <optgroup label="Portfolio Manager">
+                                        <option value="portfolio_create_individual">Create New Portfolio Cards (one per asset)</option>
+                                      </optgroup>
+                                      <optgroup label="Navigation Menu">
+                                        <option value="navigation_add">Add Selected to Navigation Menu links</option>
+                                      </optgroup>
+                                      <optgroup label="Global Copy & Media Settings">
+                                        <option value="setting_assign_hero_video_bg_url">Assign first asset to Hero Video Background</option>
+                                        <option value="setting_assign_logo_img_url">Assign first asset to Navbar Logo Image</option>
+                                      </optgroup>
+                                      <optgroup label="Brand Logos Marquee">
+                                        <option value="brand_logos_add">Add selected image(s) to Brand Logos Marquee</option>
+                                      </optgroup>
+                                      <optgroup label="Danger Zone">
+                                        <option value="delete_selected">Delete selected assets from Library</option>
+                                      </optgroup>
+                                    </select>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedAssetIds([])}
+                                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 transition-all cursor-pointer font-sans"
+                                    >
+                                      Cancel Selection
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Files Grid */}
@@ -5169,8 +5431,26 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   .map((item) => (
                                     <div 
                                       key={item.id}
-                                      className="bg-black/30 border border-white/5 rounded-2xl p-4 flex gap-4 items-center justify-between"
+                                      className={`bg-black/30 border rounded-2xl p-4 flex gap-3 items-center justify-between transition-all duration-300 ${
+                                        selectedAssetIds.includes(item.id) 
+                                          ? "border-[#ffea00]/40 bg-white/[0.02] shadow-[0_0_15px_rgba(255,234,0,0.03)]" 
+                                          : "border-white/5 hover:border-white/10"
+                                      }`}
                                     >
+                                      {/* SELECTION CHECKBOX */}
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedAssetIds.includes(item.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedAssetIds(prev => [...prev, item.id]);
+                                          } else {
+                                            setSelectedAssetIds(prev => prev.filter(id => id !== item.id));
+                                          }
+                                        }}
+                                        className="w-4 h-4 rounded border-white/15 bg-black/40 text-[#ffea00] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0 transition-colors"
+                                      />
+
                                       {/* THUMBNAIL PREVIEW & META */}
                                       <div className="flex items-center gap-3 min-w-0 flex-1">
                                         <div className="w-12 h-12 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
