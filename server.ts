@@ -150,7 +150,7 @@ app.use(express.json({ limit: "100mb" }));
       const finalFileName = `${uniqueId}_${cleanName}`;
 
       const owner = "trdmsc-pixel";
-      const repo = "portfolio";
+      const repo = "newbhakty";
       const branch = "media";
 
       const uploadUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${finalFileName}`;
