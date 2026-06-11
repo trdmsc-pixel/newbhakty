@@ -34,7 +34,7 @@ const getEnvVariable = (key: string): string => {
 };
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
 
 
 
@@ -121,6 +121,67 @@ app.use(express.json());
 
   app.get("/api/edge-sync", getGeoLocation);
   app.get("/api/locate", getGeoLocation); // Legacy alias
+
+  // ----------------------------------------------------
+  // API ROUTE: GITHUB MEDIA UPLOAD (100% FREE CDN FOR PORTFOLIO)
+  // ----------------------------------------------------
+  app.post("/api/media-upload", async (req, res) => {
+    try {
+      const { fileName, fileType, fileData } = req.body;
+      if (!fileName || !fileData) {
+        return res.status(400).json({ error: "fileName and fileData are required fields." });
+      }
+
+      // Retrieve GitHub PAT token
+      const token = process.env.GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN || "";
+      if (!token) {
+        return res.status(500).json({ error: "GITHUB_TOKEN is not configured on this server environment." });
+      }
+
+      // Strip base64 prefix
+      let base64Content = fileData;
+      if (fileData.includes(";base64,")) {
+        base64Content = fileData.split(";base64,").pop();
+      }
+
+      // Create collision-resistant filename prefix
+      const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const cleanName = fileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
+      const finalFileName = `${uniqueId}_${cleanName}`;
+
+      const owner = "trdmsc-pixel";
+      const repo = "portfolio";
+      const branch = "media";
+
+      const uploadUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${finalFileName}`;
+
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Accept": "application/vnd.github.v3+json",
+          "Content-Type": "application/json",
+          "User-Agent": "Node.js"
+        },
+        body: JSON.stringify({
+          message: `Upload media asset via portfolio admin panel: ${finalFileName}`,
+          content: base64Content,
+          branch: branch
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.message || "GitHub API media upload error.");
+      }
+
+      const cdnUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${finalFileName}`;
+      return res.json({ url: cdnUrl, success: true });
+    } catch (err: any) {
+      console.error("GitHub Media Upload Error:", err);
+      return res.status(500).json({ error: err.message || "Failed to upload file to GitHub CDN." });
+    }
+  });
 
   // ----------------------------------------------------
   // API ROUTE: AI VIDEO GENERATION

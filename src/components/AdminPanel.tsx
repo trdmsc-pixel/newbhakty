@@ -356,7 +356,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             ...prev,
             percentage: nextPercent,
             statusText: nextPercent < 30 ? "Negotiating security cipher keys..." :
-                       nextPercent < 60 ? "Transporting file segments to Cloudinary CDN..." :
+                       nextPercent < 60 ? "Transporting file segments to GitHub CDN..." :
                        "Syncing cache nodes at edges...",
           };
         }
@@ -1053,7 +1053,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
         toast.error("Failed to persist uploaded asset details to the database.");
       }
     } catch (err: any) {
-      toast.error(`Upload error: ${err?.message || "Verify your Cloudinary setup & connection."}`);
+      toast.error(`Upload error: ${err?.message || "Verify your GitHub/Supabase setup & connection."}`);
     } finally {
       setIsUploadingAsset(false);
     }
@@ -3975,7 +3975,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       type="text"
                                       value={work.imageUrl || ""}
                                       onChange={(e) => handleWorkChange(work.id, "imageUrl", e.target.value)}
-                                      placeholder="https://res.cloudinary.com/... or choose below"
+                                      placeholder="https://cdn.jsdelivr.net/... or choose below"
                                       className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
                                     />
                                   </div>
@@ -4003,7 +4003,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                                   <div className="md:col-span-2 space-y-3">
-                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (GitHub CDN)</label>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                         <div className="flex items-center justify-between">
@@ -4099,7 +4099,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                                   <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (Cloudinary CDN)</label>
+                                    <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (GitHub CDN)</label>
                                     <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
@@ -4992,7 +4992,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <div className="bg-[#11111c]/60 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-semibold text-white">Upload Files to Cloudinary</h3>
+                          <h3 className="text-sm font-semibold text-white">Upload Files to GitHub CDN</h3>
                           {isCloudinaryConfigured ? (
                             <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
                               ● Connected
@@ -5004,11 +5004,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           )}
                         </div>
                         <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                          Directly upload high-resolution images or .mp4 files into the high performance Cloudinary dynamic CDN network.
+                          Directly upload high-resolution images or .mp4 files into the high performance GitHub CDN network.
                         </p>
                         {!isCloudinaryConfigured && (
                           <div className="mb-4 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl text-amber-300 text-[11px] leading-relaxed">
-                            <strong>Warning:</strong> Cloudinary keys not configured. Uploading a file will create a temporary local preview URL that won't work on other devices or after reloading.
+                            <strong>Warning:</strong> GITHUB_TOKEN not configured on server. Uploading a file will create a temporary local preview URL that won't work on other devices or after reloading.
                           </div>
                         )}
                       </div>
@@ -5034,7 +5034,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             disabled={isUploadingAsset}
                             className="w-full py-2.5 bg-[#ffea00] text-black text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
                           >
-                            {isUploadingAsset ? "Uploading to Cloudinary..." : "Upload Asset to CDN"}
+                            {isUploadingAsset ? "Uploading to GitHub CDN..." : "Upload Asset to GitHub CDN"}
                           </button>
                         )}
                       </div>
