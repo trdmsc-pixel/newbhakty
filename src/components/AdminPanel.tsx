@@ -1060,13 +1060,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       return;
     }
 
-    // Limit check: 25 MB limit for GitHub Contents API uploads directly from browser
-    const maxLimitMb = 25;
+    // Limit check: Allow files up to 100 MB before compression (will be compressed client-side to fit within the 25 MB GitHub limit)
+    const maxLimitMb = 100;
 
     const oversizedFiles = selectedAssetFiles.filter(item => item.file.size > maxLimitMb * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       const details = oversizedFiles.map(i => `${i.file.name} (${(i.file.size / 1024 / 1024).toFixed(1)} MB)`).join(", ");
-      toast.error(`Error: File size too large! The maximum upload size is ${maxLimitMb} MB. Oversized files: ${details}`);
+      toast.error(`Error: File size too large! The maximum selectable file size is ${maxLimitMb} MB. Oversized files: ${details}`);
       return;
     }
 
