@@ -1059,6 +1059,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       return;
     }
 
+    // Limit check: 3 MB limit for Vercel payload constraints, 25 MB limit for GitHub Contents API locally
+    const isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1" || 
+                    window.location.hostname === "0.0.0.0";
+    const maxLimitMb = isLocal ? 25 : 3;
+
+    const oversizedFiles = selectedAssetFiles.filter(item => item.file.size > maxLimitMb * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      const details = oversizedFiles.map(i => `${i.file.name} (${(i.file.size / 1024 / 1024).toFixed(1)} MB)`).join(", ");
+      toast.error(`Error: File size too large! The limit is ${maxLimitMb} MB on ${isLocal ? "Local/GitHub Content API" : "Vercel Serverless Gateway"}. Oversized files: ${details}`);
+      return;
+    }
+
     setIsUploadingAsset(true);
     let successCount = 0;
     

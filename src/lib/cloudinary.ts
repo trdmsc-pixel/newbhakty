@@ -27,30 +27,43 @@ export const uploadToCloudinary = async (
 
         const base64Data = reader.result as string;
 
-        const res = await fetch("/api/media-upload", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileType: file.type,
-            fileData: base64Data
-          })
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData?.error || "Server failed to upload media to GitHub CDN.");
+        try {
+          const res = await fetch("/api/media-upload", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              fileData: base64Data
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData?.error || "Server failed to upload media to GitHub CDN.");
+          }
+
+          const data = await res.json();
+          
+          if (onProgress) {
+            onProgress("File uploaded successfully to CDN!");
+          }
+
+          resolve(data.url);
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === "AbortError") {
+            throw new Error("Upload request timed out after 60 seconds.");
+          }
+          throw fetchErr;
         }
-
-        const data = await res.json();
-        
-        if (onProgress) {
-          onProgress("File uploaded successfully to CDN!");
-        }
-
-        resolve(data.url);
       } catch (err: any) {
         console.error("Upload error:", err);
         reject(err);
