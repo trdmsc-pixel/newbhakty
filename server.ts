@@ -34,7 +34,13 @@ const getEnvVariable = (key: string): string => {
 };
 
 const app = express();
-app.use(express.json({ limit: "100mb" }));
+app.use((req, res, next) => {
+  if (req.body) {
+    next();
+  } else {
+    express.json({ limit: "100mb" })(req, res, next);
+  }
+});
 
 
 
