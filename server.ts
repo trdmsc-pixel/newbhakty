@@ -128,6 +128,20 @@ app.use((req, res, next) => {
   app.get("/api/edge-sync", getGeoLocation);
   app.get("/api/locate", getGeoLocation); // Legacy alias
 
+  app.all("/api/debug-body", (req, res) => {
+    res.json({
+      hasBody: !!req.body,
+      bodyType: typeof req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+      method: req.method,
+      contentType: req.headers["content-type"],
+      env: {
+        VERCEL: process.env.VERCEL,
+        NODE_ENV: process.env.NODE_ENV
+      }
+    });
+  });
+
   // ----------------------------------------------------
   // API ROUTE: GITHUB MEDIA UPLOAD (100% FREE CDN FOR PORTFOLIO)
   // ----------------------------------------------------
