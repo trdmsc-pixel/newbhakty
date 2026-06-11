@@ -127,6 +127,20 @@ app.use((req, res, next) => {
   app.get("/api/edge-sync", getGeoLocation);
   app.get("/api/locate", getGeoLocation); // Legacy alias
 
+  app.post("/api/get-github-token", (req, res) => {
+    try {
+      const { password } = req.body;
+      const envPass = process.env.VITE_ADMIN_PASSWORD || "admin_bhakty_studio";
+      if (password !== envPass) {
+        return res.status(401).json({ error: "Unauthorized security key." });
+      }
+      const token = process.env.GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN || "";
+      return res.json({ token });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || "Failed to retrieve token." });
+    }
+  });
+
   // ----------------------------------------------------
   // API ROUTE: GITHUB MEDIA UPLOAD (100% FREE CDN FOR PORTFOLIO)
   // ----------------------------------------------------
