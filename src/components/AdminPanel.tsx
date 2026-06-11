@@ -6169,33 +6169,52 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                               <div>
                                 <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Logo Image URL</label>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={logo.url}
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={logo.url}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
+                                      }}
+                                      className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                                      placeholder="Direct logo link"
+                                    />
+                                    
+                                    {/* File Upload Trigger */}
+                                    <div className="relative shrink-0">
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleBrandLogoFileChange(e, logo.id)}
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                      />
+                                      <button
+                                        type="button"
+                                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs hover:bg-white/10 hover:text-white transition-all flex items-center gap-1 cursor-pointer h-full"
+                                      >
+                                        <Upload className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Select from assets dropdown */}
+                                  <select
+                                    value={logo.url || ""}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
                                     }}
-                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-                                    placeholder="Direct logo link"
-                                  />
-                                  
-                                  {/* File Upload Trigger */}
-                                  <div className="relative shrink-0">
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(e) => handleBrandLogoFileChange(e, logo.id)}
-                                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                    />
-                                    <button
-                                      type="button"
-                                      className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs hover:bg-white/10 hover:text-white transition-all flex items-center gap-1 cursor-pointer h-full"
-                                    >
-                                      <Upload className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                  >
+                                    <option value="">-- Or Select from Assets Library --</option>
+                                    {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
+                                      <option key={asset.id} value={asset.url}>
+                                        {asset.name}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                               </div>
                             </div>
