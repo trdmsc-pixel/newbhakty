@@ -142,21 +142,51 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     return localStorage.getItem("bhakty_admin_auth") === "true" || sessionStorage.getItem("bhakty_admin_auth") === "true";
   });
   const [authError, setAuthError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const envPass = (typeof import.meta !== "undefined" && import.meta.env ? import.meta.env.VITE_ADMIN_PASSWORD : "") || "admin_bhakty_studio";
-    if (password === envPass) {
-      setIsAuthenticated(true);
-      localStorage.setItem("bhakty_admin_auth", "true");
-      sessionStorage.setItem("bhakty_admin_auth", "true");
-      sessionStorage.setItem("bhakty_admin_password", password);
-      setAuthError("");
-      unlockNotificationAudio();
-      toast.success("Security access granted. Welcome to Axiom Core.");
-    } else {
-      setAuthError("Unauthorized access key. Please verify security password.");
-      toast.error("Security access validation failed.");
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    setAuthError("");
+
+    try {
+      const envPass = (typeof import.meta !== "undefined" && import.meta.env ? import.meta.env.VITE_ADMIN_PASSWORD : "") || "admin_bhakty_studio";
+      let loginSuccess = false;
+
+      // 1. Verify static environment variable password
+      if (password === envPass) {
+        loginSuccess = true;
+      }
+      // 2. Fallback: Authenticate against Supabase Auth using email studio@bhakty.life
+      else if (supabase) {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: "studio@bhakty.life",
+            password: password
+          });
+          if (data && data.user && !error) {
+            loginSuccess = true;
+          }
+        } catch (authErr) {
+          console.warn("Supabase Auth validation failed:", authErr);
+        }
+      }
+
+      if (loginSuccess) {
+        setIsAuthenticated(true);
+        localStorage.setItem("bhakty_admin_auth", "true");
+        sessionStorage.setItem("bhakty_admin_auth", "true");
+        sessionStorage.setItem("bhakty_admin_password", password);
+        setAuthError("");
+        unlockNotificationAudio();
+        toast.success("Security access granted. Welcome to Axiom Core.");
+      } else {
+        setAuthError("Unauthorized access key. Please verify security password.");
+        toast.error("Security access validation failed.");
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -2234,9 +2264,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-[#ffea00] text-black font-semibold font-display tracking-tight hover:shadow-lg hover:shadow-[#ffea00]/20 hover:bg-[#ffea00] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isLoggingIn}
+              className="w-full py-3.5 rounded-xl bg-[#ffea00] text-black font-semibold font-display tracking-tight hover:shadow-lg hover:shadow-[#ffea00]/20 hover:bg-[#ffea00] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              Sign In <ArrowRight className="w-4 h-4" />
+              {isLoggingIn ? "Verifying Authorization..." : <>Sign In <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
 
