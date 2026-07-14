@@ -525,7 +525,7 @@ export default function CinematicWebsitesPage({
               </p>
               <div className="pt-4 border-t border-white/5">
                 <span className="text-[10px] font-mono text-gray-500 block">Starting from</span>
-                <span className="text-2xl font-display font-semibold text-white">₹1,500</span>
+                <span className="text-2xl font-display font-semibold text-white">₹3,500</span>
                 <span className="text-[10px] font-mono text-gray-400 block mt-1">per request</span>
               </div>
               <div className="space-y-3 pt-4">
