@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Film, Image as ImageIcon, Volume2, VolumeX, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Film, Image as ImageIcon, Volume2, VolumeX, ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 import { optimizeVideoUrl, optimizeImageUrl } from "../lib/cloudinary";
 import { trackEvent } from "../lib/analytics";
@@ -638,6 +638,27 @@ export default function ShowcaseGrid() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* PDF Download Button for Static Creative Portfolio */}
+      {activeTab?.tab_type === "image" && siteSettings.portfolio_static_pdf_button_enabled === "true" && siteSettings.portfolio_static_pdf_url && (
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex justify-center mt-12 mb-4"
+        >
+          <a
+            href={siteSettings.portfolio_static_pdf_url}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="animate-offer-shimmer relative inline-flex items-center justify-center px-8 py-3.5 rounded-full font-mono text-xs uppercase tracking-wider text-black bg-accent hover-glow-yellow transition-all duration-300 font-bold border border-accent/30 shadow-[0_0_25px_rgba(255,234,0,0.25)] select-none cursor-pointer"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {siteSettings.portfolio_static_pdf_button_text || "Download Creative Deck PDF"}
+          </a>
+        </motion.div>
+      )}
 
       {/* Video Preview Modal Portal (Fixed centered popup overlay) */}
       {previewVideoWork && (

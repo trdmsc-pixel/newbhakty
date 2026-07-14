@@ -10,12 +10,13 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X
+  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X, Users, FolderKanban, Clock, Tag
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from "../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -191,7 +192,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   };
 
   // UI Navigation state
-  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings" | "client_access">("settings");
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -222,6 +223,322 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatMessages]);
+
+  // Client Access Control State Variables
+  const [clientUsers, setClientUsers] = useState<any[]>([]);
+  const [allFeedbacks, setAllFeedbacks] = useState<any[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
+  const [selectedClientWorks, setSelectedClientWorks] = useState<any[]>([]);
+  const [selectedClientTasks, setSelectedClientTasks] = useState<any[]>([]);
+  const [isClientDataLoading, setIsClientDataLoading] = useState(false);
+
+  // Form inputs for creating a client manually
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientMobile, setNewClientMobile] = useState("");
+  const [newClientCompany, setNewClientCompany] = useState("");
+  const [newClientDesignation, setNewClientDesignation] = useState("");
+  const [newClientPurpose, setNewClientPurpose] = useState("");
+  const [newClientSource, setNewClientSource] = useState("");
+  const [newClientPassword, setNewClientPassword] = useState("");
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+  // Form inputs for work link
+  const [newWorkTitle, setNewWorkTitle] = useState("");
+  const [newWorkUrl, setNewWorkUrl] = useState("");
+  const [newWorkType, setNewWorkType] = useState<"video" | "image">("video");
+  const [isAddingWork, setIsAddingWork] = useState(false);
+
+  // Form inputs for tasks
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskProgress, setNewTaskProgress] = useState(0);
+  const [newTaskStatus, setNewTaskStatus] = useState("Not Started");
+  const [newTaskDeadline, setNewTaskDeadline] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+
+  // Fetch all clients & feedback comments
+  const fetchAllClientsAndFeedbacks = async () => {
+    if (!supabase) return;
+    try {
+      const { data: users, error: usersErr } = await supabase
+        .from("client_users")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (usersErr) throw usersErr;
+      setClientUsers(users || []);
+
+      const { data: fbs, error: fbsErr } = await supabase
+        .from("client_feedback")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (fbsErr) throw fbsErr;
+      setAllFeedbacks(fbs || []);
+    } catch (err) {
+      console.error("Error fetching client access data:", err);
+    }
+  };
+
+  // Fetch works and tasks for a specific client
+  const fetchSelectedClientDetails = async (clientId: string) => {
+    if (!supabase) return;
+    setIsClientDataLoading(true);
+    try {
+      const { data: works, error: worksErr } = await supabase
+        .from("client_work")
+        .select("*")
+        .eq("client_user_id", clientId)
+        .order("created_at", { ascending: false });
+      if (worksErr) throw worksErr;
+      setSelectedClientWorks(works || []);
+
+      const { data: tasks, error: tasksErr } = await supabase
+        .from("client_tasks")
+        .select("*")
+        .eq("client_user_id", clientId)
+        .order("created_at", { ascending: true });
+      if (tasksErr) throw tasksErr;
+      setSelectedClientTasks(tasks || []);
+    } catch (err) {
+      console.error("Error loading selected client files:", err);
+      toast.error("Failed to load deliverables for this client.");
+    } finally {
+      setIsClientDataLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "client_access" && isAuthenticated) {
+      fetchAllClientsAndFeedbacks();
+    }
+  }, [activeTab, isAuthenticated]);
+
+  useEffect(() => {
+    if (selectedClient) {
+      fetchSelectedClientDetails(selectedClient.id);
+    } else {
+      setSelectedClientWorks([]);
+      setSelectedClientTasks([]);
+    }
+  }, [selectedClient]);
+
+  // Handle client account creation
+  const handleCreateClientAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName || !newClientEmail || !newClientPassword) {
+      toast.error("Name, email and password are required.");
+      return;
+    }
+    if (!supabase || !supabaseUrl || !supabaseAnonKey) {
+      toast.error("Supabase integration is offline.");
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      // Create separate in-memory supabase auth client to register the user without logging the admin out
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false }
+      });
+
+      const { data: authData, error: authErr } = await tempClient.auth.signUp({
+        email: newClientEmail,
+        password: newClientPassword
+      });
+
+      if (authErr) throw authErr;
+
+      const user = authData?.user;
+      if (!user) {
+        throw new Error("Failed to register credential session.");
+      }
+
+      // Generate unique Client ID (CL-XXXXX)
+      const uniqueNum = Math.floor(10000 + Math.random() * 90000);
+      const clientId = `CL-${uniqueNum}`;
+
+      // Insert profile details in client_users table
+      const { error: profileErr } = await supabase
+        .from("client_users")
+        .insert({
+          id: user.id,
+          client_id: clientId,
+          name: newClientName,
+          email: newClientEmail,
+          mobile: newClientMobile || null,
+          company_name: newClientCompany || null,
+          designation: newClientDesignation || null,
+          signing_up_for: newClientPurpose || null,
+          heard_about_us: newClientSource || null
+        });
+
+      if (profileErr) throw profileErr;
+
+      toast.success(`Client account created successfully! Client ID: ${clientId}`);
+      
+      // Reset form
+      setNewClientName("");
+      setNewClientEmail("");
+      setNewClientMobile("");
+      setNewClientCompany("");
+      setNewClientDesignation("");
+      setNewClientPurpose("");
+      setNewClientSource("");
+      setNewClientPassword("");
+
+      // Refresh list
+      await fetchAllClientsAndFeedbacks();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create client account.");
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
+
+  // Add work deliverable link
+  const handleAddWorkLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient || !newWorkTitle || !newWorkUrl || !supabase) return;
+
+    setIsAddingWork(true);
+    try {
+      const { data, error } = await supabase
+        .from("client_work")
+        .insert({
+          client_user_id: selectedClient.id,
+          title: newWorkTitle,
+          url: newWorkUrl,
+          type: newWorkType
+        })
+        .select();
+
+      if (error) throw error;
+
+      toast.success("Deliverable link dispatched to client panel.");
+      setNewWorkTitle("");
+      setNewWorkUrl("");
+      
+      if (data && data[0]) {
+        setSelectedClientWorks(prev => [data[0], ...prev]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add work link.");
+    } finally {
+      setIsAddingWork(false);
+    }
+  };
+
+  // Delete work deliverable
+  const handleDeleteWorkLink = async (workId: string) => {
+    if (!supabase) return;
+    if (!confirm("Are you sure you want to delete this work deliverable? All associated feedback will be deleted too.")) return;
+
+    try {
+      const { error } = await supabase
+        .from("client_work")
+        .delete()
+        .eq("id", workId);
+
+      if (error) throw error;
+
+      toast.success("Work deliverable removed.");
+      setSelectedClientWorks(prev => prev.filter(w => w.id !== workId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete deliverable.");
+    }
+  };
+
+  // Add task to checklist
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient || !newTaskName || !supabase) return;
+
+    setIsAddingTask(true);
+    try {
+      const { data, error } = await supabase
+        .from("client_tasks")
+        .insert({
+          client_user_id: selectedClient.id,
+          task_name: newTaskName,
+          progress: newTaskProgress,
+          status: newTaskStatus,
+          deadline: newTaskDeadline || null
+        })
+        .select();
+
+      if (error) throw error;
+
+      toast.success("Task dispatched to client panel.");
+      setNewTaskName("");
+      setNewTaskProgress(0);
+      setNewTaskStatus("Not Started");
+      setNewTaskDeadline("");
+
+      if (data && data[0]) {
+        setSelectedClientTasks(prev => [...prev, data[0]]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add task.");
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  // Inline update task progress/status
+  const handleUpdateTaskInline = async (taskId: string, progress: number, status: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from("client_tasks")
+        .update({ progress, status })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      toast.success("Task status updated.");
+      setSelectedClientTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress, status } : t));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update task.");
+    }
+  };
+
+  // Delete task
+  const handleDeleteTask = async (taskId: string) => {
+    if (!supabase) return;
+    if (!confirm("Are you sure you want to delete this task?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("client_tasks")
+        .delete()
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      toast.success("Task removed.");
+      setSelectedClientTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete task.");
+    }
+  };
+
+  // Acknowledge review feedback
+  const handleAcknowledgeFeedback = async (feedbackId: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from("client_feedback")
+        .update({ acknowledged: true })
+        .eq("id", feedbackId);
+
+      if (error) throw error;
+
+      toast.success("Feedback marked as Acknowledged.");
+      setAllFeedbacks(prev => prev.map(f => f.id === feedbackId ? { ...f, acknowledged: true } : f));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to acknowledge feedback.");
+    }
+  };
 
   // Synchronize siteSettings with local editSettings when context loads/updates
   useEffect(() => {
@@ -1778,6 +2095,10 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [selectedPortfolioFiles, setSelectedPortfolioFiles] = useState<{ [workId: string]: File | null }>({});
   const [isUploadingPortfolioId, setIsUploadingPortfolioId] = useState<string | null>(null);
 
+  // Portfolio PDF download button states
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const [isUploadingPdf, setIsUploadingPdf] = useState<boolean>(false);
+
 
   const handleWorkChange = (id: string, field: keyof VideoBlock, value: any) => {
     setEditWorks(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -1827,6 +2148,39 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       toast.error(`File upload failed: ${err?.message || "Unknown error"}`);
     } finally {
       setIsUploadingPortfolioId(null);
+    }
+  };
+
+  const handlePdfUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+        toast.error("Please select a valid PDF file.");
+        return;
+      }
+      setSelectedPdfFile(file);
+      toast.info(`Selected PDF: ${file.name}. Ready to upload.`);
+    }
+  };
+
+  const handlePdfUpload = async () => {
+    if (!selectedPdfFile) {
+      toast.warning("Please select a PDF file first.");
+      return;
+    }
+    setIsUploadingPdf(true);
+    try {
+      const uploadedUrl = await runUploadWithModal(selectedPdfFile, () =>
+        uploadToCloudinary(selectedPdfFile)
+      );
+      handleSettingChange("portfolio_static_pdf_url", uploadedUrl);
+      setSelectedPdfFile(null);
+      toast.success(`PDF '${selectedPdfFile.name}' successfully uploaded!`);
+    } catch (err: any) {
+      toast.error(`PDF upload failed: ${err?.message || "Unknown error"}`);
+    } finally {
+      setIsUploadingPdf(false);
     }
   };
 
@@ -2593,6 +2947,26 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             style={{ backdropFilter: "blur(12px)" }}
           >
             <Sliders className="w-3.5 h-3.5" /> Chat Widget Config
+          </button>
+
+          <button
+            onClick={() => setActiveTab("client_access")}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+              activeTab === "client_access"
+                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+            }`}
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Client Access Control</span>
+            </div>
+            {allFeedbacks.filter(f => !f.acknowledged).length > 0 && (
+              <span className="px-2 py-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
+                {allFeedbacks.filter(f => !f.acknowledged).length}
+              </span>
+            )}
           </button>
 
           {/* QUICK SCHEMA INST INSTRUCTIONS */}
@@ -3984,6 +4358,109 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           Sync Text
                         </button>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Static Creative PDF Config Panel */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-4 md:p-6 mb-6 space-y-4">
+                    <h4 className="text-sm font-semibold text-white font-display border-b border-white/5 pb-2">
+                      Static Portfolio PDF Download Button
+                    </h4>
+                    <p className="text-xs text-gray-500 font-sans">
+                      Configure a shimming button below the static creative portfolio tab that allows users to download a PDF file (e.g., your catalog or visual deck).
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Toggle & Button Text */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            id="pdf-btn-enabled"
+                            checked={editSettings.portfolio_static_pdf_button_enabled === "true"}
+                            onChange={(e) => handleSettingChange("portfolio_static_pdf_button_enabled", e.target.checked ? "true" : "false")}
+                            className="w-4 h-4 accent-accent rounded border-white/10 bg-black/40 cursor-pointer"
+                          />
+                          <label htmlFor="pdf-btn-enabled" className="text-xs font-semibold text-white cursor-pointer select-none font-sans">
+                            Enable Download Button on Static Tab
+                          </label>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Button Text / Label</label>
+                          <input
+                            type="text"
+                            value={editSettings.portfolio_static_pdf_button_text || ""}
+                            onChange={(e) => handleSettingChange("portfolio_static_pdf_button_text", e.target.value)}
+                            placeholder="Download Creative Deck PDF"
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none ${scopeStyle.focusBorder}`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* PDF URL & Upload Option */}
+                      <div className="space-y-4 font-sans">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">PDF File URL</label>
+                          <input
+                            type="text"
+                            value={editSettings.portfolio_static_pdf_url || ""}
+                            onChange={(e) => handleSettingChange("portfolio_static_pdf_url", e.target.value)}
+                            placeholder="e.g. https://..."
+                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none ${scopeStyle.focusBorder} font-mono`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload New PDF File</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              id="pdf-upload-input"
+                              onChange={handlePdfUploadChange}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="pdf-upload-input"
+                              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/10 transition-all cursor-pointer select-none truncate text-center flex-1 font-mono"
+                            >
+                              {selectedPdfFile ? selectedPdfFile.name : "Choose PDF File"}
+                            </label>
+                            {selectedPdfFile && (
+                              <button
+                                type="button"
+                                onClick={handlePdfUpload}
+                                disabled={isUploadingPdf}
+                                className={`px-4 py-2.5 ${scopeStyle.accentBg} text-black font-semibold text-xs rounded-xl hover:opacity-95 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50`}
+                              >
+                                {isUploadingPdf ? "Uploading..." : "Upload"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const success = await updateMultipleSiteSettings({
+                            portfolio_static_pdf_button_enabled: editSettings.portfolio_static_pdf_button_enabled || "false",
+                            portfolio_static_pdf_button_text: editSettings.portfolio_static_pdf_button_text || "Download Creative Deck PDF",
+                            portfolio_static_pdf_url: editSettings.portfolio_static_pdf_url || ""
+                          });
+                          if (success) {
+                            toast.success("Static portfolio PDF settings saved.");
+                          } else {
+                            toast.error("Failed to save static portfolio PDF settings.");
+                          }
+                        }}
+                        className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl ${scopeStyle.accentBg} text-black hover-glow-yellow transition-all cursor-pointer`}
+                      >
+                        <Save className="w-3.5 h-3.5" /> Save PDF Configuration
+                      </button>
                     </div>
                   </div>
 
@@ -6879,6 +7356,492 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 13: CLIENT ACCESS CONTROL PANEL */}
+              {activeTab === "client_access" && (
+                <div className="space-y-6">
+                  {/* Tab Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="text-left">
+                      <h2 className="font-display font-medium text-xl text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-violet-400" /> Client Access Control
+                      </h2>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Register clients, assign deliverables, set deadlines, and manage feedback markups.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Main Grid: Client List (Left) + Manager Workspace (Right) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    {/* Left: Client List and Search (cols: 4) */}
+                    <div className="lg:col-span-4 bg-white/[0.01] border border-white/5 rounded-2xl p-5 space-y-4 text-left">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2">Registered Clients</h3>
+                      
+                      {/* Search */}
+                      <input
+                        type="text"
+                        value={clientSearch}
+                        onChange={(e) => setClientSearch(e.target.value)}
+                        placeholder="Search by ID, name, company..."
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-accent font-sans"
+                      />
+
+                      {/* Client List */}
+                      <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+                        {clientUsers
+                          .filter(user => {
+                            const query = clientSearch.toLowerCase();
+                            return (
+                              user.name?.toLowerCase().includes(query) ||
+                              user.email?.toLowerCase().includes(query) ||
+                              user.client_id?.toLowerCase().includes(query) ||
+                              user.company_name?.toLowerCase().includes(query)
+                            );
+                          })
+                          .map(user => (
+                            <button
+                              key={user.id}
+                              onClick={() => setSelectedClient(user)}
+                              className={`w-full p-3.5 rounded-xl border text-left transition-all flex flex-col gap-1 cursor-pointer ${
+                                selectedClient?.id === user.id
+                                  ? "bg-white/10 border-white/20"
+                                  : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.02]"
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <span className="text-xs font-semibold text-white truncate max-w-[150px]">{user.name}</span>
+                                <span className="text-[9px] font-mono text-violet-300 bg-violet-600/10 px-1.5 py-0.5 rounded border border-violet-500/20 shrink-0">
+                                  {user.client_id}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-gray-500 truncate">{user.email}</span>
+                              <span className="text-[9px] text-accent font-mono uppercase truncate">{user.company_name || "Independent"}</span>
+                            </button>
+                          ))}
+                        {clientUsers.length === 0 && (
+                          <div className="text-center py-8 text-gray-600 text-xs">No clients registered.</div>
+                        )}
+                      </div>
+
+                      {/* Manual Creation Form */}
+                      <div className="border-t border-white/5 pt-4 mt-4 space-y-3">
+                        <h4 className="text-[10px] font-bold text-white uppercase tracking-wider font-mono">Create Client Account</h4>
+                        <form onSubmit={handleCreateClientAccount} className="space-y-2.5">
+                          <input
+                            type="text"
+                            required
+                            value={newClientName}
+                            onChange={(e) => setNewClientName(e.target.value)}
+                            placeholder="Client Name *"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                          />
+                          <input
+                            type="email"
+                            required
+                            value={newClientEmail}
+                            onChange={(e) => setNewClientEmail(e.target.value)}
+                            placeholder="Client Email *"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                          />
+                          <input
+                            type="password"
+                            required
+                            value={newClientPassword}
+                            onChange={(e) => setNewClientPassword(e.target.value)}
+                            placeholder="Password Key *"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={newClientMobile}
+                              onChange={(e) => setNewClientMobile(e.target.value)}
+                              placeholder="Mobile"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                            <input
+                              type="text"
+                              value={newClientCompany}
+                              onChange={(e) => setNewClientCompany(e.target.value)}
+                              placeholder="Company"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={newClientDesignation}
+                              onChange={(e) => setNewClientDesignation(e.target.value)}
+                              placeholder="Designation"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                            <input
+                              type="text"
+                              value={newClientPurpose}
+                              onChange={(e) => setNewClientPurpose(e.target.value)}
+                              placeholder="Signing Up For"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={newClientSource}
+                            onChange={(e) => setNewClientSource(e.target.value)}
+                            placeholder="Where did they hear about us?"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                          />
+                          <button
+                            type="submit"
+                            disabled={isCreatingClient}
+                            className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            {isCreatingClient ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                            Register Account
+                          </button>
+                        </form>
+                      </div>
+
+                    </div>
+
+                    {/* Right: Selected Client Workspace (cols: 8) */}
+                    <div className="lg:col-span-8 space-y-6 text-left">
+                      
+                      {selectedClient ? (
+                        <div className="space-y-6">
+                          
+                          {/* Client Header Info */}
+                          <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                              <h3 className="font-display font-medium text-lg text-white">{selectedClient.name}</h3>
+                              <p className="text-gray-500 text-xs mt-0.5 font-mono">
+                                Client ID: <span className="text-violet-300">{selectedClient.client_id}</span> · Company: <span className="text-accent">{selectedClient.company_name || "Independent"}</span>
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setSelectedClient(null)}
+                              className="px-3.5 py-1.5 rounded-full border border-white/10 hover:border-white/20 bg-white/5 text-[10px] uppercase font-mono tracking-widest hover:text-white text-gray-400 transition-all cursor-pointer"
+                            >
+                              Deselect Client
+                            </button>
+                          </div>
+
+                          {/* Operational Grid: Work Links (Left) + Tasks (Right) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Deliverables / Work Links */}
+                            <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-5 space-y-4">
+                              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 flex items-center gap-2">
+                                <Video className="w-4 h-4 text-violet-400" /> Shared Deliverables
+                              </h4>
+
+                              {/* Deliverables List */}
+                              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                                {selectedClientWorks.map(w => (
+                                  <div key={w.id} className="p-2.5 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-white truncate">{w.title}</p>
+                                      <a href={w.url} target="_blank" rel="noreferrer" className="text-[9px] text-violet-300 truncate block font-mono hover:underline">{w.url}</a>
+                                    </div>
+                                    <button
+                                      onClick={() => handleDeleteWorkLink(w.id)}
+                                      className="p-1.5 text-gray-500 hover:text-red-400 transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                                {selectedClientWorks.length === 0 && (
+                                  <div className="text-center py-6 text-gray-600 text-xs">No shared deliverables assigned.</div>
+                                )}
+                              </div>
+
+                              {/* Add Work Deliverable Link */}
+                              <form onSubmit={handleAddWorkLink} className="border-t border-white/5 pt-4 space-y-2.5">
+                                <h5 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Add Deliverable Asset</h5>
+                                <input
+                                  type="text"
+                                  required
+                                  value={newWorkTitle}
+                                  onChange={(e) => setNewWorkTitle(e.target.value)}
+                                  placeholder="Asset Title (e.g. Ad Concept Render)"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                                />
+                                
+                                {/* Choose from Assets library or paste URL */}
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    required
+                                    value={newWorkUrl}
+                                    onChange={(e) => setNewWorkUrl(e.target.value)}
+                                    placeholder="CDN URL (e.g. Cloudinary/jsDelivr link)"
+                                    className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                  />
+                                  <select
+                                    value={newWorkType}
+                                    onChange={(e) => setNewWorkType(e.target.value as any)}
+                                    className="bg-black/50 border border-white/5 rounded-xl px-2 py-2 text-xs text-gray-300"
+                                  >
+                                    <option value="video">Video</option>
+                                    <option value="image">Image</option>
+                                  </select>
+                                </div>
+
+                                {/* Asset library quick selector dropdown */}
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-mono uppercase text-gray-500">Quick Select from Library</label>
+                                  <select
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        const asset = mediaAssets.find(a => a.url === e.target.value);
+                                        if (asset) {
+                                          setNewWorkUrl(asset.url);
+                                          setNewWorkTitle(asset.name);
+                                          setNewWorkType(asset.type);
+                                        }
+                                      }
+                                    }}
+                                    className="w-full bg-black/60 border border-white/5 rounded-xl px-3 py-1.5 text-[10px] text-gray-400 outline-none"
+                                  >
+                                    <option value="">-- Choose asset from global manager --</option>
+                                    {mediaAssets.map(asset => (
+                                      <option key={asset.id} value={asset.url}>
+                                        [{asset.type.toUpperCase()}] {asset.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <button
+                                  type="submit"
+                                  disabled={isAddingWork}
+                                  className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-[10px] text-white font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  {isAddingWork ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                                  Dispatch Link
+                                </button>
+                              </form>
+
+                            </div>
+
+                            {/* Checklist tasks */}
+                            <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-5 space-y-4">
+                              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2 flex items-center gap-2">
+                                <FolderKanban className="w-4 h-4 text-violet-400" /> Studio Tasks Checklist
+                              </h4>
+
+                              {/* Tasks List */}
+                              <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
+                                {selectedClientTasks.map(t => (
+                                  <div key={t.id} className="p-2.5 bg-black/40 border border-white/5 rounded-xl space-y-2">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <p className="text-xs font-semibold text-white leading-tight">{t.task_name}</p>
+                                      <button
+                                        onClick={() => handleDeleteTask(t.id)}
+                                        className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                    
+                                    {/* Task settings update */}
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex-1 flex items-center gap-1">
+                                        <span className="text-[9px] font-mono text-gray-500 shrink-0">Progress:</span>
+                                        <input
+                                          type="range"
+                                          min="0"
+                                          max="100"
+                                          value={t.progress}
+                                          onChange={(e) => handleUpdateTaskInline(t.id, parseInt(e.target.value), t.status)}
+                                          className="flex-1 h-1 bg-black/60 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                                        />
+                                        <span className="text-[9px] font-mono text-white shrink-0 w-8 text-right">{t.progress}%</span>
+                                      </div>
+
+                                      <select
+                                        value={t.status}
+                                        onChange={(e) => handleUpdateTaskInline(t.id, t.progress, e.target.value)}
+                                        className="bg-black/60 border border-white/5 rounded px-1.5 py-0.5 text-[9px] text-gray-300"
+                                      >
+                                        <option value="Not Started">Not Started</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="On Hold">On Hold</option>
+                                      </select>
+                                    </div>
+
+                                    {t.deadline && (
+                                      <p className="text-[9px] font-mono text-gray-500">Target delivery: {t.deadline}</p>
+                                    )}
+                                  </div>
+                                ))}
+                                {selectedClientTasks.length === 0 && (
+                                  <div className="text-center py-6 text-gray-600 text-xs">No active tasks assigned.</div>
+                                )}
+                              </div>
+
+                              {/* Add Task Form */}
+                              <form onSubmit={handleAddTask} className="border-t border-white/5 pt-4 space-y-2.5">
+                                <h5 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Add Operational Task</h5>
+                                <input
+                                  type="text"
+                                  required
+                                  value={newTaskName}
+                                  onChange={(e) => setNewTaskName(e.target.value)}
+                                  placeholder="Task Name (e.g. Temporal Coherence Upscale)"
+                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                                />
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[8px] font-mono uppercase text-gray-500">Task Status</label>
+                                    <select
+                                      value={newTaskStatus}
+                                      onChange={(e) => setNewTaskStatus(e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-2.5 py-2 text-xs text-gray-300"
+                                    >
+                                      <option value="Not Started">Not Started</option>
+                                      <option value="In Progress">In Progress</option>
+                                      <option value="Completed">Completed</option>
+                                      <option value="On Hold">On Hold</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[8px] font-mono uppercase text-gray-500">Target Deadline</label>
+                                    <input
+                                      type="date"
+                                      value={newTaskDeadline}
+                                      onChange={(e) => setNewTaskDeadline(e.target.value)}
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-2.5 py-2 text-xs text-gray-300"
+                                    />
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="submit"
+                                  disabled={isAddingTask}
+                                  className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-[10px] text-white font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  {isAddingTask ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                                  Dispatch Task
+                                </button>
+                              </form>
+
+                            </div>
+
+                          </div>
+
+                          {/* Client Tracing Feedbacks Checklist */}
+                          <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-5 space-y-4">
+                            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2">Client Feedback Markup Track</h4>
+                            
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                              {allFeedbacks.filter(f => f.client_user_id === selectedClient.id).length === 0 ? (
+                                <div className="text-center py-8 text-gray-600 text-xs">No feedback logged by this client.</div>
+                              ) : (
+                                allFeedbacks
+                                  .filter(f => f.client_user_id === selectedClient.id)
+                                  .map(feedback => (
+                                    <div key={feedback.id} className="p-3 bg-black/40 border border-white/5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                      <div className="text-left space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          {feedback.timestamp ? (
+                                            <span className="text-[9px] font-mono bg-violet-600/15 border border-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                              <Clock className="w-2.5 h-2.5" /> Time: {feedback.timestamp}
+                                            </span>
+                                          ) : feedback.tag ? (
+                                            <span className="text-[9px] font-mono bg-amber-400/10 border border-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                              <Tag className="w-2.5 h-2.5" /> Tag: {feedback.tag}
+                                            </span>
+                                          ) : null}
+                                          <span className="text-[9px] font-mono text-gray-500 uppercase">Asset: <span className="text-violet-300">{selectedClientWorks.find(w => w.id === feedback.work_id)?.title || "Asset"}</span></span>
+                                        </div>
+                                        <p className="text-xs text-gray-300 leading-normal font-light">{feedback.comment}</p>
+                                      </div>
+                                      <div className="shrink-0 flex items-center gap-2">
+                                        {feedback.acknowledged ? (
+                                          <span className="text-[9px] font-mono uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded flex items-center gap-1">
+                                            <Check className="w-3 h-3" /> Acknowledged
+                                          </span>
+                                        ) : (
+                                          <button
+                                            onClick={() => handleAcknowledgeFeedback(feedback.id)}
+                                            className="px-2.5 py-1 bg-amber-400 text-black hover:bg-amber-300 text-[9px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
+                                          >
+                                            Mark Acknowledged
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                              )}
+                            </div>
+                          </div>
+
+                        </div>
+                      ) : (
+                        
+                        /* Feedback Markup Timeline across ALL Clients */
+                        <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-5 space-y-4">
+                          <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/5 pb-2">Global Client Feedback markup Stream</h3>
+                          
+                          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                            {allFeedbacks.map(feedback => {
+                              const client = clientUsers.find(u => u.id === feedback.client_user_id);
+                              return (
+                                <div key={feedback.id} className={`p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+                                  !feedback.acknowledged ? "border-amber-500/25" : ""
+                                }`}>
+                                  <div className="space-y-1.5 flex-1 min-w-0">
+                                    <div className="flex items-center flex-wrap gap-2">
+                                      <span className="text-xs font-semibold text-white truncate">{client?.name || "Client"}</span>
+                                      <span className="text-[9px] font-mono text-gray-500 uppercase">({client?.company_name || "Independent"})</span>
+                                      {feedback.timestamp ? (
+                                        <span className="text-[9px] font-mono bg-violet-600/10 border border-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded">
+                                          Video Time: {feedback.timestamp}
+                                        </span>
+                                      ) : feedback.tag ? (
+                                        <span className="text-[9px] font-mono bg-amber-400/10 border border-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">
+                                          Tag: {feedback.tag}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <p className="text-xs text-gray-300 leading-normal font-light">{feedback.comment}</p>
+                                  </div>
+
+                                  <div className="shrink-0 flex items-center gap-2">
+                                    {feedback.acknowledged ? (
+                                      <span className="text-[9px] font-mono uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded flex items-center gap-1">
+                                        <Check className="w-3 h-3" /> Acknowledged
+                                      </span>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleAcknowledgeFeedback(feedback.id)}
+                                        className="px-2.5 py-1 bg-amber-400 text-black hover:bg-amber-300 text-[9px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
+                                      >
+                                        Mark Acknowledged
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {allFeedbacks.length === 0 && (
+                              <div className="text-center py-12 text-gray-600 text-xs">No feedback logged across client registry.</div>
+                            )}
+                          </div>
+                        </div>
+
+                      )}
+
+                    </div>
+
                   </div>
                 </div>
               )}

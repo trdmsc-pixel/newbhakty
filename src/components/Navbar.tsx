@@ -7,9 +7,10 @@ import { getActiveTheme } from "../lib/themes";
 interface NavbarProps {
   themeMode: "dark" | "light";
   setThemeMode: React.Dispatch<React.SetStateAction<"dark" | "light">>;
+  navigate?: (to: string) => void;
 }
 
-export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
+export default function Navbar({ themeMode, setThemeMode, navigate }: NavbarProps) {
   const { siteSettings, navigationMenu, activePage, setActivePage } = useSiteData();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -93,6 +94,24 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
     }
   };
 
+  const handleNavigation = (item: { label: string; target_url: string }) => {
+    setMobileOpen(false);
+    if (item.target_url.startsWith("/")) {
+      if (navigate) {
+        navigate(item.target_url);
+      } else {
+        window.history.pushState({}, "", item.target_url);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
+    } else {
+      if (window.location.pathname !== "/") {
+        window.location.href = `/#${item.target_url.replace("-section", "")}`;
+      } else {
+        scrollToSection(item.target_url);
+      }
+    }
+  };
+
   // Shared Logo Render function
   const renderLogo = (isMobileLogo: boolean) => {
     const isImage = !!siteSettings.logo_img_url;
@@ -127,7 +146,7 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
             <Film className="w-3 h-3 text-accent" />
           </div>
         </div>
-        <span className="font-display font-semibold text-xs tracking-tight text-white hidden md:inline">bhakty.studio</span>
+        <span className="font-display font-semibold text-xs tracking-tight text-white hidden md:inline">thechantingstudio.in</span>
       </div>
     );
   };
@@ -280,11 +299,13 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
           {/* CENTER: Neumorphic tab pills (Desktop only) */}
           <div className="hidden md:flex items-center gap-2.5 bg-black/20 dark:bg-black/30 border border-white/5 dark:border-white/5 rounded-full px-3 py-1.5 shadow-inner">
             {navigationMenu.map((item) => {
-              const isActive = activeSection === item.target_url;
+              const isActive = item.target_url.startsWith("/")
+                ? window.location.pathname === item.target_url
+                : (window.location.pathname === "/" && activeSection === item.target_url);
               return (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.target_url)}
+                  onClick={() => handleNavigation(item)}
                   className={`relative px-4 py-1.5 rounded-full text-xs font-semibold font-display tracking-tight transition-all duration-300 select-none cursor-pointer ${
                     isActive 
                       ? "text-white shadow-neumorphic-pill-active bg-white/[0.03]" 
@@ -359,11 +380,13 @@ export default function Navbar({ themeMode, setThemeMode }: NavbarProps) {
               
               <div className="flex flex-col gap-2">
                 {navigationMenu.map((item) => {
-                  const isActive = activeSection === item.target_url;
+                  const isActive = item.target_url.startsWith("/")
+                    ? window.location.pathname === item.target_url
+                    : (window.location.pathname === "/" && activeSection === item.target_url);
                   return (
                     <button 
                       key={item.id}
-                      onClick={() => scrollToSection(item.target_url)}
+                      onClick={() => handleNavigation(item)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-semibold transition-all duration-200 ${
                         isActive 
                           ? "bg-accent/10 border border-accent/30 text-accent" 

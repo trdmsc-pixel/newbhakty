@@ -329,7 +329,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
     return [
       { id: "name", label: "Your Identity / Name", type: "text", placeholder: "e.g. Cassian Andor", required: true },
       { id: "company", label: "Company / Studio", type: "text", placeholder: "e.g. Coruscant Arts Ltd", required: false },
-      { id: "email", label: "Communication Mail", type: "email", placeholder: "e.g. cassian@bhakty.net", required: true },
+      { id: "email", label: "Communication Mail", type: "email", placeholder: "e.g. cassian@thechantingstudio.in", required: true },
       { id: "budget", label: "Estimated Budget Bracket", type: "select", options: ["$2,000 - $5,000", "$5,000 - $10,000", "$10,000 - $25,000", "$25,000+"], required: true },
       { id: "selected_tier", label: "Target Production Pipeline", type: "select", options: ["Short-Form Creative", "Full Cinematic Production", "Enterprise Studio Pipeline", "Custom Collaborative"], required: true },
       { id: "brief", label: "Project Dimensional Brief", type: "textarea", placeholder: "Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...", required: true }
@@ -1122,7 +1122,7 @@ export default function BookingForm({ initialTier }: BookingFormProps) {
                 </div>
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-gray-500">Lead Resolver:</span>
-                  <span className="text-gray-400">bhakty.orchestrator v4</span>
+                  <span className="text-gray-400">chants.orchestrator v4</span>
                 </div>
               </div>
 

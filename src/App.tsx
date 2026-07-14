@@ -9,9 +9,11 @@ import BookingForm from "./components/BookingForm";
 import InteractiveParticles from "./components/InteractiveParticles";
 import BrandMarquee from "./components/BrandMarquee";
 import AdminPanel from "./components/AdminPanel";
+import ClientAccessPanel from "./components/ClientAccessPanel";
 import MobileAppView from "./components/MobileAppView";
 import ChatWidget from "./components/ChatWidget";
 import LegalPage from "./components/LegalPages";
+import CinematicWebsitesPage from "./components/CinematicWebsitesPage";
 import { SiteDataProvider, useSiteData } from "./context/SiteDataContext";
 import { ToastProvider } from "./context/ToastContext";
 import { trackEvent, initializeMockAnalytics, trackMetaPixelEvent, trackMetaPixelCustomEvent } from "./lib/analytics";
@@ -25,6 +27,23 @@ function AppContent() {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [path, setPath] = useState(window.location.pathname);
   const [hash, setHash] = useState(window.location.hash);
+  
+  // Light/Dark Mode state
+  const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("theme_mode");
+    return (saved === "light" || saved === "dark") ? saved : "dark";
+  });
+
+  useEffect(() => {
+    if (themeMode === "light") {
+      document.documentElement.classList.add("light-mode");
+      document.body.classList.add("light-mode");
+    } else {
+      document.documentElement.classList.remove("light-mode");
+      document.body.classList.remove("light-mode");
+    }
+    localStorage.setItem("theme_mode", themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -250,20 +269,51 @@ function AppContent() {
     return <MobileAppView onExit={() => navigate("/")} navigate={navigate} />;
   }
 
+  if (path === "/client" || hash === "#client" || hash === "/client") {
+    return <ClientAccessPanel onNavigateHome={() => navigate("/")} />;
+  }
+
+  if (path === "/cinematic-websites" || hash === "#cinematic-websites" || hash === "/cinematic-websites") {
+    return (
+      <CinematicWebsitesPage
+        onNavigateHome={() => navigate("/")}
+        navigate={navigate}
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+      />
+    );
+  }
+
   if (isMobileOrTablet) {
     return <MobileAppView onExit={() => {}} navigate={navigate} />;
   }
 
-  return <DesktopWebsiteView path={path} hash={hash} navigate={navigate} />;
+  return (
+    <DesktopWebsiteView
+      path={path}
+      hash={hash}
+      navigate={navigate}
+      themeMode={themeMode}
+      setThemeMode={setThemeMode}
+    />
+  );
 }
 
 interface DesktopWebsiteViewProps {
   path: string;
   hash: string;
   navigate: (to: string) => void;
+  themeMode: "dark" | "light";
+  setThemeMode: React.Dispatch<React.SetStateAction<"dark" | "light">>;
 }
 
-function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
+function DesktopWebsiteView({ 
+  path, 
+  hash, 
+  navigate, 
+  themeMode, 
+  setThemeMode 
+}: DesktopWebsiteViewProps) {
   const [selectedTier, setSelectedTier] = useState<string>("");
   const { siteSettings, activePage } = useSiteData();
   const isNavbarFullWidth = activePage === "live"
@@ -281,23 +331,6 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
 
   // Dynamic Theme
   const theme = getActiveTheme(siteSettings.website_theme);
-
-  // Light/Dark Mode state
-  const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
-    const saved = localStorage.getItem("theme_mode");
-    return (saved === "light" || saved === "dark") ? saved : "dark";
-  });
-
-  useEffect(() => {
-    if (themeMode === "light") {
-      document.documentElement.classList.add("light-mode");
-      document.body.classList.add("light-mode");
-    } else {
-      document.documentElement.classList.remove("light-mode");
-      document.body.classList.remove("light-mode");
-    }
-    localStorage.setItem("theme_mode", themeMode);
-  }, [themeMode]);
 
   useEffect(() => {
     if (activePage === "live") {
@@ -515,7 +548,7 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
       <BackgroundGradients />
 
       {/* FLOATING HEADER BAR */}
-      <Navbar themeMode={themeMode} setThemeMode={setThemeMode} />
+      <Navbar themeMode={themeMode} setThemeMode={setThemeMode} navigate={navigate} />
 
       {/* HERO SECTION CONTAINER WITH DYNAMIC EXIT/ENTRY SLIDE TRANSITIONS */}
       <AnimatePresence mode="wait">
@@ -883,7 +916,7 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
               ) : (
                 <>
                   <div className="w-6 h-6 rounded bg-gradient-to-r from-amber-300 to-violet-500" />
-                  <span className="font-display font-medium text-lg text-white tracking-tight">bhakty.studio</span>
+                  <span className="font-display font-medium text-lg text-white tracking-tight">thechantingstudio.in</span>
                 </>
               )}
             </div>
@@ -895,7 +928,7 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
           {/* METRIC CHIPS / INTERNALS */}
           <div className="flex flex-wrap gap-4 justify-center">
             <span className="text-[10px] uppercase font-mono tracking-widest text-gray-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-              {siteSettings.footer_copyright || "© 2026 bhakty.studio"}
+              {siteSettings.footer_copyright || "© 2026 thechantingstudio.in"}
             </span>
             <span 
               onClick={() => navigate("#admin")}
@@ -903,7 +936,16 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
             >
               🔐 Administrator Login
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-violet-300 bg-violet-600/5 px-3 py-1.5 rounded-full border border-violet-500/20">
+            <span 
+              onClick={() => navigate("#client")}
+              className="text-[10px] uppercase font-mono tracking-widest text-violet-300 bg-violet-600/5 px-3 py-1.5 rounded-full border border-violet-500/20 hover:bg-violet-600/15 transition-all cursor-pointer"
+            >
+              🌐 Client Access Panel
+            </span>
+            <span 
+              onClick={() => navigate("#client")}
+              className="text-[10px] uppercase font-mono tracking-widest text-violet-300 bg-violet-600/5 px-3 py-1.5 rounded-full border border-violet-500/20 hover:bg-violet-600/15 transition-all cursor-pointer animate-pulse"
+            >
               Studio Location // Global Client Access
             </span>
           </div>
@@ -920,6 +962,8 @@ function DesktopWebsiteView({ path, hash, navigate }: DesktopWebsiteViewProps) {
             <button onClick={() => scrollToSection("work-section")} className="hover:text-gray-400 transition-colors">Portfolios</button>
             <span>•</span>
             <button onClick={() => scrollToSection("pricing-section")} className="hover:text-gray-400 transition-colors">Licensing packages</button>
+            <span>•</span>
+            <button onClick={() => navigate("/cinematic-websites")} className="hover:text-gray-400 transition-colors">Cinematic Websites</button>
           </div>
         </div>
 

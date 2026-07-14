@@ -80,7 +80,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_title_1: "The Next Epoch",
   hero_title_2: "of Cinema.",
   hero_title_3: "Synthesized.",
-  hero_description: "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, bhakty.studio redefines moving media.",
+  hero_description: "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, thechantingstudio.in redefines moving media.",
   hero_cta_booking_text: "Book Creative Spot",
   hero_cta_work_text: "Explore Curation",
   hero_stat1_value: "400+",
@@ -90,7 +90,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_stat3_value: "0%",
   hero_stat3_label: "Physical Camera",
   hero_video_bg_url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
-  footer_copyright: "© 2026 bhakty.studio. Generative Temporal Coherence in Aesthetics.",
+  footer_copyright: "© 2026 thechantingstudio.in. Generative Temporal Coherence in Aesthetics.",
   booking_form_title: "Book Creative Studio",
   booking_form_subtitle: "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.",
   booking_cta_text: "Request Synthesis Pipeline",
@@ -108,6 +108,9 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_text_width: "",
   hero_text_height: "",
   portfolio_license_button_text: "Acquire License",
+  portfolio_static_pdf_url: "",
+  portfolio_static_pdf_button_text: "Download Creative Deck PDF",
+  portfolio_static_pdf_button_enabled: "true",
   marquee_direction: "left",
   booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
   
@@ -148,7 +151,9 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
 const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
   { id: "menu-work", label: "Our Work", target_url: "work-section", display_order: 1 },
-  { id: "menu-packages", label: "Production Tiers", target_url: "pricing-section", display_order: 2 }
+  { id: "menu-packages", label: "Production Tiers", target_url: "pricing-section", display_order: 2 },
+  { id: "menu-cinematic-websites", label: "Cinematic Websites", target_url: "/cinematic-websites", display_order: 3 },
+  { id: "menu-contact", label: "Contact Us", target_url: "booking-section", display_order: 4 }
 ];
 
 const DEFAULT_PORTFOLIO_TABS: PortfolioTab[] = [

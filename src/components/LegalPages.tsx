@@ -188,7 +188,7 @@ export default function LegalPage({ type, onBack }: LegalPageProps) {
       </div>
 
       <footer className="max-w-3xl w-full mx-auto mt-16 text-center border-t border-white/5 pt-6 text-[10px] font-mono text-gray-600 relative z-10">
-        <p>© 2026 bhakty.studio // Compliance Verification Framework // Safe-IP Edge Route</p>
+        <p>© 2026 thechantingstudio.in // Compliance Verification Framework // Safe-IP Edge Route</p>
       </footer>
     </div>
   );
