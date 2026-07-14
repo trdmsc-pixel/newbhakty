@@ -496,6 +496,168 @@ export default function CinematicWebsitesPage({
         </div>
       </section>
 
+      {/* SECTION 7.5: WEBSITE CARE & SUPPORT */}
+      <section className="py-24 px-4 md:px-8 max-w-6xl mx-auto border-t border-white/5">
+        <div className="text-center mb-16 max-w-3xl mx-auto">
+          <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-accent bg-accent/5 border border-accent/15 rounded-full px-4 py-1.5 inline-block mb-4">
+            Post-Launch Support
+          </span>
+          <h2 className="font-display font-medium text-3xl md:text-5xl tracking-tight text-white mb-6">
+            Website Care & Support
+          </h2>
+          <p className="text-gray-400 text-xs sm:text-sm font-light leading-relaxed">
+            Launching your website is only the beginning. As your business grows, your website should grow with it. 
+            We offer flexible post-launch support and maintenance plans to keep your website secure, up to date, and performing at its best. 
+            Clients can either choose an annual support plan or request changes whenever needed.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+          {/* Card 1 */}
+          <div className="glass-panel rounded-3xl p-8 flex flex-col justify-between text-left relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px]">
+            <div className="space-y-6">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500 block mb-1">Occasional updates</span>
+                <h3 className="font-display font-medium text-lg text-white">Pay As You Grow</h3>
+              </div>
+              <p className="text-gray-400 text-xs font-light leading-relaxed">
+                Perfect for businesses that only need occasional updates.
+              </p>
+              <div className="pt-4 border-t border-white/5">
+                <span className="text-[10px] font-mono text-gray-500 block">Starting from</span>
+                <span className="text-2xl font-display font-semibold text-white">₹1,500</span>
+                <span className="text-[10px] font-mono text-gray-400 block mt-1">per request</span>
+              </div>
+              <div className="space-y-3 pt-4">
+                {[
+                  "Content updates",
+                  "Image replacements",
+                  "Gallery updates",
+                  "Text changes",
+                  "Minor layout adjustments"
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5 text-xs text-gray-400">
+                    <Check className="w-3.5 h-3.5 text-accent shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 font-light italic leading-relaxed pt-2">
+                Complex feature additions and redesigns are quoted separately.
+              </p>
+            </div>
+            <button 
+              onClick={() => { window.location.href = "/#booking-section"; }}
+              className="mt-8 w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:bg-white/10 transition-all cursor-pointer text-center"
+            >
+              Request an Update
+            </button>
+          </div>
+
+          {/* Card 2 */}
+          <div className="glass-panel rounded-3xl p-8 flex flex-col justify-between text-left relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px] border-accent/40 shadow-[0_0_30px_rgba(var(--color-accent-rgb-custom),0.05)]">
+            <div className="absolute top-4 right-4 bg-accent text-black font-mono text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-accent/20 shadow-md">
+              Recommended
+            </div>
+            <div className="space-y-6">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-accent block mb-1">Active Maintenance</span>
+                <h3 className="font-display font-medium text-lg text-white">Website Care Plan</h3>
+              </div>
+              <p className="text-gray-400 text-xs font-light leading-relaxed">
+                Monthly website care and technical support.
+              </p>
+              <div className="pt-4 border-t border-white/5">
+                <span className="text-[10px] font-mono text-gray-500 block">Starting from</span>
+                <span className="text-2xl font-display font-semibold text-accent">₹2,500</span>
+                <span className="text-[10px] font-mono text-gray-400 block mt-1">/ month</span>
+              </div>
+              <div className="space-y-3 pt-4">
+                {[
+                  "Priority Support",
+                  "Minor Content Updates",
+                  "Image & Video Updates",
+                  "Portfolio Management",
+                  "Security Monitoring",
+                  "Backup Assistance",
+                  "Performance Checks",
+                  "Technical Assistance",
+                  "Small Design Improvements"
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5 text-xs text-gray-200">
+                    <Check className="w-3.5 h-3.5 text-accent shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 font-mono tracking-wide leading-relaxed pt-2">
+                Up to 2 hours of support per month. Unused hours do not roll over.
+              </p>
+            </div>
+            <button 
+              onClick={() => { window.location.href = "/#booking-section"; }}
+              className="mt-8 w-full py-3 rounded-xl bg-accent text-black font-semibold text-xs uppercase tracking-wider hover-glow-yellow transition-all cursor-pointer text-center"
+            >
+              Choose Care Plan
+            </button>
+          </div>
+
+          {/* Card 3 */}
+          <div className="glass-panel rounded-3xl p-8 flex flex-col justify-between text-left relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px]">
+            <div className="absolute top-4 right-4 bg-white/5 text-gray-300 font-mono text-[9px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full border border-white/10">
+              Best Value
+            </div>
+            <div className="space-y-6">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500 block mb-1">Annual Commitment</span>
+                <h3 className="font-display font-medium text-lg text-white">Annual Website Care</h3>
+              </div>
+              <p className="text-gray-400 text-xs font-light leading-relaxed">
+                Full-year technical checkups and continuous health monitoring.
+              </p>
+              <div className="pt-4 border-t border-white/5">
+                <span className="text-[10px] font-mono text-gray-500 block">Annual Fee</span>
+                <span className="text-2xl font-display font-semibold text-white">₹24,000</span>
+                <span className="text-[10px] font-mono text-gray-400 block mt-1">/ year</span>
+              </div>
+              <div className="space-y-3 pt-4">
+                {[
+                  "Everything in Monthly Plan plus:",
+                  "Priority Response",
+                  "Quarterly Website Health Check",
+                  "Performance Optimization",
+                  "SEO Review",
+                  "Priority Scheduling",
+                  "Cost Savings (vs Monthly Billing)"
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5 text-xs text-gray-400">
+                    <Check className="w-3.5 h-3.5 text-accent shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button 
+              onClick={() => { window.location.href = "/#booking-section"; }}
+              className="mt-8 w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:bg-white/10 transition-all cursor-pointer text-center"
+            >
+              Talk to Us
+            </button>
+          </div>
+        </div>
+
+        {/* Small Note */}
+        <div className="mt-12 bg-white/[0.01] border border-white/5 rounded-2xl p-6 text-left max-w-4xl mx-auto flex items-start gap-4">
+          <HelpCircle className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-mono text-xs text-white uppercase tracking-wider font-semibold mb-1">Important scope notice</h4>
+            <p className="text-gray-400 text-[11px] font-light leading-relaxed">
+              Major redesigns, new pages, custom integrations, e-commerce additions, advanced functionality, or features outside the original project scope will be quoted separately based on project requirements.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* SECTION 8: TESTIMONIALS */}
       <section className="py-24 px-4 md:px-8 max-w-4xl mx-auto border-t border-white/5">
         <div className="text-center mb-16">
