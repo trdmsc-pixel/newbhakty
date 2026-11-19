@@ -6,7 +6,7 @@ interface FloatingActionsProps {
   whatsappNumber?: string;
 }
 
-export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber = "+919999999999" }) => {
+export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber = "+91 9958194155" }) => {
   const [showFloating, setShowFloating] = useState(false);
   const [contactInView, setContactInView] = useState(false);
 
@@ -38,7 +38,8 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber
     };
   }, []);
 
-  const cleanNumber = whatsappNumber.replace(/[^0-9]/g, "");
+  const digitsOnly = whatsappNumber.replace(/[^0-9]/g, "");
+  const cleanNumber = !digitsOnly || digitsOnly === "919999999999" ? "919958194155" : digitsOnly;
   const whatsappUrl = `https://wa.me/${cleanNumber}`;
 
   const isVisible = showFloating && !contactInView;
@@ -57,7 +58,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.3 }}
-            className="hidden md:inline-flex fixed bottom-8 right-8 z-40 items-center gap-3 px-4 py-2.5 rounded-full bg-[var(--tcs-night-2)]/90 border border-[var(--tcs-line)] backdrop-blur-md shadow-2xl group hover:border-[var(--tcs-offwhite)]/40 transition-all cursor-pointer"
+            className="hidden lg:inline-flex fixed bottom-8 right-8 z-40 items-center gap-3 px-4 py-2.5 rounded-full bg-[var(--tcs-night-2)]/90 border border-[var(--tcs-line)] backdrop-blur-md shadow-2xl group hover:border-[var(--tcs-offwhite)]/40 transition-all cursor-pointer"
           >
             <Ring size={16} stroke={2} animate="spin-slow" />
             <span className="font-mono text-xs uppercase tracking-widest text-[var(--tcs-offwhite)] font-medium">
@@ -76,7 +77,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden fixed bottom-0 left-0 w-full z-40 p-4 bg-[var(--tcs-night)]/95 border-t border-[var(--tcs-line)] backdrop-blur-lg flex gap-3"
+            className="lg:hidden fixed bottom-0 left-0 w-full z-40 p-4 bg-[var(--tcs-night)]/95 border-t border-[var(--tcs-line)] backdrop-blur-lg flex gap-3"
           >
             <a
               href="#contact"
@@ -93,7 +94,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({ whatsappNumber
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Chat on WhatsApp"
+              aria-label="Chat with Director on WhatsApp"
               className="px-3.5 py-3 rounded border border-[var(--tcs-line)] bg-[var(--tcs-night-2)] flex items-center justify-center text-[var(--tcs-offwhite)]"
             >
               <Ring size={16} stroke={2} />

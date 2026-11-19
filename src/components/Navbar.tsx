@@ -100,7 +100,7 @@ export default function Navbar({ navigate }: NavbarProps) {
           </a>
 
           {/* Right: Desktop Navigation Items */}
-          <nav className="hidden md:flex items-center gap-7">
+          <nav className="hidden lg:flex items-center gap-7">
             <div className="flex items-center gap-6">
               {navLinks.map((link) => {
                 const isActive = activeSection === link.target.replace("#", "");
@@ -170,7 +170,7 @@ export default function Navbar({ navigate }: NavbarProps) {
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle navigation menu"
-            className="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5 z-50 text-[var(--tcs-offwhite)] focus:outline-none"
+            className="lg:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5 z-50 text-[var(--tcs-offwhite)] focus:outline-none"
           >
             <span
               className={`w-6 h-[1.5px] bg-[var(--tcs-offwhite)] transition-transform duration-300 ${
@@ -194,7 +194,7 @@ export default function Navbar({ navigate }: NavbarProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-40 bg-[var(--tcs-night)] flex flex-col justify-between p-8 pt-28 md:hidden"
+            className="fixed inset-0 z-40 bg-[var(--tcs-night)] flex flex-col justify-between p-6 sm:p-10 pt-24 sm:pt-28 overflow-y-auto lg:hidden"
           >
             {/* Nav links */}
             <div className="flex flex-col gap-5">
@@ -236,6 +236,15 @@ export default function Navbar({ navigate }: NavbarProps) {
                 >
                   <span>🔐</span> Studio Administrator
                 </button>
+                <a
+                  href="https://wa.me/919958194155"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-left font-mono text-xs uppercase tracking-widest text-[var(--tcs-offwhite)]/80 hover:text-white py-1.5 flex items-center gap-2"
+                >
+                  <span>💬</span> Chat with Director
+                </a>
               </div>
 
               <motion.a

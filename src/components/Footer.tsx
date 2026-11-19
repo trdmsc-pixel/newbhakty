@@ -10,8 +10,9 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   const { siteSettings } = useSiteData();
 
   const contactEmail = siteSettings.contact_email || "studio@thechantingstudio.in";
-  const rawWhatsApp = siteSettings.whatsapp_number || "+919999999999";
-  const cleanWhatsApp = rawWhatsApp.replace(/[^0-9]/g, "");
+  const rawWhatsApp = siteSettings.whatsapp_number || "+91 9958194155";
+  const digitsOnly = rawWhatsApp.replace(/[^0-9]/g, "");
+  const cleanWhatsApp = !digitsOnly || digitsOnly === "919999999999" ? "919958194155" : digitsOnly;
   const whatsappUrl = `https://wa.me/${cleanWhatsApp}`;
 
   const scrollTo = (targetId: string) => {

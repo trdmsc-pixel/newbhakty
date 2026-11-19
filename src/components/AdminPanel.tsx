@@ -9,7 +9,7 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X, Users, FolderKanban, Clock, Tag
+  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X, Menu, Users, FolderKanban, Clock, Tag
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
@@ -220,6 +220,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   // UI Navigation state
   const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings" | "client_access">("settings");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -2600,12 +2601,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#07080C] text-[#F4EFE6] flex flex-col items-center justify-center p-6 relative">
+      <div className="min-h-screen bg-[#07080C] text-[#F4EFE6] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-x-hidden">
         {/* LOGIN CONTAINER */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-[#0E0F14] p-8 rounded-2xl relative z-10 border border-white/10 shadow-2xl"
+          className="w-full max-w-md bg-[#0E0F14] p-6 sm:p-8 rounded-2xl relative z-10 border border-white/10 shadow-2xl"
         >
           {/* LOGO */}
           <div className="flex flex-col items-center gap-3 mb-8">
@@ -2683,18 +2684,26 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     <div className={`w-screen h-screen ${isLightMode ? "admin-light-mode" : theme.style.bodyBg} flex flex-col overflow-hidden relative transition-colors duration-500 font-sans`}>
 
       {/* HEADER SECTION (Sticky Top) */}
-      <div className="sticky top-0 z-50 w-full bg-black/40 backdrop-blur-md border-b border-white/10 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative z-20">
-        <div className="md:w-1/3 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="font-display font-medium text-xl md:text-2xl tracking-tighter italic text-white">
-              bhakty<span className="text-[#ffea00]">.</span>admin
+      <div className="sticky top-0 z-50 w-full bg-[#07080C]/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 lg:px-6 lg:py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 shrink-0 relative">
+        <div className="lg:w-1/3 flex-shrink-0 flex items-center justify-between lg:block">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen((prev) => !prev)}
+              aria-label="Toggle Admin Navigation"
+              className="lg:hidden w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#F4EFE6] hover:border-white/30 transition-all cursor-pointer shrink-0"
+            >
+              {mobileSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+            <span className="font-display font-semibold text-base sm:text-lg lg:text-xl tracking-[0.12em] uppercase text-[#F4EFE6]">
+              THE CHANTING STUDIO
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 rounded-full px-2.5 py-1 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-[#ffea00]" /> Connected
+            <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-400" /> <span className="hidden sm:inline">Admin</span>
             </span>
           </div>
-          <p className="text-gray-400 text-[11px] font-light mt-1 text-left">
-            Manage database settings, menu anchors, motion artifacts, and production price tiers.
+          <p className="hidden lg:block text-gray-400 text-[11px] font-light mt-1 text-left">
+            Manage studio settings, portfolio curation, client access, and project inquiries.
           </p>
         </div>
 
@@ -2814,9 +2823,38 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
       {/* WORKSPACE LAYOUT (Full width flex) */}
       <div className="flex flex-1 overflow-hidden w-full relative z-10">
+
+        {/* MOBILE / TABLET SIDEBAR BACKDROP */}
+        {mobileSidebarOpen && (
+          <div
+            onClick={() => setMobileSidebarOpen(false)}
+            className="fixed inset-0 z-[65] bg-black/70 backdrop-blur-sm lg:hidden"
+          />
+        )}
         
-        {/* SIDEBAR NAVIGATION (Sticky left navigation track) */}
-        <aside className="sticky left-0 h-full w-72 shrink-0 border-r border-white/10 bg-black/30 backdrop-blur-md p-5 flex flex-col gap-2 overflow-y-auto">
+        {/* SIDEBAR NAVIGATION (Slide-over drawer on mobile/tablet, sticky w-72 on desktop) */}
+        <aside
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("button")) {
+              setMobileSidebarOpen(false);
+            }
+          }}
+          className={`${
+            mobileSidebarOpen
+              ? "fixed inset-y-0 left-0 z-[70] flex w-[280px] max-w-[85vw] bg-[#07080C]/95 shadow-2xl"
+              : "hidden"
+          } lg:sticky lg:left-0 lg:flex lg:w-72 lg:bg-[#07080C]/60 h-full shrink-0 border-r border-white/10 backdrop-blur-xl p-4 lg:p-5 flex-col gap-2 overflow-y-auto`}
+        >
+          <div className="flex lg:hidden items-center justify-between pb-3 mb-2 border-b border-white/10">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[#F4EFE6]/70">Studio CMS</span>
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(false)}
+              className="p-1.5 rounded-lg bg-white/5 text-gray-300 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
           <button
             onClick={() => setActiveTab("settings")}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
@@ -3021,7 +3059,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
         </aside>
 
         {/* CENTRAL MAIN CONTENT WINDOW WRAPPER */}
-        <main className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
+        <main className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-10 relative">
 
           {/* EDIT ZONE (Wrapped in a Framer Motion animation layer for hardware-accelerated fade transitions) */}
           <motion.div

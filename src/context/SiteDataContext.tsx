@@ -106,7 +106,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
   // Contact & Socials (Section 5.6 & 8)
   contact_email: "studio@thechantingstudio.in",
-  whatsapp_number: "+919999999999",
+  whatsapp_number: "+91 9958194155",
   instagram_url: "https://instagram.com/thechantingstudio",
   linkedin_url: "https://www.linkedin.com/company/thechantingstudio",
   youtube_url: "https://youtube.com/@thechantingstudio",

@@ -411,12 +411,12 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
 
       {/* HEADER BAR */}
       <header className="w-full border-b border-[var(--tcs-line)] bg-[var(--tcs-night)]/85 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 min-h-16 py-2 flex items-center justify-between gap-2">
           <button
             onClick={onNavigateHome}
             className="flex items-center gap-2 text-xs font-mono tracking-widest text-[var(--tcs-muted)] hover:text-white uppercase transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Studio
+            <ArrowLeft className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Back to Studio</span><span className="sm:hidden">Studio</span>
           </button>
           
           <div className="flex items-center gap-3">
@@ -431,11 +431,11 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
               onClick={handleSignOut}
               className="flex items-center gap-2 text-xs font-mono tracking-widest text-red-400 hover:text-red-300 uppercase transition-colors border border-red-500/20 bg-red-500/5 px-3.5 py-1.5 rounded-full cursor-pointer"
             >
-              <LogOut className="w-3 h-3" /> Log Out
+              <LogOut className="w-3 h-3 shrink-0" /> <span className="hidden sm:inline">Log Out</span>
             </button>
           ) : (
             <span className="text-[10px] font-mono text-[var(--tcs-dim)] uppercase tracking-widest bg-white/[0.03] px-3 py-1 rounded-full border border-[var(--tcs-line)]">
-              🔒 Encrypted Gateway
+              🔒 <span className="hidden sm:inline">Encrypted </span>Gateway
             </span>
           )}
         </div>
@@ -456,7 +456,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
               exit={{ opacity: 0, y: -20 }}
               className="w-full max-w-md mx-auto"
             >
-              <div className="bg-[var(--tcs-carbon)] p-8 rounded-2xl border border-[var(--tcs-line)] shadow-2xl relative overflow-hidden">
+              <div className="bg-[var(--tcs-night-2)] p-5 sm:p-8 rounded-2xl border border-[var(--tcs-line)] shadow-2xl relative overflow-hidden">
                 {/* Visual Accent */}
                 <div className="absolute top-0 inset-x-0 h-[2px]" style={{ background: "var(--tcs-spectrum-linear)" }} />
                 
@@ -531,7 +531,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Email Address *</label>
                         <input
@@ -555,7 +555,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Company Name</label>
                         <input
@@ -754,7 +754,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
               <div className="lg:col-span-8 space-y-6">
                 
                 {/* Horizontal Navigation Tabs */}
-                <div className="flex gap-3 border-b border-white/10 pb-4">
+                <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 border-b border-white/10 pb-4 overflow-x-auto scrollbar-none">
                   <button
                     onClick={() => setActiveDashboardTab("work")}
                     className={`px-5 py-2.5 rounded-full text-xs font-semibold font-display tracking-wider uppercase transition-all flex items-center gap-2 border ${
@@ -840,7 +840,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                 />
                               </div>
                             )}
-                            <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between">
+                            <div className="p-4 bg-black/40 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div>
                                 <h4 className="text-sm font-semibold truncate max-w-[250px]">{selectedWork.title}</h4>
                                 <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{selectedWork.type} Asset</p>
@@ -863,7 +863,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                             <form onSubmit={submitFeedback} className="space-y-3">
                               {/* Conditionally render video/image helper fields */}
                               {selectedWork.type === "video" ? (
-                                <div className="grid grid-cols-2 gap-3 items-center">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                                   <button
                                     type="button"
                                     onClick={captureVideoTimestamp}
@@ -1007,7 +1007,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                   /* ========================================================================= */
                   /* DEALS & CONTRACT TAB                                                      */
                   /* ========================================================================= */
-                  <div className="glass-panel p-8 rounded-3xl border border-white/10 space-y-6">
+                  <div className="glass-panel p-5 sm:p-8 rounded-3xl border border-white/10 space-y-6">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                       <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center">
                         <Award className="w-5 h-5 text-violet-400" />

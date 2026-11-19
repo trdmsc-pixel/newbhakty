@@ -126,7 +126,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       </div>
 
       {/* Main Bottom-Left Content */}
-      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 md:px-[6%] pb-12 md:pb-16 flex flex-col justify-end">
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-8 md:px-[6%] pb-24 sm:pb-20 lg:pb-16 flex flex-col justify-end">
         {/* Eyebrow Label */}
         <motion.p
           initial={{ opacity: 0, y: 14 }}

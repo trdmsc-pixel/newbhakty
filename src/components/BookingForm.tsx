@@ -38,8 +38,9 @@ export default function BookingForm() {
 
   // Settings
   const contactEmail = siteSettings.contact_email || "studio@thechantingstudio.in";
-  const rawWhatsApp = siteSettings.whatsapp_number || "+919999999999";
-  const cleanWhatsApp = rawWhatsApp.replace(/[^0-9]/g, "");
+  const rawWhatsApp = siteSettings.whatsapp_number || "+91 9958194155";
+  const digitsOnly = rawWhatsApp.replace(/[^0-9]/g, "");
+  const cleanWhatsApp = !digitsOnly || digitsOnly === "919999999999" ? "919958194155" : digitsOnly;
   const whatsappUrl = `https://wa.me/${cleanWhatsApp}`;
   const successMsg = siteSettings.booking_success_message || "Your brief is with us. We'll be in touch shortly.";
 
