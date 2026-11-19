@@ -526,7 +526,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           value={signUpName}
                           onChange={(e) => setSignUpName(e.target.value)}
                           placeholder="e.g. John Doe"
-                          className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                         />
                       </div>
                     </div>
@@ -540,7 +540,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           value={signUpEmail}
                           onChange={(e) => setSignUpEmail(e.target.value)}
                           placeholder="name@agency.com"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -550,7 +550,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           value={signUpMobile}
                           onChange={(e) => setSignUpMobile(e.target.value)}
                           placeholder="+91 XXXXX XXXXX"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                         />
                       </div>
                     </div>
@@ -563,7 +563,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           value={signUpCompany}
                           onChange={(e) => setSignUpCompany(e.target.value)}
                           placeholder="Acme Studios"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -573,7 +573,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           value={signUpDesignation}
                           onChange={(e) => setSignUpDesignation(e.target.value)}
                           placeholder="Creative Lead"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                         />
                       </div>
                     </div>
@@ -583,7 +583,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                       <select
                         value={signUpPurpose}
                         onChange={(e) => setSignUpPurpose(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-black/70 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm text-gray-300 outline-none"
+                        className="w-full px-3.5 py-2.5 bg-black/70 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm text-gray-300 outline-none"
                       >
                         <option value="">Select an option</option>
                         <option value="Short-Form Ads">Short-Form Creative Ads</option>
@@ -601,7 +601,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                         value={signUpSource}
                         onChange={(e) => setSignUpSource(e.target.value)}
                         placeholder="Google, Twitter, Colleague, Showcase..."
-                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                       />
                     </div>
 
@@ -613,14 +613,14 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                         value={signUpPassword}
                         onChange={(e) => setSignUpPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold font-display tracking-wide text-xs uppercase rounded-xl transition-all shadow-lg shadow-violet-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-4"
+                      className="w-full py-3 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] font-semibold font-display tracking-wide text-xs uppercase rounded-xl transition-all shadow-lg shadow-black/40 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-4"
                     >
                       {isLoading ? "Registering Core Profile..." : "Submit Registration"}
                     </button>
@@ -632,7 +632,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                   <button
                     type="button"
                     onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                    className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors"
+                    className="text-xs text-[var(--tcs-offwhite)]/80 hover:text-white font-medium transition-colors"
                   >
                     {authMode === "login" 
                       ? "Request registration & setup client ID" 
@@ -657,13 +657,13 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
               <div className="lg:col-span-4 space-y-6">
                 
                 {/* Profile Card */}
-                <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col items-center text-center relative">
-                  <div className="absolute top-4 right-4 bg-violet-600/10 border border-violet-500/30 text-violet-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
+                <div className="bg-[var(--tcs-night-2)] p-6 rounded-2xl border border-white/10 flex flex-col items-center text-center relative">
+                  <div className="absolute top-4 right-4 bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
                     {clientProfile?.client_id || "CL-PENDING"}
                   </div>
                   
                   {/* Dynamic letter avatar */}
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-violet-600 via-indigo-500 to-violet-800 flex items-center justify-center text-2xl font-display font-bold text-white shadow-lg shadow-violet-500/20 mb-3 border border-white/20 select-none">
+                  <div className="w-16 h-16 rounded-full bg-[var(--tcs-night)] border border-[var(--tcs-offwhite)]/30 flex items-center justify-center text-2xl font-display font-bold text-white shadow-lg shadow-black/40 mb-3 border border-white/20 select-none">
                     {getAvatarChar()}
                   </div>
                   
@@ -684,17 +684,17 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     {clientProfile?.signing_up_for && (
                       <div className="flex items-center justify-between text-xs text-gray-400">
                         <span className="flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-gray-500" /> Deal Tier</span>
-                        <span className="text-accent font-medium">{clientProfile.signing_up_for}</span>
+                        <span className="text-[var(--tcs-gold)] font-medium">{clientProfile.signing_up_for}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Studio Tasks list */}
-                <div className="glass-panel p-6 rounded-3xl border border-white/10">
+                <div className="bg-[var(--tcs-night-2)] p-6 rounded-2xl border border-white/10">
                   <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
                     <h3 className="font-display font-semibold text-sm flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-violet-400" /> Studio Tasks Track
+                      <Activity className="w-4 h-4 text-[var(--tcs-offwhite)]" /> Studio Tasks Track
                     </h3>
                     <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded">
                       {tasks.length} Active
@@ -730,7 +730,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                             </div>
                             <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
                               <div 
-                                className="h-full bg-gradient-to-r from-violet-600 to-indigo-400 transition-all duration-500"
+                                className="h-full bg-[var(--tcs-offwhite)] transition-all duration-500"
                                 style={{ width: `${task.progress}%` }}
                               />
                             </div>
@@ -759,7 +759,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     onClick={() => setActiveDashboardTab("work")}
                     className={`px-5 py-2.5 rounded-full text-xs font-semibold font-display tracking-wider uppercase transition-all flex items-center gap-2 border ${
                       activeDashboardTab === "work"
-                        ? "bg-violet-600 text-white border-violet-500/40 shadow-md shadow-violet-600/10"
+                        ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold"
                         : "text-gray-400 hover:text-white bg-white/5 border-transparent hover:bg-white/10"
                     }`}
                   >
@@ -769,7 +769,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     onClick={() => setActiveDashboardTab("deals")}
                     className={`px-5 py-2.5 rounded-full text-xs font-semibold font-display tracking-wider uppercase transition-all flex items-center gap-2 border ${
                       activeDashboardTab === "deals"
-                        ? "bg-violet-600 text-white border-violet-500/40 shadow-md shadow-violet-600/10"
+                        ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold"
                         : "text-gray-400 hover:text-white bg-white/5 border-transparent hover:bg-white/10"
                     }`}
                   >
@@ -778,8 +778,8 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                 </div>
 
                 {isDataLoading ? (
-                  <div className="glass-panel p-16 rounded-3xl border border-white/10 flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin mb-4" />
+                  <div className="bg-[var(--tcs-night-2)] p-16 rounded-2xl border border-white/10 flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 rounded-full border-2 border-[var(--tcs-offwhite)]/50 border-t-transparent animate-spin mb-4" />
                     <p className="text-gray-500 text-xs font-mono uppercase tracking-widest">Synchronizing secure client node...</p>
                   </div>
                 ) : activeDashboardTab === "work" ? (
@@ -790,7 +790,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                   <div className="space-y-6">
                     
                     {/* Work selector strip */}
-                    <div className="glass-panel p-4 rounded-2xl border border-white/10 space-y-2">
+                    <div className="bg-[var(--tcs-night-2)] p-4 rounded-2xl border border-white/10 space-y-2">
                       <div className="text-[10px] uppercase font-mono tracking-widest text-gray-500">Dispatched Project Assets</div>
                       <div className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin">
                         {works.length === 0 ? (
@@ -806,7 +806,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                   : "bg-black/35 text-gray-400 border-white/5 hover:text-gray-200 hover:border-white/10"
                               }`}
                             >
-                              {work.type === "video" ? <Video className="w-3.5 h-3.5 text-violet-400" /> : <ImageIcon className="w-3.5 h-3.5 text-amber-400" />}
+                              {work.type === "video" ? <Video className="w-3.5 h-3.5 text-[var(--tcs-offwhite)]" /> : <ImageIcon className="w-3.5 h-3.5 text-amber-400" />}
                               {work.title}
                             </button>
                           ))
@@ -819,7 +819,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                         
                         {/* Media Display Viewer (cols: 7) */}
                         <div className="lg:col-span-7 space-y-4">
-                          <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden bg-black/80 relative">
+                          <div className="bg-[var(--tcs-night-2)] rounded-2xl border border-white/10 overflow-hidden bg-black/80 relative">
                             {selectedWork.type === "video" ? (
                               <div className="aspect-video w-full flex items-center justify-center">
                                 <video
@@ -857,8 +857,8 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                           </div>
 
                           {/* Trace Feedback Form */}
-                          <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-4">
-                            <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-violet-400">Submit Trace Review</h4>
+                          <div className="bg-[var(--tcs-night-2)] p-5 rounded-2xl border border-white/10 space-y-4">
+                            <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-[var(--tcs-offwhite)]">Submit Trace Review</h4>
                             
                             <form onSubmit={submitFeedback} className="space-y-3">
                               {/* Conditionally render video/image helper fields */}
@@ -867,7 +867,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                   <button
                                     type="button"
                                     onClick={captureVideoTimestamp}
-                                    className="py-2.5 px-3 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-xl text-[10px] uppercase font-mono tracking-wider font-bold text-violet-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                                    className="py-2.5 px-3 bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--tcs-line)] rounded-xl text-[10px] uppercase font-mono tracking-wider font-bold text-[var(--tcs-offwhite)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                                   >
                                     <Clock className="w-3.5 h-3.5" /> Stamp Current Time
                                   </button>
@@ -878,10 +878,10 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                       value={videoTimestamp}
                                       onChange={(e) => setVideoTimestamp(e.target.value)}
                                       placeholder="MM:SS (e.g. 0:12)"
-                                      className="w-full px-3 py-2 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-xs font-mono text-white placeholder-gray-600 outline-none"
+                                      className="w-full px-3 py-2 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-xs font-mono text-white placeholder-gray-600 outline-none"
                                     />
                                     {videoTimestamp && (
-                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono bg-violet-500/20 text-violet-300 px-1 py-0.5 rounded">
+                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono bg-violet-500/20 text-[var(--tcs-offwhite)] px-1 py-0.5 rounded">
                                         Pinned
                                       </span>
                                     )}
@@ -916,13 +916,13 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                   value={feedbackComment}
                                   onChange={(e) => setFeedbackComment(e.target.value)}
                                   placeholder="Describe required changes or review feedback for our designers..."
-                                  className="w-full px-4 py-3 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-2xl text-xs transition-all text-white placeholder-gray-600 outline-none resize-none"
+                                  className="w-full px-4 py-3 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-2xl text-xs transition-all text-white placeholder-gray-600 outline-none resize-none"
                                 />
                               </div>
 
                               <button
                                 type="submit"
-                                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold font-display tracking-widest text-[10px] uppercase rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                                className="w-full py-2.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] text-white font-semibold font-display tracking-widest text-[10px] uppercase rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                               >
                                 <Send className="w-3 h-3" /> Dispatch Review Comment
                               </button>
@@ -933,7 +933,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
 
                         {/* Existing Feedback Timeline (cols: 5) */}
                         <div className="lg:col-span-5 space-y-4">
-                          <div className="glass-panel p-5 rounded-3xl border border-white/10 flex flex-col min-h-[350px]">
+                          <div className="bg-[var(--tcs-night-2)] p-5 rounded-2xl border border-white/10 flex flex-col min-h-[350px]">
                             <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-gray-400 border-b border-white/5 pb-3 mb-3 flex justify-between items-center">
                               <span>Markup Timeline</span>
                               <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-gray-500 px-2 py-0.5 rounded">
@@ -961,7 +961,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                                           {selectedWork.type === "video" && feedback.timestamp ? (
                                             <button
                                               onClick={() => seekToTimestamp(feedback.timestamp!)}
-                                              className="text-[9px] font-mono bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 text-violet-400 hover:text-violet-300 px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
+                                              className="text-[9px] font-mono bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)]/80 hover:text-white px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
                                             >
                                               <Play className="w-2.5 h-2.5 shrink-0" /> {feedback.timestamp}
                                             </button>
@@ -1007,10 +1007,10 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                   /* ========================================================================= */
                   /* DEALS & CONTRACT TAB                                                      */
                   /* ========================================================================= */
-                  <div className="glass-panel p-5 sm:p-8 rounded-3xl border border-white/10 space-y-6">
+                  <div className="bg-[var(--tcs-night-2)] p-5 sm:p-8 rounded-2xl border border-white/10 space-y-6">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                      <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center">
-                        <Award className="w-5 h-5 text-violet-400" />
+                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-[var(--tcs-line)] flex items-center justify-center">
+                        <Award className="w-5 h-5 text-[var(--tcs-offwhite)]" />
                       </div>
                       <div>
                         <h3 className="font-display font-medium text-lg">Active Studio contract agreements</h3>
@@ -1020,17 +1020,17 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl space-y-3">
-                        <div className="text-[10px] uppercase font-mono tracking-widest text-violet-400">Active Service Tier</div>
+                        <div className="text-[10px] uppercase font-mono tracking-widest text-[var(--tcs-offwhite)]">Active Service Tier</div>
                         <div className="font-display font-light text-2xl text-white">
-                          {clientProfile?.signing_up_for || "Cinema Grade Ads Agreement"}
+                          {clientProfile?.signing_up_for || "Custom Studio Production Agreement"}
                         </div>
                         <p className="text-gray-400 text-xs leading-relaxed">
-                          Your active agency subscription guarantees up to 8K AI video upscaling, custom prompt orchestrations, and temporal coherence stabilization.
+                          Your dedicated studio production pipeline covers creative direction, AI + live-action VFX production, color grading, sound design, and final master delivery.
                         </p>
                       </div>
 
                       <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl space-y-3">
-                        <div className="text-[10px] uppercase font-mono tracking-widest text-violet-400">Account Identity / Metadata</div>
+                        <div className="text-[10px] uppercase font-mono tracking-widest text-[var(--tcs-offwhite)]">Account Identity / Metadata</div>
                         <div className="space-y-2 font-mono text-xs">
                           <div className="flex justify-between">
                             <span className="text-gray-500">Client ID:</span>
@@ -1049,14 +1049,22 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     </div>
 
                     <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-start gap-4">
-                      <div className="p-2.5 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 shrink-0">
+                      <div className="p-2.5 rounded-xl bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] shrink-0">
                         <HelpCircle className="w-5 h-5" />
                       </div>
                       <div className="space-y-1">
                         <h4 className="text-xs font-semibold">Need custom changes to your deliverables schedule?</h4>
                         <p className="text-gray-500 text-[11px] leading-relaxed">
-                          You can easily add tracing review comments directly on your deliverables above. If you have custom budget changes, SLA updates, or need direct audio adjustments, please contact our concierge system using the bottom-right chat bubble.
+                          Add frame-accurate timestamp comments directly on any cut above. For urgent schedule updates, master format requests, or director notes, reach out directly on WhatsApp (+91 9958194155).
                         </p>
+                        <a
+                          href="https://wa.me/919958194155"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] hover:bg-white font-mono text-[10px] uppercase tracking-[0.14em] font-semibold transition-all"
+                        >
+                          Chat with Director on WhatsApp ↗
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -1075,12 +1083,12 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
       <footer className="w-full border-t border-white/5 py-6 bg-black/60 backdrop-blur-sm mt-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-gray-600">
           <div>
-            Generative Temporal Coherence in Visual Curation // thechantingstudio.in
+            © 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio • Client Portal
           </div>
           <div className="flex gap-4">
-            <span>Client SLA Node v1.12</span>
+            <span>Encrypted Client Workspace</span>
             <span>•</span>
-            <span>Secure WebSockets Active</span>
+            <span>Delhi → Worldwide</span>
           </div>
         </div>
       </footer>

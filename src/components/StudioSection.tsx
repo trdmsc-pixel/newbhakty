@@ -42,27 +42,27 @@ export const StudioSection: React.FC = () => {
     },
   ];
 
-  // 4 Process Steps (Part B)
+  // 4 Process Steps (Part B — editable from Admin Panel)
   const processSteps = [
     {
       step: "01",
-      name: "Brief",
-      detail: "You tell us the story and the deadline.",
+      name: siteSettings.process_1_name || "Brief",
+      detail: siteSettings.process_1_detail || "You tell us the story and the deadline.",
     },
     {
       step: "02",
-      name: "Look",
-      detail: "Treatment, style frames and the visual world.",
+      name: siteSettings.process_2_name || "Look",
+      detail: siteSettings.process_2_detail || "Treatment, style frames and the visual world.",
     },
     {
       step: "03",
-      name: "Make",
-      detail: "AI, live action and VFX in one pipeline.",
+      name: siteSettings.process_3_name || "Make",
+      detail: siteSettings.process_3_detail || "AI, live action and VFX in one pipeline.",
     },
     {
       step: "04",
-      name: "Deliver",
-      detail: "Graded, sound-designed, in every format you need.",
+      name: siteSettings.process_4_name || "Deliver",
+      detail: siteSettings.process_4_detail || "Graded, sound-designed, in every format you need.",
     },
   ];
 
@@ -75,10 +75,10 @@ export const StudioSection: React.FC = () => {
         <div className="mb-28">
           <div className="max-w-3xl mb-14">
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-              WHAT WE MAKE
+              {siteSettings.studio_make_eyebrow || "WHAT WE MAKE"}
             </p>
             <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
-              One studio. Every kind of frame.
+              {siteSettings.studio_make_title || "One studio. Every kind of frame."}
             </h2>
           </div>
 
@@ -155,10 +155,10 @@ export const StudioSection: React.FC = () => {
         <div>
           <div className="max-w-3xl mb-14">
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-              HOW WE WORK
+              {siteSettings.studio_work_eyebrow || "HOW WE WORK"}
             </p>
             <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
-              Directorial precision from brief to master.
+              {siteSettings.studio_work_title || "Directorial precision from brief to master."}
             </h2>
           </div>
 

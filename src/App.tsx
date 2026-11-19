@@ -225,6 +225,8 @@ function AppContent() {
           }
           credit={siteSettings.hero_credit || "BMW 4K TV SPOT • DIRECTED BY THE CHANTING STUDIO"}
           onWatchReel={() => setTriggerReelPlay(true)}
+          reelCtaLabel={siteSettings.hero_cta_reel_text || "▶ Watch the reel"}
+          projectCtaLabel={siteSettings.hero_cta_project_text || "Start a project"}
           onStartProject={() => navigate("#contact")}
         />
 
@@ -241,6 +243,8 @@ function AppContent() {
           }
           duration={siteSettings.showreel_duration || "0:45"}
           aspect={(siteSettings.showreel_aspect as "2.39" | "16:9") || "16:9"}
+          eyebrow={siteSettings.showreel_eyebrow || "SHOWREEL 2026"}
+          title={siteSettings.showreel_title || "Every frame, directed."}
           onStartProject={() => navigate("#contact")}
           onSeeWork={() => navigate("#work")}
           externalTriggerPlay={triggerReelPlay}

@@ -11,6 +11,8 @@ interface HeroSectionProps {
   credit?: string;
   onWatchReel: () => void;
   onStartProject: () => void;
+  reelCtaLabel?: string;
+  projectCtaLabel?: string;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -22,6 +24,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   credit = "",
   onWatchReel,
   onStartProject,
+  reelCtaLabel = "▶ Watch the reel",
+  projectCtaLabel = "Start a project",
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -179,7 +183,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onWatchReel}
             className="px-6 py-3.5 rounded bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-mono text-xs uppercase tracking-widest font-semibold flex items-center gap-2 hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
           >
-            <span>▶ Watch the reel</span>
+            <span>{reelCtaLabel}</span>
           </button>
 
           <button
@@ -187,7 +191,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onStartProject}
             className="px-6 py-3.5 rounded border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] font-mono text-xs uppercase tracking-widest hover:border-[var(--tcs-offwhite)]/60 hover:bg-white/[0.04] transition-all cursor-pointer"
           >
-            Start a project
+            {projectCtaLabel}
           </button>
         </motion.div>
       </div>

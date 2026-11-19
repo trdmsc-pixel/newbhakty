@@ -9,6 +9,8 @@ interface ShowreelSectionProps {
   posterUrl?: string;
   duration?: string;
   aspect?: "2.39" | "16:9";
+  eyebrow?: string;
+  title?: string;
   onStartProject?: () => void;
   onSeeWork?: () => void;
   externalTriggerPlay?: boolean;
@@ -20,6 +22,8 @@ export const ShowreelSection: React.FC<ShowreelSectionProps> = ({
   posterUrl = "/og.jpg",
   duration = "1:15",
   aspect = "16:9",
+  eyebrow = "SHOWREEL 2026",
+  title = "Every frame, directed.",
   onStartProject,
   onSeeWork,
   externalTriggerPlay = false,
@@ -224,10 +228,10 @@ export const ShowreelSection: React.FC<ShowreelSectionProps> = ({
       <section id="reel" className="relative w-full py-20 bg-[var(--tcs-night)] overflow-hidden select-none">
         <div className="max-w-[1600px] mx-auto px-6 md:px-12 mb-8">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-            SHOWREEL 2026
+            {eyebrow}
           </p>
           <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
-            Every frame, directed.
+            {title}
           </h2>
         </div>
 

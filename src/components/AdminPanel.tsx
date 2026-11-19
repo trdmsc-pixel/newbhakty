@@ -14,6 +14,8 @@ import {
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
+import { Wordmark } from "./brand/Wordmark";
+import { Ring } from "./brand/Ring";
 import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 
@@ -600,7 +602,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     } else {
       return {
         accentBg: "bg-[#ffea00] hover:bg-[#ffcc00] text-black",
-        focusBorder: "focus:border-[#ffea00]/40",
+        focusBorder: "focus:border-[var(--tcs-offwhite)]/40/40",
         focusRing: "focus:ring-[#ffea00]/20",
         headingText: "text-yellow-400",
         labelText: "text-yellow-400/90",
@@ -2601,29 +2603,31 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#07080C] text-[#F4EFE6] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-x-hidden">
+      <div className="min-h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+        {/* Subtle Spectral Light Leak */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[680px] h-[360px] spectral-glow opacity-30 pointer-events-none" />
+
         {/* LOGIN CONTAINER */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-[#0E0F14] p-6 sm:p-8 rounded-2xl relative z-10 border border-white/10 shadow-2xl"
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-md bg-[var(--tcs-night-2)] p-6 sm:p-8 rounded-2xl relative z-10 border border-[var(--tcs-line)] shadow-2xl overflow-hidden"
         >
-          {/* LOGO */}
-          <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-full border border-white/15 bg-white/[0.03] flex items-center justify-center relative shadow-lg">
-              <Lock className="w-5 h-5 text-[#F4EFE6]" />
-            </div>
-            <h1 className="font-sans font-bold text-lg tracking-[0.16em] uppercase text-[#F4EFE6]">
-              THE CHANTING STUDIO
-            </h1>
-            <p className="text-gray-400 font-mono text-[10px] uppercase tracking-widest text-center">
-              Studio Administration & Core CMS
+          <div className="absolute top-0 inset-x-0 h-[2px]" style={{ background: "var(--tcs-spectrum-linear)" }} />
+
+          {/* STUDIO WORDMARK */}
+          <div className="flex flex-col items-center gap-3.5 mb-8 pt-2">
+            <Ring size={44} stroke={3} glow={true} animate="spin-slow" />
+            <Wordmark capHeight={14} ringAnimation="spin-slow" />
+            <p className="text-[var(--tcs-dim)] font-mono text-[10px] uppercase tracking-[0.18em] text-center">
+              Studio Administration & Live CMS
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-[11px] font-mono uppercase text-gray-400 mb-2 tracking-widest">
+              <label className="block text-[10px] font-mono uppercase text-[var(--tcs-muted)] mb-2 tracking-[0.16em]">
                 Owner Email
               </label>
               <input
@@ -2632,12 +2636,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="studio@thechantingstudio.in"
-                className="w-full bg-[#07080C] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#F4EFE6] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+                className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-4 py-3 text-sm text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50 transition-all font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono uppercase text-gray-400 mb-2 tracking-widest">
+              <label className="block text-[10px] font-mono uppercase text-[var(--tcs-muted)] mb-2 tracking-[0.16em]">
                 Account Password
               </label>
               <input
@@ -2646,13 +2650,13 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••••••"
-                className="w-full bg-[#07080C] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#F4EFE6] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+                className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-4 py-3 text-sm text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50 transition-all font-mono"
               />
             </div>
 
             {authError && (
               <div className="flex items-start gap-2 text-xs text-red-400 bg-red-900/15 border border-red-500/25 rounded-lg p-3">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
                 <span className="font-mono text-[11px]">{authError}</span>
               </div>
             )}
@@ -2660,19 +2664,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3.5 rounded-lg bg-[#F4EFE6] text-[#07080C] font-semibold text-xs font-mono uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+              className="w-full py-3.5 rounded-lg bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold text-xs font-mono uppercase tracking-[0.16em] hover:bg-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
             >
-              {isLoggingIn ? "Authenticating via Supabase..." : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+              {isLoggingIn ? "Authenticating..." : <>Sign In to Studio CMS <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+          <div className="mt-7 pt-5 border-t border-[var(--tcs-line)] text-center">
             <button
               type="button"
               onClick={onNavigateHome}
-              className="text-xs text-gray-400 hover:text-[#F4EFE6] transition-colors uppercase tracking-widest font-mono cursor-pointer"
+              className="text-[11px] text-[var(--tcs-dim)] hover:text-[var(--tcs-offwhite)] transition-colors uppercase tracking-[0.16em] font-mono cursor-pointer"
             >
-              ← Return to Studio
+              ← Return to Live Studio
             </button>
           </div>
         </motion.div>
@@ -2680,159 +2684,87 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     );
   }
 
+  const videoAssets = mediaAssets.filter((a) => a.type === "video");
+  const imageAssets = mediaAssets.filter((a) => a.type === "image");
+  const pendingInquiriesCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
+  const unreadChatsCount = chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0);
+  const unreadFeedbackCount = allFeedbacks.filter((f) => !f.acknowledged).length;
+
+  const sidebarBtnClass = (isActive: boolean) =>
+    `w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[11px] font-mono uppercase tracking-[0.12em] transition-all duration-200 relative border cursor-pointer ${
+      isActive
+        ? "bg-[var(--tcs-night-2)] text-[var(--tcs-offwhite)] border-[var(--tcs-offwhite)]/25 font-semibold"
+        : "text-[var(--tcs-muted)] hover:text-[var(--tcs-offwhite)] bg-transparent border-transparent hover:bg-white/[0.03] hover:border-[var(--tcs-line)]"
+    }`;
+
   return (
-    <div className={`w-screen h-screen ${isLightMode ? "admin-light-mode" : theme.style.bodyBg} flex flex-col overflow-hidden relative transition-colors duration-500 font-sans`}>
+    <div className="w-screen h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col overflow-hidden relative font-sans">
+      {/* Top Spectral Accent Hairline */}
+      <div className="w-full h-[2px] shrink-0" style={{ background: "var(--tcs-spectrum-linear)" }} />
 
       {/* HEADER SECTION (Sticky Top) */}
-      <div className="sticky top-0 z-50 w-full bg-[#07080C]/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 lg:px-6 lg:py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 shrink-0 relative">
-        <div className="lg:w-1/3 flex-shrink-0 flex items-center justify-between lg:block">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileSidebarOpen((prev) => !prev)}
-              aria-label="Toggle Admin Navigation"
-              className="lg:hidden w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#F4EFE6] hover:border-white/30 transition-all cursor-pointer shrink-0"
-            >
-              {mobileSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
-            <span className="font-display font-semibold text-base sm:text-lg lg:text-xl tracking-[0.12em] uppercase text-[#F4EFE6]">
-              THE CHANTING STUDIO
-            </span>
-            <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-400" /> <span className="hidden sm:inline">Admin</span>
-            </span>
-          </div>
-          <p className="hidden lg:block text-gray-400 text-[11px] font-light mt-1 text-left">
-            Manage studio settings, portfolio curation, client access, and project inquiries.
-          </p>
+      <header className="sticky top-0 z-50 w-full bg-[var(--tcs-night)]/90 backdrop-blur-xl border-b border-[var(--tcs-line)] px-4 py-3 lg:px-6 lg:py-3.5 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen((prev) => !prev)}
+            aria-label="Toggle Admin Navigation"
+            className="lg:hidden w-9 h-9 rounded-lg bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] flex items-center justify-center text-[var(--tcs-offwhite)] hover:border-[var(--tcs-offwhite)]/40 transition-all cursor-pointer shrink-0"
+          >
+            {mobileSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+
+          <Wordmark capHeight={13} ringAnimation="spin-slow" />
+
+          <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)] pl-3 border-l border-[var(--tcs-line)]">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            Studio CMS
+          </span>
         </div>
 
-        {/* Center: Active Workspace Scope Toggle Selector */}
-        <div className="flex flex-col items-center justify-center md:w-1/3 my-2 md:my-0">
-          <span className="text-[8px] sm:text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-1.5 font-bold">Active Workspace Scope</span>
-          <div className="relative flex items-center p-1 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl w-full max-w-[280px] sm:max-w-sm">
-            <div className="relative flex w-full">
-              {/* Sliding Background Capsule */}
-              <motion.div
-                className={`absolute top-0 bottom-0 left-0 w-1/3 rounded-full bg-gradient-to-r shadow-[0_0_15px_rgba(255,255,255,0.15)] backdrop-blur-sm ${
-                  adminPageScope === "ai" 
-                    ? "from-[#ffea00]/80 to-[#ffb700]/80" 
-                    : adminPageScope === "live"
-                    ? "from-fuchsia-500 to-pink-600"
-                    : "from-violet-500 to-purple-600"
-                }`}
-                animate={{ x: adminPageScope === "ai" ? "0%" : adminPageScope === "live" ? "100%" : "200%" }}
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-              <button
-                onClick={() => {
-                  setAdminPageScope("ai");
-                  setActivePage("ai");
-                  toast.success("Switched editing scope to AI Production page.");
-                }}
-                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
-                  adminPageScope === "ai" ? "text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                AI Prod
-              </button>
-              <button
-                onClick={() => {
-                  setAdminPageScope("live");
-                  setActivePage("live");
-                  toast.success("Switched editing scope to Live-action Production page.");
-                }}
-                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
-                  adminPageScope === "live" ? "text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Live Action
-              </button>
-              <button
-                onClick={() => {
-                  setAdminPageScope("app");
-                  toast.success("Switched editing scope to Mobile App Version settings.");
-                }}
-                className={`relative z-10 w-1/3 py-1.5 text-[8px] sm:text-[9.5px] font-mono uppercase tracking-wider font-bold transition-colors duration-300 text-center cursor-pointer ${
-                  adminPageScope === "app" ? "text-white" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                App Version
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="md:w-1/3 flex items-center justify-start md:justify-end gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {isUsingSupabase ? (
-            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/5 px-2.5 py-1.5 rounded-lg border border-emerald-500/10">
-              ● Live Supabase Connected
+            <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono uppercase tracking-wider bg-emerald-500/10 px-2.5 py-1.5 rounded-full border border-emerald-500/20">
+              ● Live Supabase
             </span>
           ) : (
-            <span className="text-[10px] text-amber-400 font-mono bg-amber-500/5 px-2.5 py-1.5 rounded-lg border border-amber-500/10" title="Values persist instantly in localStorage fallback driver">
-              ▲ LocalStorage Database Engaged
+            <span
+              className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-amber-300 font-mono uppercase tracking-wider bg-amber-500/10 px-2.5 py-1.5 rounded-full border border-amber-500/20"
+              title="Values persist in localStorage fallback"
+            >
+              ▲ Local Backup
             </span>
           )}
-          
+
           <button
             type="button"
             onClick={onNavigateHome}
-            className="text-[11px] font-medium font-display tracking-tight bg-gradient-to-r from-white/10 to-white/5 border border-white/10 px-4 py-2 rounded-xl text-white hover:border-[#ffea00]/40 hover:text-[#ffea00] transition-all cursor-pointer"
+            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] px-3 sm:px-4 py-2 rounded-lg text-[var(--tcs-offwhite)] hover:border-[var(--tcs-offwhite)]/50 hover:bg-white/[0.04] transition-all cursor-pointer"
           >
-            Exit to Studio
+            View Live Site ↗
           </button>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="text-[11px] font-medium font-mono uppercase tracking-wider bg-red-950/20 border border-red-500/25 px-4 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] bg-red-950/20 border border-red-500/25 px-3 sm:px-3.5 py-2 rounded-lg text-red-300 hover:border-red-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <Lock className="w-3 h-3" /> Logout
-          </button>
-
-          {/* Responsive Day/Night Theme Toggle Switch */}
-          <button
-            type="button"
-            onClick={toggleLightMode}
-            className="relative w-12 h-6.5 rounded-full transition-all duration-300 cursor-pointer flex items-center p-0.5 border"
-            style={{
-              background: isLightMode ? "rgba(240, 240, 240, 0.8)" : "rgba(10, 10, 15, 0.6)",
-              borderColor: isLightMode ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(8px)",
-            }}
-            title={isLightMode ? "Switch to Night Mode" : "Switch to Day Mode"}
-          >
-            <motion.div
-              layout
-              className="w-5 h-5 rounded-full transition-all duration-300 relative flex items-center justify-center text-[10px]"
-              style={{
-                marginLeft: isLightMode ? "auto" : "0px",
-                background: isLightMode 
-                  ? "linear-gradient(135deg, #ff9e00, #ff6d00)" 
-                  : "linear-gradient(135deg, #7342e2, #2b5cf6)",
-                boxShadow: isLightMode 
-                  ? "0 0 10px rgba(255, 109, 0, 0.6)" 
-                  : "0 0 10px rgba(115, 66, 226, 0.6)",
-              }}
-            >
-              {isLightMode ? "☀️" : "🌙"}
-            </motion.div>
+            <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* WORKSPACE LAYOUT (Full width flex) */}
+      {/* WORKSPACE LAYOUT */}
       <div className="flex flex-1 overflow-hidden w-full relative z-10">
-
         {/* MOBILE / TABLET SIDEBAR BACKDROP */}
         {mobileSidebarOpen && (
           <div
             onClick={() => setMobileSidebarOpen(false)}
-            className="fixed inset-0 z-[65] bg-black/70 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-sm lg:hidden"
           />
         )}
-        
-        {/* SIDEBAR NAVIGATION (Slide-over drawer on mobile/tablet, sticky w-72 on desktop) */}
+
+        {/* SIDEBAR NAVIGATION — ORGANIZED IN EXACT LIVE WEBSITE SEQUENCE */}
         <aside
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("button")) {
@@ -2841,253 +2773,171 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           }}
           className={`${
             mobileSidebarOpen
-              ? "fixed inset-y-0 left-0 z-[70] flex w-[280px] max-w-[85vw] bg-[#07080C]/95 shadow-2xl"
+              ? "fixed inset-y-0 left-0 z-[70] flex w-[285px] max-w-[85vw] bg-[var(--tcs-night)] shadow-2xl"
               : "hidden"
-          } lg:sticky lg:left-0 lg:flex lg:w-72 lg:bg-[#07080C]/60 h-full shrink-0 border-r border-white/10 backdrop-blur-xl p-4 lg:p-5 flex-col gap-2 overflow-y-auto`}
+          } lg:sticky lg:left-0 lg:flex lg:w-72 lg:bg-[var(--tcs-night)]/95 h-full shrink-0 border-r border-[var(--tcs-line)] p-4 flex-col gap-1.5 overflow-y-auto`}
         >
-          <div className="flex lg:hidden items-center justify-between pb-3 mb-2 border-b border-white/10">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-[#F4EFE6]/70">Studio CMS</span>
+          <div className="flex lg:hidden items-center justify-between pb-3 mb-2 border-b border-[var(--tcs-line)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tcs-dim)]">Studio Control</span>
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(false)}
-              className="p-1.5 rounded-lg bg-white/5 text-gray-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded-lg bg-white/5 text-[var(--tcs-muted)] hover:text-white cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "settings"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Settings className="w-3.5 h-3.5" /> Global Copy & Media
-          </button>
-          
-          <button
-            onClick={() => setActiveTab("navigation")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "navigation"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Compass className="w-3.5 h-3.5" /> Navigation Menu
+
+          {/* GROUP 1: WEBSITE SECTIONS (IN LIVE PAGE ORDER) */}
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2 pt-1 pb-1">
+            Website Sections (Live Order)
+          </p>
+
+          <button type="button" onClick={() => setActiveTab("settings")} className={sidebarBtnClass(activeTab === "settings")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Settings className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">01 · Hero, Reel & Copy</span>
+            </span>
+            {activeTab === "settings" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("portfolio")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "portfolio"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Play className="w-3.5 h-3.5" /> Portfolio Manager
+          <button type="button" onClick={() => setActiveTab("brand_logos")} className={sidebarBtnClass(activeTab === "brand_logos")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Image className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">02 · Brand Logos</span>
+            </span>
+            {activeTab === "brand_logos" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          {/* Pricing Tiers retired from public studio site */}
-          {false && (
-            <button
-              onClick={() => setActiveTab("pricing")}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-                activeTab === "pricing"
-                  ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                  : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-              }`}
-              style={{ backdropFilter: "blur(12px)" }}
-            >
-              <ArrowDown className="w-3.5 h-3.5 rotate-45" /> Pricing packages
-            </button>
-          )}
-
-          <button
-            onClick={() => setActiveTab("assets")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "assets"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Upload className="w-3.5 h-3.5" /> Global Assets Manager
+          <button type="button" onClick={() => setActiveTab("portfolio")} className={sidebarBtnClass(activeTab === "portfolio")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Play className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">03 · Selected Work</span>
+            </span>
+            {activeTab === "portfolio" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("submissions")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "submissions"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <FileText className="w-3.5 h-3.5 shrink-0" /> 
-              <span className="truncate">Creative Intake Entries</span>
-            </div>
-            {(() => {
-              const pendingCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
-              if (pendingCount > 0) {
-                return (
-                  <span className="shrink-0 ml-2 bg-red-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                    {pendingCount}
-                  </span>
-                );
-              }
-              return null;
-            })()}
+          <button type="button" onClick={() => setActiveTab("testimonials")} className={sidebarBtnClass(activeTab === "testimonials")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">04 · Testimonials</span>
+            </span>
+            {activeTab === "testimonials" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "analytics"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <BarChart3 className="w-3.5 h-3.5" /> Real-time Analytics Board
+          <button type="button" onClick={() => setActiveTab("intake_form")} className={sidebarBtnClass(activeTab === "intake_form")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Sliders className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">05 · Inquiry Form</span>
+            </span>
+            {activeTab === "intake_form" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("intake_form")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "intake_form"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Sliders className="w-3.5 h-3.5" /> Ingestion Form Config
+          <button type="button" onClick={() => setActiveTab("navigation")} className={sidebarBtnClass(activeTab === "navigation")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Compass className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">06 · Navigation Links</span>
+            </span>
+            {activeTab === "navigation" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("brand_logos")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "brand_logos"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Image className="w-3.5 h-3.5" /> Brand Logos Manager
-          </button>
+          {/* GROUP 2: STUDIO OPERATIONS */}
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2 pt-4 pb-1 border-t border-[var(--tcs-line)] mt-2">
+            Studio Operations
+          </p>
 
-          <button
-            onClick={() => setActiveTab("testimonials")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "testimonials"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <MessageSquare className="w-3.5 h-3.5" /> Testimonials Manager
-          </button>
-
-          <button
-            onClick={() => setActiveTab("live_chats")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "live_chats"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Live Chats Console</span>
-            </div>
-            {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0) > 0 && (
-              <span className="px-2 py-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
-                {chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0)}
+          <button type="button" onClick={() => setActiveTab("submissions")} className={sidebarBtnClass(activeTab === "submissions")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Project Inquiries</span>
+            </span>
+            {pendingInquiriesCount > 0 && (
+              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+                {pendingInquiriesCount}
               </span>
             )}
           </button>
 
-          <button
-            onClick={() => setActiveTab("chat_settings")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "chat_settings"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <Sliders className="w-3.5 h-3.5" /> Chat Widget Config
+          <button type="button" onClick={() => setActiveTab("assets")} className={sidebarBtnClass(activeTab === "assets")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Upload className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Global Assets</span>
+            </span>
+            {activeTab === "assets" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          <button
-            onClick={() => setActiveTab("client_access")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "client_access"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
+          <button type="button" onClick={() => setActiveTab("analytics")} className={sidebarBtnClass(activeTab === "analytics")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Global Analytics</span>
+            </span>
+            {activeTab === "analytics" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+          </button>
+
+          <button type="button" onClick={() => setActiveTab("client_access")} className={sidebarBtnClass(activeTab === "client_access")}>
+            <span className="flex items-center gap-2.5 min-w-0">
               <Users className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Client Access Control</span>
-            </div>
-            {allFeedbacks.filter(f => !f.acknowledged).length > 0 && (
-              <span className="px-2 py-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
-                {allFeedbacks.filter(f => !f.acknowledged).length}
+              <span className="truncate">Client Access</span>
+            </span>
+            {unreadFeedbackCount > 0 && (
+              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+                {unreadFeedbackCount}
               </span>
             )}
           </button>
 
-          {/* QUICK SCHEMA INST INSTRUCTIONS */}
-          <div className="pt-4 mt-4 border-t border-white/5">
-            <div className="glass-panel p-3.5 rounded-2xl text-[10px] space-y-2">
-              <div className="flex items-center gap-1.5 text-gray-300 font-mono">
-                <HelpCircle className="w-3 h-3 text-gray-400" />
-                <span>Configuring Supabase</span>
-              </div>
-              <p className="text-gray-500 leading-relaxed text-left">
-                Provide <code className="text-amber-200/90 font-mono text-[9px]">VITE_SUPABASE_URL</code> inside <code className="text-amber-200/90 font-mono text-[9px]">.env</code> to redirect queries into Supabase automatically.
-              </p>
-            </div>
-          </div>
+          <button type="button" onClick={() => setActiveTab("live_chats")} className={sidebarBtnClass(activeTab === "live_chats")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Live Chats</span>
+            </span>
+            {unreadChatsCount > 0 && (
+              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+                {unreadChatsCount}
+              </span>
+            )}
+          </button>
+
+          <button type="button" onClick={() => setActiveTab("chat_settings")} className={sidebarBtnClass(activeTab === "chat_settings")}>
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Sliders className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Chat Config</span>
+            </span>
+            {activeTab === "chat_settings" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+          </button>
         </aside>
 
-        {/* CENTRAL MAIN CONTENT WINDOW WRAPPER */}
-        <main className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-10 relative">
-
-          {/* EDIT ZONE (Wrapped in a Framer Motion animation layer for hardware-accelerated fade transitions) */}
+        {/* CENTRAL MAIN CONTENT WINDOW */}
+        <main className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 relative bg-[var(--tcs-night)]">
           <motion.div
-            key={adminPageScope}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 min-h-[500px]"
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-[var(--tcs-night-2)] p-5 sm:p-7 lg:p-8 rounded-2xl border border-[var(--tcs-line)] min-h-[500px] max-w-6xl mx-auto"
           >
-              
-              {/* TAB 1: SITE SETTINGS */}
+              {/* TAB 1: LIVE WEBSITE SECTIONS (HERO, SHOWREEL, CAPABILITIES, PROCESS, CONTACT, FOOTER & SEO) */}
               {activeTab === "settings" && (
-                <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
-                    <div className="flex items-center gap-4">
-                      <h2 className="font-display font-medium text-xl text-white">
-                        Global Text Copy & Hero Configuration
+                <div className="space-y-8" onFocusCapture={() => recordSettingsHistory()}>
+                  {/* Sticky Save Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--tcs-line)] pb-5 gap-4">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tcs-dim)] mb-1">
+                        LIVE WEBSITE CONTENT SEQUENCE
+                      </p>
+                      <h2 className="font-display font-medium text-xl sm:text-2xl text-[var(--tcs-offwhite)] tracking-tight">
+                        Hero, Showreel, Studio Copy, Contact & Footer
                       </h2>
-                      
-                      {/* Undo / Redo controls */}
-                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="flex items-center gap-1 bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg p-0.5">
                         <button
                           type="button"
                           onClick={triggerSettingsUndo}
                           disabled={settingsHistory.length === 0}
                           title="Undo"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                          className="p-1.5 rounded text-[var(--tcs-muted)] hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
                         >
                           <Undo className="w-3.5 h-3.5" />
                         </button>
@@ -3096,1301 +2946,686 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           onClick={triggerSettingsRedo}
                           disabled={settingsFuture.length === 0}
                           title="Redo"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                          className="p-1.5 rounded text-[var(--tcs-muted)] hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
                         >
                           <Redo className="w-3.5 h-3.5" />
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={saveSettings}
+                        disabled={saveStatus.settings === "saving"}
+                        className="flex items-center gap-2 px-5 py-2.5 text-xs font-mono uppercase tracking-[0.14em] font-semibold rounded-lg bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] hover:bg-white transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {saveStatus.settings === "saving" ? "Publishing..." : saveStatus.settings === "saved" ? "Published ✓" : "Publish Changes"}
+                      </button>
                     </div>
-                    <button
-                      onClick={saveSettings}
-                      disabled={saveStatus.settings === "saving"}
-                      className={`flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all cursor-pointer shrink-0 ml-auto sm:ml-0 ${scopeStyle.accentBg}`}
-                    >
-                      <Save className="w-4 h-4" /> Synchronize settings
-                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onFocusCapture={() => recordSettingsHistory()}>
-                    {/* SECTION 8: THE CHANTING STUDIO - CINEMATIC STUDIO SETTINGS */}
-                    <div className="md:col-span-2 border border-white/10 rounded-2xl p-6 bg-black/40 space-y-6">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                        <div>
-                          <h3 className="font-display font-bold text-base text-[var(--tcs-offwhite)] uppercase tracking-wider">
-                            The Chanting Studio — Core Production Settings
-                          </h3>
-                          <p className="font-mono text-xs text-gray-400 mt-1">
-                            Directorial controls for Hero, Showreel, Capabilities (What We Make), Contact, and SEO.
-                          </p>
-                        </div>
-                      </div>
+                  {/* 01 · HERO SECTION (#top) */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        01 · Hero Section (#top)
+                      </h3>
+                      <span className="font-mono text-[10px] text-[var(--tcs-dim)]">First 3 seconds</span>
+                    </div>
 
-                      {/* 1. HERO SETTINGS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
-                          1. Hero Section (#top)
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Eyebrow Label (hero_eyebrow)</label>
-                            <input
-                              type="text"
-                              value={editSettings.hero_eyebrow || ""}
-                              onChange={(e) => handleSettingChange("hero_eyebrow", e.target.value)}
-                              placeholder="AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Frame Credit (hero_credit)</label>
-                            <input
-                              type="text"
-                              value={editSettings.hero_credit || ""}
-                              onChange={(e) => handleSettingChange("hero_credit", e.target.value)}
-                              placeholder="e.g. Aether Genesis, Nike"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Title (hero_title)</label>
-                            <textarea
-                              rows={2}
-                              value={editSettings.hero_title || ""}
-                              onChange={(e) => handleSettingChange("hero_title", e.target.value)}
-                              placeholder="Film-scale craft.&#10;AI-speed delivery."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono resize-none"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Description (hero_description)</label>
-                            <textarea
-                              rows={2}
-                              value={editSettings.hero_description || ""}
-                              onChange={(e) => handleSettingChange("hero_description", e.target.value)}
-                              placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Background Loop URL (hero_loop_url)</label>
-                            <input
-                              type="text"
-                              value={editSettings.hero_loop_url || ""}
-                              onChange={(e) => handleSettingChange("hero_loop_url", e.target.value)}
-                              placeholder="https://...mp4"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Poster URL (hero_poster_url)</label>
-                            <input
-                              type="text"
-                              value={editSettings.hero_poster_url || ""}
-                              onChange={(e) => handleSettingChange("hero_poster_url", e.target.value)}
-                              placeholder="/og.jpg"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                        </div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Eyebrow Label</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("hero_eyebrow", e.target.value)}
+                          placeholder="AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
                       </div>
-
-                      {/* 2. SHOWREEL SETTINGS */}
-                      <div className="pt-4 border-t border-white/10">
-                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
-                          2. Showreel Section (#reel)
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Showreel Video URL (showreel_video_url)</label>
-                            <input
-                              type="text"
-                              value={editSettings.showreel_video_url || ""}
-                              onChange={(e) => handleSettingChange("showreel_video_url", e.target.value)}
-                              placeholder="Cloudinary MP4 or https://vimeo.com/..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Showreel Poster URL (showreel_poster_url)</label>
-                            <input
-                              type="text"
-                              value={editSettings.showreel_poster_url || ""}
-                              onChange={(e) => handleSettingChange("showreel_poster_url", e.target.value)}
-                              placeholder="/og.jpg"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Duration Label (showreel_duration)</label>
-                            <input
-                              type="text"
-                              value={editSettings.showreel_duration || ""}
-                              onChange={(e) => handleSettingChange("showreel_duration", e.target.value)}
-                              placeholder="1:15"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Screen Aspect Ratio (showreel_aspect)</label>
-                            <select
-                              value={editSettings.showreel_aspect || "16:9"}
-                              onChange={(e) => handleSettingChange("showreel_aspect", e.target.value)}
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            >
-                              <option value="16:9">16:9 (Standard Widescreen)</option>
-                              <option value="2.39">2.39:1 (Cinematic Scope)</option>
-                            </select>
-                          </div>
-                        </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Now Playing Frame Credit</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_credit || ""}
+                          onChange={(e) => handleSettingChange("hero_credit", e.target.value)}
+                          placeholder="BMW 4K TV SPOT • DIRECTED BY THE CHANTING STUDIO"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
                       </div>
-
-                      {/* 3. CAPABILITIES (WHAT WE MAKE) */}
-                      <div className="pt-4 border-t border-white/10">
-                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
-                          3. Studio Capabilities (What We Make)
-                        </h4>
-                        <div className="space-y-4">
-                          {[1, 2, 3, 4, 5, 6].map((num) => (
-                            <div key={num} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-black/30 rounded-xl border border-white/5">
-                              <div>
-                                <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">0{num} Title (service_{num}_title)</label>
-                                <input
-                                  type="text"
-                                  value={editSettings[`service_${num}_title`] || ""}
-                                  onChange={(e) => handleSettingChange(`service_${num}_title`, e.target.value)}
-                                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
-                                />
-                              </div>
-                              <div className="md:col-span-2">
-                                <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">0{num} Description (service_{num}_desc)</label>
-                                <input
-                                  type="text"
-                                  value={editSettings[`service_${num}_desc`] || ""}
-                                  onChange={(e) => handleSettingChange(`service_${num}_desc`, e.target.value)}
-                                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Hero Headline (2 lines — Line 1 Light, Line 2 Bold)</label>
+                        <textarea
+                          rows={2}
+                          value={editSettings.hero_title || ""}
+                          onChange={(e) => handleSettingChange("hero_title", e.target.value)}
+                          placeholder={"Film-scale craft.\nAI-speed delivery."}
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono resize-none focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
                       </div>
-
-                      {/* 4. CONTACT & SOCIAL CHANNELS */}
-                      <div className="pt-4 border-t border-white/10">
-                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
-                          4. Studio Contact & Channels
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Contact Email (contact_email)</label>
-                            <input
-                              type="email"
-                              value={editSettings.contact_email || ""}
-                              onChange={(e) => handleSettingChange("contact_email", e.target.value)}
-                              placeholder="studio@thechantingstudio.in"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">WhatsApp Number (whatsapp_number)</label>
-                            <input
-                              type="text"
-                              value={editSettings.whatsapp_number || ""}
-                              onChange={(e) => handleSettingChange("whatsapp_number", e.target.value)}
-                              placeholder="+91..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Instagram URL (instagram_url)</label>
-                            <input
-                              type="url"
-                              value={editSettings.instagram_url || ""}
-                              onChange={(e) => handleSettingChange("instagram_url", e.target.value)}
-                              placeholder="https://instagram.com/..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">LinkedIn URL (linkedin_url)</label>
-                            <input
-                              type="url"
-                              value={editSettings.linkedin_url || ""}
-                              onChange={(e) => handleSettingChange("linkedin_url", e.target.value)}
-                              placeholder="https://linkedin.com/company/..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">YouTube URL (youtube_url)</label>
-                            <input
-                              type="url"
-                              value={editSettings.youtube_url || ""}
-                              onChange={(e) => handleSettingChange("youtube_url", e.target.value)}
-                              placeholder="https://youtube.com/@..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Vimeo URL (vimeo_url)</label>
-                            <input
-                              type="url"
-                              value={editSettings.vimeo_url || ""}
-                              onChange={(e) => handleSettingChange("vimeo_url", e.target.value)}
-                              placeholder="https://vimeo.com/..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Behance URL (behance_url)</label>
-                            <input
-                              type="url"
-                              value={editSettings.behance_url || ""}
-                              onChange={(e) => handleSettingChange("behance_url", e.target.value)}
-                              placeholder="https://behance.net/..."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Inquiry Success Message</label>
-                            <input
-                              type="text"
-                              value={editSettings.booking_success_message || ""}
-                              onChange={(e) => handleSettingChange("booking_success_message", e.target.value)}
-                              placeholder="Your brief is with us. We'll be in touch shortly."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                        </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Hero Sub-Copy</label>
+                        <textarea
+                          rows={2}
+                          value={editSettings.hero_description || ""}
+                          onChange={(e) => handleSettingChange("hero_description", e.target.value)}
+                          placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] resize-none focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
                       </div>
-
-                      {/* 5. SEO & OPEN GRAPH */}
-                      <div className="pt-4 border-t border-white/10">
-                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
-                          5. SEO & Open Graph Social Cards
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">SEO Title (seo_title)</label>
-                            <input
-                              type="text"
-                              value={editSettings.seo_title || ""}
-                              onChange={(e) => handleSettingChange("seo_title", e.target.value)}
-                              placeholder="The Chanting Studio — AI-Native Cinematic Studio, Delhi"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">OG Share Image (og_image_url)</label>
-                            <input
-                              type="text"
-                              value={editSettings.og_image_url || ""}
-                              onChange={(e) => handleSettingChange("og_image_url", e.target.value)}
-                              placeholder="/og.jpg"
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">SEO Description (seo_description)</label>
-                            <input
-                              type="text"
-                              value={editSettings.seo_description || ""}
-                              onChange={(e) => handleSettingChange("seo_description", e.target.value)}
-                              placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses."
-                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                            />
-                          </div>
-                        </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Primary CTA Button Text</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_cta_reel_text || ""}
+                          onChange={(e) => handleSettingChange("hero_cta_reel_text", e.target.value)}
+                          placeholder="▶ Watch the reel"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Secondary CTA Button Text</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_cta_project_text || ""}
+                          onChange={(e) => handleSettingChange("hero_cta_project_text", e.target.value)}
+                          placeholder="Start a project"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">Hero Background Loop Video URL</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_loop_url || ""}
+                          onChange={(e) => handleSettingChange("hero_loop_url", e.target.value)}
+                          placeholder="https://...webm / .mp4"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                        {videoAssets.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && handleSettingChange("hero_loop_url", e.target.value)}
+                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
+                          >
+                            <option value="">↳ Pick from uploaded Video Assets...</option>
+                            {videoAssets.map((a) => (
+                              <option key={a.id} value={a.url}>{a.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">Hero Poster Still URL (Instant LCP)</label>
+                        <input
+                          type="text"
+                          value={editSettings.hero_poster_url || ""}
+                          onChange={(e) => handleSettingChange("hero_poster_url", e.target.value)}
+                          placeholder="https://...avif / .jpg"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                        {imageAssets.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && handleSettingChange("hero_poster_url", e.target.value)}
+                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
+                          >
+                            <option value="">↳ Pick from uploaded Image Assets...</option>
+                            {imageAssets.map((a) => (
+                              <option key={a.id} value={a.url}>{a.name}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     </div>
-                    {adminPageScope === "live" ? (
-                      <>
-                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2">
-                          <h4 className="text-sm font-semibold text-pink-500 font-display">Live-Action Viewport Background Settings</h4>
-                        </div>
-                        
-                        <div className="md:col-span-2 space-y-3">
-                          <label className="block text-xs font-mono uppercase text-gray-500">Hero Video/Image Source URL</label>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Custom Media URL</label>
-                              <input
-                                type="text"
-                                value={getSettingValueScoped("hero_video_bg_url")}
-                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Choose from Assets Library</label>
-                              <select
-                                value={getSettingValueScoped("hero_video_bg_url") || ""}
-                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500/40"
-                              >
-                                <option value="">-- Apply an Asset --</option>
-                                {mediaAssets.map((asset) => (
-                                  <option key={asset.id} value={asset.url}>
-                                    {asset.name} ({asset.type})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
+                  </section>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Dark Overlay Opacity (0.0 to 1.0)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_bg_overlay", "0.4")}
-                            onChange={(e) => handleSettingChangeScoped("hero_bg_overlay", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
+                  {/* 02 · SHOWREEL SECTION (#reel) */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        02 · Showreel Section (#reel)
+                      </h3>
+                      <span className="font-mono text-[10px] text-[var(--tcs-dim)]">Theatre Mode Centrepiece</span>
+                    </div>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Cinematic Blur Effect</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Showreel Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.showreel_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("showreel_eyebrow", e.target.value)}
+                          placeholder="SHOWREEL 2026"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Showreel Heading</label>
+                        <input
+                          type="text"
+                          value={editSettings.showreel_title || ""}
+                          onChange={(e) => handleSettingChange("showreel_title", e.target.value)}
+                          placeholder="Every frame, directed."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">Showreel Video URL (MP4 / WebM / Vimeo)</label>
+                        <input
+                          type="text"
+                          value={editSettings.showreel_video_url || ""}
+                          onChange={(e) => handleSettingChange("showreel_video_url", e.target.value)}
+                          placeholder="https://...webm / .mp4 or https://vimeo.com/..."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                        {videoAssets.length > 0 && (
                           <select
-                            value={getSettingValueScoped("hero_bg_blur", "none")}
-                            onChange={(e) => handleSettingChangeScoped("hero_bg_blur", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                            value=""
+                            onChange={(e) => e.target.value && handleSettingChange("showreel_video_url", e.target.value)}
+                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
                           >
-                            <option value="none">No Blur (Default)</option>
-                            <option value="sm">Subtle Blur (sm)</option>
-                            <option value="md">Medium Blur (md)</option>
-                            <option value="lg">Heavy Blur (lg)</option>
+                            <option value="">↳ Pick from uploaded Video Assets...</option>
+                            {videoAssets.map((a) => (
+                              <option key={a.id} value={a.url}>{a.name}</option>
+                            ))}
                           </select>
-                        </div>
-
-                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2 mt-4">
-                          <h4 className="text-sm font-semibold text-pink-500 font-display">Hero Typography & Alignment Settings</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Micro Badge Text</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_badge_text")}
-                            onChange={(e) => handleSettingChangeScoped("hero_badge_text", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Text Alignment Position</label>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">Showreel Poster URL (leave empty to use live video still frame)</label>
+                        <input
+                          type="text"
+                          value={editSettings.showreel_poster_url || ""}
+                          onChange={(e) => handleSettingChange("showreel_poster_url", e.target.value)}
+                          placeholder="Leave blank for automatic video still frame"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                        {imageAssets.length > 0 && (
                           <select
-                            value={getSettingValueScoped("hero_text_align", "left")}
-                            onChange={(e) => handleSettingChangeScoped("hero_text_align", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
+                            value=""
+                            onChange={(e) => e.target.value && handleSettingChange("showreel_poster_url", e.target.value)}
+                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
                           >
-                            <option value="left">Left Aligned (Mockup)</option>
-                            <option value="center">Centered</option>
-                            <option value="right">Right Aligned</option>
+                            <option value="">↳ Pick from uploaded Image Assets...</option>
+                            {imageAssets.map((a) => (
+                              <option key={a.id} value={a.url}>{a.name}</option>
+                            ))}
                           </select>
-                        </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Duration Label</label>
+                        <input
+                          type="text"
+                          value={editSettings.showreel_duration || ""}
+                          onChange={(e) => handleSettingChange("showreel_duration", e.target.value)}
+                          placeholder="1:15"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Aspect Ratio</label>
+                        <select
+                          value={editSettings.showreel_aspect || "16:9"}
+                          onChange={(e) => handleSettingChange("showreel_aspect", e.target.value)}
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        >
+                          <option value="16:9">16:9 (Widescreen)</option>
+                          <option value="2.39">2.39:1 (Anamorphic Scope)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </section>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 1</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_1")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_1", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
+                  {/* 03 · BRAND MARQUEE & SELECTED WORK HEADINGS */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        03 · Brand Logos & Selected Work (#work)
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("brand_logos")}
+                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
+                        >
+                          Manage Brand Logos →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("portfolio")}
+                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
+                        >
+                          Manage Films & Tabs →
+                        </button>
+                      </div>
+                    </div>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Size (CSS clamp or px)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_size", "clamp(1.65rem, 5vw, 3rem)")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_size", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                          />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Brand Marquee Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.brand_logos_title || ""}
+                          onChange={(e) => handleSettingChange("brand_logos_title", e.target.value)}
+                          placeholder="TRUSTED BY"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Selected Work Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.work_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("work_eyebrow", e.target.value)}
+                          placeholder="SELECTED WORK"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Selected Work Heading</label>
+                        <input
+                          type="text"
+                          value={editSettings.work_title || ""}
+                          onChange={(e) => handleSettingChange("work_title", e.target.value)}
+                          placeholder="Brands, worlds and everything between."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                    </div>
+                  </section>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 2 (Serif/Middle)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_2")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_2", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
+                  {/* 04 · WHAT WE MAKE (#studio Part A) */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        04 · What We Make (#studio — 6 Capabilities)
+                      </h3>
+                    </div>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Color - Lines 1 & 3 (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_title_color", "#ffffff")}
-                              onChange={(e) => handleSettingChangeScoped("hero_title_color", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_title_color").startsWith('#') && getSettingValueScoped("hero_title_color").length === 7 ? getSettingValueScoped("hero_title_color") : "#ffffff"}
-                              onChange={(e) => handleSettingChangeScoped("hero_title_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Section Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.studio_make_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("studio_make_eyebrow", e.target.value)}
+                          placeholder="WHAT WE MAKE"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Section Heading</label>
+                        <input
+                          type="text"
+                          value={editSettings.studio_make_title || ""}
+                          onChange={(e) => handleSettingChange("studio_make_title", e.target.value)}
+                          placeholder="One studio. Every kind of frame."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                    </div>
 
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Line 3</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_3")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_3", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Heading Title Color - Line 2 (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_title_color_line2", "#ffffff")}
-                              onChange={(e) => handleSettingChangeScoped("hero_title_color_line2", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_title_color_line2").startsWith('#') && getSettingValueScoped("hero_title_color_line2").length === 7 ? getSettingValueScoped("hero_title_color_line2") : "#ffffff"}
-                              onChange={(e) => handleSettingChangeScoped("hero_title_color_line2", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
-                          <textarea
-                            value={getSettingValueScoped("hero_description")}
-                            onChange={(e) => handleSettingChangeScoped("hero_description", e.target.value)}
-                            rows={3}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 resize-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Subtitle Font Size (CSS clamp or px)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_subtitle_size", "clamp(0.9rem, 2.5vw, 1.1rem)")}
-                            onChange={(e) => handleSettingChangeScoped("hero_subtitle_size", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Subtitle Text Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_subtitle_color", "#ffffff")}
-                              onChange={(e) => handleSettingChangeScoped("hero_subtitle_color", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_subtitle_color").startsWith('#') && getSettingValueScoped("hero_subtitle_color").length === 7 ? getSettingValueScoped("hero_subtitle_color") : "#ffffff"}
-                              onChange={(e) => handleSettingChangeScoped("hero_subtitle_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Padding Top Spacing</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_padding_top", "clamp(40px, 8vw, 72px)")}
-                            onChange={(e) => handleSettingChangeScoped("hero_padding_top", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Text Column Max Width</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_max_width", "560px")}
-                            onChange={(e) => handleSettingChangeScoped("hero_max_width", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                          />
-                        </div>
-
-                        <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2 mt-4">
-                          <h4 className="text-sm font-semibold text-pink-500 font-display">Hero CTA Button Settings</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Label Text</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_cta_text", "Get It Free")}
-                            onChange={(e) => handleSettingChangeScoped("hero_cta_text", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Background Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_cta_bg", "#7342E2")}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_bg", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_cta_bg").startsWith('#') && getSettingValueScoped("hero_cta_bg").length === 7 ? getSettingValueScoped("hero_cta_bg") : "#7342e2"}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_bg", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Text Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_cta_color", "#ffffff")}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_color", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_cta_color").startsWith('#') && getSettingValueScoped("hero_cta_color").length === 7 ? getSettingValueScoped("hero_cta_color") : "#ffffff"}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Text Size</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_cta_size", "clamp(0.9rem, 2vw, 1rem)")}
-                            onChange={(e) => handleSettingChangeScoped("hero_cta_size", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Glow (true/false)</label>
-                          <select
-                            value={getSettingValueScoped("hero_cta_glow", "true")}
-                            onChange={(e) => handleSettingChangeScoped("hero_cta_glow", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40"
-                          >
-                            <option value="true">Glow Enabled</option>
-                            <option value="false">Glow Disabled</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">CTA Button Glow Shadow Color (RGBA)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_cta_glow_color", "rgba(115,66,226,0.28)")}
-                            onChange={(e) => handleSettingChangeScoped("hero_cta_glow_color", e.target.value)}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500/40 font-mono"
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="md:col-span-2 space-y-3">
-                          <label className="block text-xs font-mono uppercase text-gray-500">Hero Video Background Source (Looping)</label>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Custom Media URL</label>
-                              <input
-                                type="text"
-                                value={getSettingValueScoped("hero_video_bg_url")}
-                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Choose from Assets Library</label>
-                              <select
-                                value={getSettingValueScoped("hero_video_bg_url") || ""}
-                                onChange={(e) => handleSettingChangeScoped("hero_video_bg_url", e.target.value)}
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                              >
-                                <option value="">-- Apply an Asset --</option>
-                                {mediaAssets.map((asset) => (
-                                  <option key={asset.id} value={asset.url}>
-                                    {asset.name} ({asset.type})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Micro Badge Text</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_badge_text")}
-                            onChange={(e) => handleSettingChangeScoped("hero_badge_text", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Footer Copyright Text</label>
-                          <input
-                            type="text"
-                            value={editSettings.footer_copyright}
-                            onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 1</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_1")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_1", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 2 (Serif)</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_2")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_2", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Header Line 3</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_title_3")}
-                            onChange={(e) => handleSettingChangeScoped("hero_title_3", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Label</label>
-                          <input
-                            type="text"
-                            value={getSettingValueScoped("hero_cta_booking_text")}
-                            onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text", e.target.value)}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_cta_booking_color")}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_color", e.target.value)}
-                              placeholder="e.g. #ffea00"
-                              className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_cta_booking_color") && getSettingValueScoped("hero_cta_booking_color").startsWith('#') && getSettingValueScoped("hero_cta_booking_color").length === 7 ? getSettingValueScoped("hero_cta_booking_color") : "#ffea00"}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Main CTA Button Text Color (HEX)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_cta_booking_text_color")}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text_color", e.target.value)}
-                              placeholder="e.g. #FFFFFF"
-                              className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} font-mono`}
-                            />
-                            <input
-                              type="color"
-                              value={getSettingValueScoped("hero_cta_booking_text_color") && getSettingValueScoped("hero_cta_booking_text_color").startsWith('#') && getSettingValueScoped("hero_cta_booking_text_color").length === 7 ? getSettingValueScoped("hero_cta_booking_text_color") : "#FFFFFF"}
-                              onChange={(e) => handleSettingChangeScoped("hero_cta_booking_text_color", e.target.value)}
-                              className="w-12 h-10 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Hero Subtitle Paragraph Description</label>
-                          <textarea
-                            value={getSettingValueScoped("hero_description")}
-                            onChange={(e) => handleSettingChangeScoped("hero_description", e.target.value)}
-                            rows={4}
-                            className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${scopeStyle.focusBorder} resize-none`}
-                          />
-                        </div>
-
-                        {/* Stats */}
-                        <div className="border-t border-white/5 pt-6 md:col-span-2 grid grid-cols-3 gap-4">
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4, 5, 6].map((num) => (
+                        <div key={num} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 bg-[var(--tcs-night-2)] rounded-lg border border-[var(--tcs-line)]">
                           <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 1 Value</label>
+                            <label className="block text-[9px] font-mono uppercase tracking-wider text-[var(--tcs-dim)] mb-1">0{num} Title</label>
                             <input
                               type="text"
-                              value={getSettingValueScoped("hero_stat1_value")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat1_value", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_stat1_label")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat1_label", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                              value={editSettings[`service_${num}_title`] || ""}
+                              onChange={(e) => handleSettingChange(`service_${num}_title`, e.target.value)}
+                              className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                             />
                           </div>
-                          
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 2 Value</label>
+                          <div className="md:col-span-2">
+                            <label className="block text-[9px] font-mono uppercase tracking-wider text-[var(--tcs-dim)] mb-1">0{num} One-Line Description</label>
                             <input
                               type="text"
-                              value={getSettingValueScoped("hero_stat2_value")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat2_value", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_stat2_label")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat2_label", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Stat 3 Value</label>
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_stat3_value")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat3_value", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
-                            />
-                            <label className="block text-[8px] font-mono uppercase text-gray-600 mt-1">Label</label>
-                            <input
-                              type="text"
-                              value={getSettingValueScoped("hero_stat3_label")}
-                              onChange={(e) => handleSettingChangeScoped("hero_stat3_label", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                              value={editSettings[`service_${num}_desc`] || ""}
+                              onChange={(e) => handleSettingChange(`service_${num}_desc`, e.target.value)}
+                              className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                             />
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  </section>
 
-                        {/* HERO SPACING & LAYOUT CONTROLS */}
-                        <div className="border-t border-white/5 pt-6 md:col-span-2">
-                          <h3 className={`text-sm font-semibold ${scopeStyle.headingText} font-display mb-3`}>Hero Section Spacing & Layout Controls</h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Top</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_padding_top || ""}
-                                onChange={(e) => handleSettingChange("hero_padding_top", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Padding Bottom</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_padding_bottom || ""}
-                                onChange={(e) => handleSettingChange("hero_padding_bottom", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Top</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_margin_top || ""}
-                                onChange={(e) => handleSettingChange("hero_margin_top", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Margin Bottom</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_margin_bottom || ""}
-                                onChange={(e) => handleSettingChange("hero_margin_bottom", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Width</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_text_width || ""}
-                                onChange={(e) => handleSettingChange("hero_text_width", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Text Area Max Height</label>
-                              <input
-                                type="text"
-                                value={editSettings.hero_text_height || ""}
-                                onChange={(e) => handleSettingChange("hero_text_height", e.target.value)}
-                                placeholder="default"
-                                className={`w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 ${scopeStyle.focusBorder}`}
-                              />
-                            </div>
+                  {/* 05 · HOW WE WORK (#studio Part B) */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        05 · How We Work (#studio — 4 Process Steps)
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Process Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.studio_work_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("studio_work_eyebrow", e.target.value)}
+                          placeholder="HOW WE WORK"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Process Heading</label>
+                        <input
+                          type="text"
+                          value={editSettings.studio_work_title || ""}
+                          onChange={(e) => handleSettingChange("studio_work_title", e.target.value)}
+                          placeholder="Directorial precision from brief to master."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        { num: 1, defName: "Brief", defDetail: "You tell us the story and the deadline." },
+                        { num: 2, defName: "Look", defDetail: "Treatment, style frames and the visual world." },
+                        { num: 3, defName: "Make", defDetail: "AI, live action and VFX in one pipeline." },
+                        { num: 4, defName: "Deliver", defDetail: "Graded, sound-designed, in every format you need." },
+                      ].map(({ num, defName, defDetail }) => (
+                        <div key={num} className="p-3.5 bg-[var(--tcs-night-2)] rounded-lg border border-[var(--tcs-line)] space-y-2.5">
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-wider text-[var(--tcs-dim)] mb-1">Step 0{num} Title</label>
+                            <input
+                              type="text"
+                              value={editSettings[`process_${num}_name`] || ""}
+                              onChange={(e) => handleSettingChange(`process_${num}_name`, e.target.value)}
+                              placeholder={defName}
+                              className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-wider text-[var(--tcs-dim)] mb-1">Step 0{num} Detail</label>
+                            <input
+                              type="text"
+                              value={editSettings[`process_${num}_detail`] || ""}
+                              onChange={(e) => handleSettingChange(`process_${num}_detail`, e.target.value)}
+                              placeholder={defDetail}
+                              className="w-full bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                            />
                           </div>
                         </div>
-                      </>
-                    )}
+                      ))}
+                    </div>
+                  </section>
 
-                    {/* BRAND / PARAMS: NAVIGATION LOGO STYLING */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <h3 className="text-sm font-semibold text-gray-300 font-display mb-3">Logo Appearance Attributes (Navbar logo)</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Logo URL Resource Link</label>
+                  {/* 06 · TESTIMONIALS & START A PROJECT COPY (#clients & #contact) */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        06 · Testimonials & Start a Project (#clients & #contact)
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("testimonials")}
+                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
+                        >
+                          Edit Testimonials →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("intake_form")}
+                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
+                        >
+                          Edit Form Fields →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Testimonials Section Eyebrow</label>
+                        <input
+                          type="text"
+                          value={editSettings.testimonials_eyebrow || ""}
+                          onChange={(e) => handleSettingChange("testimonials_eyebrow", e.target.value)}
+                          placeholder="CLIENT ENDORSEMENTS & FEEDBACK"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Inquiry Form Heading</label>
+                        <input
+                          type="text"
+                          value={editSettings.booking_form_title || ""}
+                          onChange={(e) => handleSettingChange("booking_form_title", e.target.value)}
+                          placeholder="Tell us what you're making."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Inquiry Form Subtitle</label>
+                        <input
+                          type="text"
+                          value={editSettings.booking_form_subtitle || ""}
+                          onChange={(e) => handleSettingChange("booking_form_subtitle", e.target.value)}
+                          placeholder="We read every brief and reply personally."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Post-Submission Success Message</label>
+                        <input
+                          type="text"
+                          value={editSettings.booking_success_message || ""}
+                          onChange={(e) => handleSettingChange("booking_success_message", e.target.value)}
+                          placeholder="Your brief is with us. We'll be in touch shortly."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* 07 · DIRECT CONTACT, WHATSAPP & SOCIAL CHANNELS */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        07 · Direct Contact, WhatsApp & Social Links
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Studio Contact Email</label>
+                        <input
+                          type="email"
+                          value={editSettings.contact_email || ""}
+                          onChange={(e) => handleSettingChange("contact_email", e.target.value)}
+                          placeholder="studio@thechantingstudio.in"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">WhatsApp Direct (Chat with Director)</label>
+                        <input
+                          type="text"
+                          value={editSettings.whatsapp_number || ""}
+                          onChange={(e) => handleSettingChange("whatsapp_number", e.target.value)}
+                          placeholder="+91 9958194155"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Instagram URL</label>
+                        <input
+                          type="url"
+                          value={editSettings.instagram_url || ""}
+                          onChange={(e) => handleSettingChange("instagram_url", e.target.value)}
+                          placeholder="https://instagram.com/thechantingstudio"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">LinkedIn URL</label>
+                        <input
+                          type="url"
+                          value={editSettings.linkedin_url || ""}
+                          onChange={(e) => handleSettingChange("linkedin_url", e.target.value)}
+                          placeholder="https://www.linkedin.com/company/thechantingstudio"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">YouTube URL</label>
+                        <input
+                          type="url"
+                          value={editSettings.youtube_url || ""}
+                          onChange={(e) => handleSettingChange("youtube_url", e.target.value)}
+                          placeholder="https://youtube.com/@thechantingstudio"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Vimeo URL</label>
+                        <input
+                          type="url"
+                          value={editSettings.vimeo_url || ""}
+                          onChange={(e) => handleSettingChange("vimeo_url", e.target.value)}
+                          placeholder="https://vimeo.com/thechantingstudio"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Behance URL</label>
+                        <input
+                          type="url"
+                          value={editSettings.behance_url || ""}
+                          onChange={(e) => handleSettingChange("behance_url", e.target.value)}
+                          placeholder="https://behance.net/..."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* 08 · FOOTER, EXTREME BOTTOM LOGO & SEO / PIXEL */}
+                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
+                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
+                        08 · Footer, Bottom Logo & SEO / Meta Pixel
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">
+                          Extreme Bottom Footer Logo URL (logo_img_url)
+                        </label>
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                           <input
                             type="text"
                             value={editSettings.logo_img_url || ""}
                             onChange={(e) => handleSettingChange("logo_img_url", e.target.value)}
-                            placeholder="e.g. https://domain.com/logo.png"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
+                            placeholder="https://...png / .svg"
+                            className="flex-1 w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                           />
+                          {editSettings.logo_img_url && (
+                            <div className="px-3 py-2 rounded-lg bg-black border border-[var(--tcs-line)] shrink-0">
+                              <img
+                                src={editSettings.logo_img_url}
+                                alt="Footer logo preview"
+                                className="h-6 w-auto max-w-[120px] object-contain"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo Width (e.g. auto, 120px)</label>
-                          <input
-                            type="text"
-                            value={editSettings.logo_width || ""}
-                            onChange={(e) => handleSettingChange("logo_width", e.target.value)}
-                            placeholder="auto"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo Height (e.g. 36px, 48px)</label>
-                          <input
-                            type="text"
-                            value={editSettings.logo_height || ""}
-                            onChange={(e) => handleSettingChange("logo_height", e.target.value)}
-                            placeholder="36px"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Mobile Logo Width (e.g. auto, 80px)</label>
-                          <input
-                            type="text"
-                            value={editSettings.logo_width_mobile || ""}
-                            onChange={(e) => handleSettingChange("logo_width_mobile", e.target.value)}
-                            placeholder="auto"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Mobile Logo Height (e.g. 24px, 32px)</label>
-                          <input
-                            type="text"
-                            value={editSettings.logo_height_mobile || ""}
-                            onChange={(e) => handleSettingChange("logo_height_mobile", e.target.value)}
-                            placeholder="28px"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Navbar Logo CSS Padding (e.g. 0px, 4px 8px)</label>
-                          <input
-                            type="text"
-                            value={editSettings.logo_padding || ""}
-                            onChange={(e) => handleSettingChange("logo_padding", e.target.value)}
-                            placeholder="0px"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none"
-                          />
-                        </div>
+                        {imageAssets.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && handleSettingChange("logo_img_url", e.target.value)}
+                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
+                          >
+                            <option value="">↳ Pick Footer Logo from uploaded Image Assets...</option>
+                            {imageAssets.map((a) => (
+                              <option key={a.id} value={a.url}>{a.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Footer Location Line</label>
+                        <input
+                          type="text"
+                          value={editSettings.footer_location || ""}
+                          onChange={(e) => handleSettingChange("footer_location", e.target.value)}
+                          placeholder="Delhi, India → Worldwide"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Footer Portals Row Label</label>
+                        <input
+                          type="text"
+                          value={editSettings.footer_portals_label || ""}
+                          onChange={(e) => handleSettingChange("footer_portals_label", e.target.value)}
+                          placeholder="Direct Studio Access & Client Portals"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Footer Copyright Text</label>
+                        <input
+                          type="text"
+                          value={editSettings.footer_copyright || ""}
+                          onChange={(e) => handleSettingChange("footer_copyright", e.target.value)}
+                          placeholder="© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">SEO Page Title</label>
+                        <input
+                          type="text"
+                          value={editSettings.seo_title || ""}
+                          onChange={(e) => handleSettingChange("seo_title", e.target.value)}
+                          placeholder="The Chanting Studio — AI-Native Cinematic Studio, Delhi"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Open Graph Share Image URL</label>
+                        <input
+                          type="text"
+                          value={editSettings.og_image_url || ""}
+                          onChange={(e) => handleSettingChange("og_image_url", e.target.value)}
+                          placeholder="/og.jpg"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">SEO Meta Description</label>
+                        <textarea
+                          rows={2}
+                          value={editSettings.seo_description || ""}
+                          onChange={(e) => handleSettingChange("seo_description", e.target.value)}
+                          placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses. Delhi → Worldwide."
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono resize-none focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Meta Pixel ID</label>
+                        <input
+                          type="text"
+                          value={editSettings.meta_pixel_id || ""}
+                          onChange={(e) => handleSettingChange("meta_pixel_id", e.target.value)}
+                          placeholder="1503541224635678"
+                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                        />
                       </div>
                     </div>
-
-                    {/* STUDIO DESIGN SYSTEM LOCK NOTICE */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Palette className="w-4 h-4 text-emerald-400" />
-                        <h3 className="text-sm font-semibold text-white font-display">Studio Design System Locked</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 font-mono leading-relaxed">
-                        Active Theme: Studio Night (#07080C) with Archivo / Manrope / JetBrains Mono typography and spectral chromatic accents. Theme switcher and typography overrides are locked in code to preserve award-calibre film-studio aesthetics.
-                      </p>
-                    </div>
-
-                    {/* INTERACTIVE WEBSITE THEME SWITCHER TABLE (LOCKED) */}
-                    {false && (
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Palette className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Active Global Website Theme</h3>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
-                        {WEB_THEMES.map((themeOption) => {
-                          const isCurrent = (editSettings.website_theme || "obsidian_cyber") === themeOption.id;
-                          return (
-                            <button
-                              key={themeOption.id}
-                              type="button"
-                              onClick={() => {
-                                handleSettingChange("website_theme", themeOption.id);
-                                toast.info(`Applied preview theme: ${themeOption.name}`);
-                              }}
-                              className={`p-3.5 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
-                                isCurrent 
-                                  ? "bg-[#ffea00]/15 border-[#ffea00] text-white" 
-                                  : "bg-black/40 border-white/5 hover:border-white/20 text-gray-400 hover:text-white"
-                              }`}
-                            >
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-[#ffea00] opacity-80">
-                                {themeOption.type}
-                              </span>
-                              <span className="text-xs font-semibold truncate w-full">{themeOption.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* FULL WIDTH OPTION */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sliders className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Website Dimension Configuration</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
-                        Control the maximum stretching limits of page blocks. Full-width mode allows all curated sections to scale to the complete outer margins of your client viewer without overlaying or interfering with the navigation bars.
-                      </p>
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSettingChange("website_full_width", "false");
-                            toast.info("Switched to Default Moderate Width spacing (max 1280px / 7xl).");
-                          }}
-                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
-                            (editSettings.website_full_width !== "true")
-                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
-                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
-                          }`}
-                        >
-                          Default Moderate (7xl Max Width)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSettingChange("website_full_width", "true");
-                            toast.info("Switched website layout to Full Width Cinematic stretch mode.");
-                          }}
-                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
-                            (editSettings.website_full_width === "true")
-                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
-                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
-                          }`}
-                        >
-                          Cinematic Full Width (Edge-to-Edge)
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* GLOBAL NAVIGATION BAR SIZING */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sliders className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Global Navigation Bar Sizing</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
-                        Configure the design spacing of the main navigation bar. Toggling full-width stretches the header to screen boundaries, disabling borders and pill-style roundings for a modern cinematic borderless look.
-                      </p>
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSettingChangeScoped("navbar_full_width", "false");
-                            toast.info(`Switched ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation to Compact Floating Capsule.`);
-                          }}
-                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
-                            (getSettingValueScoped("navbar_full_width") !== "true")
-                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
-                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
-                          }`}
-                        >
-                          Compact Floating Capsule (Default)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSettingChangeScoped("navbar_full_width", "true");
-                            toast.info(`Switched ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation to Cinematic Full Width.`);
-                          }}
-                          className={`flex-1 py-3.5 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
-                            (getSettingValueScoped("navbar_full_width") === "true")
-                              ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
-                              : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
-                          }`}
-                        >
-                          Cinematic Full Width (Edge-to-Edge)
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* BACKGROUND GRADIENT TINT SETTINGS */}
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Palette className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Background Gradient Tint Customization</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
-                        Customize the background ambient gradient tints for the AI Production page and the Live Action page.
-                      </p>
-                      
-                      <div className="space-y-6">
-                        {/* AI Production Page Gradients */}
-                        <div>
-                          <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase mb-3">AI Production Page (Page 1) Tints</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 1 (Default: #7e22ce)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.bg_gradient_color_1 || "#7e22ce"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_1", e.target.value)}
-                                  placeholder="#7e22ce"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.bg_gradient_color_1 && editSettings.bg_gradient_color_1.startsWith('#') && editSettings.bg_gradient_color_1.length === 7 ? editSettings.bg_gradient_color_1 : "#7e22ce"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_1", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 2 (Default: #3b82f6)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.bg_gradient_color_2 || "#3b82f6"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_2", e.target.value)}
-                                  placeholder="#3b82f6"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.bg_gradient_color_2 && editSettings.bg_gradient_color_2.startsWith('#') && editSettings.bg_gradient_color_2.length === 7 ? editSettings.bg_gradient_color_2 : "#3b82f6"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_2", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 3 (Default: #000000)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.bg_gradient_color_3 || "#000000"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_3", e.target.value)}
-                                  placeholder="#000000"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.bg_gradient_color_3 && editSettings.bg_gradient_color_3.startsWith('#') && editSettings.bg_gradient_color_3.length === 7 ? editSettings.bg_gradient_color_3 : "#000000"}
-                                  onChange={(e) => handleSettingChange("bg_gradient_color_3", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Live Action Page Gradients */}
-                        <div>
-                          <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase mb-3">Live Action Page (Page 2) Tints</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 1 (Default: #b91c1c)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.page2_bg_gradient_color_1 || "#b91c1c"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_1", e.target.value)}
-                                  placeholder="#b91c1c"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.page2_bg_gradient_color_1 && editSettings.page2_bg_gradient_color_1.startsWith('#') && editSettings.page2_bg_gradient_color_1.length === 7 ? editSettings.page2_bg_gradient_color_1 : "#b91c1c"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_1", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 2 (Default: #d97706)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.page2_bg_gradient_color_2 || "#d97706"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_2", e.target.value)}
-                                  placeholder="#d97706"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.page2_bg_gradient_color_2 && editSettings.page2_bg_gradient_color_2.startsWith('#') && editSettings.page2_bg_gradient_color_2.length === 7 ? editSettings.page2_bg_gradient_color_2 : "#d97706"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_2", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1.5">Color 3 (Default: #000000)</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editSettings.page2_bg_gradient_color_3 || "#000000"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_3", e.target.value)}
-                                  placeholder="#000000"
-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                />
-                                <input
-                                  type="color"
-                                  value={editSettings.page2_bg_gradient_color_3 && editSettings.page2_bg_gradient_color_3.startsWith('#') && editSettings.page2_bg_gradient_color_3.length === 7 ? editSettings.page2_bg_gradient_color_3 : "#000000"}
-                                  onChange={(e) => handleSettingChange("page2_bg_gradient_color_3", e.target.value)}
-                                  className="w-10 h-8 bg-black/40 border border-white/5 rounded-xl p-1 cursor-pointer shrink-0"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* TYPOGRAPHY & FONT CUSTOMIZATION (LOCKED) */}
-                    {false && (
-                    <div className="border-t border-white/5 pt-6 md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Type className="w-4 h-4 text-[#ffea00]" />
-                        <h3 className="text-sm font-semibold text-gray-300 font-display">Typography & Font Customization</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
-                        Configure font selection, text size, and bold toggle globally across the website. Standard web-safe fallback configurations are applied automatically.
-                      </p>
-
-                      <div className="space-y-6">
-                        {[
-                          { key: "headings", label: "Global Headings (h1, h2, h3, h4, h5, h6)" },
-                          { key: "paragraph", label: "Paragraphs & Body Text (p, span, li, a)" },
-                          { key: "h1", label: "H1 Element Overrides" },
-                          { key: "h2", label: "H2 Element Overrides" },
-                          { key: "h3", label: "H3 Element Overrides" },
-                          { key: "h4", label: "H4 Element Overrides" },
-                          { key: "h5", label: "H5 Element Overrides" },
-                          { key: "h6", label: "H6 Element Overrides" }
-                        ].map((elem) => {
-                          const fontVal = editSettings[`font_${elem.key}_family`] || "Default Theme Font";
-                          const sizeVal = editSettings[`font_${elem.key}_size`] || "";
-                          const boldVal = editSettings[`font_${elem.key}_bold`] === "true";
-
-                          return (
-                            <div key={elem.key} className="bg-black/20 border border-white/[0.03] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                              <div>
-                                <label className="block text-[11px] font-mono uppercase text-gray-400 mb-1">{elem.label}</label>
-                                <span className="text-[10px] text-gray-500 font-mono">Select active family</span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:col-span-2">
-                                <div>
-                                  <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Font Family</label>
-                                  <select
-                                    value={fontVal}
-                                    onChange={(e) => handleSettingChange(`font_${elem.key}_family`, e.target.value)}
-                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
-                                  >
-                                    {[
-                                      "Default Theme Font",
-                                      "Outfit",
-                                      "Plus Jakarta Sans",
-                                      "DM Sans",
-                                      "Lexend",
-                                      "Urbanist",
-                                      "Lexend Deca",
-                                      "Krona One",
-                                      "Cal Sans",
-                                      "Google Sans",
-                                      "Anton SC",
-                                      "Poppins"
-                                    ].map((font) => (
-                                      <option key={font} value={font}>
-                                        {font}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="flex gap-4 items-end">
-                                  <div className="flex-1">
-                                    <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Font Size (e.g. 2rem, 28px)</label>
-                                    <input
-                                      type="text"
-                                      value={sizeVal}
-                                      onChange={(e) => handleSettingChange(`font_${elem.key}_size`, e.target.value)}
-                                      placeholder="Default size"
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
-                                    />
-                                  </div>
-                                  <div className="flex items-center pb-2">
-                                    <label className="text-[10px] font-mono text-gray-400 uppercase flex items-center gap-1.5 cursor-pointer select-none">
-                                      <input
-                                        type="checkbox"
-                                        checked={boldVal}
-                                        onChange={(e) => handleSettingChange(`font_${elem.key}_bold`, e.target.checked ? "true" : "false")}
-                                        className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
-                                      />
-                                      Bold
-                                    </label>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    )}
-
-                  </div>
+                  </section>
                 </div>
               )}
 
@@ -4435,7 +3670,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                        <button
                          onClick={saveMenu}
                          disabled={saveStatus.navigation === "saving"}
-                         className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                         className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
                        >
                          <Save className="w-4 h-4" /> Synchronize menu
                        </button>
@@ -4501,7 +3736,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <select
                               value={item.target_url}
                               onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[#ffea00]/40"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                             >
                               <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
                               <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
@@ -4524,7 +3759,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   {/* NAVIGATION BAR WIDTH CONFIGURATION */}
                   <div className="border-t border-white/5 pt-6 mt-8">
                     <div className="flex items-center gap-2 mb-3">
-                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <Sliders className="w-4 h-4 text-[var(--tcs-offwhite)]" />
                       <h3 className="text-sm font-semibold text-gray-300 font-display">
                         Navigation Bar Width Mode ({adminPageScope === "live" ? "Live Action" : "AI Production"})
                       </h3>
@@ -4541,7 +3776,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         }}
                         className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
                           (getSettingValueScoped("navbar_full_width") !== "true")
-                            ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                            ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold border-transparent shadow shadow-amber-400/25"
                             : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
                         }`}
                       >
@@ -4555,7 +3790,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         }}
                         className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
                           (getSettingValueScoped("navbar_full_width") === "true")
-                            ? "bg-[#ffea00] text-black font-semibold border-transparent shadow shadow-amber-400/25"
+                            ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold border-transparent shadow shadow-amber-400/25"
                             : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
                         }`}
                       >
@@ -4603,12 +3838,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         onClick={addWorkItem}
                         className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
                       >
-                        <PlusCircle className="w-4 h-4 text-[#ffea00]" /> Synthesize Work Card
+                        <PlusCircle className="w-4 h-4 text-[var(--tcs-offwhite)]" /> Synthesize Work Card
                       </button>
                       <button
                         onClick={saveWorks}
                         disabled={saveStatus.portfolio === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
                       >
                         <Save className="w-4 h-4" /> Sync Portfolio
                       </button>
@@ -4647,7 +3882,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="text"
                                 value={tab.tab_title}
                                 onChange={(e) => handleTabTitleChange(tab.id, e.target.value)}
-                                className="bg-black/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#ffea00]/50"
+                                className="bg-black/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
                                 placeholder="Tab Title"
                               />
                             </div>
@@ -4729,7 +3964,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={editSettings.portfolio_license_button_text || ""}
                           onChange={(e) => handleSettingChange("portfolio_license_button_text", e.target.value)}
                           placeholder="Acquire License"
-                          className="w-full md:w-64 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#ffea00]/50"
+                          className="w-full md:w-64 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
                         />
                         <button
                           onClick={saveWorks}
@@ -4899,7 +4134,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <div className="flex items-center justify-between border-b border-white/5 pb-3">
                               <div className="flex items-center gap-3 select-none">
                                 <GripVertical className="w-4 h-4 text-gray-500" />
-                                <span className="text-xs font-mono text-[#ffea00] font-semibold">Artifact 0{filteredIndex + 1}</span>
+                                <span className="text-xs font-mono text-[var(--tcs-offwhite)] font-semibold">Artifact 0{filteredIndex + 1}</span>
                                 <span className="text-sm font-medium text-gray-300">{work.title}</span>
                               </div>
 
@@ -4988,7 +4223,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         }
                                       }}
                                       value={work.videoUrl || ""}
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
                                     >
                                       <option value="">-- Apply a Video Asset --</option>
                                       {mediaAssets.filter(asset => asset.type === "video").map((asset) => (
@@ -5020,7 +4255,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         }
                                       }}
                                       value={work.imageUrl || ""}
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
                                     >
                                       <option value="">-- Apply a Thumbnail Asset --</option>
                                       {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
@@ -5035,7 +4270,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   <div className="md:col-span-2 space-y-3">
                                     <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (GitHub CDN)</label>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                      <div className="relative border border-dashed border-white/10 hover:border-[var(--tcs-offwhite)]/40/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-2">
                                             <Upload className="w-3.5 h-3.5 text-gray-400" />
@@ -5057,7 +4292,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         </div>
                                       </div>
 
-                                      <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                      <div className="relative border border-dashed border-white/10 hover:border-[var(--tcs-offwhite)]/40/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-2">
                                             <Upload className="w-3.5 h-3.5 text-gray-400" />
@@ -5085,7 +4320,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         type="button"
                                         onClick={() => handlePortfolioUpload(work.id)}
                                         disabled={isUploadingPortfolioId === work.id}
-                                        className="w-full mt-1 bg-[#ffea00] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                                        className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
                                       >
                                         {isUploadingPortfolioId === work.id 
                                           ? "Uploading File..." 
@@ -5116,7 +4351,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         }
                                       }}
                                       value={work.imageUrl || ""}
-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
                                     >
                                       <option value="">-- Apply an Image Asset --</option>
                                       {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
@@ -5130,7 +4365,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
                                   <div className="md:col-span-2">
                                     <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Upload File (GitHub CDN)</label>
-                                    <div className="relative border border-dashed border-white/10 hover:border-[#ffea00]/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
+                                    <div className="relative border border-dashed border-white/10 hover:border-[var(--tcs-offwhite)]/40/40 rounded-xl px-4 py-2 flex flex-col gap-2 text-xs text-gray-400 transition-all">
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                           <Upload className="w-3.5 h-3.5 text-gray-400" />
@@ -5156,7 +4391,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                           type="button"
                                           onClick={() => handlePortfolioUpload(work.id)}
                                           disabled={isUploadingPortfolioId === work.id}
-                                          className="w-full mt-1 bg-[#ffea00] text-black text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                                          className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
                                         >
                                           {isUploadingPortfolioId === work.id 
                                             ? "Uploading Image..." 
@@ -5305,7 +4540,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={savePricing}
                       disabled={saveStatus.pricing === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
                     >
                       <Save className="w-4 h-4" /> Sync Pricing
                     </button>
@@ -5314,7 +4549,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   {/* DISCOUNT BADGE CONTROLS */}
                   <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <Sliders className="w-4 h-4 text-[var(--tcs-offwhite)]" />
                       <h3 className="text-sm font-semibold text-gray-300 font-display">Discount Badge Color & Gradient Configuration</h3>
                     </div>
                     <p className="text-xs text-gray-400 max-w-2xl leading-relaxed font-light">
@@ -5330,7 +4565,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.discount_badge_gradient_start || "#10ac84"}
                             onChange={(e) => handleSettingChange("discount_badge_gradient_start", e.target.value)}
                             placeholder="#10ac84"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                           <input
                             type="color"
@@ -5349,7 +4584,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.discount_badge_gradient_end || "#01a3a4"}
                             onChange={(e) => handleSettingChange("discount_badge_gradient_end", e.target.value)}
                             placeholder="#01a3a4"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                           <input
                             type="color"
@@ -5368,7 +4603,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.discount_badge_text_color || "#ffffff"}
                             onChange={(e) => handleSettingChange("discount_badge_text_color", e.target.value)}
                             placeholder="#ffffff"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                           <input
                             type="color"
@@ -5386,7 +4621,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           type="checkbox"
                           checked={editSettings.discount_badge_gradient_enabled !== "false"}
                           onChange={(e) => handleSettingChange("discount_badge_gradient_enabled", e.target.checked ? "true" : "false")}
-                          className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                          className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                         />
                         Enable Gradient Fill
                       </label>
@@ -5396,7 +4631,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   {/* PRICING SYSTEM SETTINGS */}
                   <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-                      <Sliders className="w-4 h-4 text-[#ffea00]" />
+                      <Sliders className="w-4 h-4 text-[var(--tcs-offwhite)]" />
                       <h3 className="text-sm font-semibold text-gray-300 font-display">Pricing Title & Spotlight Text Size Controls</h3>
                     </div>
                     <p className="text-xs text-gray-400 max-w-2xl leading-relaxed font-light">
@@ -5406,7 +4641,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* AI Production Page settings */}
                       <div className="space-y-4 border-r border-white/5 pr-0 md:pr-6">
-                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase">AI Production Page (Page 1) Settings</h4>
+                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[var(--tcs-offwhite)] uppercase">AI Production Page (Page 1) Settings</h4>
                         <div>
                           <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Spotlight Badge Text (e.g. Recommended, Best Value)</label>
                           <input
@@ -5414,7 +4649,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.pricing_spotlight_text || ""}
                             onChange={(e) => handleSettingChange("pricing_spotlight_text", e.target.value)}
                             placeholder="Recommended"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                         </div>
                         <div>
@@ -5424,7 +4659,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.pricing_title_size || ""}
                             onChange={(e) => handleSettingChange("pricing_title_size", e.target.value)}
                             placeholder="Default (3rd/5th size)"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                         </div>
                         <div>
@@ -5434,14 +4669,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.pricing_title || ""}
                             onChange={(e) => handleSettingChange("pricing_title", e.target.value)}
                             placeholder="Production Tiers & Packages"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                           />
                         </div>
                       </div>
 
                       {/* Live Action Page settings */}
                       <div className="space-y-4">
-                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[#ffea00] uppercase">Live Action Page (Page 2) Settings</h4>
+                        <h4 className="text-[10px] font-mono font-bold tracking-widest text-[var(--tcs-offwhite)] uppercase">Live Action Page (Page 2) Settings</h4>
                         <div>
                           <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1.5">Spotlight Badge Text (e.g. Recommended, Best Value)</label>
                           <input
@@ -5449,7 +4684,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.page2_pricing_spotlight_text || ""}
                             onChange={(e) => handleSettingChange("page2_pricing_spotlight_text", e.target.value)}
                             placeholder="Recommended"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                         </div>
                         <div>
@@ -5459,7 +4694,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.page2_pricing_title_size || ""}
                             onChange={(e) => handleSettingChange("page2_pricing_title_size", e.target.value)}
                             placeholder="Default (3rd/5th size)"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 font-mono"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 font-mono"
                           />
                         </div>
                         <div>
@@ -5469,7 +4704,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={editSettings.page2_pricing_title || ""}
                             onChange={(e) => handleSettingChange("page2_pricing_title", e.target.value)}
                             placeholder="Production Tiers & Packages"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                           />
                         </div>
                       </div>
@@ -5518,7 +4753,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <div className="flex items-center justify-between border-b border-white/5 pb-3">
                           <div className="flex items-center gap-3 select-none">
                             <GripVertical className="w-4 h-4 text-gray-500" />
-                            <span className="text-xs font-mono text-[#ffea00] font-semibold">Package 0{index + 1}</span>
+                            <span className="text-xs font-mono text-[var(--tcs-offwhite)] font-semibold">Package 0{index + 1}</span>
                             <span className="w-2.5 h-2.5 rounded-full" style={{
                               backgroundColor: tier.glowTheme === "emerald" ? "#10b981" : (tier.glowTheme === "saffron" ? "#ffea00" : "#4A36B3")
                             }} />
@@ -5552,7 +4787,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="checkbox"
                                 checked={tier.popular}
                                 onChange={(e) => handlePricingChange(tier.id, "popular", e.target.checked)}
-                                className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                                className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                               />
                               Recommend Spotlight
                             </label>
@@ -5622,7 +4857,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="checkbox"
                                 checked={tier.discountEnabled || false}
                                 onChange={(e) => handlePricingChange(tier.id, "discountEnabled", e.target.checked)}
-                                className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                                className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                               />
                               Enable Discount Badge
                             </label>
@@ -5634,7 +4869,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="checkbox"
                                 checked={tier.is_slider_enabled || false}
                                 onChange={(e) => handlePricingChange(tier.id, "is_slider_enabled", e.target.checked)}
-                                className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                                className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                               />
                               Enable Milestone Slider
                             </label>
@@ -5804,7 +5039,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <button
                                 type="button"
                                 onClick={() => addMilestone(tier.id)}
-                                className="flex items-center gap-1 text-[10px] font-mono text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10 cursor-pointer"
+                                className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10 cursor-pointer"
                               >
                                 <Plus className="w-3 h-3" /> Add milestone step
                               </button>
@@ -5859,7 +5094,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <span className="text-[10px] font-mono uppercase text-gray-400">Deliverables Deliverable Scope</span>
                             <button
                               onClick={() => addFeature(tier.id)}
-                              className="flex items-center gap-1 text-[10px] font-mono text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10"
+                              className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10"
                             >
                               <Plus className="w-3 h-3" /> Add feature scope
                             </button>
@@ -5903,7 +5138,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={editSettings.pricing_note_text || ""}
                           onChange={(e) => handleSettingChange("pricing_note_text", e.target.value)}
                           placeholder="e.g. All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds."
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40 resize-none font-sans"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 resize-none font-sans"
                         />
                       </div>
                     </div>
@@ -5951,7 +5186,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         }, 800);
                       }}
                       disabled={saveStatus.assets === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
                     >
                       {saveStatus.assets === "saving" ? (
                         <>
@@ -5970,7 +5205,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   {/* ACTIVE CONFIGURATION ROLES */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 border border-white/5 p-6 rounded-2xl">
                     <div>
-                      <h3 className="text-xs font-mono uppercase text-[#ffea00] mb-3 tracking-wide flex items-center gap-2">
+                      <h3 className="text-xs font-mono uppercase text-[var(--tcs-offwhite)] mb-3 tracking-wide flex items-center gap-2">
                         <Play className="w-3.5 h-3.5" /> Hero Background (Img or Video) {adminPageScope === "live" ? "(Live Action)" : "(AI Production)"}
                       </h3>
                       <div className="space-y-3">
@@ -5983,7 +5218,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           onChange={(e) => handleSelectAssetForSetting(e.target.value, "hero_video_bg_url")}
                           value={(adminPageScope === "live" ? siteSettings.page2_hero_video_bg_url : siteSettings.hero_video_bg_url) || ""}
-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50"
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
@@ -5994,7 +5229,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
 
                     <div>
-                      <h3 className="text-xs font-mono uppercase text-[#ffea00] mb-3 tracking-wide flex items-center gap-2">
+                      <h3 className="text-xs font-mono uppercase text-[var(--tcs-offwhite)] mb-3 tracking-wide flex items-center gap-2">
                         <Compass className="w-3.5 h-3.5" /> Navbar Logo Brand Image
                       </h3>
                       <div className="space-y-3">
@@ -6005,7 +5240,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           onChange={(e) => handleSelectAssetForSetting(e.target.value, "logo_img_url")}
                           value={siteSettings.logo_img_url || ""}
-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/50"
+                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
                         >
                           <option value="">-- Apply an Asset --</option>
                           {mediaAssets.map((asset) => (
@@ -6044,7 +5279,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
 
                       <div className="space-y-3">
-                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[#ffea00]/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-[var(--tcs-offwhite)]/40/40 hover:bg-white/5 rounded-2xl py-6 px-4 cursor-pointer transition-all text-center">
                           <Upload className="w-6 h-6 text-gray-400 mb-2" />
                           <span className="text-xs font-medium text-white">
                             Click or Drop Asset Files
@@ -6113,7 +5348,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               type="button"
                               onClick={handleAssetUpload}
                               disabled={isUploadingAsset}
-                              className="w-full mt-2 py-2.5 bg-[#ffea00] text-black text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                              className="w-full mt-2 py-2.5 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
                             >
                               {isUploadingAsset ? "Uploading Queue to GitHub CDN..." : `Upload ${selectedAssetFiles.length} Assets to GitHub CDN`}
                             </button>
@@ -6170,7 +5405,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <button
                               onClick={handleAddCustomAsset}
                               disabled={!newAssetUrl || !newAssetName}
-                              className="w-full py-2 bg-[#ffea00] text-black text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                              className="w-full py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
                             >
                               Add Asset URL
                             </button>
@@ -6189,7 +5424,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       className="w-full flex items-center justify-between p-4 bg-[#11111c]/80 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer select-none text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <Sliders className="w-4 h-4 text-[#ffea00]" />
+                        <Sliders className="w-4 h-4 text-[var(--tcs-offwhite)]" />
                         <span className="text-xs font-mono uppercase text-gray-200 tracking-wider font-bold">
                           Assets Collection Library ({mediaAssets.filter(item => {
                             if (assetTabFilter === "image") return item.type === "image";
@@ -6228,7 +5463,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       onClick={() => setAssetTabFilter(filter)}
                                       className={`px-3.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold transition-all cursor-pointer ${
                                         assetTabFilter === filter
-                                          ? "bg-[#ffea00] text-black shadow-lg shadow-[#ffea00]/10"
+                                          ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] shadow-lg shadow-[#ffea00]/10"
                                           : "text-gray-400 hover:text-white hover:bg-white/5"
                                       }`}
                                     >
@@ -6268,7 +5503,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                               {/* BULK ACTION PANEL */}
                               {selectedAssetIds.length > 0 && (
-                                <div className="bg-[#11111c] border border-[#ffea00]/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                <div className="bg-[#11111c] border border-[var(--tcs-offwhite)]/40/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                                   <div className="flex items-center gap-2 font-mono text-gray-300">
                                     <span className="w-2 h-2 rounded-full bg-[#ffea00] animate-pulse"></span>
                                     <span>Selected <strong>{selectedAssetIds.length}</strong> asset(s)</span>
@@ -6282,7 +5517,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                           e.target.value = ""; // Reset
                                         }
                                       }}
-                                      className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#ffea00]"
+                                      className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40"
                                     >
                                       <option value="">-- Choose Bulk Action / Assignment --</option>
                                       <optgroup label="Portfolio Manager">
@@ -6333,7 +5568,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       key={item.id}
                                       className={`bg-black/30 border rounded-2xl p-4 flex gap-3 items-center justify-between transition-all duration-300 ${
                                         selectedAssetIds.includes(item.id) 
-                                          ? "border-[#ffea00]/40 bg-white/[0.02] shadow-[0_0_15px_rgba(255,234,0,0.03)]" 
+                                          ? "border-[var(--tcs-offwhite)]/40/40 bg-white/[0.02] shadow-[0_0_15px_rgba(255,234,0,0.03)]" 
                                           : "border-white/5 hover:border-white/10"
                                       }`}
                                     >
@@ -6348,7 +5583,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                             setSelectedAssetIds(prev => prev.filter(id => id !== item.id));
                                           }
                                         }}
-                                        className="w-4 h-4 rounded border-white/15 bg-black/40 text-[#ffea00] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0 transition-colors"
+                                        className="w-4 h-4 rounded border-white/15 bg-black/40 text-[var(--tcs-offwhite)] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0 transition-colors"
                                       />
 
                                       {/* THUMBNAIL PREVIEW & META */}
@@ -6385,14 +5620,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                                         <button
                                           onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
-                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-[#ffea00]/20 cursor-pointer"
                                           title="Set as Hero Background Video / Image"
                                         >
                                           Background
                                         </button>
                                         <button
                                           onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
-                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[#ffea00] border border-[#ffea00]/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-[#ffea00]/20 cursor-pointer"
                                           title="Set as Navbar Logo Image"
                                         >
                                           Logo
@@ -6458,7 +5693,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <div className="flex items-center gap-2">
                                 <h3 className="font-display font-bold text-base text-white">{sub.fullName || sub.name}</h3>
                                 {sub.company && (
-                                  <span className="text-[10px] font-mono text-[#ffea00] bg-[#ffea00]/5 border border-[#ffea00]/15 px-2 py-0.5 rounded-lg">
+                                  <span className="text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/15 px-2 py-0.5 rounded-lg">
                                     {sub.company}
                                   </span>
                                 )}
@@ -6472,7 +5707,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <select
                                 value={sub.status || "Pending"}
                                 onChange={(e) => updateSubmissionStatus(sub.id, e.target.value)}
-                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[#ffea00] focus:outline-none"
+                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none"
                               >
                                 <option value="Pending">Pending Audit</option>
                                 <option value="Reviewed">Under Review</option>
@@ -6535,7 +5770,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveIntakeFormSettings}
                       disabled={saveStatus.intake_form === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
                     >
                       {saveStatus.intake_form === "saving" ? (
                         <>
@@ -6655,7 +5890,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                     </span>
                                   )}
                                   {isCore ? (
-                                    <span className="text-[8px] font-mono bg-[#ffea00]/10 text-[#ffea00] border border-[#ffea00]/20 px-1.5 py-0.5 rounded">
+                                    <span className="text-[8px] font-mono bg-[#ffea00]/10 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/20 px-1.5 py-0.5 rounded">
                                       Core Ingestion ID: {field.id}
                                     </span>
                                   ) : (
@@ -6701,7 +5936,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 <button
                                   type="button"
                                   onClick={() => handleStartEditField(field)}
-                                  className="p-1.5 text-[#ffea00] hover:text-[#ffcc00] bg-[#ffea00]/5 border border-[#ffea00]/15 rounded-lg hover:bg-[#ffea00]/10 transition-all cursor-pointer"
+                                  className="p-1.5 text-[var(--tcs-offwhite)] hover:text-[#ffcc00] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/15 rounded-lg hover:bg-[#ffea00]/10 transition-all cursor-pointer"
                                   title="Edit Field Configuration"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -6721,7 +5956,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             {/* Inline edit details block */}
                             {isEditing && (
                               <div className="bg-black/50 border border-amber-500/20 rounded-lg p-4 space-y-3 mt-2 animate-fadeIn">
-                                <div className="text-[10px] font-mono text-[#ffea00] uppercase border-b border-white/5 pb-1">
+                                <div className="text-[10px] font-mono text-[var(--tcs-offwhite)] uppercase border-b border-white/5 pb-1">
                                   Modify Field Configuration
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -6766,7 +6001,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         type="checkbox"
                                         checked={editFieldRequired}
                                         onChange={(e) => setEditFieldRequired(e.target.checked)}
-                                        className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                                        className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                                       />
                                       Required Field
                                     </label>
@@ -6811,7 +6046,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={newFieldLabel}
                           onChange={(e) => setNewFieldLabel(e.target.value)}
                           placeholder="e.g. Targeted Release Platform"
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                         />
                       </div>
 
@@ -6820,7 +6055,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           value={newFieldType}
                           onChange={(e) => setNewFieldType(e.target.value as any)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 cursor-pointer"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 cursor-pointer"
                           style={{ colorScheme: "dark" }}
                         >
                           <option value="text">Text Input (single line)</option>
@@ -6838,7 +6073,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           value={newFieldPlaceholder}
                           onChange={(e) => setNewFieldPlaceholder(e.target.value)}
                           placeholder="e.g. YouTube, TikTok, Instagram..."
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                         />
                       </div>
 
@@ -6848,7 +6083,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             type="checkbox"
                             checked={newFieldRequired}
                             onChange={(e) => setNewFieldRequired(e.target.checked)}
-                            className="rounded border-white/10 text-[#ffea00] focus:ring-0 bg-transparent"
+                            className="rounded border-white/10 text-[var(--tcs-offwhite)] focus:ring-0 bg-transparent"
                           />
                           Make Field Required
                         </label>
@@ -6864,7 +6099,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             value={newFieldOptionsText}
                             onChange={(e) => setNewFieldOptionsText(e.target.value)}
                             placeholder="e.g. YouTube, TikTok, Cinema Screen, Interactive App"
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ffea00]/40 resize-none font-sans"
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 resize-none font-sans"
                           />
                         </div>
                       )}
@@ -6905,7 +6140,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         onClick={saveBrandLogos}
                         disabled={saveStatus.brand_logos === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
                       >
                         {saveStatus.brand_logos === "saving" ? (
                           <>
@@ -6933,7 +6168,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           type="text"
                           value={getSettingValueScoped("brand_logos_title")}
                           onChange={(e) => handleSettingChangeScoped("brand_logos_title", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                           placeholder={adminPageScope === "ai" ? "Trusted By Leading Brands" : "Trusted By Industry Leaders"}
                         />
                       </div>
@@ -6943,7 +6178,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         <select
                           value={getSettingValueScoped("brand_logos_title_size", "text-xs")}
                           onChange={(e) => handleSettingChangeScoped("brand_logos_title_size", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffea00]/40"
+                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
                         >
                           <option value="text-xs">text-xs (Extra Small)</option>
                           <option value="text-sm">text-sm (Small)</option>
@@ -6965,7 +6200,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "true")}
                             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                               getSettingValueScoped("brand_logos_marquee_enabled", "true") === "true"
-                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
                                 : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
                             }`}
                           >
@@ -6976,7 +6211,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "false")}
                             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                               getSettingValueScoped("brand_logos_marquee_enabled", "true") === "false"
-                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
                                 : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
                             }`}
                           >
@@ -6993,7 +6228,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             onClick={() => updateSiteSetting("marquee_direction", "left")}
                             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                               siteSettings.marquee_direction === "left"
-                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
                                 : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
                             }`}
                           >
@@ -7004,7 +6239,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             onClick={() => updateSiteSetting("marquee_direction", "right")}
                             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                               siteSettings.marquee_direction === "right"
-                                ? "bg-[#ffea00] text-black border-[#ffea00]"
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
                                 : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
                             }`}
                           >
@@ -7095,7 +6330,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       const val = e.target.value;
                                       setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
                                     }}
-                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#ffea00]/50 font-sans"
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
                                   >
                                     <option value="">-- Or Select from Assets Library --</option>
                                     {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
@@ -7118,7 +6353,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                   type="button"
                                   onClick={() => handleBrandLogoUpload(logo.id)}
                                   disabled={isUploadingBrandLogoId === logo.id}
-                                  className="flex items-center gap-1 px-3 py-1 bg-[#ffea00] text-black font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                                  className="flex items-center gap-1 px-3 py-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
                                 >
                                   {isUploadingBrandLogoId === logo.id ? (
                                     <>
@@ -7187,7 +6422,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         onClick={saveTestimonials}
                         disabled={saveStatus.testimonials === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
                       >
                         {saveStatus.testimonials === "saving" ? (
                           <>
@@ -7215,7 +6450,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4 hover:border-white/10 transition-all"
                         >
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-3">
-                            <span className="font-mono text-xs text-[#ffea00] uppercase tracking-wider">
+                            <span className="font-mono text-xs text-[var(--tcs-offwhite)] uppercase tracking-wider">
                               Testimonial Slot #{index + 1}
                             </span>
                             
@@ -7364,7 +6599,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="button"
                                 onClick={() => handleTestimonialUpload(testimonial.id)}
                                 disabled={isUploadingTestimonialId === testimonial.id}
-                                className="flex items-center gap-1 px-3 py-1 bg-[#ffea00] text-black font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                                className="flex items-center gap-1 px-3 py-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
                               >
                                 {isUploadingTestimonialId === testimonial.id ? (
                                   <>
@@ -7632,7 +6867,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveSettings}
                       disabled={saveStatus.settings === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#ffea00] text-black text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
                     >
                       {saveStatus.settings === "saving" ? (
                         <>

@@ -5,7 +5,7 @@ import { useSiteData } from "../context/SiteDataContext";
 import BrandMarquee from "./BrandMarquee";
 
 export const ClientsSection: React.FC = () => {
-  const { testimonials = [] } = useSiteData();
+  const { siteSettings, testimonials = [] } = useSiteData();
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -43,7 +43,7 @@ export const ClientsSection: React.FC = () => {
         {/* Section Eyebrow */}
         <div className="text-center mb-16">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--tcs-dim)]">
-            CLIENT ENDORSEMENTS & FEEDBACK
+            {siteSettings.testimonials_eyebrow || "CLIENT ENDORSEMENTS & FEEDBACK"}
           </p>
         </div>
 

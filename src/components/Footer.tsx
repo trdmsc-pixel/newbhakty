@@ -139,7 +139,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 </a>
               </li>
               <li className="text-[var(--tcs-dim)] uppercase tracking-wider">
-                Delhi, India → Worldwide
+                {siteSettings.footer_location || "Delhi, India → Worldwide"}
               </li>
             </ul>
           </div>
@@ -216,7 +216,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)]">
-              Direct Studio Access & Client Portals
+              {siteSettings.footer_portals_label || "Direct Studio Access & Client Portals"}
             </span>
           </div>
 
@@ -251,7 +251,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 className="h-5 sm:h-6 w-auto max-w-[130px] object-contain shrink-0 brightness-125"
               />
             )}
-            <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
+            <p>{siteSettings.footer_copyright || "© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio"}</p>
           </div>
 
           <div className="flex items-center gap-6">
