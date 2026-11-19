@@ -4,11 +4,28 @@ import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { useToast } from "../context/ToastContext";
 import { Wordmark } from "./brand/Wordmark";
 import { Ring } from "./brand/Ring";
-import { 
-  Lock, Mail, Phone, Building, User, Sparkles, Send, 
-  ArrowLeft, LogOut, CheckCircle2, Clock, Play, Video, 
-  Image as ImageIcon, Eye, MessageSquare, Plus, Check, HelpCircle,
-  Tag, Calendar, CircleDot, ChevronRight, Activity, Award
+import {
+  Lock,
+  Mail,
+  Phone,
+  User,
+  Send,
+  ArrowLeft,
+  LogOut,
+  Clock,
+  Play,
+  Video,
+  Image as ImageIcon,
+  Check,
+  HelpCircle,
+  Tag,
+  Calendar,
+  Activity,
+  Award,
+  Bell,
+  ExternalLink,
+  CheckCircle2,
+  FolderKanban
 } from "lucide-react";
 
 interface ClientAccessPanelProps {
@@ -58,9 +75,29 @@ interface ClientFeedback {
   created_at: string;
 }
 
+function playClientChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(784, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.14);
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.45);
+  } catch {}
+}
+
 export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelProps) {
   const toast = useToast();
-  
+
   // Authentication & Session state
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [clientProfile, setClientProfile] = useState<ClientUser | null>(null);
@@ -87,7 +124,7 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
   const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [feedbacks, setFeedbacks] = useState<ClientFeedback[]>([]);
   const [selectedWork, setSelectedWork] = useState<ClientWork | null>(null);
-  
+
   // Feedback form state
   const [feedbackComment, setFeedbackComment] = useState("");
   const [videoTimestamp, setVideoTimestamp] = useState<string>("");
@@ -95,19 +132,18 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
 
   // Media Player Ref
   const videoPlayerRef = useRef<HTMLVideoElement>(null);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [, setCurrentTime] = useState(0);
 
-  // Active Tab in Panel Dashboard
-  const [activeDashboardTab, setActiveDashboardTab] = useState<"work" | "deals">("work");
+  // Active Tab in Top Pill Bar
+  const [activeDashboardTab, setActiveDashboardTab] = useState<"work" | "tasks" | "deals">("work");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  // Format timestamp (seconds to MM:SS)
   const formatTime = (secs: number) => {
     const minutes = Math.floor(secs / 60);
     const seconds = Math.floor(secs % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  // Parse MM:SS to seconds
   const parseTimeToSeconds = (timeStr: string) => {
     const parts = timeStr.split(":");
     if (parts.length === 2) {
@@ -116,11 +152,9 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     return parseFloat(timeStr) || 0;
   };
 
-  // Monitor auth state changes
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    // Get current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSessionUser(session.user);
@@ -147,7 +181,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     };
   }, []);
 
-  // Fetch client user details
   const fetchClientProfile = async (userId: string) => {
     if (!supabase) return;
     setIsDataLoading(true);
@@ -159,14 +192,9 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
         .maybeSingle();
 
       if (error) throw error;
-
       if (data) {
         setClientProfile(data);
-        // Load operational client data
         await fetchClientData(data.id);
-      } else {
-        // Handle auth user exists but no profile row yet (e.g. edge cases)
-        console.warn("Auth user logged in, but client profile row is missing.");
       }
     } catch (err: any) {
       console.error("Error fetching client profile:", err);
@@ -176,11 +204,9 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     }
   };
 
-  // Fetch works, tasks, and feedbacks
   const fetchClientData = async (clientUserId: string) => {
     if (!supabase) return;
     try {
-      // 1. Fetch Work links
       const { data: worksData, error: worksErr } = await supabase
         .from("client_work")
         .select("*")
@@ -192,7 +218,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
         setSelectedWork(worksData[0]);
       }
 
-      // 2. Fetch Tasks assigned to studio
       const { data: tasksData, error: tasksErr } = await supabase
         .from("client_tasks")
         .select("*")
@@ -201,7 +226,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
       if (tasksErr) throw tasksErr;
       setTasks(tasksData || []);
 
-      // 3. Fetch Client feedbacks
       const { data: feedbackData, error: feedbackErr } = await supabase
         .from("client_feedback")
         .select("*")
@@ -209,14 +233,12 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
         .order("created_at", { ascending: false });
       if (feedbackErr) throw feedbackErr;
       setFeedbacks(feedbackData || []);
-
     } catch (err: any) {
       console.error("Error fetching client operational data:", err);
       toast.error("Error synchronizing project dashboard assets.");
     }
   };
 
-  // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
@@ -227,17 +249,15 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
       toast.error("Supabase connection is not initialized.");
       return;
     }
-
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
       });
-
       if (error) throw error;
-
       if (data?.user) {
+        playClientChime();
         toast.success("Client session validated. Welcome back.");
       }
     } catch (err: any) {
@@ -247,7 +267,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     }
   };
 
-  // Handle Sign Up (Generates dynamic CL-XXXXX ID)
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signUpName || !signUpEmail || !signUpPassword) {
@@ -258,46 +277,31 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
       toast.error("Supabase integration is offline.");
       return;
     }
-
     setIsLoading(true);
     try {
-      // 1. Authenticate with Supabase Auth
       const { data: authData, error: authErr } = await supabase.auth.signUp({
         email: signUpEmail,
         password: signUpPassword,
       });
-
       if (authErr) throw authErr;
-
       const user = authData?.user;
-      if (!user) {
-        throw new Error("Failed to register new credential session.");
-      }
+      if (!user) throw new Error("Failed to register new credential session.");
 
-      // Generate unique client ID (CL-XXXXX)
       const uniqueNum = Math.floor(10000 + Math.random() * 90000);
       const clientId = `CL-${uniqueNum}`;
 
-      // 2. Insert profile record in client_users table
-      const { error: profileErr } = await supabase
-        .from("client_users")
-        .insert({
-          id: user.id,
-          client_id: clientId,
-          name: signUpName,
-          email: signUpEmail,
-          mobile: signUpMobile || null,
-          company_name: signUpCompany || null,
-          designation: signUpDesignation || null,
-          signing_up_for: signUpPurpose || null,
-          heard_about_us: signUpSource || null
-        });
-
-      if (profileErr) {
-        // Rollback auth user if profile insertion failed
-        console.error("Profile insertion failed, cleanup required:", profileErr);
-        throw profileErr;
-      }
+      const { error: profileErr } = await supabase.from("client_users").insert({
+        id: user.id,
+        client_id: clientId,
+        name: signUpName,
+        email: signUpEmail,
+        mobile: signUpMobile || null,
+        company_name: signUpCompany || null,
+        designation: signUpDesignation || null,
+        signing_up_for: signUpPurpose || null,
+        heard_about_us: signUpSource || null,
+      });
+      if (profileErr) throw profileErr;
 
       toast.success(`Account registered! Client ID assigned: ${clientId}.`);
       setAuthMode("login");
@@ -310,25 +314,22 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     }
   };
 
-  // Sign out helper
   const handleSignOut = async () => {
     if (!supabase) return;
     try {
       await supabase.auth.signOut();
       toast.info("Session terminated safely.");
-    } catch (err) {
+    } catch {
       toast.error("Error signing out.");
     }
   };
 
-  // Video time update event handler
   const handleTimeUpdate = () => {
     if (videoPlayerRef.current) {
       setCurrentTime(videoPlayerRef.current.currentTime);
     }
   };
 
-  // Pin current video time to feedback
   const captureVideoTimestamp = () => {
     if (videoPlayerRef.current) {
       const formatted = formatTime(videoPlayerRef.current.currentTime);
@@ -339,7 +340,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     }
   };
 
-  // Handle Feedback Submission
   const submitFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWork || !clientProfile || !supabase) return;
@@ -353,9 +353,9 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
         client_user_id: clientProfile.id,
         work_id: selectedWork.id,
         comment: feedbackComment.trim(),
-        timestamp: selectedWork.type === "video" ? (videoTimestamp || null) : null,
+        timestamp: selectedWork.type === "video" ? videoTimestamp || null : null,
         tag: selectedWork.type === "image" ? imageTag : null,
-        acknowledged: false
+        acknowledged: false,
       };
 
       const { data, error } = await supabase
@@ -365,13 +365,12 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
 
       if (error) throw error;
 
-      toast.success("Feedback added! Our curators will review and update progress.");
+      playClientChime();
+      toast.success("Review note dispatched to the studio team.");
       setFeedbackComment("");
       setVideoTimestamp("");
-      
-      // Refresh feedbacks
       if (data && data[0]) {
-        setFeedbacks(prev => [data[0], ...prev]);
+        setFeedbacks((prev) => [data[0], ...prev]);
       }
     } catch (err: any) {
       console.error("Error submitting client feedback:", err);
@@ -379,128 +378,293 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
     }
   };
 
-  // Seek video to specific comment timestamp
   const seekToTimestamp = (ts: string) => {
     if (videoPlayerRef.current) {
       const secs = parseTimeToSeconds(ts);
       videoPlayerRef.current.currentTime = secs;
       videoPlayerRef.current.play().catch(() => {});
-      toast.info(`Seeking review track to ${ts}`);
+      toast.info(`Seeking cut to ${ts}`);
     }
   };
 
-  // Get letter avatar
   const getAvatarChar = () => {
     if (clientProfile?.name) return clientProfile.name.charAt(0).toUpperCase();
     if (clientProfile?.company_name) return clientProfile.company_name.charAt(0).toUpperCase();
     return "C";
   };
 
-  // Select active work to trace
   const handleSelectWork = (work: ClientWork) => {
     setSelectedWork(work);
     setVideoTimestamp("");
     setFeedbackComment("");
   };
 
-  return (
-    <div className="relative min-h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col justify-between selection:bg-[var(--tcs-offwhite)]/20 selection:text-white">
-      
-      {/* Background Subtle Spectral Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[400px] spectral-glow opacity-30 pointer-events-none -z-10" />
+  const completedTasksCount = tasks.filter((t) => t.status === "Completed" || t.progress >= 100).length;
+  const avgProgress =
+    tasks.length > 0
+      ? Math.round(tasks.reduce((acc, t) => acc + (t.progress || 0), 0) / tasks.length)
+      : 0;
+  const acknowledgedCount = feedbacks.filter((f) => f.acknowledged).length;
 
-      {/* HEADER BAR */}
-      <header className="w-full border-b border-[var(--tcs-line)] bg-[var(--tcs-night)]/85 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 min-h-16 py-2 flex items-center justify-between gap-2">
-          <button
-            onClick={onNavigateHome}
-            className="flex items-center gap-2 text-xs font-mono tracking-widest text-[var(--tcs-muted)] hover:text-white uppercase transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Back to Studio</span><span className="sm:hidden">Studio</span>
-          </button>
-          
-          <div className="flex items-center gap-3">
+  const portalTabs: Array<{ id: "work" | "tasks" | "deals"; label: string; count?: number }> = [
+    { id: "work", label: "Creative Review", count: works.length },
+    { id: "tasks", label: "Production Tasks", count: tasks.length },
+    { id: "deals", label: "Contract & Status" },
+  ];
+
+  return (
+    <div className="relative min-h-screen bg-[#07080C] text-[#F4EFE6] flex flex-col justify-between overflow-x-hidden selection:bg-[#FF6A1F]/30 selection:text-white">
+      {/* Top Spectral Hairline */}
+      <div className="w-full h-[2px] shrink-0" style={{ background: "var(--tcs-spectrum-linear)" }} />
+
+      {/* Subtle Ambient Spectral Glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[420px] spectral-glow opacity-20 pointer-events-none -z-10" />
+
+      {/* TOP FLOATING PILL NAVIGATION BAR (IMAGE 3 INSPIRED) */}
+      <header className="sticky top-0 z-50 w-full bg-[#07080C]/85 backdrop-blur-xl border-b border-white/[0.07]">
+        <div className="max-w-[1680px] mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-4">
+          {/* Left: Studio Wordmark */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              title="Back to Studio"
+              className="w-9 h-9 rounded-full bg-[#141720] border border-white/[0.08] flex items-center justify-center text-[#F4EFE6]/70 hover:text-white hover:border-white/25 transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <Wordmark capHeight={13} ringAnimation="spin-slow" />
-            <span className="hidden sm:inline font-mono text-[10px] text-[var(--tcs-dim)] uppercase tracking-widest pl-2 border-l border-[var(--tcs-line)]">
-              Client Portal
-            </span>
           </div>
 
-          {sessionUser ? (
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 text-xs font-mono tracking-widest text-red-400 hover:text-red-300 uppercase transition-colors border border-red-500/20 bg-red-500/5 px-3.5 py-1.5 rounded-full cursor-pointer"
-            >
-              <LogOut className="w-3 h-3 shrink-0" /> <span className="hidden sm:inline">Log Out</span>
-            </button>
-          ) : (
-            <span className="text-[10px] font-mono text-[var(--tcs-dim)] uppercase tracking-widest bg-white/[0.03] px-3 py-1 rounded-full border border-[var(--tcs-line)]">
-              🔒 <span className="hidden sm:inline">Encrypted </span>Gateway
-            </span>
+          {/* Center: Floating Light Pill Navigation Bar (Logged-In) */}
+          {sessionUser && (
+            <nav className="hidden md:flex items-center bg-[#F4EFE6] text-[#07080C] rounded-full p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+              {portalTabs.map((tab) => {
+                const isActive = activeDashboardTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveDashboardTab(tab.id)}
+                    className={`relative px-5 py-2 rounded-full text-xs font-mono uppercase tracking-[0.12em] font-semibold transition-colors cursor-pointer flex items-center gap-2 ${
+                      isActive ? "text-white" : "text-[#07080C]/70 hover:text-[#07080C]"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="client-top-pill"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        className="absolute inset-0 rounded-full -z-0"
+                        style={{
+                          background: "linear-gradient(135deg, #FF6A1F 0%, #E8332A 100%)",
+                          boxShadow: "0 4px 16px rgba(255, 106, 31, 0.35)",
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      {tab.label}
+                      {tab.count !== undefined && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            isActive ? "bg-black/20 text-white" : "bg-black/10 text-[#07080C]"
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
           )}
+
+          {/* Right: Notification Bell + Profile / Sign Out */}
+          <div className="flex items-center gap-2.5 shrink-0 relative">
+            {sessionUser ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  aria-label="Portal Updates"
+                  className="relative w-10 h-10 rounded-full bg-[#141720] border border-white/[0.08] flex items-center justify-center text-[#F4EFE6]/80 hover:text-white hover:border-white/25 transition-all cursor-pointer"
+                >
+                  <Bell className="w-4 h-4" />
+                  {acknowledgedCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#FF6A1F] text-[9px] font-mono font-bold text-white flex items-center justify-center">
+                      {acknowledgedCount}
+                    </span>
+                  )}
+                </button>
+
+                <div className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-full bg-[#141720] border border-white/[0.08]">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #FF6A1F, #C2187A)" }}
+                  >
+                    {getAvatarChar()}
+                  </div>
+                  <div className="text-left leading-tight">
+                    <p className="text-xs font-medium text-[#F4EFE6] truncate max-w-[120px]">
+                      {clientProfile?.name || "Client"}
+                    </p>
+                    <p className="text-[10px] font-mono text-[#F4EFE6]/50">
+                      {clientProfile?.client_id || "PORTAL"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-red-300 hover:text-white border border-red-500/25 bg-red-500/10 hover:bg-red-500/20 px-4 py-2.5 rounded-full transition-all cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Log Out</span>
+                </button>
+
+                {/* Notifications Popover */}
+                <AnimatePresence>
+                  {notificationsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                      className="absolute right-0 top-14 w-80 sm:w-96 rounded-2xl bg-[#141720] border border-white/10 shadow-2xl p-4 z-50"
+                    >
+                      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
+                        <span className="font-mono text-xs uppercase tracking-widest text-[#F4EFE6]">
+                          Studio Updates
+                        </span>
+                        <span className="font-mono text-[10px] text-[#F4EFE6]/50">
+                          {acknowledgedCount} acknowledged
+                        </span>
+                      </div>
+                      <div className="space-y-2.5 max-h-64 overflow-y-auto">
+                        {feedbacks.length === 0 ? (
+                          <p className="text-xs text-[#F4EFE6]/50 py-4 text-center">
+                            No review updates yet.
+                          </p>
+                        ) : (
+                          feedbacks.slice(0, 6).map((fb) => (
+                            <div
+                              key={fb.id}
+                              className="p-3 rounded-xl bg-[#0B0D13] border border-white/[0.06] text-xs space-y-1"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono text-[10px] text-[#FFC93C]">
+                                  {fb.timestamp ? `At ${fb.timestamp}` : fb.tag || "Review Note"}
+                                </span>
+                                <span
+                                  className={`font-mono text-[9px] uppercase px-2 py-0.5 rounded-full ${
+                                    fb.acknowledged
+                                      ? "bg-emerald-500/15 text-emerald-300"
+                                      : "bg-[#FF6A1F]/15 text-[#FF6A1F]"
+                                  }`}
+                                >
+                                  {fb.acknowledged ? "Acknowledged" : "In Review"}
+                                </span>
+                              </div>
+                              <p className="text-[#F4EFE6]/80 line-clamp-2">{fb.comment}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            ) : (
+              <span className="text-[11px] font-mono text-[#F4EFE6]/60 uppercase tracking-widest bg-[#141720] px-4 py-2 rounded-full border border-white/[0.08]">
+                🔒 Encrypted Client Portal
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Mobile Pill Switcher */}
+        {sessionUser && (
+          <div className="md:hidden px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-none">
+            {portalTabs.map((tab) => {
+              const isActive = activeDashboardTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveDashboardTab(tab.id)}
+                  className={`px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-[#FF6A1F] text-white font-semibold"
+                      : "bg-[#141720] text-[#F4EFE6]/70 border border-white/[0.08]"
+                  }`}
+                >
+                  {tab.label} {tab.count !== undefined ? `(${tab.count})` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
-      {/* MAIN LAYOUT */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-8 flex flex-col justify-center">
-        
+      {/* MAIN CONTENT */}
+      <main className="flex-1 max-w-[1680px] w-full mx-auto px-4 sm:px-8 lg:px-10 py-8 flex flex-col justify-center">
         <AnimatePresence mode="wait">
           {!sessionUser ? (
-            /* ========================================================================= */
-            /* GATEWAY / SIGN-IN & SIGN-UP MODULE                                        */
-            /* ========================================================================= */
+            /* AUTH GATEWAY */
             <motion.div
               key="auth-gateway"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full max-w-md mx-auto"
+              exit={{ opacity: 0, y: -18 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-lg mx-auto"
             >
-              <div className="bg-[var(--tcs-night-2)] p-5 sm:p-8 rounded-2xl border border-[var(--tcs-line)] shadow-2xl relative overflow-hidden">
-                {/* Visual Accent */}
+              <div className="bg-[#141720] p-7 sm:p-10 rounded-3xl border border-white/[0.08] shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-[2px]" style={{ background: "var(--tcs-spectrum-linear)" }} />
-                
+
                 <div className="text-center mb-8">
-                  <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-[var(--tcs-line)] flex items-center justify-center mx-auto mb-4">
-                    <Lock className="w-5 h-5 text-[var(--tcs-offwhite)]" />
+                  <div className="flex justify-center mb-4">
+                    <Ring size={48} stroke={3} glow={true} animate="spin-slow" />
                   </div>
-                  <h2 className="font-display font-medium text-2xl text-[var(--tcs-offwhite)] tracking-tight">
+                  <h2 className="font-display font-medium text-2xl sm:text-3xl text-[#F4EFE6] tracking-tight">
                     {authMode === "login" ? "Client Portal Login" : "Create Client Account"}
                   </h2>
-                  <p className="text-[var(--tcs-dim)] text-xs mt-1.5 font-mono uppercase tracking-wider">
-                    {authMode === "login" ? "Review deliverables, milestones & timelines" : "Register company and design specifications"}
+                  <p className="text-[#F4EFE6]/50 text-xs mt-2 font-mono uppercase tracking-[0.16em]">
+                    {authMode === "login"
+                      ? "Review cuts, pin frame timestamps, and track milestones"
+                      : "Register your brand for private deliverable access"}
                   </p>
                 </div>
 
                 {authMode === "login" ? (
-                  /* LOGIN FORM */
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-[var(--tcs-dim)]">Mail Identity</label>
+                  <form onSubmit={handleLogin} className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Email Address</label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-[var(--tcs-dim)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-[#F4EFE6]/40 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
                           type="email"
                           required
                           value={loginEmail}
                           onChange={(e) => setLoginEmail(e.target.value)}
                           placeholder="client@company.com"
-                          className="w-full pl-10 pr-4 py-3 bg-[var(--tcs-night)] border border-[var(--tcs-line)] focus:border-[var(--tcs-offwhite)] rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none font-mono"
+                          className="w-full pl-11 pr-4 py-3.5 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none transition-all"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-[var(--tcs-dim)]">Password Key</label>
+                    <div className="space-y-2">
+                      <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Password</label>
                       <div className="relative">
-                        <Lock className="w-4 h-4 text-[var(--tcs-dim)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Lock className="w-4 h-4 text-[#F4EFE6]/40 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
                           type="password"
                           required
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           placeholder="••••••••••••"
-                          className="w-full pl-10 pr-4 py-3 bg-[var(--tcs-night)] border border-[var(--tcs-line)] focus:border-[var(--tcs-offwhite)] rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none font-mono"
+                          className="w-full pl-11 pr-4 py-3.5 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -508,583 +672,682 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] font-semibold font-mono tracking-wider text-xs uppercase rounded-xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
+                      className="w-full py-4 bg-[#F4EFE6] hover:bg-white text-[#07080C] font-semibold font-mono tracking-[0.16em] text-xs uppercase rounded-full transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
                     >
-                      {isLoading ? "Validating Session..." : "Access Deliverables"}
+                      {isLoading ? "Signing In..." : "Enter Client Workspace →"}
                     </button>
                   </form>
                 ) : (
-                  /* SIGN UP FORM */
-                  <form onSubmit={handleSignUp} className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                  <form onSubmit={handleSignUp} className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Full Identity / Name *</label>
+                      <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Full Name *</label>
                       <div className="relative">
-                        <User className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <User className="w-4 h-4 text-[#F4EFE6]/40 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           required
                           value={signUpName}
                           onChange={(e) => setSignUpName(e.target.value)}
-                          placeholder="e.g. John Doe"
-                          className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          placeholder="Your full name"
+                          className="w-full pl-11 pr-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Email Address *</label>
+                        <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Email *</label>
                         <input
                           type="email"
                           required
                           value={signUpEmail}
                           onChange={(e) => setSignUpEmail(e.target.value)}
-                          placeholder="name@agency.com"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          placeholder="name@company.com"
+                          className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Mobile Number</label>
+                        <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">WhatsApp / Phone</label>
                         <input
                           type="text"
                           value={signUpMobile}
                           onChange={(e) => setSignUpMobile(e.target.value)}
                           placeholder="+91 XXXXX XXXXX"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Company Name</label>
+                        <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Company / Brand</label>
                         <input
                           type="text"
                           value={signUpCompany}
                           onChange={(e) => setSignUpCompany(e.target.value)}
-                          placeholder="Acme Studios"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          placeholder="Brand or Agency"
+                          className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Designation</label>
+                        <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Role</label>
                         <input
                           type="text"
                           value={signUpDesignation}
                           onChange={(e) => setSignUpDesignation(e.target.value)}
-                          placeholder="Creative Lead"
-                          className="w-full px-3 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          placeholder="Creative Director"
+                          className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">What are you signing up for?</label>
+                      <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Production Type</label>
                       <select
                         value={signUpPurpose}
                         onChange={(e) => setSignUpPurpose(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-black/70 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm text-gray-300 outline-none"
+                        className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] outline-none"
                       >
-                        <option value="">Select an option</option>
-                        <option value="Short-Form Ads">Short-Form Creative Ads</option>
-                        <option value="Cinema Grade Ads">Full Cinematic Production</option>
-                        <option value="Fine-Tune Style Models">Custom style LoRA/fine-tunes</option>
-                        <option value="Enterprise Curation">Enterprise Visual Pipeline</option>
-                        <option value="Other">Other Custom Inquiry</option>
+                        <option value="">Select production type</option>
+                        <option value="Brand Film / TVC">Brand Film / TVC</option>
+                        <option value="AI Commercial">AI Commercial</option>
+                        <option value="Trailer / Teaser">Trailer / Teaser</option>
+                        <option value="Hybrid Live-Action + VFX">Hybrid Live-Action + VFX</option>
+                        <option value="Music Video">Music Video</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Where did you hear about us?</label>
-                      <input
-                        type="text"
-                        value={signUpSource}
-                        onChange={(e) => setSignUpSource(e.target.value)}
-                        placeholder="Google, Twitter, Colleague, Showcase..."
-                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Security Password *</label>
+                      <label className="text-xs uppercase font-mono tracking-wider text-[#F4EFE6]/70">Password *</label>
                       <input
                         type="password"
                         required
                         value={signUpPassword}
                         onChange={(e) => setSignUpPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full px-4 py-2.5 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                        className="w-full px-4 py-3 bg-[#0B0D13] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/30 outline-none"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] font-semibold font-display tracking-wide text-xs uppercase rounded-xl transition-all shadow-lg shadow-black/40 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-4"
+                      className="w-full py-3.5 bg-[#F4EFE6] hover:bg-white text-[#07080C] font-semibold font-mono tracking-[0.14em] text-xs uppercase rounded-full transition-all disabled:opacity-50 cursor-pointer mt-2"
                     >
-                      {isLoading ? "Registering Core Profile..." : "Submit Registration"}
+                      {isLoading ? "Registering..." : "Create Client Account"}
                     </button>
                   </form>
                 )}
 
-                {/* Switch Login / Sign Up */}
-                <div className="mt-6 text-center border-t border-white/5 pt-4">
+                <div className="mt-7 text-center border-t border-white/[0.08] pt-5">
                   <button
                     type="button"
                     onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                    className="text-xs text-[var(--tcs-offwhite)]/80 hover:text-white font-medium transition-colors"
+                    className="text-xs font-mono uppercase tracking-wider text-[#F4EFE6]/70 hover:text-white transition-colors cursor-pointer"
                   >
-                    {authMode === "login" 
-                      ? "Request registration & setup client ID" 
-                      : "Already have client credentials? Gateway Login"}
+                    {authMode === "login"
+                      ? "New client? Register & receive Client ID →"
+                      : "← Back to Client Login"}
                   </button>
                 </div>
               </div>
             </motion.div>
           ) : (
-            /* ========================================================================= */
-            /* DASHBOARD / LOGGED-IN EXPERIENCE                                          */
-            /* ========================================================================= */
+            /* FULL-WIDTH BENTO CLIENT WORKSPACE (IMAGE 3 ARCHITECTURE) */
             <motion.div
               key="client-dashboard"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full min-h-[70vh]"
+              className="w-full space-y-6"
             >
-              
-              {/* SIDEBAR PANEL: PROFILE & ASSIGNED TASKS (cols: 4) */}
-              <div className="lg:col-span-4 space-y-6">
-                
-                {/* Profile Card */}
-                <div className="bg-[var(--tcs-night-2)] p-6 rounded-2xl border border-white/10 flex flex-col items-center text-center relative">
-                  <div className="absolute top-4 right-4 bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
-                    {clientProfile?.client_id || "CL-PENDING"}
-                  </div>
-                  
-                  {/* Dynamic letter avatar */}
-                  <div className="w-16 h-16 rounded-full bg-[var(--tcs-night)] border border-[var(--tcs-offwhite)]/30 flex items-center justify-center text-2xl font-display font-bold text-white shadow-lg shadow-black/40 mb-3 border border-white/20 select-none">
-                    {getAvatarChar()}
-                  </div>
-                  
-                  <h3 className="font-display font-medium text-lg leading-snug">{clientProfile?.name || "Client"}</h3>
-                  <p className="text-gray-500 text-xs font-mono">{clientProfile?.designation || "Creative partner"} @ {clientProfile?.company_name || "Enterprise"}</p>
-                  
-                  <div className="w-full border-t border-white/5 my-4 pt-4 text-left space-y-2.5">
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-500" /> Email</span>
-                      <span className="text-white truncate max-w-[200px] font-mono">{clientProfile?.email}</span>
+              {/* TOP PAGE HEADER ROW */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                  <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#F4EFE6]/50 mb-1">
+                    {clientProfile?.company_name || "THE CHANTING STUDIO"} • {clientProfile?.client_id || "ACTIVE CLIENT"}
+                  </p>
+                  <h1 className="font-display font-medium text-3xl sm:text-4xl lg:text-5xl text-[#F4EFE6] tracking-tight">
+                    Welcome, {clientProfile?.name?.split(" ")[0] || "Partner"}
+                  </h1>
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <a
+                    href="https://wa.me/919958194155"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-3 rounded-full bg-[#F4EFE6] hover:bg-white text-[#07080C] font-mono text-xs uppercase tracking-[0.14em] font-semibold flex items-center gap-2 shadow-lg transition-all"
+                  >
+                    <span>Chat with Director</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              {/* 2-CARD HERO BENTO METRICS ROW (60% / 40% SPLIT LIKE IMAGE 3) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                {/* LEFT BENTO CARD (7 cols): Production Progress & Live Metrics */}
+                <div className="lg:col-span-7 rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-7 flex flex-col justify-between gap-6">
+                  <div className="grid grid-cols-3 gap-4 sm:gap-8">
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-2">
+                        Deliverables
+                      </p>
+                      <p className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6]">
+                        {works.length}
+                      </p>
                     </div>
-                    {clientProfile?.mobile && (
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-gray-500" /> Phone</span>
-                        <span className="text-white font-mono">{clientProfile.mobile}</span>
-                      </div>
-                    )}
-                    {clientProfile?.signing_up_for && (
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span className="flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-gray-500" /> Deal Tier</span>
-                        <span className="text-[var(--tcs-gold)] font-medium">{clientProfile.signing_up_for}</span>
-                      </div>
-                    )}
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-2">
+                        Tasks Complete
+                      </p>
+                      <p className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6]">
+                        {completedTasksCount}
+                        <span className="text-lg text-[#F4EFE6]/40 font-normal">/{tasks.length}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-2">
+                        Overall Progress
+                      </p>
+                      <p className="font-display text-3xl sm:text-4xl font-semibold text-[#FFC93C]">
+                        {avgProgress}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Spectral Production Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-mono text-[#F4EFE6]/60">
+                      <span>Pipeline Completion</span>
+                      <span>{feedbacks.length} Review Notes Logged</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[#0B0D13] rounded-full overflow-hidden p-0.5 border border-white/[0.06]">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.max(avgProgress, 6)}%`,
+                          background: "var(--tcs-spectrum-linear)",
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Studio Tasks list */}
-                <div className="bg-[var(--tcs-night-2)] p-6 rounded-2xl border border-white/10">
-                  <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
-                    <h3 className="font-display font-semibold text-sm flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-[var(--tcs-offwhite)]" /> Studio Tasks Track
-                    </h3>
-                    <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded">
-                      {tasks.length} Active
+                {/* RIGHT BENTO CARD (5 cols): Active Production Tier & Quick Contact */}
+                <div className="lg:col-span-5 rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-7 flex flex-col justify-between gap-5 relative overflow-hidden">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-1.5">
+                        Active Production Scope
+                      </p>
+                      <p className="font-display text-2xl sm:text-3xl font-medium text-[#F4EFE6] leading-tight">
+                        {clientProfile?.signing_up_for || "Custom Studio Production"}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-mono text-[10px] uppercase tracking-wider shrink-0">
+                      ● Active
                     </span>
                   </div>
 
-                  {tasks.length === 0 ? (
-                    <div className="text-center py-8 text-gray-600 text-xs">
-                      No active tasks currently dispatched by curators.
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="p-3.5 rounded-2xl bg-[#0B0D13] border border-white/[0.06]">
+                      <span className="block font-mono text-[10px] uppercase text-[#F4EFE6]/45 mb-1">Client Contact</span>
+                      <span className="block text-xs sm:text-sm text-[#F4EFE6] truncate">{clientProfile?.email}</span>
                     </div>
-                  ) : (
-                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="text-xs font-semibold text-white leading-tight">{task.task_name}</span>
-                            <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0 ${
-                              task.status === "Completed" 
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                : task.status === "In Progress"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                  : "bg-gray-500/10 text-gray-400 border border-gray-500/10"
-                            }`}>
-                              {task.status}
-                            </span>
-                          </div>
-                          
-                          {/* Progress bar */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[9px] font-mono text-gray-500">
-                              <span>Progress</span>
-                              <span>{task.progress}%</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-[var(--tcs-offwhite)] transition-all duration-500"
-                                style={{ width: `${task.progress}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {task.deadline && (
-                            <div className="flex items-center gap-1.5 text-[9px] font-mono text-gray-500">
-                              <Calendar className="w-3 h-3 text-gray-600" />
-                              <span>Target Delivery: {task.deadline}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                    <div
+                      className="p-3.5 rounded-2xl text-white flex flex-col justify-between"
+                      style={{
+                        background: "linear-gradient(135deg, #FF6A1F 0%, #E8332A 100%)",
+                      }}
+                    >
+                      <span className="block font-mono text-[10px] uppercase text-white/80">Direct Studio Line</span>
+                      <a
+                        href="https://wa.me/919958194155"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs sm:text-sm font-semibold underline underline-offset-4 mt-1"
+                      >
+                        +91 9958194155 ↗
+                      </a>
                     </div>
-                  )}
+                  </div>
                 </div>
-
               </div>
 
-              {/* MAIN CONTENT WORKSPACE: DELIVERABLES & TRACING (cols: 8) */}
-              <div className="lg:col-span-8 space-y-6">
-                
-                {/* Horizontal Navigation Tabs */}
-                <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 border-b border-white/10 pb-4 overflow-x-auto scrollbar-none">
-                  <button
-                    onClick={() => setActiveDashboardTab("work")}
-                    className={`px-5 py-2.5 rounded-full text-xs font-semibold font-display tracking-wider uppercase transition-all flex items-center gap-2 border ${
-                      activeDashboardTab === "work"
-                        ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold"
-                        : "text-gray-400 hover:text-white bg-white/5 border-transparent hover:bg-white/10"
-                    }`}
-                  >
-                    <Video className="w-3.5 h-3.5" /> Creative Take-and-Trace
-                  </button>
-                  <button
-                    onClick={() => setActiveDashboardTab("deals")}
-                    className={`px-5 py-2.5 rounded-full text-xs font-semibold font-display tracking-wider uppercase transition-all flex items-center gap-2 border ${
-                      activeDashboardTab === "deals"
-                        ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold"
-                        : "text-gray-400 hover:text-white bg-white/5 border-transparent hover:bg-white/10"
-                    }`}
-                  >
-                    <Award className="w-3.5 h-3.5" /> Active Contract & Status
-                  </button>
+              {/* MAIN WORKSPACE CONTENT BY TAB */}
+              {isDataLoading ? (
+                <div className="rounded-3xl bg-[#141720] border border-white/[0.07] p-20 flex flex-col items-center justify-center">
+                  <Ring size={44} stroke={3} animate="spin-slow" />
+                  <p className="text-[#F4EFE6]/60 text-xs font-mono uppercase tracking-[0.18em] mt-4">
+                    Loading your studio deliverables...
+                  </p>
                 </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  {activeDashboardTab === "work" && (
+                    <motion.div
+                      key="tab-work"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.25 }}
+                      className="rounded-3xl bg-[#141720] border border-white/[0.07] p-5 sm:p-7 space-y-6"
+                    >
+                      {/* Asset Switcher Strip */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.07] pb-5">
+                        <div>
+                          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#F4EFE6]/50">
+                            Dispatched Cuts & Stills
+                          </p>
+                          <h2 className="font-display text-xl sm:text-2xl font-medium text-[#F4EFE6] mt-0.5">
+                            {selectedWork ? selectedWork.title : "Select a Deliverable"}
+                          </h2>
+                        </div>
 
-                {isDataLoading ? (
-                  <div className="bg-[var(--tcs-night-2)] p-16 rounded-2xl border border-white/10 flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-[var(--tcs-offwhite)]/50 border-t-transparent animate-spin mb-4" />
-                    <p className="text-gray-500 text-xs font-mono uppercase tracking-widest">Synchronizing secure client node...</p>
-                  </div>
-                ) : activeDashboardTab === "work" ? (
-                  
-                  /* ========================================================================= */
-                  /* WORK FEEDBACK TAB                                                         */
-                  /* ========================================================================= */
-                  <div className="space-y-6">
-                    
-                    {/* Work selector strip */}
-                    <div className="bg-[var(--tcs-night-2)] p-4 rounded-2xl border border-white/10 space-y-2">
-                      <div className="text-[10px] uppercase font-mono tracking-widest text-gray-500">Dispatched Project Assets</div>
-                      <div className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin">
-                        {works.length === 0 ? (
-                          <div className="text-gray-600 text-xs py-1">No shared render assets dispatched for your account.</div>
-                        ) : (
-                          works.map((work) => (
-                            <button
-                              key={work.id}
-                              onClick={() => handleSelectWork(work)}
-                              className={`px-4 py-2.5 rounded-xl border text-xs font-semibold tracking-tight transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
-                                selectedWork?.id === work.id
-                                  ? "bg-white/10 text-white border-white/20"
-                                  : "bg-black/35 text-gray-400 border-white/5 hover:text-gray-200 hover:border-white/10"
-                              }`}
-                            >
-                              {work.type === "video" ? <Video className="w-3.5 h-3.5 text-[var(--tcs-offwhite)]" /> : <ImageIcon className="w-3.5 h-3.5 text-amber-400" />}
-                              {work.title}
-                            </button>
-                          ))
-                        )}
+                        <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                          {works.length === 0 ? (
+                            <span className="text-sm text-[#F4EFE6]/50">No cuts dispatched yet.</span>
+                          ) : (
+                            works.map((work) => {
+                              const isSel = selectedWork?.id === work.id;
+                              return (
+                                <button
+                                  key={work.id}
+                                  type="button"
+                                  onClick={() => handleSelectWork(work)}
+                                  className={`px-4 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all shrink-0 flex items-center gap-2 cursor-pointer border ${
+                                    isSel
+                                      ? "bg-[#F4EFE6] text-[#07080C] border-[#F4EFE6] font-semibold shadow-md"
+                                      : "bg-[#0B0D13] text-[#F4EFE6]/75 border-white/10 hover:border-white/30 hover:text-white"
+                                  }`}
+                                >
+                                  {work.type === "video" ? (
+                                    <Video className="w-4 h-4" />
+                                  ) : (
+                                    <ImageIcon className="w-4 h-4" />
+                                  )}
+                                  <span>{work.title}</span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {selectedWork && (
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        
-                        {/* Media Display Viewer (cols: 7) */}
-                        <div className="lg:col-span-7 space-y-4">
-                          <div className="bg-[var(--tcs-night-2)] rounded-2xl border border-white/10 overflow-hidden bg-black/80 relative">
-                            {selectedWork.type === "video" ? (
-                              <div className="aspect-video w-full flex items-center justify-center">
+                      {selectedWork ? (
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                          {/* LEFT (8 cols): Cinema-Sized Player + Generous Review Form */}
+                          <div className="xl:col-span-8 space-y-5">
+                            <div className="rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+                              {selectedWork.type === "video" ? (
                                 <video
                                   ref={videoPlayerRef}
                                   src={selectedWork.url}
                                   controls
                                   onTimeUpdate={handleTimeUpdate}
-                                  className="w-full h-full object-contain aspect-video"
+                                  className="w-full aspect-video object-contain bg-black"
                                 />
-                              </div>
-                            ) : (
-                              <div className="aspect-video w-full flex items-center justify-center overflow-hidden">
+                              ) : (
                                 <img
                                   src={selectedWork.url}
                                   alt={selectedWork.title}
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full object-contain aspect-video max-h-[400px]"
+                                  className="w-full max-h-[560px] object-contain bg-black"
                                 />
-                              </div>
-                            )}
-                            <div className="p-4 bg-black/40 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div>
-                                <h4 className="text-sm font-semibold truncate max-w-[250px]">{selectedWork.title}</h4>
-                                <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{selectedWork.type} Asset</p>
-                              </div>
-                              <a
-                                href={selectedWork.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-mono uppercase text-gray-300 hover:text-white transition-colors"
-                              >
-                                View Raw URL
-                              </a>
-                            </div>
-                          </div>
+                              )}
 
-                          {/* Trace Feedback Form */}
-                          <div className="bg-[var(--tcs-night-2)] p-5 rounded-2xl border border-white/10 space-y-4">
-                            <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-[var(--tcs-offwhite)]">Submit Trace Review</h4>
-                            
-                            <form onSubmit={submitFeedback} className="space-y-3">
-                              {/* Conditionally render video/image helper fields */}
-                              {selectedWork.type === "video" ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                                  <button
-                                    type="button"
-                                    onClick={captureVideoTimestamp}
-                                    className="py-2.5 px-3 bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--tcs-line)] rounded-xl text-[10px] uppercase font-mono tracking-wider font-bold text-[var(--tcs-offwhite)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                                  >
-                                    <Clock className="w-3.5 h-3.5" /> Stamp Current Time
-                                  </button>
-                                  
-                                  <div className="relative">
-                                    <input
-                                      type="text"
-                                      value={videoTimestamp}
-                                      onChange={(e) => setVideoTimestamp(e.target.value)}
-                                      placeholder="MM:SS (e.g. 0:12)"
-                                      className="w-full px-3 py-2 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-xl text-xs font-mono text-white placeholder-gray-600 outline-none"
-                                    />
-                                    {videoTimestamp && (
-                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono bg-violet-500/20 text-[var(--tcs-offwhite)] px-1 py-0.5 rounded">
-                                        Pinned
-                                      </span>
-                                    )}
-                                  </div>
+                              <div className="px-5 py-4 bg-[#0B0D13] border-t border-white/[0.07] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium text-[#F4EFE6]">{selectedWork.title}</h3>
+                                  <p className="text-xs font-mono text-[#F4EFE6]/50 uppercase tracking-wider mt-0.5">
+                                    {selectedWork.type} deliverable
+                                  </p>
                                 </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  <label className="text-[9px] uppercase font-mono tracking-wider text-gray-500">Feedback Categorization Tag</label>
+                                <a
+                                  href={selectedWork.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-mono uppercase tracking-wider text-[#F4EFE6] transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto"
+                                >
+                                  Open Source File <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            </div>
+
+                            {/* Generous Trace Review Input Card */}
+                            <div className="rounded-2xl bg-[#0B0D13] border border-white/[0.08] p-5 sm:p-6 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-mono text-xs uppercase tracking-[0.16em] text-[#FFC93C] font-semibold">
+                                  Add Frame-Accurate Review Note
+                                </h4>
+                                <span className="text-xs font-mono text-[#F4EFE6]/45">
+                                  Synced live with Studio Directors
+                                </span>
+                              </div>
+
+                              <form onSubmit={submitFeedback} className="space-y-4">
+                                {selectedWork.type === "video" ? (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={captureVideoTimestamp}
+                                      className="py-3 px-4 bg-[#141720] hover:bg-white/[0.08] border border-white/15 rounded-xl text-xs uppercase font-mono tracking-wider font-semibold text-[#F4EFE6] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                                    >
+                                      <Clock className="w-4 h-4 text-[#FF6A1F]" /> Stamp Current Time
+                                    </button>
+
+                                    <div className="relative">
+                                      <input
+                                        type="text"
+                                        value={videoTimestamp}
+                                        onChange={(e) => setVideoTimestamp(e.target.value)}
+                                        placeholder="Timestamp MM:SS (e.g. 0:14)"
+                                        className="w-full px-4 py-3 bg-[#141720] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm font-mono text-[#F4EFE6] placeholder-[#F4EFE6]/35 outline-none"
+                                      />
+                                      {videoTimestamp && (
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono bg-[#FF6A1F]/20 text-[#FF6A1F] px-2 py-0.5 rounded-full">
+                                          Pinned
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
                                   <div className="flex gap-2 flex-wrap">
-                                    {["VFX", "Coloring", "Crop & Layout", "CGI Assets", "Typography", "Speed/Timing"].map((tagOption) => (
+                                    {["VFX", "Coloring", "Crop & Layout", "CGI Assets", "Typography", "Timing"].map((tagOption) => (
                                       <button
                                         key={tagOption}
                                         type="button"
                                         onClick={() => setImageTag(tagOption)}
-                                        className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono uppercase transition-all cursor-pointer ${
+                                        className={`px-3.5 py-2 rounded-full border text-xs font-mono uppercase transition-all cursor-pointer ${
                                           imageTag === tagOption
-                                            ? "bg-amber-400/15 border-amber-400 text-amber-300 font-bold"
-                                            : "bg-black/40 border-white/5 text-gray-500 hover:text-gray-300"
+                                            ? "bg-[#F4EFE6] text-[#07080C] border-[#F4EFE6] font-semibold"
+                                            : "bg-[#141720] border-white/10 text-[#F4EFE6]/70 hover:text-white"
                                         }`}
                                       >
                                         {tagOption}
                                       </button>
                                     ))}
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                              <div className="space-y-1.5">
                                 <textarea
                                   rows={3}
                                   required
                                   value={feedbackComment}
                                   onChange={(e) => setFeedbackComment(e.target.value)}
-                                  placeholder="Describe required changes or review feedback for our designers..."
-                                  className="w-full px-4 py-3 bg-black/50 border border-white/10 focus:border-[var(--tcs-offwhite)]/50 focus:ring-1 focus:ring-violet-500 rounded-2xl text-xs transition-all text-white placeholder-gray-600 outline-none resize-none"
+                                  placeholder="Describe the edit, pacing note, grade adjustment, or audio change..."
+                                  className="w-full px-4 py-3.5 bg-[#141720] border border-white/10 focus:border-[#FF6A1F] rounded-xl text-sm text-[#F4EFE6] placeholder-[#F4EFE6]/35 outline-none resize-none leading-relaxed"
                                 />
-                              </div>
 
-                              <button
-                                type="submit"
-                                className="w-full py-2.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] text-white font-semibold font-display tracking-widest text-[10px] uppercase rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                              >
-                                <Send className="w-3 h-3" /> Dispatch Review Comment
-                              </button>
-                            </form>
+                                <button
+                                  type="submit"
+                                  className="w-full py-3.5 rounded-full bg-[#F4EFE6] hover:bg-white text-[#07080C] font-semibold font-mono tracking-[0.16em] text-xs uppercase transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                  <Send className="w-4 h-4" /> Dispatch Review Note
+                                </button>
+                              </form>
+                            </div>
                           </div>
 
-                        </div>
-
-                        {/* Existing Feedback Timeline (cols: 5) */}
-                        <div className="lg:col-span-5 space-y-4">
-                          <div className="bg-[var(--tcs-night-2)] p-5 rounded-2xl border border-white/10 flex flex-col min-h-[350px]">
-                            <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-gray-400 border-b border-white/5 pb-3 mb-3 flex justify-between items-center">
-                              <span>Markup Timeline</span>
-                              <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-gray-500 px-2 py-0.5 rounded">
-                                {feedbacks.filter(f => f.work_id === selectedWork.id).length} Entries
+                          {/* RIGHT (4 cols): Spacious Markup Timeline */}
+                          <div className="xl:col-span-4 rounded-2xl bg-[#0B0D13] border border-white/[0.08] p-5 sm:p-6 flex flex-col min-h-[480px]">
+                            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-4">
+                              <h4 className="font-mono text-xs uppercase tracking-[0.16em] text-[#F4EFE6] font-semibold">
+                                Markup Timeline
+                              </h4>
+                              <span className="text-xs font-mono bg-[#141720] border border-white/10 text-[#F4EFE6]/70 px-2.5 py-1 rounded-full">
+                                {feedbacks.filter((f) => f.work_id === selectedWork.id).length} notes
                               </span>
-                            </h4>
+                            </div>
 
-                            <div className="space-y-3 flex-1 overflow-y-auto max-h-[450px] pr-1">
-                              {feedbacks.filter(f => f.work_id === selectedWork.id).length === 0 ? (
-                                <div className="text-center py-12 text-gray-600 text-xs">
-                                  No feedback logged for this render asset yet.
+                            <div className="space-y-3.5 flex-1 overflow-y-auto max-h-[600px] pr-1">
+                              {feedbacks.filter((f) => f.work_id === selectedWork.id).length === 0 ? (
+                                <div className="text-center py-16 text-[#F4EFE6]/45 text-sm">
+                                  No review notes logged on this cut yet.
                                 </div>
                               ) : (
                                 feedbacks
                                   .filter((f) => f.work_id === selectedWork.id)
                                   .map((feedback) => (
-                                    <div 
-                                      key={feedback.id} 
-                                      className={`p-3 bg-white/[0.01] border border-white/5 rounded-2xl space-y-1.5 transition-all relative ${
-                                        feedback.acknowledged ? "border-emerald-500/10" : ""
-                                      }`}
+                                    <div
+                                      key={feedback.id}
+                                      className="p-4 bg-[#141720] border border-white/[0.07] rounded-2xl space-y-2.5"
                                     >
-                                      <div className="flex justify-between items-start gap-2">
-                                        <div className="flex items-center gap-1.5">
-                                          {selectedWork.type === "video" && feedback.timestamp ? (
-                                            <button
-                                              onClick={() => seekToTimestamp(feedback.timestamp!)}
-                                              className="text-[9px] font-mono bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)]/80 hover:text-white px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
-                                            >
-                                              <Play className="w-2.5 h-2.5 shrink-0" /> {feedback.timestamp}
-                                            </button>
-                                          ) : feedback.tag ? (
-                                            <span className="text-[8px] font-mono bg-amber-400/10 border border-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                              <Tag className="w-2.5 h-2.5 shrink-0" /> {feedback.tag}
-                                            </span>
-                                          ) : null}
-                                        </div>
+                                      <div className="flex items-center justify-between gap-2">
+                                        {selectedWork.type === "video" && feedback.timestamp ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => seekToTimestamp(feedback.timestamp!)}
+                                            className="text-xs font-mono bg-[#FF6A1F]/15 hover:bg-[#FF6A1F]/25 border border-[#FF6A1F]/30 text-[#FFC93C] px-2.5 py-1 rounded-full flex items-center gap-1.5 cursor-pointer transition-colors"
+                                          >
+                                            <Play className="w-3 h-3" /> {feedback.timestamp}
+                                          </button>
+                                        ) : feedback.tag ? (
+                                          <span className="text-xs font-mono bg-white/[0.06] border border-white/10 text-[#F4EFE6] px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                            <Tag className="w-3 h-3" /> {feedback.tag}
+                                          </span>
+                                        ) : (
+                                          <span className="text-xs font-mono text-[#F4EFE6]/40">General Note</span>
+                                        )}
 
-                                        <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1 ${
-                                          feedback.acknowledged 
-                                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" 
-                                            : "bg-amber-500/10 text-amber-400 border border-amber-500/15"
-                                        }`}>
+                                        <span
+                                          className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                                            feedback.acknowledged
+                                              ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25"
+                                              : "bg-amber-500/15 text-amber-300 border border-amber-500/25"
+                                          }`}
+                                        >
                                           {feedback.acknowledged ? (
-                                            <><Check className="w-2 h-2" /> Acknowledged</>
+                                            <>
+                                              <Check className="w-3 h-3" /> Done
+                                            </>
                                           ) : (
-                                            <><Clock className="w-2 h-2" /> Pending Review</>
+                                            <>
+                                              <Clock className="w-3 h-3" /> Pending
+                                            </>
                                           )}
                                         </span>
                                       </div>
 
-                                      <p className="text-xs text-gray-300 leading-normal font-sans font-light select-none">
-                                        {feedback.comment}
-                                      </p>
-                                      
-                                      <div className="text-[8px] text-gray-600 text-right font-mono">
+                                      <p className="text-sm text-[#F4EFE6]/90 leading-relaxed">{feedback.comment}</p>
+
+                                      <p className="text-[11px] font-mono text-[#F4EFE6]/40 text-right">
                                         {new Date(feedback.created_at).toLocaleDateString()}
-                                      </div>
+                                      </p>
                                     </div>
                                   ))
                               )}
                             </div>
                           </div>
                         </div>
-
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  
-                  /* ========================================================================= */
-                  /* DEALS & CONTRACT TAB                                                      */
-                  /* ========================================================================= */
-                  <div className="bg-[var(--tcs-night-2)] p-5 sm:p-8 rounded-2xl border border-white/10 space-y-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-[var(--tcs-line)] flex items-center justify-center">
-                        <Award className="w-5 h-5 text-[var(--tcs-offwhite)]" />
-                      </div>
-                      <div>
-                        <h3 className="font-display font-medium text-lg">Active Studio contract agreements</h3>
-                        <p className="text-gray-500 text-xs font-mono">Project specifications, milestones and SLAs</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl space-y-3">
-                        <div className="text-[10px] uppercase font-mono tracking-widest text-[var(--tcs-offwhite)]">Active Service Tier</div>
-                        <div className="font-display font-light text-2xl text-white">
-                          {clientProfile?.signing_up_for || "Custom Studio Production Agreement"}
+                      ) : (
+                        <div className="py-16 text-center text-[#F4EFE6]/50 text-sm">
+                          Your studio deliverables will appear here once dispatched by the production team.
                         </div>
-                        <p className="text-gray-400 text-xs leading-relaxed">
-                          Your dedicated studio production pipeline covers creative direction, AI + live-action VFX production, color grading, sound design, and final master delivery.
-                        </p>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {activeDashboardTab === "tasks" && (
+                    <motion.div
+                      key="tab-tasks"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.25 }}
+                      className="rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-8 space-y-6"
+                    >
+                      <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+                        <div className="flex items-center gap-3">
+                          <Activity className="w-5 h-5 text-[#FF6A1F]" />
+                          <h2 className="font-display text-2xl font-medium text-[#F4EFE6]">Production Milestones</h2>
+                        </div>
+                        <span className="font-mono text-xs text-[#F4EFE6]/60 bg-[#0B0D13] px-3 py-1.5 rounded-full border border-white/10">
+                          {tasks.length} Active Milestones
+                        </span>
                       </div>
 
-                      <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl space-y-3">
-                        <div className="text-[10px] uppercase font-mono tracking-widest text-[var(--tcs-offwhite)]">Account Identity / Metadata</div>
-                        <div className="space-y-2 font-mono text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Client ID:</span>
-                            <span className="text-white">{clientProfile?.client_id}</span>
+                      {tasks.length === 0 ? (
+                        <div className="py-16 text-center text-[#F4EFE6]/50 text-sm">
+                          No production milestones assigned yet.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                          {tasks.map((task) => (
+                            <div
+                              key={task.id}
+                              className="p-5 rounded-2xl bg-[#0B0D13] border border-white/[0.08] space-y-4 flex flex-col justify-between"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <h3 className="text-base font-medium text-[#F4EFE6] leading-snug">
+                                  {task.task_name}
+                                </h3>
+                                <span
+                                  className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded-full shrink-0 ${
+                                    task.status === "Completed"
+                                      ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25"
+                                      : task.status === "In Progress"
+                                      ? "bg-[#FF6A1F]/15 text-[#FFC93C] border border-[#FF6A1F]/30"
+                                      : "bg-white/[0.06] text-[#F4EFE6]/60 border border-white/10"
+                                  }`}
+                                >
+                                  {task.status}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-xs font-mono text-[#F4EFE6]/60">
+                                  <span>Completion</span>
+                                  <span className="text-[#F4EFE6]">{task.progress}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-[#141720] rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${task.progress}%`,
+                                      background: "var(--tcs-spectrum-linear)",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {task.deadline && (
+                                <div className="flex items-center gap-2 text-xs font-mono text-[#F4EFE6]/50 pt-2 border-t border-white/[0.06]">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>Target Delivery: {task.deadline}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {activeDashboardTab === "deals" && (
+                    <motion.div
+                      key="tab-deals"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.25 }}
+                      className="rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-8 space-y-6"
+                    >
+                      <div className="flex items-center gap-3 border-b border-white/[0.08] pb-5">
+                        <div className="w-11 h-11 rounded-2xl bg-[#0B0D13] border border-white/10 flex items-center justify-center">
+                          <Award className="w-5 h-5 text-[#FFC93C]" />
+                        </div>
+                        <div>
+                          <h2 className="font-display text-2xl font-medium text-[#F4EFE6]">
+                            Active Production Agreement
+                          </h2>
+                          <p className="text-xs font-mono text-[#F4EFE6]/50 mt-0.5">
+                            Scope, account credentials, and direct producer support
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="p-6 bg-[#0B0D13] border border-white/[0.08] rounded-2xl space-y-3">
+                          <div className="text-xs uppercase font-mono tracking-[0.16em] text-[#FFC93C]">
+                            Production Scope
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Node Registered:</span>
-                            <span className="text-white">{clientProfile?.created_at ? new Date(clientProfile.created_at).toLocaleDateString() : "Active"}</span>
+                          <div className="font-display font-medium text-2xl text-[#F4EFE6]">
+                            {clientProfile?.signing_up_for || "Custom Studio Production Agreement"}
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Status Node:</span>
-                            <span className="text-emerald-400">Synchronized // ACTIVE</span>
+                          <p className="text-[#F4EFE6]/70 text-sm leading-relaxed">
+                            Your dedicated studio production pipeline covers creative direction, AI + live-action VFX production, color grading, sound design, and final master delivery.
+                          </p>
+                        </div>
+
+                        <div className="p-6 bg-[#0B0D13] border border-white/[0.08] rounded-2xl space-y-3">
+                          <div className="text-xs uppercase font-mono tracking-[0.16em] text-[#FFC93C]">
+                            Account Metadata
+                          </div>
+                          <div className="space-y-3 font-mono text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-[#F4EFE6]/50">Client ID</span>
+                              <span className="text-[#F4EFE6]">{clientProfile?.client_id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#F4EFE6]/50">Company</span>
+                              <span className="text-[#F4EFE6]">{clientProfile?.company_name || "Independent"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#F4EFE6]/50">Registered</span>
+                              <span className="text-[#F4EFE6]">
+                                {clientProfile?.created_at
+                                  ? new Date(clientProfile.created_at).toLocaleDateString()
+                                  : "Active"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#F4EFE6]/50">Status</span>
+                              <span className="text-emerald-400">● Synchronized</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-start gap-4">
-                      <div className="p-2.5 rounded-xl bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] shrink-0">
-                        <HelpCircle className="w-5 h-5" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-semibold">Need custom changes to your deliverables schedule?</h4>
-                        <p className="text-gray-500 text-[11px] leading-relaxed">
-                          Add frame-accurate timestamp comments directly on any cut above. For urgent schedule updates, master format requests, or director notes, reach out directly on WhatsApp (+91 9958194155).
-                        </p>
+                      <div className="p-6 bg-[#0B0D13] border border-white/[0.08] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 rounded-xl bg-[#141720] border border-white/10 text-[#FF6A1F] shrink-0">
+                            <HelpCircle className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-base font-medium text-[#F4EFE6]">
+                              Need schedule changes or direct director notes?
+                            </h4>
+                            <p className="text-[#F4EFE6]/60 text-sm mt-1">
+                              Add frame-accurate timestamp comments on any cut, or message the director directly on WhatsApp.
+                            </p>
+                          </div>
+                        </div>
                         <a
                           href="https://wa.me/919958194155"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] hover:bg-white font-mono text-[10px] uppercase tracking-[0.14em] font-semibold transition-all"
+                          className="px-5 py-3 rounded-full bg-[#F4EFE6] hover:bg-white text-[#07080C] font-mono text-xs uppercase tracking-[0.14em] font-semibold shrink-0 transition-all"
                         >
-                          Chat with Director on WhatsApp ↗
+                          Chat with Director ↗
                         </a>
                       </div>
-                    </div>
-                  </div>
-
-                )}
-
-              </div>
-
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
-
       </main>
 
-      {/* FOOTER METRICS */}
-      <footer className="w-full border-t border-white/5 py-6 bg-black/60 backdrop-blur-sm mt-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-gray-600">
-          <div>
-            © 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio • Client Portal
-          </div>
+      {/* FOOTER */}
+      <footer className="w-full border-t border-white/[0.07] py-6 bg-[#07080C] mt-10">
+        <div className="max-w-[1680px] mx-auto px-6 sm:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-[#F4EFE6]/45">
+          <div>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio • Client Portal</div>
           <div className="flex gap-4">
             <span>Encrypted Client Workspace</span>
             <span>•</span>
@@ -1092,7 +1355,6 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

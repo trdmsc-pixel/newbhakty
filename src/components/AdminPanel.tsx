@@ -9,7 +9,7 @@ import {
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
   Upload, AlertTriangle, ArrowRight, ShieldCheck, CheckCheck, Check, Edit2, Play, PlusCircle,
   Undo, Redo, GripVertical, Sparkles, BrainCircuit, FileText, BarChart3, Video, Loader2,
-  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X, Menu, Users, FolderKanban, Clock, Tag
+  Palette, Sliders, Image, MessageSquare, Send, Type, ChevronDown, ChevronUp, X, Menu, Users, FolderKanban, Clock, Tag, Bell
 } from "lucide-react";
 
 import { WEB_THEMES, getActiveTheme } from "../lib/themes";
@@ -227,6 +227,24 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const [logoConfigOpen, setLogoConfigOpen] = useState(false);
   const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
   const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [browserNotifPermission, setBrowserNotifPermission] = useState<string>(() =>
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
+  );
+  const prevAlertTotalRef = useRef<number | null>(null);
+
+  const requestBrowserNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.info("Browser notifications are not supported on this device.");
+      return;
+    }
+    const res = await Notification.requestPermission();
+    setBrowserNotifPermission(res);
+    if (res === "granted") {
+      playIntakeNotificationSound();
+      toast.success("Browser alerts & sound enabled for new inquiries, chats, and client notes.");
+    }
+  };
 
   const toggleSettingsSection = (id: string) => {
     setOpenSettingsSections((prev) =>
@@ -2699,285 +2717,508 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const pendingInquiriesCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
   const unreadChatsCount = chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0);
   const unreadFeedbackCount = allFeedbacks.filter((f) => !f.acknowledged).length;
+  const totalAlertsCount = pendingInquiriesCount + unreadChatsCount + unreadFeedbackCount;
 
-  const sidebarBtnClass = (isActive: boolean) =>
-    `w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[11px] font-mono uppercase tracking-[0.12em] transition-all duration-200 relative border cursor-pointer ${
-      isActive
-        ? "bg-[var(--tcs-night-2)] text-[var(--tcs-offwhite)] border-[var(--tcs-offwhite)]/25 font-semibold"
-        : "text-[var(--tcs-muted)] hover:text-[var(--tcs-offwhite)] bg-transparent border-transparent hover:bg-white/[0.03] hover:border-[var(--tcs-line)]"
-    }`;
+  // Browser Tab Title Badge + Native Browser Notification + Sound Chime when new alerts arrive
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    document.title =
+      totalAlertsCount > 0
+        ? `(${totalAlertsCount}) Studio CMS — The Chanting Studio`
+        : "Studio CMS — The Chanting Studio";
+
+    if (prevAlertTotalRef.current !== null && totalAlertsCount > prevAlertTotalRef.current) {
+      playIntakeNotificationSound();
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          const notif = new Notification("The Chanting Studio — New Studio Alert", {
+            body: `${pendingInquiriesCount} pending inquiries • ${unreadFeedbackCount} client notes • ${unreadChatsCount} unread chats`,
+            icon: "/favicon.png",
+          });
+          notif.onclick = () => {
+            window.focus();
+            setNotificationsOpen(true);
+            notif.close();
+          };
+        } catch {}
+      }
+    }
+    prevAlertTotalRef.current = totalAlertsCount;
+
+    return () => {
+      document.title = "The Chanting Studio — AI-Native Cinematic Studio, Delhi";
+    };
+  }, [totalAlertsCount, isAuthenticated, pendingInquiriesCount, unreadFeedbackCount, unreadChatsCount]);
+
+  const primaryWebsiteTabs: Array<{ id: typeof activeTab; label: string }> = [
+    { id: "settings", label: "Hero & Copy" },
+    { id: "brand_logos", label: "Brand Logos" },
+    { id: "portfolio", label: "Selected Work" },
+    { id: "testimonials", label: "Testimonials" },
+    { id: "intake_form", label: "Inquiry Form" },
+    { id: "navigation", label: "Navigation" },
+  ];
+
+  const utilityOpsTabs: Array<{ id: typeof activeTab; label: string; icon: React.ReactNode; badge?: number }> = [
+    { id: "submissions", label: "Project Inquiries", icon: <FileText className="w-4 h-4" />, badge: pendingInquiriesCount },
+    { id: "assets", label: "Global Assets", icon: <Upload className="w-4 h-4" /> },
+    { id: "analytics", label: "Global Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+    { id: "client_access", label: "Client Access", icon: <Users className="w-4 h-4" />, badge: unreadFeedbackCount },
+    { id: "live_chats", label: "Live Chats", icon: <BrainCircuit className="w-4 h-4" />, badge: unreadChatsCount },
+    { id: "chat_settings", label: "Chat Config", icon: <Sliders className="w-4 h-4" /> },
+  ];
+
+  const activeTabTitleMap: Record<string, string> = {
+    settings: "Studio Copy & Sections",
+    brand_logos: "Brand Roster & Logos",
+    portfolio: "Selected Work & Films",
+    testimonials: "Client Testimonials",
+    intake_form: "Inquiry Form Builder",
+    navigation: "Navigation Anchors",
+    submissions: "Project Inquiries",
+    assets: "CDN Media Assets",
+    analytics: "Global Analytics",
+    client_access: "Client Access Control",
+    live_chats: "Live Chats Console",
+    chat_settings: "Chat Configuration",
+  };
 
   return (
-    <div className="w-screen h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col overflow-hidden relative font-sans">
+    <div className="min-h-screen w-full bg-[#07080C] text-[#F4EFE6] flex flex-col relative font-sans overflow-x-hidden">
       {/* Top Spectral Accent Hairline */}
       <div className="w-full h-[2px] shrink-0" style={{ background: "var(--tcs-spectrum-linear)" }} />
 
-      {/* HEADER SECTION (Sticky Top) */}
-      <header className="sticky top-0 z-50 w-full bg-[var(--tcs-night)]/90 backdrop-blur-xl border-b border-[var(--tcs-line)] px-4 py-3 lg:px-6 lg:py-3.5 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => setMobileSidebarOpen((prev) => !prev)}
-            aria-label="Toggle Admin Navigation"
-            className="lg:hidden w-9 h-9 rounded-lg bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] flex items-center justify-center text-[var(--tcs-offwhite)] hover:border-[var(--tcs-offwhite)]/40 transition-all cursor-pointer shrink-0"
-          >
-            {mobileSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+      {/* Subtle Ambient Studio Glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[960px] h-[380px] spectral-glow opacity-20 pointer-events-none -z-10" />
 
-          <Wordmark capHeight={13} ringAnimation="spin-slow" />
-
-          <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)] pl-3 border-l border-[var(--tcs-line)]">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            Studio CMS
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isUsingSupabase ? (
-            <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono uppercase tracking-wider bg-emerald-500/10 px-2.5 py-1.5 rounded-full border border-emerald-500/20">
-              ● Live Supabase
-            </span>
-          ) : (
-            <span
-              className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-amber-300 font-mono uppercase tracking-wider bg-amber-500/10 px-2.5 py-1.5 rounded-full border border-amber-500/20"
-              title="Values persist in localStorage fallback"
+      {/* IMAGE-3 INSPIRED TOP FLOATING PILL NAVIGATION BAR */}
+      <header className="sticky top-0 z-50 w-full bg-[#07080C]/88 backdrop-blur-xl border-b border-white/[0.07]">
+        <div className="max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3">
+          {/* Left: Mobile Drawer Toggle + Studio Wordmark */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen((prev) => !prev)}
+              aria-label="Toggle Admin Menu"
+              className="xl:hidden w-10 h-10 rounded-full bg-[#141720] border border-white/[0.08] flex items-center justify-center text-[#F4EFE6] cursor-pointer"
             >
-              ▲ Local Backup
-            </span>
-          )}
+              {mobileSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+            <Wordmark capHeight={13} ringAnimation="spin-slow" />
+          </div>
 
-          <button
-            type="button"
-            onClick={onNavigateHome}
-            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] px-3 sm:px-4 py-2 rounded-lg text-[var(--tcs-offwhite)] hover:border-[var(--tcs-offwhite)]/50 hover:bg-white/[0.04] transition-all cursor-pointer"
-          >
-            View Live Site ↗
-          </button>
+          {/* Center: Floating Warm Off-White Pill Container for Website Sections */}
+          <nav className="hidden xl:flex items-center bg-[#F4EFE6] text-[#07080C] rounded-full p-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.45)]">
+            {primaryWebsiteTabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative px-4 py-2 rounded-full text-xs font-mono uppercase tracking-[0.1em] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                    isActive ? "text-white" : "text-[#07080C]/70 hover:text-[#07080C]"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="admin-top-pill"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      className="absolute inset-0 rounded-full z-0"
+                      style={{
+                        background: "linear-gradient(135deg, #FF6A1F 0%, #E8332A 100%)",
+                        boxShadow: "0 4px 16px rgba(255, 106, 31, 0.35)",
+                      }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] bg-red-950/20 border border-red-500/25 px-3 sm:px-3.5 py-2 rounded-lg text-red-300 hover:border-red-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Logout</span>
-          </button>
+          {/* Right: Circular Utility Icon Dock + Notification Bell + Live Site + Logout */}
+          <div className="flex items-center gap-2 shrink-0 relative">
+            <div className="hidden lg:flex items-center gap-1.5 mr-1">
+              {utilityOpsTabs.map((op) => {
+                const isActive = activeTab === op.id;
+                return (
+                  <button
+                    key={op.id}
+                    type="button"
+                    onClick={() => setActiveTab(op.id)}
+                    title={op.label}
+                    className={`relative w-10 h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[#F4EFE6] text-[#07080C] border-[#F4EFE6] shadow-lg"
+                        : "bg-[#141720] text-[#F4EFE6]/70 border-white/[0.08] hover:text-white hover:border-white/25"
+                    }`}
+                  >
+                    {op.icon}
+                    {op.badge !== undefined && op.badge > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF6A1F] text-white font-mono text-[9px] font-bold flex items-center justify-center shadow">
+                        {op.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              title="Notifications & Browser Alerts"
+              className={`relative w-10 h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                notificationsOpen
+                  ? "bg-[#FF6A1F] text-white border-[#FF6A1F]"
+                  : "bg-[#141720] text-[#F4EFE6]/80 border-white/[0.08] hover:text-white hover:border-white/25"
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              {totalAlertsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF6A1F] text-white font-mono text-[9px] font-bold flex items-center justify-center animate-pulse">
+                  {totalAlertsCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.12em] bg-[#141720] border border-white/[0.08] px-4 py-2.5 rounded-full text-[#F4EFE6] hover:border-white/30 hover:bg-white/[0.05] transition-all cursor-pointer"
+            >
+              Live Site ↗
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Logout"
+              className="w-10 h-10 sm:w-auto sm:px-4 rounded-full bg-red-500/10 border border-red-500/25 text-red-300 hover:bg-red-500/20 hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[11px] font-mono uppercase tracking-wider"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+
+            <AnimatePresence>
+              {notificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                  className="absolute right-0 top-14 w-80 sm:w-96 rounded-3xl bg-[#141720] border border-white/10 shadow-2xl p-5 z-[80] space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                    <div>
+                      <p className="font-mono text-xs uppercase tracking-widest text-[#F4EFE6] font-semibold">
+                        Studio Alert Center
+                      </p>
+                      <p className="text-[11px] text-[#F4EFE6]/50 mt-0.5">
+                        {totalAlertsCount > 0 ? `${totalAlertsCount} items need attention` : "All caught up"}
+                      </p>
+                    </div>
+                    {browserNotifPermission !== "granted" && browserNotifPermission !== "unsupported" && (
+                      <button
+                        type="button"
+                        onClick={requestBrowserNotifications}
+                        className="px-3 py-1.5 rounded-full bg-[#FF6A1F] text-white font-mono text-[10px] uppercase tracking-wider font-semibold cursor-pointer"
+                      >
+                        Enable Alerts
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("submissions");
+                        setNotificationsOpen(false);
+                      }}
+                      className="w-full p-3 rounded-2xl bg-[#0B0D13] border border-white/[0.06] hover:border-white/20 flex items-center justify-between text-left cursor-pointer transition-all"
+                    >
+                      <div>
+                        <p className="text-xs font-medium text-[#F4EFE6]">Project Inquiries</p>
+                        <p className="text-[11px] text-[#F4EFE6]/50">{pendingInquiriesCount} pending briefs</p>
+                      </div>
+                      <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#FF6A1F]/15 text-[#FFC93C]">
+                        {pendingInquiriesCount}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("client_access");
+                        setNotificationsOpen(false);
+                      }}
+                      className="w-full p-3 rounded-2xl bg-[#0B0D13] border border-white/[0.06] hover:border-white/20 flex items-center justify-between text-left cursor-pointer transition-all"
+                    >
+                      <div>
+                        <p className="text-xs font-medium text-[#F4EFE6]">Client Review Feedback</p>
+                        <p className="text-[11px] text-[#F4EFE6]/50">{unreadFeedbackCount} unacknowledged notes</p>
+                      </div>
+                      <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#FF6A1F]/15 text-[#FFC93C]">
+                        {unreadFeedbackCount}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("live_chats");
+                        setNotificationsOpen(false);
+                      }}
+                      className="w-full p-3 rounded-2xl bg-[#0B0D13] border border-white/[0.06] hover:border-white/20 flex items-center justify-between text-left cursor-pointer transition-all"
+                    >
+                      <div>
+                        <p className="text-xs font-medium text-[#F4EFE6]">Live Chat Messages</p>
+                        <p className="text-[11px] text-[#F4EFE6]/50">{unreadChatsCount} unread messages</p>
+                      </div>
+                      <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#FF6A1F]/15 text-[#FFC93C]">
+                        {unreadChatsCount}
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </header>
 
-      {/* WORKSPACE LAYOUT */}
-      <div className="flex flex-1 overflow-hidden w-full relative z-10">
-        {/* MOBILE / TABLET SIDEBAR BACKDROP */}
+      {/* MOBILE / TABLET SLIDE-OVER MENU DRAWER */}
+      <AnimatePresence>
         {mobileSidebarOpen && (
-          <div
-            onClick={() => setMobileSidebarOpen(false)}
-            className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-sm lg:hidden"
-          />
-        )}
-
-        {/* SIDEBAR NAVIGATION — ORGANIZED IN EXACT LIVE WEBSITE SEQUENCE */}
-        <aside
-          data-lenis-prevent
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest("button")) {
-              setMobileSidebarOpen(false);
-            }
-          }}
-          className={`${
-            mobileSidebarOpen
-              ? "fixed inset-y-0 left-0 z-[70] flex w-[270px] max-w-[85vw] bg-[#0B0D13]/98 shadow-2xl"
-              : "hidden"
-          } lg:sticky lg:left-0 lg:flex lg:w-64 lg:bg-[#0B0D13] h-full shrink-0 border-r border-[var(--tcs-line)] p-3.5 flex-col gap-1 overflow-y-auto`}
-        >
-          <div className="flex lg:hidden items-center justify-between pb-3 mb-2 border-b border-[var(--tcs-line)]">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tcs-dim)]">Studio Control</span>
-            <button
-              type="button"
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setMobileSidebarOpen(false)}
-              className="p-1.5 rounded-lg bg-white/5 text-[var(--tcs-muted)] hover:text-white cursor-pointer"
+              className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-sm xl:hidden"
+            />
+            <motion.aside
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="fixed inset-y-0 left-0 z-[70] w-[285px] max-w-[85vw] bg-[#0B0D13] border-r border-white/10 p-5 flex flex-col gap-1.5 overflow-y-auto xl:hidden"
             >
-              <X className="w-4 h-4" />
-            </button>
+              <div className="flex items-center justify-between pb-3 mb-2 border-b border-white/10">
+                <span className="font-mono text-xs uppercase tracking-widest text-[#F4EFE6]/60">Studio CMS</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="p-1.5 rounded-full bg-white/5 text-[#F4EFE6]/70 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-[#F4EFE6]/40 px-2 pt-1">Website</p>
+              {primaryWebsiteTabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(t.id);
+                    setMobileSidebarOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl font-mono text-xs uppercase tracking-wider cursor-pointer ${
+                    activeTab === t.id ? "bg-[#FF6A1F] text-white font-semibold" : "text-[#F4EFE6]/75 hover:bg-white/5"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <p className="font-mono text-[10px] uppercase tracking-widest text-[#F4EFE6]/40 px-2 pt-4">Operations</p>
+              {utilityOpsTabs.map((op) => (
+                <button
+                  key={op.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(op.id);
+                    setMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-mono text-xs uppercase tracking-wider cursor-pointer ${
+                    activeTab === op.id ? "bg-[#F4EFE6] text-[#07080C] font-semibold" : "text-[#F4EFE6]/75 hover:bg-white/5"
+                  }`}
+                >
+                  <span>{op.label}</span>
+                  {op.badge ? <span className="px-2 py-0.5 rounded-full bg-[#FF6A1F] text-white text-[10px]">{op.badge}</span> : null}
+                </button>
+              ))}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* MAIN FULL-WIDTH EDITORIAL COMMAND CENTER */}
+      <main className="flex-1 w-full max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="font-display font-medium text-3xl sm:text-4xl lg:text-[42px] text-[#F4EFE6] tracking-tight leading-none">
+              {activeTabTitleMap[activeTab] || "Studio CMS"}
+            </h1>
+            {isUsingSupabase && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                ● Live Sync
+              </span>
+            )}
           </div>
 
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2.5 pt-1 pb-1.5">
-            Website Sections
-          </p>
-
-          <button type="button" onClick={() => setActiveTab("settings")} className={sidebarBtnClass(activeTab === "settings")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Settings className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">01 · Hero & Copy</span>
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">8</span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("brand_logos")} className={sidebarBtnClass(activeTab === "brand_logos")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Image className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">02 · Brand Logos</span>
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editLogos.length}</span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("portfolio")} className={sidebarBtnClass(activeTab === "portfolio")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Play className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">03 · Selected Work</span>
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editWorks.length}</span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("testimonials")} className={sidebarBtnClass(activeTab === "testimonials")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">04 · Testimonials</span>
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editTestimonials.length}</span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("intake_form")} className={sidebarBtnClass(activeTab === "intake_form")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Sliders className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">05 · Inquiry Form</span>
-            </span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("navigation")} className={sidebarBtnClass(activeTab === "navigation")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Compass className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">06 · Navigation</span>
-            </span>
-          </button>
-
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2.5 pt-4 pb-1.5 border-t border-[var(--tcs-line)] mt-2">
-            Studio Operations
-          </p>
-
-          <button type="button" onClick={() => setActiveTab("submissions")} className={sidebarBtnClass(activeTab === "submissions")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <FileText className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Project Inquiries</span>
-            </span>
-            {pendingInquiriesCount > 0 ? (
-              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                {pendingInquiriesCount}
-              </span>
-            ) : (
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{submissionsList.length}</span>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {totalAlertsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(true)}
+                className="px-4 py-2.5 rounded-full bg-[#FF6A1F]/15 border border-[#FF6A1F]/35 text-[#FFC93C] font-mono text-xs uppercase tracking-wider font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {totalAlertsCount} New Alerts
+              </button>
             )}
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("assets")} className={sidebarBtnClass(activeTab === "assets")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Upload className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Global Assets</span>
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{mediaAssets.length}</span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("analytics")} className={sidebarBtnClass(activeTab === "analytics")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Global Analytics</span>
-            </span>
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("client_access")} className={sidebarBtnClass(activeTab === "client_access")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Users className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Client Access</span>
-            </span>
-            {unreadFeedbackCount > 0 && (
-              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                {unreadFeedbackCount}
-              </span>
-            )}
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("live_chats")} className={sidebarBtnClass(activeTab === "live_chats")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Live Chats</span>
-            </span>
-            {unreadChatsCount > 0 && (
-              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                {unreadChatsCount}
-              </span>
-            )}
-          </button>
-
-          <button type="button" onClick={() => setActiveTab("chat_settings")} className={sidebarBtnClass(activeTab === "chat_settings")}>
-            <span className="flex items-center gap-2.5 min-w-0">
-              <Sliders className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Chat Config</span>
-            </span>
-          </button>
-        </aside>
-
-        {/* FULL-BLEED RESPONSIVE MAIN COMMAND CENTER */}
-        <main
-          data-lenis-prevent
-          className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-5 lg:p-6 relative bg-[#07080C]"
-        >
-          {/* TOP STUDIO KPI BENTO STRIP */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 w-full">
-            <button
-              type="button"
-              onClick={() => setActiveTab("portfolio")}
-              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
-            >
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Selected Work</span>
-              <div className="flex items-baseline justify-between mt-1.5">
-                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{editWorks.length}</span>
-                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">{editTabs.length} tabs ↗</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab("brand_logos")}
-              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
-            >
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Brand Roster</span>
-              <div className="flex items-baseline justify-between mt-1.5">
-                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{editLogos.length}</span>
-                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">Manage ↗</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab("submissions")}
-              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
-            >
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Project Inquiries</span>
-              <div className="flex items-baseline justify-between mt-1.5">
-                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{submissionsList.length}</span>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${pendingInquiriesCount > 0 ? "bg-[var(--tcs-ember)]/20 text-[var(--tcs-ember)]" : "text-emerald-400 bg-emerald-500/10"}`}>
-                  {pendingInquiriesCount > 0 ? `${pendingInquiriesCount} pending` : "All clear"}
-                </span>
-              </div>
-            </button>
-
             <button
               type="button"
               onClick={() => setActiveTab("assets")}
-              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
+              className="px-5 py-2.5 rounded-full bg-[#141720] border border-white/10 hover:border-white/30 text-[#F4EFE6] font-mono text-xs uppercase tracking-wider transition-all cursor-pointer"
             >
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">CDN Media Assets</span>
-              <div className="flex items-baseline justify-between mt-1.5">
-                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{mediaAssets.length}</span>
-                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">Library ↗</span>
-              </div>
+              + Upload Media
             </button>
           </div>
+        </div>
 
+        {/* IMAGE-3 60/40 HERO BENTO METRICS ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-7 rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-7 flex flex-col justify-between gap-6">
+            <div className="grid grid-cols-3 gap-4 sm:gap-8">
+              <button type="button" onClick={() => setActiveTab("portfolio")} className="text-left group cursor-pointer">
+                <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-1.5 group-hover:text-white transition-colors">
+                  Selected Films
+                </span>
+                <span className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6]">
+                  {editWorks.length}
+                </span>
+              </button>
+
+              <button type="button" onClick={() => setActiveTab("brand_logos")} className="text-left group cursor-pointer">
+                <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-1.5 group-hover:text-white transition-colors">
+                  Brand Roster
+                </span>
+                <span className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6]">
+                  {editLogos.length}
+                </span>
+              </button>
+
+              <button type="button" onClick={() => setActiveTab("submissions")} className="text-left group cursor-pointer">
+                <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50 mb-1.5 group-hover:text-white transition-colors">
+                  Inquiries
+                </span>
+                <span className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6]">
+                  {submissionsList.length}
+                </span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between font-mono text-[10px] text-[#F4EFE6]/55">
+                  <span>Portfolio Tabs</span>
+                  <span>{editTabs.length}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[#0B0D13] overflow-hidden">
+                  <div className="h-full rounded-full w-4/5" style={{ background: "linear-gradient(90deg, #FF6A1F, #FFC93C)" }} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between font-mono text-[10px] text-[#F4EFE6]/55">
+                  <span>Testimonials</span>
+                  <span>{editTestimonials.length}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[#0B0D13] overflow-hidden">
+                  <div className="h-full rounded-full w-3/4" style={{ background: "linear-gradient(90deg, #E8332A, #C2187A)" }} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between font-mono text-[10px] text-[#F4EFE6]/55">
+                  <span>CDN Library</span>
+                  <span>{mediaAssets.length}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[#0B0D13] overflow-hidden">
+                  <div className="h-full rounded-full w-2/3" style={{ background: "linear-gradient(90deg, #1F4BFF, #2EC5FF)" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-5 rounded-3xl bg-[#141720] border border-white/[0.07] p-6 sm:p-7 flex flex-col justify-between gap-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#F4EFE6]/50">
+                  Active Studio Channels
+                </p>
+                <p className="font-display text-3xl sm:text-4xl font-semibold text-[#F4EFE6] mt-1">
+                  {mediaAssets.length} <span className="text-base font-mono font-normal text-[#F4EFE6]/50">CDN Assets</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onNavigateHome}
+                className="px-4 py-2 rounded-full bg-[#F4EFE6] hover:bg-white text-[#07080C] font-mono text-[11px] uppercase tracking-wider font-semibold transition-all cursor-pointer"
+              >
+                Open Site ↗
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("client_access")}
+                className="p-3.5 rounded-2xl bg-[#0B0D13] border border-white/[0.07] hover:border-white/25 text-left transition-all cursor-pointer"
+              >
+                <span className="block font-mono text-[10px] text-[#F4EFE6]/45">{unreadFeedbackCount} notes</span>
+                <span className="block text-xs font-semibold text-[#F4EFE6] mt-2">Client Portal</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("analytics")}
+                className="p-3.5 rounded-2xl text-left transition-all cursor-pointer shadow-lg"
+                style={{
+                  background: "linear-gradient(135deg, #FF6A1F 0%, #E8332A 100%)",
+                }}
+              >
+                <span className="block font-mono text-[10px] text-white/80">Live Data</span>
+                <span className="block text-xs font-bold text-white mt-2">Analytics ↗</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("live_chats")}
+                className="p-3.5 rounded-2xl bg-[#0B0D13] border border-white/[0.07] hover:border-white/25 text-left transition-all cursor-pointer"
+              >
+                <span className="block font-mono text-[10px] text-[#F4EFE6]/45">{unreadChatsCount} unread</span>
+                <span className="block text-xs font-semibold text-[#F4EFE6] mt-2">Live Chats</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* MAIN ACTIVE TAB CONTENT SHEET */}
+        <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-[#11131B] p-5 sm:p-6 lg:p-7 rounded-2xl border border-[var(--tcs-line)] min-h-[520px] w-full"
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-[#141720] p-5 sm:p-7 lg:p-8 rounded-3xl border border-white/[0.07] min-h-[520px] w-full shadow-2xl"
           >
               {/* TAB 1: LIVE WEBSITE SECTIONS (HERO, SHOWREEL, CAPABILITIES, PROCESS, CONTACT, FOOTER & SEO) */}
               {activeTab === "settings" && (
@@ -3860,6 +4101,280 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                        >
                          <Save className="w-4 h-4" /> Synchronize menu
                        </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 font-mono italic">
+                    💡 Drag items using any container spot to intuitively arrange their priority list rank, or use typing focus to record restore states.
+                  </p>
+
+                  <div 
+                    className="space-y-4" 
+                    onFocusCapture={() => recordMenuHistory()}
+                  >
+                    {editMenu.map((item, index) => (
+                      <div 
+                        key={item.id}
+                        draggable="true"
+                        onDragStart={(e) => {
+                          recordMenuHistory();
+                          e.dataTransfer.setData("text/plain", index.toString());
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverIdxMenu(index);
+                        }}
+                        onDragEnd={() => setDragOverIdxMenu(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                          if (!isNaN(sourceIdx) && sourceIdx !== index) {
+                            const updated = [...editMenu];
+                            const [removed] = updated.splice(sourceIdx, 1);
+                            updated.splice(index, 0, removed);
+                            setEditMenu(updated.map((u, i) => ({ ...u, display_order: i + 1 })));
+                            toast.success("Navigation order rearranged.");
+                          }
+                          setDragOverIdxMenu(null);
+                        }}
+                        className={`flex flex-col md:flex-row items-center gap-4 border p-4 rounded-2xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
+                          dragOverIdxMenu === index 
+                            ? "bg-purple-950/25 border-purple-500/50 scale-[0.99] shadow-inner" 
+                            : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.02]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 shrink-0 select-none">
+                          <GripVertical className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" />
+                          <span className="text-xs font-mono text-gray-500">0{index + 1}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Menu Label</label>
+                            <input
+                              type="text"
+                              value={item.label}
+                              onChange={(e) => handleMenuChange(item.id, "label", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Target Element ID Link</label>
+                            <select
+                              value={item.target_url}
+                              onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
+                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
+                            >
+                              <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
+                              <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
+                              <option value="pricing-section" className="bg-zinc-950 text-white">Production Tiers (pricing-section)</option>
+                              <option value="booking-section" className="bg-zinc-950 text-white">Booking Portal (booking-section)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => deleteMenuItem(item.id)}
+                          className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10 hover:border-red-500/30 text-red-400 hover:text-red-300 mt-4 md:mt-0 transition-colors shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* NAVIGATION BAR WIDTH CONFIGURATION */}
+                  <div className="border-t border-white/5 pt-6 mt-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sliders className="w-4 h-4 text-[var(--tcs-offwhite)]" />
+                      <h3 className="text-sm font-semibold text-gray-300 font-display">
+                        Navigation Bar Width Mode ({adminPageScope === "live" ? "Live Action" : "AI Production"})
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-4 max-w-2xl leading-relaxed font-light">
+                      Configure whether the navigation bar is shown as a floating capsule in the middle of the screen or stretches edge-to-edge as a full-width cinematic bar.
+                    </p>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSettingChangeScoped("navbar_full_width", "false");
+                          toast.info(`Set ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation bar mode to Compact Floating Capsule. Press 'Synchronize menu' to save.`);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                          (getSettingValueScoped("navbar_full_width") !== "true")
+                            ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold border-transparent shadow shadow-amber-400/25"
+                            : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        Compact Floating Capsule
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSettingChangeScoped("navbar_full_width", "true");
+                          toast.info(`Set ${adminPageScope === "live" ? "Live Action" : "AI Production"} navigation bar mode to Cinematic Full Width. Press 'Synchronize menu' to save.`);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl border text-center font-display font-medium text-xs sm:text-sm tracking-tight transition-all cursor-pointer ${
+                          (getSettingValueScoped("navbar_full_width") === "true")
+                            ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold border-transparent shadow shadow-amber-400/25"
+                            : "bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        Cinematic Full-Width
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* TAB 3: PORTFOLIO WORKS */}
+              {activeTab === "portfolio" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display font-medium text-xl text-white">
+                        Portfolio motion Artifacts Manager
+                      </h2>
+                      
+                      {/* Undo / Redo controls */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                        <button
+                          type="button"
+                          onClick={triggerWorksUndo}
+                          disabled={worksHistory.length === 0}
+                          title="Undo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerWorksRedo}
+                          disabled={worksFuture.length === 0}
+                          title="Redo"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                        >
+                          <Redo className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={addWorkItem}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs md:text-sm cursor-pointer"
+                      >
+                        <PlusCircle className="w-4 h-4 text-[var(--tcs-offwhite)]" /> Synthesize Work Card
+                      </button>
+                      <button
+                        onClick={saveWorks}
+                        disabled={saveStatus.portfolio === "saving"}
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer"
+                      >
+                        <Save className="w-4 h-4" /> Sync Portfolio
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Tabs Manager Section */}
+                  <div className="bg-black/30 border border-white/5 rounded-2xl p-4 md:p-6 mb-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-white font-display">Manage Portfolio Tabs</h4>
+                        <p className="text-xs text-gray-500">Add, rename, reorder, or delete your portfolio tabs.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddTabModal(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" /> Add New Tab
+                      </button>
+                    </div>
+
+                    {/* Tabs list */}
+                    <div className="space-y-3">
+                      {editTabs.map((tab, idx) => (
+                        <div 
+                          key={tab.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/40 border border-white/5 rounded-xl p-3"
+                        >
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <span className="text-xs font-mono text-gray-600 bg-white/5 border border-white/10 w-6 h-6 rounded-full flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <div className="flex flex-col gap-1 w-full sm:w-64">
+                              <input
+                                type="text"
+                                value={tab.tab_title}
+                                onChange={(e) => handleTabTitleChange(tab.id, e.target.value)}
+                                className="bg-black/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
+                                placeholder="Tab Title"
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border border-white/5 bg-white/5 text-gray-400">
+                              {tab.tab_type}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            {/* Move Up */}
+                            <button
+                              type="button"
+                              onClick={() => moveTab(idx, "up")}
+                              disabled={idx === 0}
+                              className="p-1.5 rounded bg-white/5 text-gray-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Move Down */}
+                            <button
+                              type="button"
+                              onClick={() => moveTab(idx, "down")}
+                              disabled={idx === editTabs.length - 1}
+                              className="p-1.5 rounded bg-white/5 text-gray-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => deletePortfolioTab(tab.id)}
+                              className="p-1.5 rounded bg-red-950/20 text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-900/35 transition-all cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {editTabs.length === 0 && (
+                        <div className="text-center py-6 text-xs text-gray-500 font-mono">
+                          No portfolio tabs defined. Click "Add New Tab" to create one.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Selected Editing Tab Selector */}
+                  <div className="space-y-2 mb-6">
+                    <span className="text-xs text-gray-400 font-mono uppercase tracking-wider block">Editing Works Under Tab:</span>
+                    <div className="flex flex-wrap gap-2 p-1 bg-black/40 border border-white/5 rounded-xl w-fit">
+                      {editTabs.map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setAdminActiveTabId(tab.id)}
+                          className={`px-4 py-2 rounded-lg text-xs font-semibold font-display transition-all cursor-pointer ${
+                            adminActiveTabId === tab.id
+                              ? "bg-white text-black shadow-lg"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {tab.tab_title} ({tab.tab_type})
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -7684,6 +8199,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               )}
 
             </motion.div>
+          </AnimatePresence>
           </main>
 
           {/* CUSTOM GLOWING UPLOAD MODAL (Replicating Image 4 style) */}
@@ -7748,7 +8264,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               </div>
             )}
           </AnimatePresence>
-        </div>
       </div>
     );
   }
