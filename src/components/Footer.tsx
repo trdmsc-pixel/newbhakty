@@ -46,12 +46,12 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   return (
     <footer className="w-full bg-[var(--tcs-night)] border-t border-[var(--tcs-line)] pt-20 pb-12 select-none overflow-hidden">
       <div className="max-w-[1600px] mx-auto px-6 md:px-12">
-        {/* Giant Wordmark spanning content width (~90vw max) */}
-        <div className="w-full mb-20 overflow-hidden flex justify-center py-4">
+        {/* Giant Wordmark fitted cleanly to content width across all viewports */}
+        <div className="w-full mb-16 md:mb-20 flex justify-center py-4 px-1">
           <Wordmark
             ringAnimation="spin-slow"
             glow={true}
-            className="text-[clamp(2.2rem,6.8vw,6.5rem)] tracking-[0.14em]"
+            className="text-[clamp(1rem,4.1vw,4.4rem)] tracking-[0.09em] sm:tracking-[0.12em] max-w-full"
           />
         </div>
 
@@ -248,7 +248,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               <img
                 src={siteSettings.logo_img_url}
                 alt="Studio Logo"
-                className="h-6 w-auto object-contain brightness-125"
+                className="h-5 sm:h-6 w-auto max-w-[130px] object-contain shrink-0 brightness-125"
               />
             )}
             <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>

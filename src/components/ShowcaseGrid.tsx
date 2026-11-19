@@ -6,7 +6,7 @@ import { VideoBlock } from "../types";
 import { trackEvent } from "../lib/analytics";
 
 export const getVideoThumbnail = (videoUrl: string): string => {
-  if (!videoUrl) return "/og.jpg";
+  if (!videoUrl) return "";
   if (videoUrl.includes("res.cloudinary.com")) {
     let optimized = videoUrl;
     if (optimized.includes("/video/upload/")) {
@@ -15,7 +15,42 @@ export const getVideoThumbnail = (videoUrl: string): string => {
     optimized = optimized.replace(/\.[a-zA-Z0-9]+$/, ".jpg");
     return optimized;
   }
-  return "/og.jpg";
+  return "";
+};
+
+const withStillFrameFragment = (url: string): string => {
+  if (!url) return "";
+  if (url.includes("#t=")) return url;
+  return `${url}#t=0.5`;
+};
+
+const WorkVideoMedia: React.FC<{
+  videoUrl: string;
+  isHovered: boolean;
+}> = ({ videoUrl, isHovered }) => {
+  const tileVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const vid = tileVideoRef.current;
+    if (!vid) return;
+    if (isHovered) {
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+    }
+  }, [isHovered]);
+
+  return (
+    <video
+      ref={tileVideoRef}
+      src={withStillFrameFragment(videoUrl)}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      className="w-full h-full object-cover object-center transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover:scale-105 pointer-events-none"
+    />
+  );
 };
 
 export default function ShowcaseGrid() {
@@ -251,8 +286,9 @@ export default function ShowcaseGrid() {
                 }
 
                 const isHovered = activeHoverId === work.id;
-                const poster = work.highResVideoUrl ? getVideoThumbnail(work.highResVideoUrl) : "/og.jpg";
                 const isImage = work.type === "image";
+                const mediaVideoUrl = work.videoUrl || work.highResVideoUrl || "";
+                const imageSrc = work.imageUrl || work.highResVideoUrl || work.videoUrl || "";
 
                 return (
                   <motion.div
@@ -264,25 +300,18 @@ export default function ShowcaseGrid() {
                     onMouseLeave={() => setActiveHoverId(null)}
                     className={`relative rounded overflow-hidden bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] group cursor-pointer ${spanClass}`}
                   >
-                    {/* Poster Image */}
-                    <img
-                      src={poster}
-                      alt={work.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover:scale-105"
-                    />
-
-                    {/* Muted Preview Video on Hover (Single Preview Concurrency) */}
-                    {!isImage && work.videoUrl && isHovered && (
-                      <video
-                        src={work.videoUrl}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="none"
-                        className="absolute inset-0 w-full h-full object-cover object-center z-10 pointer-events-none"
+                    {/* Still Frame from Video (plays on hover) or Image Work */}
+                    {!isImage && mediaVideoUrl ? (
+                      <WorkVideoMedia videoUrl={mediaVideoUrl} isHovered={isHovered} />
+                    ) : imageSrc ? (
+                      <img
+                        src={imageSrc}
+                        alt={work.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover object-center transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover:scale-105"
                       />
+                    ) : (
+                      <div className="w-full h-full bg-[var(--tcs-night-2)]" />
                     )}
 
                     {/* Spectral Conic Border Sweep on Hover */}
@@ -399,7 +428,7 @@ export default function ShowcaseGrid() {
                   <video
                     ref={videoRef}
                     src={lightboxWork.highResVideoUrl || lightboxWork.videoUrl}
-                    poster={getVideoThumbnail(lightboxWork.highResVideoUrl || lightboxWork.videoUrl)}
+                    poster={getVideoThumbnail(lightboxWork.highResVideoUrl || lightboxWork.videoUrl) || undefined}
                     playsInline
                     autoPlay
                     onTimeUpdate={handleTimeUpdate}

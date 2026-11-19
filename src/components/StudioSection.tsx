@@ -3,7 +3,8 @@ import { motion, useReducedMotion } from "motion/react";
 import { useSiteData } from "../context/SiteDataContext";
 
 export const StudioSection: React.FC = () => {
-  const { siteSettings } = useSiteData();
+  const { siteSettings, portfolioWorks = [] } = useSiteData();
+  const videoWorks = portfolioWorks.filter((w) => w.type !== "image" && (w.videoUrl || w.highResVideoUrl));
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
@@ -92,7 +93,18 @@ export const StudioSection: React.FC = () => {
                   onMouseLeave={() => setHoveredRow(null)}
                   className="group relative w-full border-b border-[var(--tcs-line)] py-8 md:py-10 transition-colors duration-300 cursor-pointer overflow-hidden"
                 >
-                  {/* Subtle Background Hover Light Glow */}
+                  {/* Subtle Muted Preview Clip + Hover Light Glow */}
+                  {isHovered && !prefersReducedMotion && videoWorks.length > 0 && (
+                    <video
+                      src={videoWorks[idx % videoWorks.length].videoUrl || videoWorks[idx % videoWorks.length].highResVideoUrl}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 w-full h-full object-cover object-center opacity-20 transition-opacity duration-500 pointer-events-none"
+                    />
+                  )}
                   <div
                     className={`absolute inset-0 bg-white/[0.02] transition-opacity duration-500 pointer-events-none ${
                       isHovered ? "opacity-100" : "opacity-0"

@@ -34,14 +34,27 @@ export const ShowreelSection: React.FC<ShowreelSectionProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isHoveringIdle, setIsHoveringIdle] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const idleVideoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<any>(null);
   const trackedMilestones = useRef<Set<number>>(new Set());
   const prefersReducedMotion = useReducedMotion();
 
   const isVimeo = videoUrl.includes("vimeo.com");
+  const useVideoStillFrame = Boolean(videoUrl && !isVimeo && (!posterUrl || posterUrl === "/og.jpg"));
+
+  useEffect(() => {
+    const vid = idleVideoRef.current;
+    if (!vid || !useVideoStillFrame) return;
+    if (isHoveringIdle && !isTheatreMode) {
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+    }
+  }, [isHoveringIdle, isTheatreMode, useVideoStillFrame]);
 
   // Format seconds to mm:ss
   const formatTime = (seconds: number) => {
@@ -223,29 +236,43 @@ export const ShowreelSection: React.FC<ShowreelSectionProps> = ({
           ref={containerRef}
           data-cursor="play"
           onClick={startPlayback}
+          onMouseEnter={() => setIsHoveringIdle(true)}
+          onMouseLeave={() => setIsHoveringIdle(false)}
           onMouseMove={handleMouseMove}
           className={`relative w-full border-y border-[var(--tcs-line)] bg-black overflow-hidden group cursor-pointer ${
             aspect === "2.39" ? "aspect-[2.39/1]" : "aspect-video"
           } max-h-[85vh]`}
         >
-          {/* Idle Poster with slow Ken Burns effect */}
+          {/* Idle Frame: Still frame from actual showreel video (auto-plays muted on hover) or custom poster */}
           <div className="absolute inset-0 overflow-hidden">
-            <motion.img
-              src={posterUrl || "/og.jpg"}
-              alt="Showreel Poster"
-              animate={
-                prefersReducedMotion
-                  ? {}
-                  : { scale: [1, 1.08] }
-              }
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                repeatType: "reverse",
-                ease: "linear",
-              }}
-              className="w-full h-full object-cover object-center brightness-75 group-hover:brightness-90 transition-all duration-500"
-            />
+            {useVideoStillFrame ? (
+              <video
+                ref={idleVideoRef}
+                src={videoUrl.includes("#t=") ? videoUrl : `${videoUrl}#t=1.0`}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-cover object-center brightness-75 group-hover:brightness-95 transition-all duration-500 pointer-events-none"
+              />
+            ) : (
+              <motion.img
+                src={posterUrl || "/og.jpg"}
+                alt="Showreel Poster"
+                animate={
+                  prefersReducedMotion
+                    ? {}
+                    : { scale: [1, 1.08] }
+                }
+                transition={{
+                  duration: 20,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "linear",
+                }}
+                className="w-full h-full object-cover object-center brightness-75 group-hover:brightness-90 transition-all duration-500"
+              />
+            )}
           </div>
 
           {/* Center Play Button & Metadata */}
