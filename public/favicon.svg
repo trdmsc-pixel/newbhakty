@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#07080C" rx="128" />
+  <defs>
+    <linearGradient id="spectrum1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF6E0"/>
+      <stop offset="25%" stop-color="#FFC93C"/>
+      <stop offset="50%" stop-color="#FF6A1F"/>
+      <stop offset="75%" stop-color="#E8332A"/>
+      <stop offset="100%" stop-color="#C2187A"/>
+    </linearGradient>
+    <linearGradient id="spectrum2" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#C2187A"/>
+      <stop offset="50%" stop-color="#1F4BFF"/>
+      <stop offset="80%" stop-color="#2EC5FF"/>
+      <stop offset="100%" stop-color="#FFF6E0"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Subtle back glow -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#spectrum1)" stroke-width="36" opacity="0.4" filter="url(#glow)" />
+  
+  <!-- Main Spectral Ring -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#spectrum1)" stroke-width="32" stroke-linecap="round" />
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#spectrum2)" stroke-width="32" stroke-linecap="round" stroke-dasharray="502" stroke-dashoffset="502" />
+</svg>

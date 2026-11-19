@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#07080C" />
+  
+  <defs>
+    <!-- Radial glow for eclipse halo -->
+    <radialGradient id="haloGlow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#FF6A1F" stop-opacity="0.25" />
+      <stop offset="35%" stop-color="#1F4BFF" stop-opacity="0.15" />
+      <stop offset="70%" stop-color="#07080C" stop-opacity="0" />
+    </radialGradient>
+    
+    <linearGradient id="spectrumLinear" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1F4BFF"/>
+      <stop offset="16%" stop-color="#2EC5FF"/>
+      <stop offset="36%" stop-color="#FFF6E0"/>
+      <stop offset="52%" stop-color="#FFC93C"/>
+      <stop offset="66%" stop-color="#FF6A1F"/>
+      <stop offset="82%" stop-color="#E8332A"/>
+      <stop offset="100%" stop-color="#C2187A"/>
+    </linearGradient>
+
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF6E0"/>
+      <stop offset="30%" stop-color="#FF6A1F"/>
+      <stop offset="70%" stop-color="#E8332A"/>
+      <stop offset="100%" stop-color="#1F4BFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Atmospheric Glow Backdrop -->
+  <circle cx="600" cy="280" r="380" fill="url(#haloGlow)" />
+  
+  <!-- Subtle Grid Lines / Studio Marks -->
+  <line x1="100" y1="530" x2="1100" y2="530" stroke="rgba(244, 239, 230, 0.1)" stroke-width="1" />
+  
+  <!-- Top Eyebrow -->
+  <text x="600" y="210" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="500" fill="rgba(244, 239, 230, 0.5)" letter-spacing="6">
+    AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE
+  </text>
+  
+  <!-- Giant Centered Wordmark with Ring -->
+  <g transform="translate(600, 310)">
+    <!-- THE (300 weight) -->
+    <text x="-310" y="0" text-anchor="middle" font-family="'Archivo', sans-serif" font-size="44" font-weight="300" fill="#F4EFE6" letter-spacing="6">THE</text>
+    <!-- CHANTING (700 weight) -->
+    <text x="-70" y="0" text-anchor="middle" font-family="'Archivo', sans-serif" font-size="44" font-weight="700" fill="#F4EFE6" letter-spacing="6">CHANTING</text>
+    <!-- STUDI (300 weight) -->
+    <text x="195" y="0" text-anchor="middle" font-family="'Archivo', sans-serif" font-size="44" font-weight="300" fill="#F4EFE6" letter-spacing="6">STUDI</text>
+    <!-- Ring as the final 'O' -->
+    <circle cx="282" cy="-14" r="16" fill="none" stroke="url(#ringGrad)" stroke-width="5" />
+    <circle cx="282" cy="-14" r="16" fill="none" stroke="#FF6A1F" stroke-width="8" opacity="0.3" filter="blur(4px)" />
+  </g>
+
+  <!-- Tagline -->
+  <text x="600" y="390" text-anchor="middle" font-family="'Archivo', sans-serif" font-size="20" font-weight="300" fill="rgba(244, 239, 230, 0.8)" letter-spacing="2">
+    Film-scale craft. AI-speed delivery.
+  </text>
+
+  <!-- Footer Specs -->
+  <text x="100" y="565" text-anchor="start" font-family="'JetBrains Mono', monospace" font-size="11" fill="rgba(244, 239, 230, 0.35)" letter-spacing="2">
+    BRAND FILMS • COMMERCIALS • TRAILERS • HYBRID VFX
+  </text>
+  <text x="1100" y="565" text-anchor="end" font-family="'JetBrains Mono', monospace" font-size="11" fill="rgba(244, 239, 230, 0.35)" letter-spacing="2">
+    THECHANTINGSTUDIO.IN
+  </text>
+</svg>

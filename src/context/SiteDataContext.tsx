@@ -76,116 +76,88 @@ const SiteDataContext = createContext<SiteDataContextProps | undefined>(undefine
 
 // Initial fallback/default site settings
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
-  hero_badge_text: "Synthetic Arts Studio v4.1",
-  hero_title_1: "The Next Epoch",
-  hero_title_2: "of Cinema.",
-  hero_title_3: "Synthesized.",
-  hero_description: "We are a high-tier creative agency building commercial assets, modular lookbooks, and synthetic cinematic trailers. From prompt orchestration to temporal coherence upscaling, thechantingstudio.in redefines moving media.",
-  hero_cta_booking_text: "Book Creative Spot",
-  hero_cta_work_text: "Explore Curation",
-  hero_stat1_value: "400+",
-  hero_stat1_label: "Synth Hours",
-  hero_stat2_value: "8K UHD",
-  hero_stat2_label: "Upscale Target",
-  hero_stat3_value: "0%",
-  hero_stat3_label: "Physical Camera",
-  hero_video_bg_url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
-  footer_copyright: "© 2026 thechantingstudio.in. Generative Temporal Coherence in Aesthetics.",
-  booking_form_title: "Book Creative Studio",
-  booking_form_subtitle: "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.",
-  booking_cta_text: "Request Synthesis Pipeline",
-  booking_cta_color: "",
-  booking_cta_text_color: "",
-  pricing_note_text: "All packages can be customized. Contact support for tailored SLA requirements and priority processing speeds.",
-  pricing_title: "Production Tiers & Packages",
-  page2_pricing_title: "Production Tiers & Packages",
-  hero_cta_booking_color: "",
-  hero_cta_booking_text_color: "",
-  hero_padding_top: "",
-  hero_padding_bottom: "",
-  hero_margin_top: "",
-  hero_margin_bottom: "",
-  hero_text_width: "",
-  hero_text_height: "",
-  portfolio_license_button_text: "Acquire License",
-  portfolio_static_pdf_url: "",
-  portfolio_static_pdf_button_text: "Download Creative Deck PDF",
-  portfolio_static_pdf_button_enabled: "true",
-  marquee_direction: "left",
-  booking_form_fields_json: '[{"id":"name","label":"Your Identity / Name","type":"text","placeholder":"e.g. Cassian Andor","required":true},{"id":"company","label":"Company / Studio","type":"text","placeholder":"e.g. Coruscant Arts Ltd","required":false},{"id":"email","label":"Communication Mail","type":"email","placeholder":"e.g. cassian@bhakty.net","required":true},{"id":"budget","label":"Estimated Budget Bracket","type":"select","options":["$2,000 - $5,000","$5,000 - $10,000","$10,000 - $25,000","$25,000+"],"required":true},{"id":"selected_tier","label":"Target Production Pipeline","type":"select","options":["Short-Form Creative","Full Cinematic Production","Enterprise Studio Pipeline","Custom Collaborative"],"required":true},{"id":"brief","label":"Project Dimensional Brief","type":"textarea","placeholder":"Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...","required":true}]',
-  
-  // Global Brand Logos settings
-  brand_logos_title: "Trusted By Leading Brands",
-  brand_logos_title_size: "text-xs",
-  brand_logos_marquee_enabled: "true",
-  navbar_full_width: "false",
-  page2_navbar_full_width: "false",
+  // Hero Section (Section 5.1 & 8)
+  hero_eyebrow: "AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE",
+  hero_title: "Film-scale craft.\nAI-speed delivery.",
+  hero_description: "Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses.",
+  hero_loop_url: "",
+  hero_poster_url: "/og.jpg",
+  hero_credit: "",
 
-  // Page 2 (Live-action) Hero settings (Mockup-style)
-  page2_hero_video_bg_url: "https://assets.mixkit.co/videos/preview/mixkit-cameraman-filming-a-scene-40439-large.mp4",
-  page2_hero_bg_opacity: "1",
-  page2_hero_bg_blur: "none",
-  page2_hero_bg_overlay: "0.4",
-  page2_hero_badge_text: "Live-action Production v1.0",
-  page2_hero_title_1: "Lock Down Your",
-  page2_hero_title_2: "Passwords with",
-  page2_hero_title_3: "Ironclad Security",
-  page2_hero_description: "Zero stress, total control. VaultShield keeps you covered with unbreakable storage, one-tap access, and pro-grade tools for your non-stop world.",
-  page2_hero_text_align: "left",
-  page2_hero_padding_top: "clamp(40px, 8vw, 72px)",
-  page2_hero_margin_bottom: "24px",
-  page2_hero_max_width: "560px",
-  page2_hero_title_size: "clamp(1.65rem, 5vw, 3rem)",
-  page2_hero_subtitle_size: "clamp(0.9rem, 2.5vw, 1.1rem)",
-  page2_hero_title_color: "#ffffff",
-  page2_hero_title_color_line2: "#ffffff",
-  page2_hero_subtitle_color: "#ffffff",
-  page2_hero_cta_text: "Get It Free",
-  page2_hero_cta_bg: "#7342E2",
-  page2_hero_cta_color: "#ffffff",
-  page2_hero_cta_size: "clamp(0.9rem, 2vw, 1rem)",
-  page2_hero_cta_glow: "true",
-  page2_hero_cta_glow_color: "rgba(115,66,226,0.28)",
-  page2_hero_cta_icon: "ArrowRight",
+  // Showreel Section (Section 5.2 & 8)
+  showreel_video_url: "",
+  showreel_poster_url: "/og.jpg",
+  showreel_duration: "1:15",
+  showreel_aspect: "16:9",
+
+  // Studio Capabilities / What We Make (Section 5.4 & 8)
+  service_1_title: "Brand Films & TVCs",
+  service_1_desc: "Hero films for launches and campaigns, built to cinema standards.",
+  service_2_title: "AI Commercials",
+  service_2_desc: "Product and fashion spots without the cost and wait of a full shoot.",
+  service_3_title: "Trailers & Teasers",
+  service_3_desc: "Synthetic trailers and teasers for films, series and pitches.",
+  service_4_title: "Hybrid Live-Action + VFX",
+  service_4_desc: "Live plates extended and finished with AI and VFX.",
+  service_5_title: "Music Videos",
+  service_5_desc: "Narrative and performance videos with a film-grade finish.",
+  service_6_title: "For Agencies & Production Houses",
+  service_6_desc: "Your AI unit on call: pitch films, previs and finished shots, white-label.",
+
+  // Contact & Socials (Section 5.6 & 8)
+  contact_email: "studio@thechantingstudio.in",
+  whatsapp_number: "+919999999999",
+  instagram_url: "https://instagram.com/thechantingstudio",
+  linkedin_url: "https://www.linkedin.com/company/thechantingstudio",
+  youtube_url: "https://youtube.com/@thechantingstudio",
+  vimeo_url: "https://vimeo.com/thechantingstudio",
+  behance_url: "",
+
+  // Inquiry Form & Success State (Section 5.6 & 8)
+  booking_success_message: "Your brief is with us. We'll be in touch shortly.",
+  booking_form_fields_json: JSON.stringify([
+    { id: "name", label: "Name", type: "text", placeholder: "Your full name", required: true },
+    { id: "email", label: "Email", type: "email", placeholder: "name@company.com", required: true },
+    { id: "company", label: "Company / Brand", type: "text", placeholder: "Company or brand", required: false },
+    { id: "phone", label: "WhatsApp / Phone", type: "tel", placeholder: "Phone with country code", required: false },
+    { id: "client_type", label: "You are", type: "chips", options: ["Brand", "Agency", "Production house", "Other"], required: false },
+    { id: "selected_tier", label: "What are we making?", type: "chips", options: ["Brand film / TVC", "AI commercial", "Trailer / teaser", "Hybrid live-action + VFX", "Music video", "Something else"], required: true },
+    { id: "budget", label: "Budget range", type: "select", options: ["Not sure yet", "Under ₹3 lakh", "₹3–10 lakh", "₹10–25 lakh", "₹25 lakh+", "International (USD)"], required: false },
+    { id: "timeline", label: "Timeline", type: "chips", options: ["ASAP", "Within a month", "1–3 months", "Just exploring"], required: false },
+    { id: "brief", label: "Tell us about the project", type: "textarea", placeholder: "The story, where it will run, any references or deadlines.", required: true },
+    { id: "references", label: "Reference links", type: "url", placeholder: "Links to moodboards, references or pitch decks", required: false }
+  ]),
+
+  // SEO & OpenGraph (Section 8 & 9)
+  seo_title: "The Chanting Studio — AI-Native Cinematic Studio, Delhi",
+  seo_description: "Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses. Delhi → Worldwide.",
+  og_image_url: "/og.jpg",
+  footer_copyright: "© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio",
+
+  // Brand Marquee
+  brand_logos_title: "TRUSTED BY",
+  brand_logos_marquee_enabled: "true"
 };
 
 const DEFAULT_NAVIGATION_MENU: NavigationMenuItem[] = [
-  { id: "menu-work", label: "Our Work", target_url: "work-section", display_order: 1 },
-  { id: "menu-packages", label: "Production Tiers", target_url: "pricing-section", display_order: 2 },
-  { id: "menu-cinematic-websites", label: "Cinematic Websites", target_url: "/cinematic-websites", display_order: 3 },
-  { id: "menu-contact", label: "Contact Us", target_url: "booking-section", display_order: 4 }
+  { id: "menu-reel", label: "Reel", target_url: "#reel", display_order: 1 },
+  { id: "menu-work", label: "Work", target_url: "#work", display_order: 2 },
+  { id: "menu-studio", label: "Studio", target_url: "#studio", display_order: 3 },
+  { id: "menu-contact", label: "Contact", target_url: "#contact", display_order: 4 }
 ];
 
 const DEFAULT_PORTFOLIO_TABS: PortfolioTab[] = [
-  { id: "default-ai-video", tab_title: "AI Motion Portfolio", tab_type: "video", page: "ai", display_order: 1 },
-  { id: "default-ai-image", tab_title: "Generative Static Creatives", tab_type: "image", page: "ai", display_order: 2 },
-  { id: "default-live-video", tab_title: "Live Action Videos", tab_type: "video", page: "live", display_order: 1 },
-  { id: "default-live-image", tab_title: "Live Shoot Images & Creatives", tab_type: "image", page: "live", display_order: 2 }
+  { id: "default-commercials", tab_title: "Commercials", tab_type: "video", page: "home", display_order: 1 },
+  { id: "default-trailers", tab_title: "Trailers & Teasers", tab_type: "video", page: "home", display_order: 2 },
+  { id: "default-hybrid", tab_title: "Hybrid VFX", tab_type: "video", page: "home", display_order: 3 },
+  { id: "default-music", tab_title: "Music Videos", tab_type: "video", page: "home", display_order: 4 }
 ];
 
 const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
   {
     id: "asset-1",
-    name: "Deep Space Particle Loop",
-    url: "https://assets.mixkit.co/videos/preview/mixkit-particle-glowing-fluid-background-48280-large.mp4",
-    type: "video"
-  },
-  {
-    id: "asset-2",
-    name: "Nebula Ocean Waves Loop",
-    url: "https://assets.mixkit.co/videos/preview/mixkit-wave-looping-glowing-underwater-science-background-48282-large.mp4",
-    type: "video"
-  },
-  {
-    id: "asset-3",
-    name: "Studio Aura Cover Image",
-    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    type: "image"
-  },
-  {
-    id: "asset-4",
-    name: "Futuristic Glass Abstract Logo",
-    url: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=150&h=150&q=80",
+    name: "Studio Poster Frame",
+    url: "/og.jpg",
     type: "image"
   }
 ];

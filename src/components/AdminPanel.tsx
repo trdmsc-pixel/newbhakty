@@ -4,7 +4,6 @@ import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } f
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
 import { VideoBlock, PricingTier, PortfolioTab } from "../types";
-import BackgroundGradients from "./BackgroundGradients";
 import { 
   Lock, Settings, Compass, HelpCircle, 
   Plus, Trash2, ArrowUp, ArrowDown, Save, 
@@ -138,12 +137,38 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   const toast = useToast();
 
   // Authentication State
+  const [email, setEmail] = useState(() => localStorage.getItem("tcs_admin_email") || "studio@thechantingstudio.in");
   const [password, setPassword] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem("bhakty_admin_auth") === "true" || sessionStorage.getItem("bhakty_admin_auth") === "true";
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const checkUserSession = async () => {
+      if (!supabase) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (active && session?.user) {
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.warn("Auth session check error:", err);
+      }
+    };
+    checkUserSession();
+
+    const { data: authListener } = supabase?.auth?.onAuthStateChange((_event, session) => {
+      if (active) {
+        setIsAuthenticated(!!session?.user);
+      }
+    }) || { data: { subscription: null } };
+
+    return () => {
+      active = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,43 +177,45 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
     setAuthError("");
 
     try {
-      const envPass = (typeof import.meta !== "undefined" && import.meta.env ? import.meta.env.VITE_ADMIN_PASSWORD : "") || "admin_bhakty_studio";
-      let loginSuccess = false;
-
-      // 1. Verify static environment variable password
-      if (password === envPass) {
-        loginSuccess = true;
+      if (!supabase) {
+        setAuthError("Supabase connection is not available.");
+        return;
       }
-      // 2. Fallback: Authenticate against Supabase Auth using email studio@bhakty.life
-      else if (supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: "studio@bhakty.life",
-            password: password
-          });
-          if (data && data.user && !error) {
-            loginSuccess = true;
-          }
-        } catch (authErr) {
-          console.warn("Supabase Auth validation failed:", authErr);
-        }
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
 
-      if (loginSuccess) {
+      if (error || !data?.user) {
+        setAuthError(error?.message || "Invalid credentials. Please verify your email and password.");
+        toast.error("Authentication failed.");
+      } else {
         setIsAuthenticated(true);
-        localStorage.setItem("bhakty_admin_auth", "true");
-        sessionStorage.setItem("bhakty_admin_auth", "true");
-        sessionStorage.setItem("bhakty_admin_password", password);
+        localStorage.setItem("tcs_admin_email", email.trim());
         setAuthError("");
         unlockNotificationAudio();
-        toast.success("Security access granted. Welcome to Axiom Core.");
-      } else {
-        setAuthError("Unauthorized access key. Please verify security password.");
-        toast.error("Security access validation failed.");
+        toast.success("Welcome back, director.");
       }
+    } catch (err: any) {
+      setAuthError(err?.message || "Failed to authenticate.");
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleLogout = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn("Sign out error:", err);
+      }
+    }
+    localStorage.removeItem("bhakty_admin_auth");
+    sessionStorage.removeItem("bhakty_admin_auth");
+    sessionStorage.removeItem("bhakty_admin_password");
+    setIsAuthenticated(false);
+    toast.success("Signed out of Studio Admin.");
   };
 
   // UI Navigation state
@@ -2573,55 +2600,68 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-6 relative">
-        <BackgroundGradients />
-        
+      <div className="min-h-screen bg-[#07080C] text-[#F4EFE6] flex flex-col items-center justify-center p-6 relative">
         {/* LOGIN CONTAINER */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md glass-panel p-8 rounded-3xl relative z-10 border border-white/10 shadow-2xl"
+          className="w-full max-w-md bg-[#0E0F14] p-8 rounded-2xl relative z-10 border border-white/10 shadow-2xl"
         >
           {/* LOGO */}
           <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#4A36B3] to-[#ffea00] flex items-center justify-center relative shadow-lg">
-              <Lock className="w-5 h-5 text-white" />
+            <div className="w-12 h-12 rounded-full border border-white/15 bg-white/[0.03] flex items-center justify-center relative shadow-lg">
+              <Lock className="w-5 h-5 text-[#F4EFE6]" />
             </div>
-            <h1 className="font-display font-medium text-2xl tracking-tight text-white italic">
-              bhakty<span className="text-[#ffea00]">.</span>admin
+            <h1 className="font-sans font-bold text-lg tracking-[0.16em] uppercase text-[#F4EFE6]">
+              THE CHANTING STUDIO
             </h1>
-            <p className="text-gray-500 font-mono text-xs uppercase tracking-widest text-center">
-              Axiom Core Gatekeeper
+            <p className="text-gray-400 font-mono text-[10px] uppercase tracking-widest text-center">
+              Studio Administration & Core CMS
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-mono uppercase text-gray-400 mb-2 tracking-wide">
-                Security Password
+              <label className="block text-[11px] font-mono uppercase text-gray-400 mb-2 tracking-widest">
+                Owner Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="studio@thechantingstudio.in"
+                className="w-full bg-[#07080C] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#F4EFE6] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase text-gray-400 mb-2 tracking-widest">
+                Account Password
               </label>
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••••••"
-                className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#ffea00]/50 focus:ring-1 focus:ring-[#ffea00]/30 transition-all font-mono"
+                className="w-full bg-[#07080C] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#F4EFE6] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
               />
             </div>
 
             {authError && (
-              <div className="flex items-start gap-2 text-xs text-red-400 bg-red-900/10 border border-red-500/20 rounded-lg p-3">
+              <div className="flex items-start gap-2 text-xs text-red-400 bg-red-900/15 border border-red-500/25 rounded-lg p-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
-                <span>{authError}</span>
+                <span className="font-mono text-[11px]">{authError}</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3.5 rounded-xl bg-[#ffea00] text-black font-semibold font-display tracking-tight hover:shadow-lg hover:shadow-[#ffea00]/20 hover:bg-[#ffea00] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 rounded-lg bg-[#F4EFE6] text-[#07080C] font-semibold text-xs font-mono uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
             >
-              {isLoggingIn ? "Verifying Authorization..." : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+              {isLoggingIn ? "Authenticating via Supabase..." : <>Sign In <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
 
@@ -2629,9 +2669,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             <button
               type="button"
               onClick={onNavigateHome}
-              className="text-xs text-gray-500 hover:text-white transition-colors uppercase tracking-widest font-mono cursor-pointer"
+              className="text-xs text-gray-400 hover:text-[#F4EFE6] transition-colors uppercase tracking-widest font-mono cursor-pointer"
             >
-              Return to Website
+              ← Return to Studio
             </button>
           </div>
         </motion.div>
@@ -2641,7 +2681,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
   return (
     <div className={`w-screen h-screen ${isLightMode ? "admin-light-mode" : theme.style.bodyBg} flex flex-col overflow-hidden relative transition-colors duration-500 font-sans`}>
-      <BackgroundGradients />
 
       {/* HEADER SECTION (Sticky Top) */}
       <div className="sticky top-0 z-50 w-full bg-black/40 backdrop-blur-md border-b border-white/10 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative z-20">
@@ -2736,13 +2775,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
           <button
             type="button"
-            onClick={() => {
-              localStorage.removeItem("bhakty_admin_auth");
-              sessionStorage.removeItem("bhakty_admin_auth");
-              setIsAuthenticated(false);
-              toast.success("Security access terminated. Logged out.");
-            }}
-            className="text-[11px] font-medium font-display tracking-tight bg-red-950/20 border border-red-500/25 px-4 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+            onClick={handleLogout}
+            className="text-[11px] font-medium font-mono uppercase tracking-wider bg-red-950/20 border border-red-500/25 px-4 py-2 rounded-xl text-red-300 hover:border-red-500 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
           >
             <Lock className="w-3 h-3" /> Logout
           </button>
@@ -2819,17 +2853,20 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             <Play className="w-3.5 h-3.5" /> Portfolio Manager
           </button>
 
-          <button
-            onClick={() => setActiveTab("pricing")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
-              activeTab === "pricing"
-                ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
-            }`}
-            style={{ backdropFilter: "blur(12px)" }}
-          >
-            <ArrowDown className="w-3.5 h-3.5 rotate-45" /> Pricing packages
-          </button>
+          {/* Pricing Tiers retired from public studio site */}
+          {false && (
+            <button
+              onClick={() => setActiveTab("pricing")}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans uppercase tracking-wider font-bold transition-all duration-300 relative border ${
+                activeTab === "pricing"
+                  ? "bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                  : "text-gray-400 hover:text-white bg-black/30 border-white/5 hover:border-white/15 hover:bg-white/[0.03]"
+              }`}
+              style={{ backdropFilter: "blur(12px)" }}
+            >
+              <ArrowDown className="w-3.5 h-3.5 rotate-45" /> Pricing packages
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab("assets")}
@@ -3037,6 +3074,297 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onFocusCapture={() => recordSettingsHistory()}>
+                    {/* SECTION 8: THE CHANTING STUDIO - CINEMATIC STUDIO SETTINGS */}
+                    <div className="md:col-span-2 border border-white/10 rounded-2xl p-6 bg-black/40 space-y-6">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                        <div>
+                          <h3 className="font-display font-bold text-base text-[var(--tcs-offwhite)] uppercase tracking-wider">
+                            The Chanting Studio — Core Production Settings
+                          </h3>
+                          <p className="font-mono text-xs text-gray-400 mt-1">
+                            Directorial controls for Hero, Showreel, Capabilities (What We Make), Contact, and SEO.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 1. HERO SETTINGS */}
+                      <div>
+                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
+                          1. Hero Section (#top)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Eyebrow Label (hero_eyebrow)</label>
+                            <input
+                              type="text"
+                              value={editSettings.hero_eyebrow || ""}
+                              onChange={(e) => handleSettingChange("hero_eyebrow", e.target.value)}
+                              placeholder="AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Frame Credit (hero_credit)</label>
+                            <input
+                              type="text"
+                              value={editSettings.hero_credit || ""}
+                              onChange={(e) => handleSettingChange("hero_credit", e.target.value)}
+                              placeholder="e.g. Aether Genesis, Nike"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Title (hero_title)</label>
+                            <textarea
+                              rows={2}
+                              value={editSettings.hero_title || ""}
+                              onChange={(e) => handleSettingChange("hero_title", e.target.value)}
+                              placeholder="Film-scale craft.&#10;AI-speed delivery."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono resize-none"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Description (hero_description)</label>
+                            <textarea
+                              rows={2}
+                              value={editSettings.hero_description || ""}
+                              onChange={(e) => handleSettingChange("hero_description", e.target.value)}
+                              placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Background Loop URL (hero_loop_url)</label>
+                            <input
+                              type="text"
+                              value={editSettings.hero_loop_url || ""}
+                              onChange={(e) => handleSettingChange("hero_loop_url", e.target.value)}
+                              placeholder="https://...mp4"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Hero Poster URL (hero_poster_url)</label>
+                            <input
+                              type="text"
+                              value={editSettings.hero_poster_url || ""}
+                              onChange={(e) => handleSettingChange("hero_poster_url", e.target.value)}
+                              placeholder="/og.jpg"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. SHOWREEL SETTINGS */}
+                      <div className="pt-4 border-t border-white/10">
+                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
+                          2. Showreel Section (#reel)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Showreel Video URL (showreel_video_url)</label>
+                            <input
+                              type="text"
+                              value={editSettings.showreel_video_url || ""}
+                              onChange={(e) => handleSettingChange("showreel_video_url", e.target.value)}
+                              placeholder="Cloudinary MP4 or https://vimeo.com/..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Showreel Poster URL (showreel_poster_url)</label>
+                            <input
+                              type="text"
+                              value={editSettings.showreel_poster_url || ""}
+                              onChange={(e) => handleSettingChange("showreel_poster_url", e.target.value)}
+                              placeholder="/og.jpg"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Duration Label (showreel_duration)</label>
+                            <input
+                              type="text"
+                              value={editSettings.showreel_duration || ""}
+                              onChange={(e) => handleSettingChange("showreel_duration", e.target.value)}
+                              placeholder="1:15"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Screen Aspect Ratio (showreel_aspect)</label>
+                            <select
+                              value={editSettings.showreel_aspect || "16:9"}
+                              onChange={(e) => handleSettingChange("showreel_aspect", e.target.value)}
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            >
+                              <option value="16:9">16:9 (Standard Widescreen)</option>
+                              <option value="2.39">2.39:1 (Cinematic Scope)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. CAPABILITIES (WHAT WE MAKE) */}
+                      <div className="pt-4 border-t border-white/10">
+                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
+                          3. Studio Capabilities (What We Make)
+                        </h4>
+                        <div className="space-y-4">
+                          {[1, 2, 3, 4, 5, 6].map((num) => (
+                            <div key={num} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-black/30 rounded-xl border border-white/5">
+                              <div>
+                                <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">0{num} Title (service_{num}_title)</label>
+                                <input
+                                  type="text"
+                                  value={editSettings[`service_${num}_title`] || ""}
+                                  onChange={(e) => handleSettingChange(`service_${num}_title`, e.target.value)}
+                                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-[9px] font-mono uppercase text-gray-400 mb-1">0{num} Description (service_{num}_desc)</label>
+                                <input
+                                  type="text"
+                                  value={editSettings[`service_${num}_desc`] || ""}
+                                  onChange={(e) => handleSettingChange(`service_${num}_desc`, e.target.value)}
+                                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 4. CONTACT & SOCIAL CHANNELS */}
+                      <div className="pt-4 border-t border-white/10">
+                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
+                          4. Studio Contact & Channels
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Contact Email (contact_email)</label>
+                            <input
+                              type="email"
+                              value={editSettings.contact_email || ""}
+                              onChange={(e) => handleSettingChange("contact_email", e.target.value)}
+                              placeholder="studio@thechantingstudio.in"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">WhatsApp Number (whatsapp_number)</label>
+                            <input
+                              type="text"
+                              value={editSettings.whatsapp_number || ""}
+                              onChange={(e) => handleSettingChange("whatsapp_number", e.target.value)}
+                              placeholder="+91..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Instagram URL (instagram_url)</label>
+                            <input
+                              type="url"
+                              value={editSettings.instagram_url || ""}
+                              onChange={(e) => handleSettingChange("instagram_url", e.target.value)}
+                              placeholder="https://instagram.com/..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">LinkedIn URL (linkedin_url)</label>
+                            <input
+                              type="url"
+                              value={editSettings.linkedin_url || ""}
+                              onChange={(e) => handleSettingChange("linkedin_url", e.target.value)}
+                              placeholder="https://linkedin.com/company/..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">YouTube URL (youtube_url)</label>
+                            <input
+                              type="url"
+                              value={editSettings.youtube_url || ""}
+                              onChange={(e) => handleSettingChange("youtube_url", e.target.value)}
+                              placeholder="https://youtube.com/@..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Vimeo URL (vimeo_url)</label>
+                            <input
+                              type="url"
+                              value={editSettings.vimeo_url || ""}
+                              onChange={(e) => handleSettingChange("vimeo_url", e.target.value)}
+                              placeholder="https://vimeo.com/..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Behance URL (behance_url)</label>
+                            <input
+                              type="url"
+                              value={editSettings.behance_url || ""}
+                              onChange={(e) => handleSettingChange("behance_url", e.target.value)}
+                              placeholder="https://behance.net/..."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">Inquiry Success Message</label>
+                            <input
+                              type="text"
+                              value={editSettings.booking_success_message || ""}
+                              onChange={(e) => handleSettingChange("booking_success_message", e.target.value)}
+                              placeholder="Your brief is with us. We'll be in touch shortly."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 5. SEO & OPEN GRAPH */}
+                      <div className="pt-4 border-t border-white/10">
+                        <h4 className="font-mono text-xs uppercase tracking-widest text-amber-400 mb-3 font-semibold">
+                          5. SEO & Open Graph Social Cards
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">SEO Title (seo_title)</label>
+                            <input
+                              type="text"
+                              value={editSettings.seo_title || ""}
+                              onChange={(e) => handleSettingChange("seo_title", e.target.value)}
+                              placeholder="The Chanting Studio — AI-Native Cinematic Studio, Delhi"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">OG Share Image (og_image_url)</label>
+                            <input
+                              type="text"
+                              value={editSettings.og_image_url || ""}
+                              onChange={(e) => handleSettingChange("og_image_url", e.target.value)}
+                              placeholder="/og.jpg"
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-mono uppercase text-gray-400 mb-1">SEO Description (seo_description)</label>
+                            <input
+                              type="text"
+                              value={editSettings.seo_description || ""}
+                              onChange={(e) => handleSettingChange("seo_description", e.target.value)}
+                              placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses."
+                              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     {adminPageScope === "live" ? (
                       <>
                         <div className="md:col-span-2 border-b border-white/5 pb-2 mb-2">
@@ -3670,7 +3998,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
-                    {/* INTERACTIVE WEBSITE THEME SWITCHER TABLE */}
+                    {/* STUDIO DESIGN SYSTEM LOCK NOTICE */}
+                    <div className="border-t border-white/5 pt-6 md:col-span-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Palette className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-sm font-semibold text-white font-display">Studio Design System Locked</h3>
+                      </div>
+                      <p className="text-xs text-gray-400 font-mono leading-relaxed">
+                        Active Theme: Studio Night (#07080C) with Archivo / Manrope / JetBrains Mono typography and spectral chromatic accents. Theme switcher and typography overrides are locked in code to preserve award-calibre film-studio aesthetics.
+                      </p>
+                    </div>
+
+                    {/* INTERACTIVE WEBSITE THEME SWITCHER TABLE (LOCKED) */}
+                    {false && (
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <div className="flex items-center gap-2 mb-3">
                         <Palette className="w-4 h-4 text-[#ffea00]" />
@@ -3702,6 +4042,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         })}
                       </div>
                     </div>
+                    )}
 
                     {/* FULL WIDTH OPTION */}
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
@@ -3920,7 +4261,8 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
 
-                    {/* TYPOGRAPHY & FONT CUSTOMIZATION */}
+                    {/* TYPOGRAPHY & FONT CUSTOMIZATION (LOCKED) */}
+                    {false && (
                     <div className="border-t border-white/5 pt-6 md:col-span-2">
                       <div className="flex items-center gap-2 mb-3">
                         <Type className="w-4 h-4 text-[#ffea00]" />
@@ -4008,6 +4350,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         })}
                       </div>
                     </div>
+                    )}
 
                   </div>
                 </div>

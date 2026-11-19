@@ -154,25 +154,19 @@ export default function LegalPage({ type, onBack }: LegalPageProps) {
   };
 
   return (
-    <div className={`min-h-screen ${theme.style.bodyBg} flex flex-col justify-between py-12 px-4 md:px-8 relative`}>
-      {/* Mesh glow grid matching main site styling */}
-      <div 
-        className={`absolute inset-0 bg-gradient-to-b ${theme.style.glowGrad} pointer-events-none opacity-40`} 
-        style={{ zIndex: 0 }}
-      />
-
+    <div className="min-h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col justify-between py-12 px-4 md:px-8 relative select-none">
       <div className="max-w-3xl w-full mx-auto relative z-10 flex-grow">
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#E6C687] hover:text-[#ffea00] mb-12 transition-all cursor-pointer group"
+          className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[var(--tcs-muted)] hover:text-white mb-10 transition-all cursor-pointer group"
         >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> 
-          Return to Odyssey
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+          Return to Studio
         </button>
 
         {/* Content Box */}
-        <div className="bg-white/[0.01] border border-white/5 rounded-3xl p-6 md:p-10 backdrop-blur-md shadow-2xl">
+        <div className="bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-xl p-8 md:p-12 shadow-2xl">
           {renderContent()}
         </div>
         
@@ -180,15 +174,15 @@ export default function LegalPage({ type, onBack }: LegalPageProps) {
         <div className="mt-8 flex justify-center">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-gray-500 hover:text-white transition-all cursor-pointer py-2 px-4 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5"
+            className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[var(--tcs-dim)] hover:text-white transition-all cursor-pointer py-2 px-4 rounded hover:bg-white/5 border border-transparent hover:border-[var(--tcs-line)]"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Studio
           </button>
         </div>
       </div>
 
-      <footer className="max-w-3xl w-full mx-auto mt-16 text-center border-t border-white/5 pt-6 text-[10px] font-mono text-gray-600 relative z-10">
-        <p>© 2026 thechantingstudio.in // Compliance Verification Framework // Safe-IP Edge Route</p>
+      <footer className="max-w-3xl w-full mx-auto mt-16 text-center border-t border-[var(--tcs-line)] pt-6 text-[11px] font-mono text-[var(--tcs-dim)] relative z-10">
+        <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
       </footer>
     </div>
   );

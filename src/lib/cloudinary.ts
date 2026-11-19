@@ -317,38 +317,10 @@ export const uploadToCloudinary = async (
     reader.onload = async () => {
       try {
         if (onProgress) {
-          onProgress("Retrieving authorization token...");
-        }
-
-        // 1. Fetch the GitHub Personal Access Token from backend using current admin passcode
-        const password = sessionStorage.getItem("bhakty_admin_password") || "admin_bhakty_studio";
-        const tokenRes = await fetch("/api/get-github-token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ password })
-        });
-
-        if (!tokenRes.ok) {
-          throw new Error("Unauthorized access: Verification failed.");
-        }
-
-        const { token } = await tokenRes.json();
-        if (!token) {
-          throw new Error("GITHUB_TOKEN is not configured on this server environment.");
-        }
-
-        if (onProgress) {
-          onProgress("Transporting file bytes directly to GitHub CDN...");
+          onProgress("Uploading file to media server...");
         }
 
         const base64Data = reader.result as string;
-        // Strip base64 prefix
-        let base64Content = base64Data;
-        if (base64Data.includes(";base64,")) {
-          base64Content = base64Data.split(";base64,").pop() || base64Data;
-        }
 
         let targetName = file.name;
         // Adjust image extensions if compressed to JPEG
@@ -372,48 +344,35 @@ export const uploadToCloudinary = async (
           }
         }
 
-        // 2. Perform direct upload from browser to GitHub API (Bypassing Vercel's 4.5MB payload limit!)
-        const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const cleanName = targetName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
-        const finalFileName = `${uniqueId}_${cleanName}`;
-        
-        const owner = "trdmsc-pixel";
-        const repo = "newbhakty";
-        const branch = "media";
-
-        const uploadUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${finalFileName}`;
-
+        // Upload through server-side media endpoint
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds timeout for large files
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
 
         try {
-          const res = await fetch(uploadUrl, {
-            method: "PUT",
+          const res = await fetch("/api/media-upload", {
+            method: "POST",
             headers: {
-              "Authorization": `Bearer ${token}`,
-              "Accept": "application/vnd.github.v3+json",
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              message: `Upload media asset via portfolio admin panel: ${finalFileName}`,
-              content: base64Content,
-              branch: branch
+              fileName: targetName,
+              fileType: activeBlob.type,
+              fileData: base64Data
             }),
             signal: controller.signal
           });
           clearTimeout(timeoutId);
 
           if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData?.message || "GitHub API direct media upload error.");
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData?.error || errData?.message || "Server media upload error.");
           }
 
+          const data = await res.json();
           if (onProgress) {
             onProgress("File uploaded successfully to CDN!");
           }
-
-          const cdnUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${finalFileName}`;
-          resolve(cdnUrl);
+          resolve(data.url);
         } catch (fetchErr: any) {
           clearTimeout(timeoutId);
           if (fetchErr.name === "AbortError") {

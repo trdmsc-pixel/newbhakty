@@ -1,1146 +1,572 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Send, FileText, Briefcase, Plus, CircleAlert, Sparkles, X, CheckCircle, Check } from "lucide-react";
-import { BookingSubmission } from "../types";
-import { trackEvent, trackMetaPixelEvent } from "../lib/analytics";
+import { Send, CheckCircle, ArrowRight, Instagram, Linkedin, Youtube, ExternalLink } from "lucide-react";
 import { useSiteData } from "../context/SiteDataContext";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { trackEvent, trackMetaPixelEvent } from "../lib/analytics";
+import { Ring } from "./brand/Ring";
 
 const COUNTRIES = [
-  { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳" },
-  { code: "US", name: "US / Canada", dialCode: "+1", flag: "🇺🇸" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44", flag: "🇬🇧" },
-  { code: "AE", name: "United Arab Emirates", dialCode: "+971", flag: "🇦🇪" },
-  { code: "AU", name: "Australia", dialCode: "+61", flag: "🇦🇺" },
-  { code: "SG", name: "Singapore", dialCode: "+65", flag: "🇸🇬" },
-  { code: "DE", name: "Germany", dialCode: "+49", flag: "🇩🇪" },
-  { code: "FR", name: "France", dialCode: "+33", flag: "🇫🇷" }
+  { code: "IN", dialCode: "+91", label: "+91" },
+  { code: "US", dialCode: "+1", label: "+1" },
+  { code: "GB", dialCode: "+44", label: "+44" },
+  { code: "AE", dialCode: "+971", label: "+971" },
+  { code: "AU", dialCode: "+61", label: "+61" },
+  { code: "SG", dialCode: "+65", label: "+65" },
+  { code: "DE", dialCode: "+49", label: "+49" },
 ];
 
-// =========================================================================
-// CUSTOM GLOWING CARET INPUTS (Captures look and feel of Image 3)
-// =========================================================================
+export default function BookingForm() {
+  const { siteSettings } = useSiteData();
 
-interface GlowingCursorInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  error?: boolean;
-}
-
-const GlowingCursorInput = React.forwardRef<HTMLInputElement, GlowingCursorInputProps>(
-  ({ className, onChange, onKeyUp, onSelect, onFocus, onBlur, onScroll, error, ...props }, ref) => {
-    const localRef = useRef<HTMLInputElement | null>(null);
-    const [caretLeft, setCaretLeft] = useState(0);
-    const [isFocused, setIsFocused] = useState(false);
-
-    const updateCaret = () => {
-      const input = localRef.current;
-      if (!input) return;
-      
-      const start = input.selectionStart || 0;
-      const val = input.value || "";
-      const textBeforeCaret = val.substring(0, start);
-      
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (context) {
-        const style = window.getComputedStyle(input);
-        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-        const metrics = context.measureText(textBeforeCaret);
-        
-        const paddingLeft = parseFloat(style.paddingLeft) || 0;
-        const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-        
-        // Account for horizontal scrolling inside the input
-        setCaretLeft(paddingLeft + borderLeft + metrics.width - input.scrollLeft);
-      }
-    };
-
-    useEffect(() => {
-      const input = localRef.current;
-      if (!input) return;
-      
-      const handleResize = () => updateCaret();
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      updateCaret();
-      if (onChange) onChange(e);
-    };
-
-    const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      updateCaret();
-      if (onKeyUp) onKeyUp(e);
-    };
-
-    const handleSelect = (e: React.SyntheticEvent<HTMLInputElement>) => {
-      updateCaret();
-      if (onSelect) onSelect(e);
-    };
-
-    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      setIsFocused(true);
-      setTimeout(updateCaret, 10);
-      if (onFocus) onFocus(e);
-    };
-
-    const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      setIsFocused(false);
-      if (onBlur) onBlur(e);
-    };
-
-    const handleInputScroll = (e: React.UIEvent<HTMLInputElement>) => {
-      updateCaret();
-      if (onScroll) onScroll(e);
-    };
-
-    return (
-      <div className="relative w-full">
-        <input
-          {...props}
-          ref={(node) => {
-            localRef.current = node;
-            if (typeof ref === "function") ref(node);
-            else if (ref) ref.current = node;
-          }}
-          onChange={handleChange}
-          onKeyUp={handleKeyUp}
-          onSelect={handleSelect}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          onScroll={handleInputScroll}
-          className={`${className} caret-transparent`}
-        />
-        {isFocused && (
-          <div
-            className="absolute pointer-events-none top-1/2 -translate-y-1/2 flex items-center transition-all duration-75"
-            style={{
-              left: `${caretLeft}px`,
-              height: "1.2em",
-            }}
-          >
-            {/* White Caret Bar */}
-            <div className="w-[2px] h-full bg-white shadow-[0_0_8px_#fff] custom-caret-bar" />
-            
-            {/* Glowing spotlight cone */}
-            <div 
-              className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
-              style={{
-                background: "radial-gradient(ellipse at left, rgba(255, 234, 0, 0.5) 0%, rgba(255, 234, 0, 0.15) 30%, transparent 70%)",
-                transform: "translateY(-50%)",
-                top: "50%",
-              }}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-);
-GlowingCursorInput.displayName = "GlowingCursorInput";
-
-
-interface GlowingCursorTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  error?: boolean;
-}
-
-const GlowingCursorTextarea = React.forwardRef<HTMLTextAreaElement, GlowingCursorTextareaProps>(
-  ({ className, onChange, onKeyUp, onSelect, onFocus, onBlur, onScroll, error, ...props }, ref) => {
-    const localRef = useRef<HTMLTextAreaElement | null>(null);
-    const mirrorRef = useRef<HTMLDivElement | null>(null);
-    const [caretPos, setCaretPos] = useState({ left: 0, top: 0 });
-    const [isFocused, setIsFocused] = useState(false);
-    const [mirrorText, setMirrorText] = useState("");
-
-    const updateCaret = () => {
-      const textarea = localRef.current;
-      const mirror = mirrorRef.current;
-      if (!textarea || !mirror) return;
-
-      const start = textarea.selectionStart || 0;
-      const val = textarea.value || "";
-      
-      const textBefore = val.substring(0, start);
-      setMirrorText(textBefore);
-
-      setTimeout(() => {
-        const marker = mirror.querySelector("#caret-marker");
-        if (marker) {
-          const markerRect = marker.getBoundingClientRect();
-          const mirrorRect = mirror.getBoundingClientRect();
-          
-          const style = window.getComputedStyle(textarea);
-          const borderTop = parseFloat(style.borderTopWidth) || 0;
-          const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-
-          const left = markerRect.left - mirrorRect.left + borderLeft - textarea.scrollLeft;
-          const top = markerRect.top - mirrorRect.top + borderTop - textarea.scrollTop;
-          
-          setCaretPos({ left, top });
-        }
-      }, 0);
-    };
-
-    useEffect(() => {
-      const textarea = localRef.current;
-      if (!textarea) return;
-
-      const handleResize = () => updateCaret();
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      updateCaret();
-      if (onChange) onChange(e);
-    };
-
-    const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      updateCaret();
-      if (onKeyUp) onKeyUp(e);
-    };
-
-    const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-      updateCaret();
-      if (onSelect) onSelect(e);
-    };
-
-    const handleFocusEvent = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      setIsFocused(true);
-      setTimeout(updateCaret, 10);
-      if (onFocus) onFocus(e);
-    };
-
-    const handleBlurEvent = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      setIsFocused(false);
-      if (onBlur) onBlur(e);
-    };
-
-    const handleScrollEvent = (e: React.UIEvent<HTMLTextAreaElement>) => {
-      updateCaret();
-      if (onScroll) onScroll(e);
-    };
-
-    return (
-      <div className="relative w-full">
-        {/* Hidden Mirror Div */}
-        <div
-          ref={mirrorRef}
-          className="absolute opacity-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words"
-          style={{
-            fontFamily: localRef.current ? window.getComputedStyle(localRef.current).fontFamily : "inherit",
-            fontSize: localRef.current ? window.getComputedStyle(localRef.current).fontSize : "inherit",
-            lineHeight: localRef.current ? window.getComputedStyle(localRef.current).lineHeight : "inherit",
-            padding: localRef.current ? window.getComputedStyle(localRef.current).padding : "inherit",
-            border: localRef.current ? window.getComputedStyle(localRef.current).border : "inherit",
-            width: localRef.current ? `${localRef.current.clientWidth}px` : "100%",
-            top: 0,
-            left: 0,
-            zIndex: -9999,
-          }}
-        >
-          {mirrorText}
-          <span id="caret-marker">|</span>
-        </div>
-
-        <textarea
-          {...props}
-          ref={(node) => {
-            localRef.current = node;
-            if (typeof ref === "function") ref(node);
-            else if (ref) ref.current = node;
-          }}
-          onChange={handleChange}
-          onKeyUp={handleKeyUp}
-          onSelect={handleSelect}
-          onFocus={handleFocusEvent}
-          onBlur={handleBlurEvent}
-          onScroll={handleScrollEvent}
-          className={`${className} caret-transparent`}
-        />
-        {isFocused && (
-          <div
-            className="absolute pointer-events-none flex items-center transition-all duration-75"
-            style={{
-              left: `${caretPos.left}px`,
-              top: `${caretPos.top}px`,
-              height: "1.2em",
-            }}
-          >
-            {/* White Caret Bar */}
-            <div className="w-[2px] h-full bg-white shadow-[0_0_8px_#fff] custom-caret-bar" />
-            
-            {/* Glowing spotlight cone */}
-            <div 
-              className="absolute left-[2px] pointer-events-none mix-blend-screen h-[40px] w-[140px]"
-              style={{
-                background: "radial-gradient(ellipse at left, rgba(255, 234, 0, 0.5) 0%, rgba(255, 234, 0, 0.15) 30%, transparent 70%)",
-                transform: "translateY(-50%)",
-                top: "50%",
-              }}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-);
-GlowingCursorTextarea.displayName = "GlowingCursorTextarea";
-
-// =========================================================================
-// MAIN BOOKING FORM COMPONENT
-// =========================================================================
-
-interface BookingFormProps {
-  initialTier: string;
-}
-
-export default function BookingForm({ initialTier }: BookingFormProps) {
-  const { siteSettings, activePage } = useSiteData();
-
-  // Helper to dynamically resolve page-specific keys
-  const getSetting = (key: string, fallback: string = "") => {
-    return siteSettings[key] || fallback;
-  };
-
+  // Field states
   const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
+  const [company, setCompany] = useState("");
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phone, setPhone] = useState("");
+  const [clientType, setClientType] = useState("Brand");
+  const [selectedTier, setSelectedTier] = useState("Brand film / TVC");
+  const [budget, setBudget] = useState("Not sure yet");
+  const [timeline, setTimeline] = useState("Within a month");
   const [brief, setBrief] = useState("");
-  const [budget, setBudget] = useState("$5,000 - $10,000");
-  const [selectedTier, setSelectedTier] = useState("Full Cinematic Production");
+  const [references, setReferences] = useState("");
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [customFields, setCustomFields] = useState<Record<string, string>>({});
-  const [phoneCountry, setPhoneCountry] = useState<Record<string, string>>({});
-  const [activeDropdownFieldId, setActiveDropdownFieldId] = useState<string | null>(null);
 
-  // Parse form schema from settings
-  const getFormFields = () => {
-    try {
-      const json = getSetting("booking_form_fields_json");
-      if (json) {
-        return JSON.parse(json);
-      }
-    } catch (e) {
-      console.error("Failed to parse booking_form_fields_json:", e);
-    }
-    return [
-      { id: "name", label: "Your Identity / Name", type: "text", placeholder: "e.g. Cassian Andor", required: true },
-      { id: "company", label: "Company / Studio", type: "text", placeholder: "e.g. Coruscant Arts Ltd", required: false },
-      { id: "email", label: "Communication Mail", type: "email", placeholder: "e.g. cassian@thechantingstudio.in", required: true },
-      { id: "budget", label: "Estimated Budget Bracket", type: "select", options: ["$2,000 - $5,000", "$5,000 - $10,000", "$10,000 - $25,000", "$25,000+"], required: true },
-      { id: "selected_tier", label: "Target Production Pipeline", type: "select", options: ["Short-Form Creative", "Full Cinematic Production", "Enterprise Studio Pipeline", "Custom Collaborative"], required: true },
-      { id: "brief", label: "Project Dimensional Brief", type: "textarea", placeholder: "Give details about your visual aesthetic, temporal consistency expectations, targeted platforms or dynamic sound direction...", required: true }
-    ];
-  };
+  // Settings
+  const contactEmail = siteSettings.contact_email || "studio@thechantingstudio.in";
+  const rawWhatsApp = siteSettings.whatsapp_number || "+919999999999";
+  const cleanWhatsApp = rawWhatsApp.replace(/[^0-9]/g, "");
+  const whatsappUrl = `https://wa.me/${cleanWhatsApp}`;
+  const successMsg = siteSettings.booking_success_message || "Your brief is with us. We'll be in touch shortly.";
 
-  const fields = React.useMemo(() => {
-    return getFormFields();
-  }, [siteSettings.booking_form_fields_json, activePage]);
-
-  // Initialize custom fields state
-  useEffect(() => {
-    const initialCustoms: Record<string, string> = {};
-    const initialPhoneCountries: Record<string, string> = {};
-    fields.forEach((field: any) => {
-      if (!["name", "company", "email", "budget", "selected_tier", "brief"].includes(field.id)) {
-        if (field.type === "select" && field.options && field.options.length > 0) {
-          initialCustoms[field.id] = field.options[0];
-        } else if (field.type === "phone") {
-          initialCustoms[field.id] = "";
-          initialPhoneCountries[field.id] = "+91"; // Default to India (+91)
-        } else {
-          initialCustoms[field.id] = "";
-        }
-      }
-    });
-    setCustomFields(initialCustoms);
-    setPhoneCountry(initialPhoneCountries);
-  }, [fields]);
-
-  // Click outside country selection dropdown auto-closer
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (activeDropdownFieldId) {
-        const target = e.target as HTMLElement;
-        if (!target.closest(".country-dropdown-container")) {
-          setActiveDropdownFieldId(null);
-        }
-      }
-    };
-    window.addEventListener("click", handleOutsideClick);
-    return () => {
-      window.removeEventListener("click", handleOutsideClick);
-    };
-  }, [activeDropdownFieldId]);
-
-  // Synchronize initial prepopulation when user clicks pricing actions
-  useEffect(() => {
-    if (initialTier) {
-      setSelectedTier(initialTier);
-      if (initialTier.includes("Short-Form")) {
-        setBudget("$2,000 - $5,000");
-      } else if (initialTier.includes("Cinematic")) {
-        setBudget("$5,000 - $10,000");
-      } else {
-        setBudget("$10,000+");
-      }
-    }
-  }, [initialTier]);
-
-  // Real-time tracking inputs
-  const [nameTouched, setNameTouched] = useState(false);
-  const [emailTouched, setEmailTouched] = useState(false);
-  const [briefTouched, setBriefTouched] = useState(false);
-
-  const isNameValid = name.trim().length >= 2;
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isBriefValid = brief.trim().length >= 15;
-
-  const getCustomFieldsText = () => {
-    return fields
-      .filter((f: any) => !["name", "company", "email", "budget", "selected_tier", "brief"].includes(f.id))
-      .map((f: any) => {
-        if (f.type === "phone") {
-          const code = phoneCountry[f.id] || "+91";
-          const val = customFields[f.id] || "";
-          return `${f.label}: ${code} ${val}`;
-        }
-        const val = customFields[f.id] || "";
-        return `${f.label}: ${val}`;
-      })
-      .join("\n");
-  };
+  const clientTypeOptions = ["Brand", "Agency", "Production house", "Other"];
+  const projectTypeOptions = [
+    "Brand film / TVC",
+    "AI commercial",
+    "Trailer / teaser",
+    "Hybrid live-action + VFX",
+    "Music video",
+    "Something else",
+  ];
+  const budgetOptions = [
+    "Not sure yet",
+    "Under ₹3 lakh",
+    "₹3–10 lakh",
+    "₹10–25 lakh",
+    "₹25 lakh+",
+    "International (USD)",
+  ];
+  const timelineOptions = ["ASAP", "Within a month", "1–3 months", "Just exploring"];
 
   const validate = () => {
     const errors: Record<string, string> = {};
-    setNameTouched(true);
-    setEmailTouched(true);
-    setBriefTouched(true);
-
-    fields.forEach((field: any) => {
-      let val = "";
-      if (field.id === "name") val = name;
-      else if (field.id === "company") val = company;
-      else if (field.id === "email") val = email;
-      else if (field.id === "budget") val = budget;
-      else if (field.id === "selected_tier") val = selectedTier;
-      else if (field.id === "brief") val = brief;
-      else val = customFields[field.id] || "";
-
-      if (field.required && !val.trim()) {
-        errors[field.id] = `${field.label} is required`;
-      } else if (field.id === "name" && field.required && val.trim().length < 2) {
-        errors.name = "Synthesizer ID or Name is required (minimum 2 letters)";
-      } else if (field.id === "email" && field.required && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-        errors.email = "Please supply a valid communication mail address";
-      } else if (field.id === "brief" && field.required && val.trim().length < 15) {
-        errors.brief = "Please expand your details to at least 15 characters";
-      } else if (field.type === "phone") {
-        const cleaned = val.replace(/\D/g, "");
-        if (field.required && !cleaned) {
-          errors[field.id] = `${field.label} is required`;
-        } else if (cleaned && (cleaned.length < 6 || cleaned.length > 15)) {
-          errors[field.id] = `${field.label} must contain between 6 and 15 digits`;
-        }
-      }
-    });
-
+    if (!name.trim()) errors.name = "Please provide your name";
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) errors.email = "Please provide a valid business email";
+    if (!selectedTier) errors.selectedTier = "Please choose what we are making";
+    if (!brief.trim()) errors.brief = "Please provide a few details about your project";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    trackEvent("click", "Booking Form submit button clicked", { name, email, tier: selectedTier });
     if (!validate()) {
-      trackEvent("click", "Booking Form submit interrupted by validation block");
+      trackEvent("click", "Inquiry Form validation error");
       return;
     }
 
     setIsSubmitting(true);
-    
-    try {
-      let briefText = brief.trim();
-      const customFieldsText = getCustomFieldsText();
 
-      if (customFieldsText) {
-        briefText += `\n\n[Additional Details]\n${customFieldsText}`;
-      }
+    try {
+      // Build additional details
+      const additionalDetails = [
+        `[You are]: ${clientType}`,
+        phone.trim() ? `[Phone]: ${countryCode} ${phone.trim()}` : "",
+        `[Timeline]: ${timeline}`,
+        references.trim() ? `[Reference links]: ${references.trim()}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const fullBrief = brief.trim() + (additionalDetails ? `\n\n[Additional Details]\n${additionalDetails}` : "");
 
       const submissionData = {
         name: name.trim(),
-        company: company.trim() || "Independent Venturer",
+        company: company.trim() || "Independent",
         email: email.trim(),
-        brief: briefText,
+        brief: fullBrief,
         budget: budget,
         selected_tier: selectedTier,
         selectedTier: selectedTier,
-        status: "Pending"
+        status: "Pending",
       };
 
       if (isSupabaseConfigured && supabase) {
         const { error } = await supabase.from("bookings").insert([submissionData]);
         if (error) {
-          throw new Error(error.message);
+          console.warn("Supabase insert error, falling back to localStorage:", error);
+          saveToLocalStorage(submissionData);
+        } else {
+          trackEvent("click", "Inquiry submitted to Supabase", { name, email, selectedTier });
         }
-        trackEvent("click", "Booking proposal successfully inserted into Supabase", { name, email, selectedTier });
       } else {
-        const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
-        const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
-        const newSubmission = {
-          id: `sub-${Date.now()}`,
-          ...submissionData,
-          submitted_at: new Date().toISOString()
-        };
-        submissionsList.push(newSubmission);
-        localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
+        saveToLocalStorage(submissionData);
       }
 
-      // Extract phone if exists
-      const phoneField = fields.find((f: any) => f.type === "phone");
-      const phoneValue = phoneField ? `${phoneCountry[phoneField.id] || "+91"}${customFields[phoneField.id] || ""}`.replace(/\D/g, "") : undefined;
+      // Parse budget currency and value
+      const isINR = budget.includes("₹") || budget.includes("lakh");
+      const currency = isINR ? "INR" : "USD";
 
-      const parseBudgetToNumeric = (bracket: string): number => {
-        const numbers = bracket.match(/\d[\d,.]*/g);
-        if (numbers && numbers.length > 0) {
-          const lastNumStr = numbers[numbers.length - 1].replace(/,/g, "");
-          const num = parseFloat(lastNumStr);
-          return isNaN(num) ? 0 : num;
+      let numericValue: number | undefined = undefined;
+      const parsedNum = budget.match(/\d+/);
+      if (parsedNum) {
+        let val = parseInt(parsedNum[0], 10);
+        if (isINR) {
+          val = val * 100000; // convert lakh to full amount
         }
-        return 0;
-      };
-      const numericBudget = parseBudgetToNumeric(budget);
+        numericValue = val;
+      }
 
-      // Track Meta Pixel Lead event with Advanced Matching
+      // Track Meta Pixel Lead with accurate currency and value
       trackMetaPixelEvent(
-        "Lead", 
+        "Lead",
         {
-          value: numericBudget,
-          currency: "USD",
-          content_name: "Creative Intake Submit",
-          content_category: selectedTier
-        }, 
+          ...(numericValue ? { value: numericValue } : {}),
+          currency,
+          content_name: "Project Inquiry",
+          content_category: selectedTier,
+        },
         {
           em: email.trim().toLowerCase(),
           fn: name.trim().toLowerCase(),
-          ph: phoneValue
+          ph: phone.trim() ? `${countryCode}${phone.trim()}`.replace(/\D/g, "") : undefined,
         }
       );
 
-      // Add a slight delay for high fidelity digital ingestion animation feel
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Delay for aesthetic transition
+      await new Promise((resolve) => setTimeout(resolve, 800));
       setIsSubmitting(false);
       setShowSuccess(true);
     } catch (err: any) {
-      console.error("Failed to commit booking submission state:", err);
-      // Fallback to local storage on error
-      try {
-        let briefText = brief.trim();
-        const customFieldsText = getCustomFieldsText();
-
-        if (customFieldsText) {
-          briefText += `\n\n[Additional Details]\n${customFieldsText}`;
-        }
-
-        const submissionData = {
-          name: name.trim(),
-          company: company.trim() || "Independent Venturer",
-          email: email.trim(),
-          brief: briefText,
-          budget: budget,
-          selected_tier: selectedTier,
-          selectedTier: selectedTier,
-          status: "Pending"
-        };
-        const existingSubmissions = localStorage.getItem("bhakty_form_submissions");
-        const submissionsList = existingSubmissions ? JSON.parse(existingSubmissions) : [];
-        const newSubmission = {
-          id: `sub-${Date.now()}`,
-          ...submissionData,
-          submitted_at: new Date().toISOString()
-        };
-        submissionsList.push(newSubmission);
-        localStorage.setItem("bhakty_form_submissions", JSON.stringify(submissionsList));
-        trackEvent("click", "Booking proposal successfully fallback-saved to local store after DB error");
-        
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setIsSubmitting(false);
-        setShowSuccess(true);
-      } catch (fallbackErr) {
-        setIsSubmitting(false);
-        console.error("Critically failed to save booking submission:", fallbackErr);
-        alert("Failed to submit booking. Please try again.");
-      }
+      console.error("Booking submission error:", err);
+      setIsSubmitting(false);
     }
   };
 
-  const resetForm = () => {
-    setName("");
-    setCompany("");
-    setEmail("");
-    setBrief("");
-    setShowSuccess(false);
+  const saveToLocalStorage = (data: any) => {
+    try {
+      const existing = localStorage.getItem("bhakty_form_submissions");
+      const list = existing ? JSON.parse(existing) : [];
+      list.push({ id: `sub-${Date.now()}`, ...data, submitted_at: new Date().toISOString() });
+      localStorage.setItem("bhakty_form_submissions", JSON.stringify(list));
+    } catch (e) {}
   };
 
-  // Testimonials carousel state
-  const { testimonials = [] } = useSiteData();
-  const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
-  const testimonialTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-rotate testimonials
-  useEffect(() => {
-    if (testimonials.length <= 1) return;
-    testimonialTimerRef.current = setInterval(() => {
-      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => {
-      if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
-    };
-  }, [testimonials.length]);
-
-  const goToPrevTestimonial = () => {
-    setActiveTestimonialIdx(prev => prev === 0 ? testimonials.length - 1 : prev - 1);
-    // Reset autoplay timer
-    if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
-    testimonialTimerRef.current = setInterval(() => {
-      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
-    }, 5000);
-  };
-
-  const goToNextTestimonial = () => {
-    setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
-    // Reset autoplay timer
-    if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
-    testimonialTimerRef.current = setInterval(() => {
-      setActiveTestimonialIdx(prev => (prev + 1) % testimonials.length);
-    }, 5000);
-  };
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={`text-sm ${i < Math.round(rating) ? "text-accent" : "text-gray-700"}`}>★</span>
-    ));
-  };
-
-  const hasTestimonials = testimonials.length > 0;
+  const firstName = name.trim().split(" ")[0] || "there";
 
   return (
-    <section id="booking-section" className={`py-24 relative z-10 px-4 md:px-8 transition-all duration-500 mx-auto ${
-      siteSettings.website_full_width === "true" 
-        ? "max-w-7xl w-full" 
-        : "max-w-6xl"
-    }`}>
-      
-      {/* GLOW DECORATIVE BLUR ORB INTEGRATION */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-accent/5 rounded-full filter blur-[100px] pointer-events-none" />
+    <section id="contact" className="relative w-full py-28 bg-[var(--tcs-night)] select-none">
+      <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+          {/* ========================================= */}
+          {/* LEFT COLUMN (5 cols): Studio Direct Info */}
+          {/* ========================================= */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-3">
+                START A PROJECT
+              </p>
+              <h2 className="tcs-h2 text-[var(--tcs-offwhite)] mb-4">
+                Tell us what you're making.
+              </h2>
+              <p className="font-sans text-[var(--tcs-muted)] text-base leading-relaxed mb-10 max-w-md">
+                We read every brief and reply personally.
+              </p>
 
-      {/* SECTION HEADER */}
-      <div className="text-center mb-12">
-        <span className="text-[10px] uppercase font-mono font-medium tracking-widest text-accent bg-accent/5 border border-accent/15 rounded-full px-4 py-1.5 inline-block mb-4">
-          Creative Intake
-        </span>
-        <h2 className="font-display font-medium text-3xl md:text-5xl text-white tracking-tight mb-4">
-          {getSetting("booking_form_title", "Book Creative Studio")}
-        </h2>
-        <p className="text-gray-400 text-sm md:text-base max-w-lg mx-auto">
-          {getSetting("booking_form_subtitle", "Supply your dimensional brief and budget brackets. Our orchestration model resolves rendering schedules within 12 hours.")}
-        </p>
-      </div>
-
-      {/* SIDE-BY-SIDE LAYOUT: TESTIMONIALS (Left) + FORM (Right) */}
-      <div className={`flex flex-col ${hasTestimonials ? "lg:flex-row" : ""} gap-8`}>
-        
-        {/* LEFT: TESTIMONIALS CAROUSEL */}
-        {hasTestimonials && (
-          <div className="lg:w-[45%] flex flex-col justify-center">
-            <div className="relative">
-              {/* Testimonial Cards Stack */}
-              <div className="relative h-[400px] md:h-[460px] flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                  {testimonials.map((t, idx) => {
-                    if (idx !== activeTestimonialIdx) return null;
-                    return (
-                      <motion.div
-                        key={t.id}
-                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -30, scale: 0.95 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 22 }}
-                        className="absolute inset-0 glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden"
-                      >
-                        {/* Upper radiant line */}
-                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
-
-                        <div className="flex-1 flex flex-col justify-center">
-                          {/* Rating Stars */}
-                          <div className="flex gap-0.5 mb-4">
-                            {renderStars(t.rating)}
-                          </div>
-
-                          {/* Quote text */}
-                          <blockquote className="text-white text-base md:text-lg leading-relaxed font-light mb-6 line-clamp-6">
-                            "{t.text}"
-                          </blockquote>
-
-                          {/* Video embed if present */}
-                          {t.video_url && (
-                            <div className="mb-4 rounded-xl overflow-hidden border border-white/10 max-h-[120px]">
-                              <video
-                                src={t.video_url}
-                                controls
-                                playsInline
-                                preload="none"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Client meta */}
-                        <div className="border-t border-white/5 pt-4">
-                          <p className="font-display font-semibold text-white text-sm tracking-tight">{t.client_name}</p>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mt-0.5">
-                            {t.role}{t.company ? ` · ${t.company}` : ""}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-
-                {/* Background blurred stacked cards */}
-                <div className="absolute inset-4 top-6 glass-panel rounded-3xl border border-white/5 opacity-20 blur-[2px] -z-10" />
-                <div className="absolute inset-8 top-10 glass-panel rounded-3xl border border-white/5 opacity-10 blur-[4px] -z-20" />
-              </div>
-
-              {/* Navigation controls */}
-              {testimonials.length > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-6">
-                  <button
-                    onClick={goToPrevTestimonial}
-                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-accent/40 transition-all cursor-pointer"
+              {/* Direct Contacts */}
+              <div className="space-y-6 pt-6 border-t border-[var(--tcs-line)]">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-1">
+                    EMAIL
+                  </p>
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="font-mono text-sm text-[var(--tcs-offwhite)] hover:text-white transition-colors"
                   >
-                    ←
-                  </button>
-                  
-                  {/* Dots indicator */}
-                  <div className="flex gap-2">
-                    {testimonials.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveTestimonialIdx(idx)}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                          idx === activeTestimonialIdx 
-                            ? "bg-accent w-6" 
-                            : "bg-white/20 hover:bg-white/40"
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={goToNextTestimonial}
-                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-accent/40 transition-all cursor-pointer"
-                  >
-                    →
-                  </button>
+                    {contactEmail}
+                  </a>
                 </div>
+
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-1">
+                    WHATSAPP DIRECT
+                  </p>
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-sm text-[var(--tcs-offwhite)] hover:text-white transition-colors inline-flex items-center gap-1.5"
+                  >
+                    Chat with Director <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                  </a>
+                </div>
+
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-1">
+                    STUDIO BASE
+                  </p>
+                  <p className="font-mono text-sm text-[var(--tcs-muted)]">
+                    Delhi, India → Worldwide
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Links */}
+            <div className="pt-10 mt-10 border-t border-[var(--tcs-line)] flex items-center gap-5">
+              {siteSettings.instagram_url && (
+                <a
+                  href={siteSettings.instagram_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="text-[var(--tcs-dim)] hover:text-[var(--tcs-offwhite)] transition-colors"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+              {siteSettings.linkedin_url && (
+                <a
+                  href={siteSettings.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  className="text-[var(--tcs-dim)] hover:text-[var(--tcs-offwhite)] transition-colors"
+                >
+                  <Linkedin className="w-4 h-4" />
+                </a>
+              )}
+              {siteSettings.youtube_url && (
+                <a
+                  href={siteSettings.youtube_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  className="text-[var(--tcs-dim)] hover:text-[var(--tcs-offwhite)] transition-colors"
+                >
+                  <Youtube className="w-4 h-4" />
+                </a>
               )}
             </div>
           </div>
-        )}
 
-        {/* RIGHT: BOOKING FORM */}
-        <div className={`${hasTestimonials ? "lg:w-[55%]" : "w-full"}`}>
-          <div className="glass-panel rounded-3xl p-8 md:p-10 shadow-2xl border border-white/10 relative overflow-hidden backdrop-blur-3xl">
-            {/* UPPER RADIANT BARS */}
-            <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
-
-        {/* INPUT LAYOUT FORM */}
-        <form onSubmit={handleSubmit} className="space-y-8" id="booking-form-element">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {fields.map((field: any) => {
-              const isFullWidth = field.type === "textarea" || field.id === "selected_tier" || field.type === "checkbox";
-              return (
-                <div key={field.id} className={`flex flex-col relative ${isFullWidth ? "md:col-span-2" : ""}`}>
-                  <label className="text-[10px] tracking-widest text-accent font-mono uppercase mb-1 flex items-center justify-between">
-                    <span>{field.label} {field.required && "*"}</span>
-                    {field.id === "name" && nameTouched && (
-                      isNameValid ? (
-                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> ID OK</span>
-                      ) : (
-                        <span className="text-red-400 text-[9px]">Identity Empty</span>
-                      )
-                    )}
-                    {field.id === "email" && emailTouched && (
-                      isEmailValid ? (
-                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5 animate-pulse"><Check className="w-2.5 h-2.5" /> Format validated</span>
-                      ) : (
-                        <span className="text-red-400 text-[9px]">Check format</span>
-                      )
-                    )}
-                    {field.id === "brief" && brief.length > 0 && (
-                      brief.length < 15 ? (
-                        <span className="text-red-500 text-[9px]">Need {15 - brief.length} more chars</span>
-                      ) : brief.length < 60 ? (
-                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Acceptable Cinematic Prompt</span>
-                      ) : (
-                        <span className="text-yellow-400 text-[9px] flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> High Coherence prompt details</span>
-                      )
-                    )}
-                  </label>
-
-                  {field.type === "textarea" ? (
-                    <>
-                      <GlowingCursorTextarea
-                        value={field.id === "brief" ? brief : customFields[field.id] || ""}
-                        id={`input-${field.id}`}
-                        onBlur={() => {
-                          if (field.id === "brief") setBriefTouched(true);
-                        }}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (field.id === "brief") {
-                            setBrief(val);
-                            setBriefTouched(true);
-                          } else {
-                            setCustomFields(prev => ({ ...prev, [field.id]: val }));
-                          }
-                          if (formErrors[field.id]) {
-                            setFormErrors(prev => {
-                              const copy = { ...prev };
-                              delete copy[field.id];
-                              return copy;
-                            });
-                          }
-                        }}
-                        rows={field.id === "brief" ? 4 : 3}
-                        placeholder={field.placeholder || ""}
-                        className={`bg-transparent outline-none border-b ${
-                          formErrors[field.id] 
-                            ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
-                        } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base resize-none`}
-                      />
-                      {field.id === "brief" && (
-                        !formErrors.brief ? (
-                          <span className="text-[10px] text-gray-500 font-mono mt-1 flex items-center justify-between w-full">
-                            <span>Minimum criteria: 15 chars ({brief.length} active)</span>
-                          </span>
-                        ) : null
-                      )}
-                    </>
-                  ) : field.type === "select" ? (
-                    <select
-                      value={
-                        field.id === "budget" ? budget :
-                        field.id === "selected_tier" ? selectedTier :
-                        customFields[field.id] || ""
-                      }
-                      id={`input-${field.id}`}
+          {/* ========================================= */}
+          {/* RIGHT COLUMN (7 cols): The Inquiry Form  */}
+          {/* ========================================= */}
+          <div className="lg:col-span-7">
+            <AnimatePresence mode="wait">
+              {!showSuccess ? (
+                <motion.form
+                  key="form"
+                  onSubmit={handleSubmit}
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-8"
+                >
+                  {/* Name */}
+                  <div className="relative group">
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                      NAME *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (field.id === "budget") setBudget(val);
-                        else if (field.id === "selected_tier") setSelectedTier(val);
-                        else setCustomFields(prev => ({ ...prev, [field.id]: val }));
-                        if (formErrors[field.id]) {
-                          setFormErrors(prev => {
-                            const copy = { ...prev };
-                            delete copy[field.id];
-                            return copy;
-                          });
-                        }
+                        setName(e.target.value);
+                        if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: "" }));
                       }}
-                      className="bg-transparent outline-none border-b border-white/10 focus:border-accent transition-all duration-300 py-3 text-white text-sm md:text-base cursor-pointer select-element-custom"
-                      style={{
-                        colorScheme: "dark"
-                      }}
-                    >
-                      {(field.options || []).map((opt: string) => (
-                        <option key={opt} value={opt} className="bg-[#0e0e16] text-white">
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : field.type === "phone" ? (
-                    <div className="flex gap-3 relative country-dropdown-container">
-                      {/* Country Selector */}
-                      <div className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdownFieldId(activeDropdownFieldId === field.id ? null : field.id);
-                          }}
-                          className={`bg-white/5 hover:bg-white/10 border-b ${
-                            formErrors[field.id] ? "border-red-500 text-red-100" : "border-white/10 focus:border-accent"
-                          } transition-all duration-300 py-3 px-3 text-white text-sm md:text-base flex items-center gap-2 rounded-t-lg cursor-pointer h-full`}
-                        >
-                          <span>{COUNTRIES.find(c => c.dialCode === (phoneCountry[field.id] || "+91"))?.flag || "🇮🇳"}</span>
-                          <span className="font-mono text-xs">{phoneCountry[field.id] || "+91"}</span>
-                          <span className="text-[8px] text-gray-500">▼</span>
-                        </button>
-
-                        <AnimatePresence>
-                          {activeDropdownFieldId === field.id && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 10 }}
-                              transition={{ duration: 0.15 }}
-                              className="absolute left-0 top-full mt-2 w-56 max-h-60 overflow-y-auto bg-[#0a0a0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-md z-50 py-1.5 custom-scrollbar"
-                            >
-                              {COUNTRIES.map((country) => (
-                                <button
-                                  key={country.code}
-                                  type="button"
-                                  onClick={() => {
-                                    setPhoneCountry(prev => ({ ...prev, [field.id]: country.dialCode }));
-                                    setActiveDropdownFieldId(null);
-                                    if (formErrors[field.id]) {
-                                      setFormErrors(prev => {
-                                        const copy = { ...prev };
-                                        delete copy[field.id];
-                                        return copy;
-                                      });
-                                    }
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center justify-between font-sans"
-                                >
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="text-base">{country.flag}</span>
-                                    <span>{country.name}</span>
-                                  </div>
-                                  <span className="font-mono text-gray-500 text-[10px]">{country.dialCode}</span>
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Telephone Input */}
-                      <GlowingCursorInput
-                        type="tel"
-                        pattern="[0-9]*"
-                        inputMode="numeric"
-                        value={customFields[field.id] || ""}
-                        id={`input-${field.id}`}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "");
-                          setCustomFields(prev => ({ ...prev, [field.id]: val }));
-                          if (formErrors[field.id]) {
-                            setFormErrors(prev => {
-                              const copy = { ...prev };
-                              delete copy[field.id];
-                              return copy;
-                            });
-                          }
-                        }}
-                        placeholder={field.placeholder || "e.g. 9876543210"}
-                        className={`flex-1 bg-transparent outline-none border-b ${
-                          formErrors[field.id] 
-                            ? "border-red-500 text-red-100 placeholder-red-800" 
-                            : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
-                        } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base font-mono`}
-                      />
-                    </div>
-                  ) : (
-                    <GlowingCursorInput
-                      type={field.type}
-                      value={
-                        field.id === "name" ? name :
-                        field.id === "company" ? company :
-                        field.id === "email" ? email :
-                        customFields[field.id] || ""
-                      }
-                      id={`input-${field.id}`}
-                      onBlur={() => {
-                        if (field.id === "name") setNameTouched(true);
-                        if (field.id === "email") setEmailTouched(true);
-                      }}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (field.id === "name") {
-                          setName(val);
-                          setNameTouched(true);
-                        } else if (field.id === "company") {
-                          setCompany(val);
-                        } else if (field.id === "email") {
-                          setEmail(val);
-                          setEmailTouched(true);
-                        } else {
-                          setCustomFields(prev => ({ ...prev, [field.id]: val }));
-                        }
-                        if (formErrors[field.id]) {
-                          setFormErrors(prev => {
-                            const copy = { ...prev };
-                            delete copy[field.id];
-                            return copy;
-                          });
-                        }
-                      }}
-                      placeholder={field.placeholder || ""}
-                      className={`bg-transparent outline-none border-b ${
-                        formErrors[field.id] 
-                          ? "border-red-500 text-red-100 placeholder-red-800" 
-                          : "border-white/10 focus:border-accent focus:shadow-[0_1px_0_0_var(--color-accent)]"
-                      } transition-all duration-300 py-3 text-white placeholder-gray-600 text-sm md:text-base`}
+                      placeholder="Your full name"
+                      className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-base text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none focus:border-transparent transition-all font-sans"
                     />
-                  )}
+                    {/* Spectral focus draw line */}
+                    <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                    {formErrors.name && (
+                      <p className="font-mono text-[10px] text-[var(--tcs-crimson)] mt-1.5 uppercase tracking-wide">
+                        {formErrors.name}
+                      </p>
+                    )}
+                  </div>
 
-                  {formErrors[field.id] && (
-                    <div className="text-red-400 text-[10px] uppercase mt-1 px-1 font-mono flex items-center gap-1">
-                      <CircleAlert className="w-3 h-3" />
-                      {formErrors[field.id]}
+                  {/* Email & Company */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="relative group">
+                      <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                        EMAIL *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: "" }));
+                        }}
+                        placeholder="name@company.com"
+                        className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-base text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none focus:border-transparent transition-all font-sans"
+                      />
+                      <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                      {formErrors.email && (
+                        <p className="font-mono text-[10px] text-[var(--tcs-crimson)] mt-1.5 uppercase tracking-wide">
+                          {formErrors.email}
+                        </p>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
-          {/* JELLY SQUISH SUBMIT BUTTON & WHATSAPP BUTTON */}
-          <div className="pt-6 flex flex-col md:flex-row items-center justify-center gap-4">
-            <motion.button
-              type="submit"
-              id="booking-submit-button"
-              disabled={isSubmitting}
-              whileHover={{ 
-                scale: 1.02,
-                transition: { type: "spring", stiffness: 350, damping: 10 }
-              }}
-              whileTap={{ 
-                scaleY: 0.9, 
-                scaleX: 1.1,
-                transition: { type: "spring", stiffness: 450, damping: 14 } 
-              }}
-              style={{
-                ...(getSetting("booking_cta_color") ? { backgroundColor: getSetting("booking_cta_color"), backgroundImage: 'none' } : {}),
-                ...(getSetting("booking_cta_text_color") ? { color: getSetting("booking_cta_text_color") } : {})
-              }}
-              className="w-full md:w-auto md:px-12 py-4 rounded-full font-bold font-display tracking-tight text-black bg-accent hover-glow-yellow shadow-xl shadow-accent/10 shadow-black/40 transition-all outline-none flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#050508]">
-                  <Sparkles className="w-4 h-4 animate-spin text-[#050508]" /> Resolving Coordinates...
-                </span>
+                    <div className="relative group">
+                      <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                        COMPANY / BRAND
+                      </label>
+                      <input
+                        type="text"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        placeholder="Company or brand"
+                        className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-base text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none focus:border-transparent transition-all font-sans"
+                      />
+                      <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                    </div>
+                  </div>
+
+                  {/* WhatsApp / Phone with country select */}
+                  <div className="relative group">
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                      WHATSAPP / PHONE
+                    </label>
+                    <div className="flex items-baseline gap-3 border-b border-[var(--tcs-line)] pb-3">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="bg-transparent text-[var(--tcs-muted)] font-mono text-sm focus:outline-none cursor-pointer"
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.dialCode} className="bg-[var(--tcs-night)] text-[var(--tcs-offwhite)]">
+                            {c.code} ({c.dialCode})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="Phone number"
+                        className="w-full bg-transparent border-0 text-base text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none font-sans"
+                      />
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                  </div>
+
+                  {/* You are — chips */}
+                  <div>
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-3">
+                      YOU ARE
+                    </label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {clientTypeOptions.map((opt) => {
+                        const isSelected = clientType === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setClientType(opt)}
+                            className={`px-4 py-2 rounded-full font-mono text-[11px] uppercase tracking-[0.12em] border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold shadow-md"
+                                : "border-[var(--tcs-line)] text-[var(--tcs-muted)] hover:border-[var(--tcs-offwhite)]/40 hover:text-white"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* What are we making?* — chips */}
+                  <div>
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-3">
+                      WHAT ARE WE MAKING? *
+                    </label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {projectTypeOptions.map((opt) => {
+                        const isSelected = selectedTier === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTier(opt);
+                              if (formErrors.selectedTier) setFormErrors((prev) => ({ ...prev, selectedTier: "" }));
+                            }}
+                            className={`px-4 py-2 rounded-full font-mono text-[11px] uppercase tracking-[0.12em] border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold shadow-md"
+                                : "border-[var(--tcs-line)] text-[var(--tcs-muted)] hover:border-[var(--tcs-offwhite)]/40 hover:text-white"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {formErrors.selectedTier && (
+                      <p className="font-mono text-[10px] text-[var(--tcs-crimson)] mt-1.5 uppercase tracking-wide">
+                        {formErrors.selectedTier}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Budget range & Timeline */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="relative group">
+                      <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                        BUDGET RANGE
+                      </label>
+                      <select
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-sm text-[var(--tcs-offwhite)] focus:outline-none cursor-pointer font-mono"
+                      >
+                        {budgetOptions.map((b) => (
+                          <option key={b} value={b} className="bg-[var(--tcs-night)] text-[var(--tcs-offwhite)]">
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                    </div>
+
+                    <div>
+                      <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-3">
+                        TIMELINE
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {timelineOptions.map((t) => {
+                          const isSelected = timeline === t;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setTimeline(t)}
+                              className={`px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider border transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-bold"
+                                  : "border-[var(--tcs-line)] text-[var(--tcs-muted)] hover:border-white/40 hover:text-white"
+                              }`}
+                            >
+                              {t}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tell us about the project* */}
+                  <div className="relative group">
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                      TELL US ABOUT THE PROJECT *
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={brief}
+                      onChange={(e) => {
+                        setBrief(e.target.value);
+                        if (formErrors.brief) setFormErrors((prev) => ({ ...prev, brief: "" }));
+                      }}
+                      placeholder="The story, where it will run, any references or deadlines."
+                      className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-base text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none focus:border-transparent transition-all font-sans resize-none"
+                    />
+                    <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                    {formErrors.brief && (
+                      <p className="font-mono text-[10px] text-[var(--tcs-crimson)] mt-1.5 uppercase tracking-wide">
+                        {formErrors.brief}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Reference links */}
+                  <div className="relative group">
+                    <label className="block font-mono text-[10px] uppercase tracking-widest text-[var(--tcs-dim)] mb-2">
+                      REFERENCE LINKS (OPTIONAL)
+                    </label>
+                    <input
+                      type="url"
+                      value={references}
+                      onChange={(e) => setReferences(e.target.value)}
+                      placeholder="https://vimeo.com/... or Google Drive link"
+                      className="w-full bg-transparent border-0 border-b border-[var(--tcs-line)] pb-3 text-sm text-[var(--tcs-offwhite)] placeholder-[var(--tcs-dim)] focus:outline-none font-mono"
+                    />
+                    <div className="absolute bottom-0 left-0 w-full h-[1.5px] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-400 ease-[0.16,1,0.3,1] origin-left pointer-events-none" style={{ background: "var(--tcs-spectrum-linear)" }} />
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full md:w-auto px-10 py-4 rounded bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-mono text-xs uppercase tracking-widest font-semibold flex items-center justify-center gap-3 hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Ring size={18} stroke={2.5} animate="spin-slow" />
+                          <span>Sending inquiry...</span>
+                        </>
+                      ) : (
+                        <span>Send inquiry</span>
+                      )}
+                    </button>
+                  </div>
+                </motion.form>
               ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  {getSetting("booking_cta_text", "Request Synthesis Pipeline")}
-                </>
+                /* Success State */
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="py-16 px-8 rounded border border-[var(--tcs-line)] bg-[var(--tcs-night-2)]/60 text-center flex flex-col items-center"
+                >
+                  <div className="mb-6 relative">
+                    <Ring size={72} stroke={4} glow={true} animate="spin-slow" />
+                  </div>
+                  <h3 className="font-display font-medium text-2xl md:text-3xl text-[var(--tcs-offwhite)] mb-3">
+                    Thank you, {firstName}.
+                  </h3>
+                  <p className="font-sans text-[var(--tcs-muted)] text-base max-w-md mx-auto mb-8 leading-relaxed">
+                    {successMsg}
+                  </p>
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded border border-[var(--tcs-line)] text-[var(--tcs-offwhite)] font-mono text-xs uppercase tracking-widest hover:border-white transition-all cursor-pointer"
+                  >
+                    <span>Urgent brief? Chat on WhatsApp</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                </motion.div>
               )}
-            </motion.button>
-
-            <motion.a
-              href="https://wa.me/919958194155"
-              target="_blank"
-              rel="noopener noreferrer"
-              whileHover={{ 
-                scale: 1.02,
-                transition: { type: "spring", stiffness: 350, damping: 10 }
-              }}
-              whileTap={{ 
-                scaleY: 0.95, 
-                scaleX: 1.05,
-                transition: { type: "spring", stiffness: 450, damping: 14 } 
-              }}
-              className="w-full md:w-auto pl-5 pr-1.5 py-1.5 rounded-full bg-[#128c7e] hover:bg-[#075e54] text-white flex items-center justify-between gap-3 shadow-[0_0_20px_rgba(18,140,126,0.3)] hover:shadow-[0_0_30px_rgba(18,140,126,0.65)] transition-all border border-emerald-400/30 hover:border-emerald-400/50 cursor-pointer group shrink-0"
-            >
-              <svg className="w-5 h-5 fill-current text-white shrink-0 group-hover:animate-bounce" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.216 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-              <span className="px-5 py-2.5 rounded-full bg-white text-black font-semibold text-xs md:text-sm shadow-inner tracking-wide flex items-center justify-center font-display backdrop-blur-md bg-opacity-95 hover:bg-opacity-100 transition-all select-none whitespace-nowrap">
-                Chat with us
-              </span>
-            </motion.a>
+            </AnimatePresence>
           </div>
-
-        </form>
-
+        </div>
       </div>
-      </div>{/* close form column */}
-      </div>{/* close side-by-side flex container */}
-
-      {/* FULL SCREEN CONFIRMATION MODAL */}
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            id="success-booking-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#050508]/80 backdrop-blur-2xl flex items-center justify-center p-4"
-          >
-            <motion.div
-              id="success-booking-card"
-              initial={{ scale: 0.85, y: 30, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.85, y: 30, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 140, damping: 16 }}
-              className="glass-panel-heavy rounded-3xl p-8 max-w-lg w-full text-center border border-accent/30 shadow-2xl relative"
-            >
-              {/* HEADER DECORATION BAR */}
-              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent" />
-              
-              <button
-                id="close-success-btn"
-                onClick={resetForm}
-                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="w-16 h-16 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-accent animate-pulse" />
-              </div>
-
-              <h3 className="font-display font-medium text-2xl text-white tracking-tight mb-3">
-                Ingested Successfully
-              </h3>
-
-              <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                Greetings, <span className="text-accent font-semibold">{name}</span>. Your creative matrix of metadata for 
-                <span className="text-white font-medium"> {company || "Independent Ventures"} </span> has breached our intake loop.
-              </p>
-
-              <div className="bg-black/30 border border-white/5 rounded-xl p-4 text-left space-y-2 mb-6">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-gray-500">Pipeline Level:</span>
-                  <span className="text-white font-medium">{selectedTier}</span>
-                </div>
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-gray-500">Coordinate Slot:</span>
-                  <span className="text-accent font-medium">{budget}</span>
-                </div>
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-gray-500">Lead Resolver:</span>
-                  <span className="text-gray-400">chants.orchestrator v4</span>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-gray-500 font-mono">
-                We are compiling standard response matrices. Expect direct transmission via <span className="text-gray-300">{email}</span> shortly.
-              </p>
-
-              <button
-                id="success-dismiss-btn"
-                onClick={resetForm}
-                className="mt-8 w-full py-3.5 bg-white text-black font-semibold font-display tracking-tight rounded-2xl hover:bg-accent transition-all duration-300 cursor-pointer text-sm"
-              >
-                Reset & Access Portfolio
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }
