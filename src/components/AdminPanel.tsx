@@ -223,6 +223,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // UI Navigation state
   const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings" | "client_access">("settings");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [openSettingsSections, setOpenSettingsSections] = useState<string[]>(["01", "02"]);
+  const [logoConfigOpen, setLogoConfigOpen] = useState(false);
+  const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
+  const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null);
+
+  const toggleSettingsSection = (id: string) => {
+    setOpenSettingsSections((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -601,11 +611,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       };
     } else {
       return {
-        accentBg: "bg-[#ffea00] hover:bg-[#ffcc00] text-black",
+        accentBg: "bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)]",
         focusBorder: "focus:border-[var(--tcs-offwhite)]/40/40",
-        focusRing: "focus:ring-[#ffea00]/20",
-        headingText: "text-yellow-400",
-        labelText: "text-yellow-400/90",
+        focusRing: "focus:ring-white/20",
+        headingText: "text-[var(--tcs-offwhite)]",
+        labelText: "text-[var(--tcs-muted)]",
         label: "AI Production",
       };
     }
@@ -2766,6 +2776,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
         {/* SIDEBAR NAVIGATION — ORGANIZED IN EXACT LIVE WEBSITE SEQUENCE */}
         <aside
+          data-lenis-prevent
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("button")) {
               setMobileSidebarOpen(false);
@@ -2773,9 +2784,9 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
           }}
           className={`${
             mobileSidebarOpen
-              ? "fixed inset-y-0 left-0 z-[70] flex w-[285px] max-w-[85vw] bg-[var(--tcs-night)] shadow-2xl"
+              ? "fixed inset-y-0 left-0 z-[70] flex w-[270px] max-w-[85vw] bg-[#0B0D13]/98 shadow-2xl"
               : "hidden"
-          } lg:sticky lg:left-0 lg:flex lg:w-72 lg:bg-[var(--tcs-night)]/95 h-full shrink-0 border-r border-[var(--tcs-line)] p-4 flex-col gap-1.5 overflow-y-auto`}
+          } lg:sticky lg:left-0 lg:flex lg:w-64 lg:bg-[#0B0D13] h-full shrink-0 border-r border-[var(--tcs-line)] p-3.5 flex-col gap-1 overflow-y-auto`}
         >
           <div className="flex lg:hidden items-center justify-between pb-3 mb-2 border-b border-[var(--tcs-line)]">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tcs-dim)]">Studio Control</span>
@@ -2788,17 +2799,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
             </button>
           </div>
 
-          {/* GROUP 1: WEBSITE SECTIONS (IN LIVE PAGE ORDER) */}
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2 pt-1 pb-1">
-            Website Sections (Live Order)
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2.5 pt-1 pb-1.5">
+            Website Sections
           </p>
 
           <button type="button" onClick={() => setActiveTab("settings")} className={sidebarBtnClass(activeTab === "settings")}>
             <span className="flex items-center gap-2.5 min-w-0">
               <Settings className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">01 · Hero, Reel & Copy</span>
+              <span className="truncate">01 · Hero & Copy</span>
             </span>
-            {activeTab === "settings" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">8</span>
           </button>
 
           <button type="button" onClick={() => setActiveTab("brand_logos")} className={sidebarBtnClass(activeTab === "brand_logos")}>
@@ -2806,7 +2816,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Image className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">02 · Brand Logos</span>
             </span>
-            {activeTab === "brand_logos" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editLogos.length}</span>
           </button>
 
           <button type="button" onClick={() => setActiveTab("portfolio")} className={sidebarBtnClass(activeTab === "portfolio")}>
@@ -2814,7 +2824,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Play className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">03 · Selected Work</span>
             </span>
-            {activeTab === "portfolio" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editWorks.length}</span>
           </button>
 
           <button type="button" onClick={() => setActiveTab("testimonials")} className={sidebarBtnClass(activeTab === "testimonials")}>
@@ -2822,7 +2832,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <MessageSquare className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">04 · Testimonials</span>
             </span>
-            {activeTab === "testimonials" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{editTestimonials.length}</span>
           </button>
 
           <button type="button" onClick={() => setActiveTab("intake_form")} className={sidebarBtnClass(activeTab === "intake_form")}>
@@ -2830,19 +2840,16 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Sliders className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">05 · Inquiry Form</span>
             </span>
-            {activeTab === "intake_form" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
           <button type="button" onClick={() => setActiveTab("navigation")} className={sidebarBtnClass(activeTab === "navigation")}>
             <span className="flex items-center gap-2.5 min-w-0">
               <Compass className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">06 · Navigation Links</span>
+              <span className="truncate">06 · Navigation</span>
             </span>
-            {activeTab === "navigation" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
-          {/* GROUP 2: STUDIO OPERATIONS */}
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2 pt-4 pb-1 border-t border-[var(--tcs-line)] mt-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tcs-dim)] px-2.5 pt-4 pb-1.5 border-t border-[var(--tcs-line)] mt-2">
             Studio Operations
           </p>
 
@@ -2851,10 +2858,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <FileText className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">Project Inquiries</span>
             </span>
-            {pendingInquiriesCount > 0 && (
-              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+            {pendingInquiriesCount > 0 ? (
+              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {pendingInquiriesCount}
               </span>
+            ) : (
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{submissionsList.length}</span>
             )}
           </button>
 
@@ -2863,7 +2872,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Upload className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">Global Assets</span>
             </span>
-            {activeTab === "assets" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--tcs-muted)]">{mediaAssets.length}</span>
           </button>
 
           <button type="button" onClick={() => setActiveTab("analytics")} className={sidebarBtnClass(activeTab === "analytics")}>
@@ -2871,7 +2880,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">Global Analytics</span>
             </span>
-            {activeTab === "analytics" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
 
           <button type="button" onClick={() => setActiveTab("client_access")} className={sidebarBtnClass(activeTab === "client_access")}>
@@ -2880,7 +2888,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <span className="truncate">Client Access</span>
             </span>
             {unreadFeedbackCount > 0 && (
-              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {unreadFeedbackCount}
               </span>
             )}
@@ -2892,7 +2900,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <span className="truncate">Live Chats</span>
             </span>
             {unreadChatsCount > 0 && (
-              <span className="shrink-0 ml-2 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+              <span className="shrink-0 ml-1 bg-[var(--tcs-ember)] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {unreadChatsCount}
               </span>
             )}
@@ -2903,18 +2911,73 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
               <Sliders className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">Chat Config</span>
             </span>
-            {activeTab === "chat_settings" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--tcs-offwhite)] shrink-0" />}
           </button>
         </aside>
 
-        {/* CENTRAL MAIN CONTENT WINDOW */}
-        <main className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 relative bg-[var(--tcs-night)]">
+        {/* FULL-BLEED RESPONSIVE MAIN COMMAND CENTER */}
+        <main
+          data-lenis-prevent
+          className="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 sm:p-5 lg:p-6 relative bg-[#07080C]"
+        >
+          {/* TOP STUDIO KPI BENTO STRIP */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 w-full">
+            <button
+              type="button"
+              onClick={() => setActiveTab("portfolio")}
+              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
+            >
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Selected Work</span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{editWorks.length}</span>
+                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">{editTabs.length} tabs ↗</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("brand_logos")}
+              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
+            >
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Brand Roster</span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{editLogos.length}</span>
+                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">Manage ↗</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("submissions")}
+              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
+            >
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">Project Inquiries</span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{submissionsList.length}</span>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${pendingInquiriesCount > 0 ? "bg-[var(--tcs-ember)]/20 text-[var(--tcs-ember)]" : "text-emerald-400 bg-emerald-500/10"}`}>
+                  {pendingInquiriesCount > 0 ? `${pendingInquiriesCount} pending` : "All clear"}
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("assets")}
+              className="text-left p-4 rounded-2xl bg-[#11131B] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/30 transition-all cursor-pointer group"
+            >
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--tcs-dim)]">CDN Media Assets</span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-display text-2xl sm:text-3xl font-semibold text-[var(--tcs-offwhite)]">{mediaAssets.length}</span>
+                <span className="font-mono text-[10px] text-[var(--tcs-muted)] group-hover:text-white">Library ↗</span>
+              </div>
+            </button>
+          </div>
+
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-[var(--tcs-night-2)] p-5 sm:p-7 lg:p-8 rounded-2xl border border-[var(--tcs-line)] min-h-[500px] max-w-6xl mx-auto"
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-[#11131B] p-5 sm:p-6 lg:p-7 rounded-2xl border border-[var(--tcs-line)] min-h-[520px] w-full"
           >
               {/* TAB 1: LIVE WEBSITE SECTIONS (HERO, SHOWREEL, CAPABILITIES, PROCESS, CONTACT, FOOTER & SEO) */}
               {activeTab === "settings" && (
@@ -2931,6 +2994,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
 
                     <div className="flex items-center gap-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenSettingsSections((prev) =>
+                            prev.length === 8 ? [] : ["01", "02", "03", "04", "05", "06", "07", "08"]
+                          )
+                        }
+                        className="px-3 py-2 rounded-lg border border-[var(--tcs-line)] bg-[var(--tcs-night)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] hover:text-white transition-all cursor-pointer"
+                      >
+                        {openSettingsSections.length === 8 ? "Collapse All" : "Expand All"}
+                      </button>
                       <div className="flex items-center gap-1 bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg p-0.5">
                         <button
                           type="button"
@@ -2964,16 +3038,31 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 items-start">
                   {/* 01 · HERO SECTION (#top) */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        01 · Hero Section (#top)
-                      </h3>
-                      <span className="font-mono text-[10px] text-[var(--tcs-dim)]">First 3 seconds</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("01")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          01 · Hero Section (#top)
+                        </h3>
+                        {!openSettingsSections.includes("01") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.hero_title?.split("\n")[0] || "Film-scale craft."}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("01") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("01") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Eyebrow Label</label>
                         <input
@@ -3079,18 +3168,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         )}
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 02 · SHOWREEL SECTION (#reel) */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        02 · Showreel Section (#reel)
-                      </h3>
-                      <span className="font-mono text-[10px] text-[var(--tcs-dim)]">Theatre Mode Centrepiece</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("02")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          02 · Showreel Section (#reel)
+                        </h3>
+                        {!openSettingsSections.includes("02") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.showreel_title || "Every frame, directed."}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("02") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("02") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Showreel Eyebrow</label>
                         <input
@@ -3177,33 +3283,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </select>
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 03 · BRAND MARQUEE & SELECTED WORK HEADINGS */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        03 · Brand Logos & Selected Work (#work)
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("brand_logos")}
-                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
-                        >
-                          Manage Brand Logos →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("portfolio")}
-                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
-                        >
-                          Manage Films & Tabs →
-                        </button>
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("03")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          03 · Brand Logos & Selected Work (#work)
+                        </h3>
+                        {!openSettingsSections.includes("03") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.work_title || "Brands, worlds and everything between."}
+                          </p>
+                        )}
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("03") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("03") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Brand Marquee Eyebrow</label>
                         <input
@@ -3235,17 +3343,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         />
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 04 · WHAT WE MAKE (#studio Part A) */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        04 · What We Make (#studio — 6 Capabilities)
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("04")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          04 · What We Make (#studio — 6 Capabilities)
+                        </h3>
+                        {!openSettingsSections.includes("04") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.studio_make_title || "One studio. Every kind of frame."}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("04") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("04") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Section Eyebrow</label>
                         <input
@@ -3292,17 +3418,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </div>
                       ))}
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 05 · HOW WE WORK (#studio Part B) */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        05 · How We Work (#studio — 4 Process Steps)
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("05")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          05 · How We Work (#studio — 4 Process Steps)
+                        </h3>
+                        {!openSettingsSections.includes("05") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.studio_work_title || "Directorial precision from brief to master."}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("05") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("05") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Process Eyebrow</label>
                         <input
@@ -3356,33 +3500,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         </div>
                       ))}
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 06 · TESTIMONIALS & START A PROJECT COPY (#clients & #contact) */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        06 · Testimonials & Start a Project (#clients & #contact)
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("testimonials")}
-                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
-                        >
-                          Edit Testimonials →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("intake_form")}
-                          className="px-3 py-1.5 rounded-lg border border-[var(--tcs-line)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-offwhite)] hover:bg-white/[0.05] cursor-pointer"
-                        >
-                          Edit Form Fields →
-                        </button>
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("06")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          06 · Testimonials & Start a Project (#clients & #contact)
+                        </h3>
+                        {!openSettingsSections.includes("06") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.booking_form_title || "Tell us what you\'re making."}
+                          </p>
+                        )}
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("06") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("06") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Testimonials Section Eyebrow</label>
                         <input
@@ -3424,17 +3570,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         />
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 07 · DIRECT CONTACT, WHATSAPP & SOCIAL CHANNELS */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        07 · Direct Contact, WhatsApp & Social Links
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("07")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          07 · Direct Contact, WhatsApp & Social Links
+                        </h3>
+                        {!openSettingsSections.includes("07") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.whatsapp_number || "+91 9958194155"}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("07") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("07") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Studio Contact Email</label>
                         <input
@@ -3506,17 +3670,35 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         />
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
 
                   {/* 08 · FOOTER, EXTREME BOTTOM LOGO & SEO / PIXEL */}
-                  <section className="p-5 sm:p-6 rounded-xl bg-[var(--tcs-night)] border border-[var(--tcs-line)] space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--tcs-line)] pb-3">
-                      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--tcs-offwhite)] font-semibold">
-                        08 · Footer, Bottom Logo & SEO / Meta Pixel
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleSettingsSection("08")}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
+                          08 · Footer, Bottom Logo & SEO / Meta Pixel
+                        </h3>
+                        {!openSettingsSections.includes("08") && (
+                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
+                            {editSettings.footer_location || "Delhi, India → Worldwide"}
+                          </p>
+                        )}
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
+                        {openSettingsSections.includes("08") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+                    {openSettingsSections.includes("08") && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">
                           Extreme Bottom Footer Logo URL (logo_img_url)
@@ -3625,7 +3807,11 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         />
                       </div>
                     </div>
+                  
+                      </div>
+                    )}
                   </section>
+                  </div>
                 </div>
               )}
 
@@ -3670,7 +3856,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                        <button
                          onClick={saveMenu}
                          disabled={saveStatus.navigation === "saving"}
-                         className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                         className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer"
                        >
                          <Save className="w-4 h-4" /> Synchronize menu
                        </button>
@@ -3843,7 +4029,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         onClick={saveWorks}
                         disabled={saveStatus.portfolio === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer"
                       >
                         <Save className="w-4 h-4" /> Sync Portfolio
                       </button>
@@ -3860,7 +4046,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         type="button"
                         onClick={() => setShowAddTabModal(true)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ffea00] hover:bg-[#ffcc00] text-black rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] rounded-xl text-xs font-semibold cursor-pointer transition-all"
                       >
                         <PlusCircle className="w-3.5 h-3.5" /> Add New Tab
                       </button>
@@ -4073,7 +4259,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             toast.error("Failed to save static portfolio PDF settings.");
                           }
                         }}
-                        className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl ${scopeStyle.accentBg} text-black hover-glow-yellow transition-all cursor-pointer`}
+                        className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl ${scopeStyle.accentBg} text-black  transition-all cursor-pointer`}
                       >
                         <Save className="w-3.5 h-3.5" /> Save PDF Configuration
                       </button>
@@ -4085,7 +4271,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                   </p>
 
                   <div 
-                    className="space-y-6"
+                    className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start"
                     onFocusCapture={() => recordWorksHistory()}
                   >
                     {editWorks
@@ -4130,40 +4316,85 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 : "bg-black/30 border-white/5 hover:border-white/10 hover:bg-white/[0.01]"
                             }`}
                           >
-                            {/* Title bar with drag handles */}
-                            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                              <div className="flex items-center gap-3 select-none">
-                                <GripVertical className="w-4 h-4 text-gray-500" />
-                                <span className="text-xs font-mono text-[var(--tcs-offwhite)] font-semibold">Artifact 0{filteredIndex + 1}</span>
-                                <span className="text-sm font-medium text-gray-300">{work.title}</span>
-                              </div>
+                            {/* Compact Visual Film Header (Click to expand full editor) */}
+                            <div className="flex items-center justify-between gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedWorkId(expandedWorkId === work.id ? null : work.id)}
+                                className="flex items-center gap-3 min-w-0 text-left cursor-pointer flex-1"
+                              >
+                                <GripVertical className="w-4 h-4 text-[var(--tcs-dim)] shrink-0" />
+                                <div className="w-16 h-10 rounded-lg overflow-hidden bg-black border border-[var(--tcs-line)] shrink-0 flex items-center justify-center">
+                                  {!isImage && (work.videoUrl || work.highResVideoUrl) ? (
+                                    <video
+                                      src={`${work.videoUrl || work.highResVideoUrl}#t=0.5`}
+                                      muted
+                                      playsInline
+                                      preload="metadata"
+                                      className="w-full h-full object-cover pointer-events-none"
+                                    />
+                                  ) : (work.imageUrl || work.videoUrl) ? (
+                                    <img
+                                      src={work.imageUrl || work.videoUrl}
+                                      alt={work.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Play className="w-3.5 h-3.5 text-[var(--tcs-dim)]" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-[var(--tcs-dim)]">#{String(filteredIndex + 1).padStart(2, "0")}</span>
+                                    <span className="text-sm font-medium text-[var(--tcs-offwhite)] truncate">{work.title || "Untitled Film"}</span>
+                                  </div>
+                                  <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] truncate">
+                                    {work.category || "Uncategorized"}
+                                  </p>
+                                </div>
+                              </button>
 
-                              <div className="flex items-center gap-2 select-none">
+                              <div className="flex items-center gap-1.5 shrink-0 select-none">
                                 <button
+                                  type="button"
+                                  onClick={() => setExpandedWorkId(expandedWorkId === work.id ? null : work.id)}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider border cursor-pointer transition-all ${
+                                    expandedWorkId === work.id
+                                      ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-semibold"
+                                      : "bg-white/[0.04] text-[var(--tcs-offwhite)] border-[var(--tcs-line)] hover:bg-white/[0.08]"
+                                  }`}
+                                >
+                                  {expandedWorkId === work.id ? "Done" : "Edit"}
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => moveWorkItem(index, "up")}
                                   disabled={filteredIndex === 0}
-                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                                 >
                                   <ArrowUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => moveWorkItem(index, "down")}
                                   disabled={filteredIndex === filteredArray.length - 1}
-                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                                  className="p-1.5 rounded-lg border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                                 >
                                   <ArrowDown className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => deleteWorkItem(work.id)}
-                                  className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors ml-2 cursor-pointer"
+                                  className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
 
-                            {/* Input Fields */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Collapsible Input Fields */}
+                            {expandedWorkId === work.id && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[var(--tcs-line)]">
                               <div>
                                 <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Title</label>
                                 <input
@@ -4320,7 +4551,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                         type="button"
                                         onClick={() => handlePortfolioUpload(work.id)}
                                         disabled={isUploadingPortfolioId === work.id}
-                                        className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                                        className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-white transition-all cursor-pointer disabled:opacity-40"
                                       >
                                         {isUploadingPortfolioId === work.id 
                                           ? "Uploading File..." 
@@ -4391,7 +4622,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                           type="button"
                                           onClick={() => handlePortfolioUpload(work.id)}
                                           disabled={isUploadingPortfolioId === work.id}
-                                          className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                                          className="w-full mt-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[10px] font-semibold py-1.5 rounded hover:bg-white transition-all cursor-pointer disabled:opacity-40"
                                         >
                                           {isUploadingPortfolioId === work.id 
                                             ? "Uploading Image..." 
@@ -4450,6 +4681,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               )}
 
                             </div>
+                            )}
                           </div>
                         );
                       })}
@@ -4540,7 +4772,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={savePricing}
                       disabled={saveStatus.pricing === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer"
                     >
                       <Save className="w-4 h-4" /> Sync Pricing
                     </button>
@@ -5039,7 +5271,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <button
                                 type="button"
                                 onClick={() => addMilestone(tier.id)}
-                                className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10 cursor-pointer"
+                                className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-white/[0.04] border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-white/[0.08] cursor-pointer"
                               >
                                 <Plus className="w-3 h-3" /> Add milestone step
                               </button>
@@ -5094,7 +5326,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <span className="text-[10px] font-mono uppercase text-gray-400">Deliverables Deliverable Scope</span>
                             <button
                               onClick={() => addFeature(tier.id)}
-                              className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-[#ffea00]/10"
+                              className="flex items-center gap-1 text-[10px] font-mono text-[var(--tcs-offwhite)] bg-white/[0.04] border border-[var(--tcs-offwhite)]/40/20 px-2 py-0.5 rounded hover:bg-white/[0.08]"
                             >
                               <Plus className="w-3 h-3" /> Add feature scope
                             </button>
@@ -5186,7 +5418,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         }, 800);
                       }}
                       disabled={saveStatus.assets === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-auto"
                     >
                       {saveStatus.assets === "saving" ? (
                         <>
@@ -5348,7 +5580,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               type="button"
                               onClick={handleAssetUpload}
                               disabled={isUploadingAsset}
-                              className="w-full mt-2 py-2.5 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                              className="w-full mt-2 py-2.5 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-white transition-all cursor-pointer disabled:opacity-40"
                             >
                               {isUploadingAsset ? "Uploading Queue to GitHub CDN..." : `Upload ${selectedAssetFiles.length} Assets to GitHub CDN`}
                             </button>
@@ -5405,7 +5637,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                             <button
                               onClick={handleAddCustomAsset}
                               disabled={!newAssetUrl || !newAssetName}
-                              className="w-full py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer disabled:opacity-40"
+                              className="w-full py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs font-semibold rounded-xl hover:bg-white transition-all cursor-pointer disabled:opacity-40"
                             >
                               Add Asset URL
                             </button>
@@ -5505,7 +5737,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               {selectedAssetIds.length > 0 && (
                                 <div className="bg-[#11111c] border border-[var(--tcs-offwhite)]/40/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                                   <div className="flex items-center gap-2 font-mono text-gray-300">
-                                    <span className="w-2 h-2 rounded-full bg-[#ffea00] animate-pulse"></span>
+                                    <span className="w-2 h-2 rounded-full bg-[var(--tcs-offwhite)] animate-pulse"></span>
                                     <span>Selected <strong>{selectedAssetIds.length}</strong> asset(s)</span>
                                   </div>
                                   
@@ -5620,14 +5852,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                                         <button
                                           onClick={() => handleSelectAssetForSetting(item.url, "hero_video_bg_url")}
-                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-white/[0.04] text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-white/[0.12] cursor-pointer"
                                           title="Set as Hero Background Video / Image"
                                         >
                                           Background
                                         </button>
                                         <button
                                           onClick={() => handleSelectAssetForSetting(item.url, "logo_img_url")}
-                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-[#ffea00]/5 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-[#ffea00]/20 cursor-pointer"
+                                          className="text-[9px] font-sans font-medium px-2 py-1 rounded bg-white/[0.04] text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/15 hover:bg-white/[0.12] cursor-pointer"
                                           title="Set as Navbar Logo Image"
                                         >
                                           Logo
@@ -5693,7 +5925,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                               <div className="flex items-center gap-2">
                                 <h3 className="font-display font-bold text-base text-white">{sub.fullName || sub.name}</h3>
                                 {sub.company && (
-                                  <span className="text-[10px] font-mono text-[var(--tcs-offwhite)] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/15 px-2 py-0.5 rounded-lg">
+                                  <span className="text-[10px] font-mono text-[var(--tcs-offwhite)] bg-white/[0.04] border border-[var(--tcs-offwhite)]/40/15 px-2 py-0.5 rounded-lg">
                                     {sub.company}
                                   </span>
                                 )}
@@ -5770,7 +6002,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveIntakeFormSettings}
                       disabled={saveStatus.intake_form === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
                     >
                       {saveStatus.intake_form === "saving" ? (
                         <>
@@ -5890,7 +6122,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                     </span>
                                   )}
                                   {isCore ? (
-                                    <span className="text-[8px] font-mono bg-[#ffea00]/10 text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/20 px-1.5 py-0.5 rounded">
+                                    <span className="text-[8px] font-mono bg-white/[0.08] text-[var(--tcs-offwhite)] border border-[var(--tcs-offwhite)]/40/20 px-1.5 py-0.5 rounded">
                                       Core Ingestion ID: {field.id}
                                     </span>
                                   ) : (
@@ -5936,7 +6168,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 <button
                                   type="button"
                                   onClick={() => handleStartEditField(field)}
-                                  className="p-1.5 text-[var(--tcs-offwhite)] hover:text-[#ffcc00] bg-[#ffea00]/5 border border-[var(--tcs-offwhite)]/40/15 rounded-lg hover:bg-[#ffea00]/10 transition-all cursor-pointer"
+                                  className="p-1.5 text-[var(--tcs-offwhite)] hover:text-[#ffcc00] bg-white/[0.04] border border-[var(--tcs-offwhite)]/40/15 rounded-lg hover:bg-white/[0.08] transition-all cursor-pointer"
                                   title="Edit Field Configuration"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -6140,7 +6372,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         onClick={saveBrandLogos}
                         disabled={saveStatus.brand_logos === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer shrink-0"
                       >
                         {saveStatus.brand_logos === "saving" ? (
                           <>
@@ -6155,252 +6387,241 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     </div>
                   </div>
 
-                  {/* Logos Section Configuration block */}
-                  <div className="bg-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
-                    <div className="border-b border-white/5 pb-3">
-                      <span className="font-display font-semibold text-sm text-white uppercase tracking-wider">Global Logos Section Config</span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Section Title Text</label>
-                        <input
-                          type="text"
-                          value={getSettingValueScoped("brand_logos_title")}
-                          onChange={(e) => handleSettingChangeScoped("brand_logos_title", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
-                          placeholder={adminPageScope === "ai" ? "Trusted By Leading Brands" : "Trusted By Industry Leaders"}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-mono uppercase text-gray-500 mb-2">Title Font Size Class</label>
-                        <select
-                          value={getSettingValueScoped("brand_logos_title_size", "text-xs")}
-                          onChange={(e) => handleSettingChangeScoped("brand_logos_title_size", e.target.value)}
-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
-                        >
-                          <option value="text-xs">text-xs (Extra Small)</option>
-                          <option value="text-sm">text-sm (Small)</option>
-                          <option value="text-base">text-base (Regular)</option>
-                          <option value="text-lg">text-lg (Large)</option>
-                          <option value="text-xl">text-xl (Extra Large)</option>
-                          <option value="text-2xl">text-2xl (2XL)</option>
-                          <option value="text-3xl">text-3xl (3XL)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-6 border-t border-white/5 pt-4">
+                  {/* Collapsible Global Logos Config */}
+                  <div className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setLogoConfigOpen((prev) => !prev)}
+                      className="w-full px-5 py-3.5 flex items-center justify-between text-left cursor-pointer hover:bg-white/[0.02]"
+                    >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Motion:</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "true")}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              getSettingValueScoped("brand_logos_marquee_enabled", "true") === "true"
-                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
-                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                            }`}
-                          >
-                            Enabled
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "false")}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              getSettingValueScoped("brand_logos_marquee_enabled", "true") === "false"
-                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
-                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                            }`}
-                          >
-                            Disabled (Center Static)
-                          </button>
+                        <span className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold">
+                          Marquee Display Settings
+                        </span>
+                        <span className="font-mono text-[10px] text-[var(--tcs-dim)] hidden sm:inline">
+                          Title: {getSettingValueScoped("brand_logos_title") || "TRUSTED BY"} • {siteSettings.marquee_direction === "right" ? "Right" : "Left"}
+                        </span>
+                      </div>
+                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)]">
+                        {logoConfigOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+
+                    {logoConfigOpen && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase text-[var(--tcs-muted)] mb-1.5">Section Title Text</label>
+                            <input
+                              type="text"
+                              value={getSettingValueScoped("brand_logos_title")}
+                              onChange={(e) => handleSettingChangeScoped("brand_logos_title", e.target.value)}
+                              className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2 text-xs text-[var(--tcs-offwhite)] focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
+                              placeholder="TRUSTED BY"
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-end gap-4">
+                            <div>
+                              <span className="block text-[10px] font-mono uppercase text-[var(--tcs-muted)] mb-1.5">Marquee Motion</span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "true")}
+                                  className={`px-3 py-2 rounded-lg text-[11px] font-mono uppercase border cursor-pointer ${
+                                    getSettingValueScoped("brand_logos_marquee_enabled", "true") === "true"
+                                      ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-semibold"
+                                      : "bg-white/[0.03] text-[var(--tcs-muted)] border-[var(--tcs-line)]"
+                                  }`}
+                                >
+                                  Enabled
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSettingChangeScoped("brand_logos_marquee_enabled", "false")}
+                                  className={`px-3 py-2 rounded-lg text-[11px] font-mono uppercase border cursor-pointer ${
+                                    getSettingValueScoped("brand_logos_marquee_enabled", "true") === "false"
+                                      ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-semibold"
+                                      : "bg-white/[0.03] text-[var(--tcs-muted)] border-[var(--tcs-line)]"
+                                  }`}
+                                >
+                                  Static
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] font-mono uppercase text-[var(--tcs-muted)] mb-1.5">Direction</span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => updateSiteSetting("marquee_direction", "left")}
+                                  className={`px-3 py-2 rounded-lg text-[11px] font-mono uppercase border cursor-pointer ${
+                                    siteSettings.marquee_direction !== "right"
+                                      ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-semibold"
+                                      : "bg-white/[0.03] text-[var(--tcs-muted)] border-[var(--tcs-line)]"
+                                  }`}
+                                >
+                                  Left
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSiteSetting("marquee_direction", "right")}
+                                  className={`px-3 py-2 rounded-lg text-[11px] font-mono uppercase border cursor-pointer ${
+                                    siteSettings.marquee_direction === "right"
+                                      ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)] font-semibold"
+                                      : "bg-white/[0.03] text-[var(--tcs-muted)] border-[var(--tcs-line)]"
+                                  }`}
+                                >
+                                  Right
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-300 font-mono uppercase tracking-wider">Marquee Flow Direction:</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateSiteSetting("marquee_direction", "left")}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              siteSettings.marquee_direction === "left"
-                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
-                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                            }`}
-                          >
-                            Scroll Left
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSiteSetting("marquee_direction", "right")}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              siteSettings.marquee_direction === "right"
-                                ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] border-[var(--tcs-offwhite)]/40"
-                                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                            }`}
-                          >
-                            Scroll Right
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Brand Logos List */}
-                  <div className="space-y-4">
-                    {editLogos.length === 0 ? (
-                      <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
-                        <p className="text-gray-500 text-sm">No brand logos configured yet. Click "Add Logo" to start.</p>
-                      </div>
-                    ) : (
-                      editLogos.map((logo, index) => (
-                        <div
-                          key={logo.id}
-                          className="bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center gap-4 hover:border-white/10 transition-all"
-                        >
-                          {/* Image preview box */}
-                          <div className="w-24 h-16 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                            {logo.url ? (
-                              <img
-                                src={logo.url}
-                                alt={logo.name || "Brand logo preview"}
-                                className="w-full h-full object-contain p-2"
-                              />
-                            ) : (
-                              <Image className="w-6 h-6 text-gray-600" />
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0 space-y-3 w-full">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Brand/Client Name</label>
-                                <input
-                                  type="text"
-                                  value={logo.name}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, name: val } : l));
-                                  }}
-                                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white"
-                                  placeholder="e.g. Acme Corp"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Logo Image URL</label>
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="text"
-                                      value={logo.url}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
-                                      }}
-                                      className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-                                      placeholder="Direct logo link"
-                                    />
-                                    
-                                    {/* File Upload Trigger */}
-                                    <div className="relative shrink-0">
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => handleBrandLogoFileChange(e, logo.id)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                      />
-                                      <button
-                                        type="button"
-                                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs hover:bg-white/10 hover:text-white transition-all flex items-center gap-1 cursor-pointer h-full"
-                                      >
-                                        <Upload className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Select from assets dropdown */}
-                                  <select
-                                    value={logo.url || ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setEditLogos(prev => prev.map(l => l.id === logo.id ? { ...l, url: val } : l));
-                                    }}
-                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
-                                  >
-                                    <option value="">-- Or Select from Assets Library --</option>
-                                    {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
-                                      <option key={asset.id} value={asset.url}>
-                                        {asset.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                  {/* COMPACT 4-COLUMN VISUAL BRAND LOGOS GRID */}
+                  {editLogos.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-[var(--tcs-line)] rounded-2xl">
+                      <p className="text-[var(--tcs-muted)] text-sm">No brand logos configured yet. Click "Add Logo" to start.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      {editLogos.map((logo, index) => {
+                        const isEditing = editingLogoId === logo.id || !logo.url;
+                        return (
+                          <div
+                            key={logo.id}
+                            className="bg-[#0B0D13] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/25 rounded-2xl p-4 flex flex-col gap-3 transition-all"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-[10px] text-[var(--tcs-dim)]">#{String(index + 1).padStart(2, "0")}</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveBrandLogo(index, "up")}
+                                  disabled={index === 0}
+                                  title="Move earlier"
+                                  className="p-1 text-[var(--tcs-muted)] hover:text-white bg-white/[0.04] rounded disabled:opacity-25 cursor-pointer"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveBrandLogo(index, "down")}
+                                  disabled={index === editLogos.length - 1}
+                                  title="Move later"
+                                  className="p-1 text-[var(--tcs-muted)] hover:text-white bg-white/[0.04] rounded disabled:opacity-25 cursor-pointer"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLogoId(isEditing ? null : logo.id)}
+                                  title="Edit logo source"
+                                  className={`p-1 rounded cursor-pointer ${isEditing ? "bg-[var(--tcs-offwhite)] text-[var(--tcs-night)]" : "bg-white/[0.04] text-[var(--tcs-muted)] hover:text-white"}`}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteBrandLogo(logo.id)}
+                                  title="Delete logo"
+                                  className="p-1 text-red-400 hover:text-red-300 bg-red-500/10 rounded cursor-pointer"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
 
-                            {/* Show selected file name and upload button if present */}
-                            {selectedBrandLogoFiles[logo.id] && (
-                              <div className="flex items-center justify-between bg-purple-950/20 border border-purple-500/20 px-3 py-2 rounded-xl text-xs">
-                                <span className="text-gray-300 truncate max-w-xs">
-                                  Selected: {selectedBrandLogoFiles[logo.id]?.name}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleBrandLogoUpload(logo.id)}
-                                  disabled={isUploadingBrandLogoId === logo.id}
-                                  className="flex items-center gap-1 px-3 py-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                            <div className="w-full h-20 rounded-xl bg-black/50 border border-white/[0.06] flex items-center justify-center p-3 overflow-hidden">
+                              {logo.url ? (
+                                <img
+                                  src={logo.url}
+                                  alt={logo.name || "Brand logo"}
+                                  className="max-h-full max-w-full object-contain"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <Image className="w-6 h-6 text-[var(--tcs-dim)]" />
+                              )}
+                            </div>
+
+                            <input
+                              type="text"
+                              value={logo.name}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditLogos((prev) => prev.map((l) => (l.id === logo.id ? { ...l, name: val } : l)));
+                              }}
+                              className="w-full bg-transparent border-b border-[var(--tcs-line)] focus:border-[var(--tcs-offwhite)]/60 pb-1 text-xs font-medium text-[var(--tcs-offwhite)] focus:outline-none text-center"
+                              placeholder="Brand Name"
+                            />
+
+                            {isEditing && (
+                              <div className="space-y-2 pt-2 border-t border-[var(--tcs-line)]">
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={logo.url}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setEditLogos((prev) => prev.map((l) => (l.id === logo.id ? { ...l, url: val } : l)));
+                                    }}
+                                    className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-2.5 py-1.5 text-[11px] text-[var(--tcs-offwhite)] font-mono"
+                                    placeholder="Logo URL..."
+                                  />
+                                  <div className="relative shrink-0">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleBrandLogoFileChange(e, logo.id)}
+                                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                    />
+                                    <button
+                                      type="button"
+                                      className="px-2.5 py-1.5 bg-white/[0.06] border border-[var(--tcs-line)] rounded-lg text-xs hover:bg-white/10 h-full cursor-pointer"
+                                    >
+                                      <Upload className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <select
+                                  value={logo.url || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditLogos((prev) => prev.map((l) => (l.id === logo.id ? { ...l, url: val } : l)));
+                                  }}
+                                  className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-2.5 py-1.5 text-[11px] text-[var(--tcs-muted)] font-mono"
                                 >
-                                  {isUploadingBrandLogoId === logo.id ? (
-                                    <>
-                                      <Loader2 className="w-3 h-3 animate-spin" /> Uploading...
-                                    </>
-                                  ) : (
-                                    <>Upload to CDN</>
-                                  )}
-                                </button>
+                                  <option value="">↳ Pick from Image Assets...</option>
+                                  {mediaAssets.filter((asset) => asset.type === "image").map((asset) => (
+                                    <option key={asset.id} value={asset.url}>{asset.name}</option>
+                                  ))}
+                                </select>
+
+                                {selectedBrandLogoFiles[logo.id] && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBrandLogoUpload(logo.id)}
+                                    disabled={isUploadingBrandLogoId === logo.id}
+                                    className="w-full py-1.5 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-[11px] font-mono uppercase font-semibold rounded-lg cursor-pointer"
+                                  >
+                                    {isUploadingBrandLogoId === logo.id ? "Uploading..." : `Upload ${selectedBrandLogoFiles[logo.id]?.name}`}
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
-
-                          {/* Control arrows/delete */}
-                          <div className="flex items-center gap-1 shrink-0 ml-auto md:ml-0 self-end md:self-center">
-                            <button
-                              type="button"
-                              onClick={() => moveBrandLogo(index, "up")}
-                              disabled={index === 0}
-                              className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveBrandLogo(index, "down")}
-                              disabled={index === editLogos.length - 1}
-                              className="p-1.5 text-gray-400 hover:text-white bg-white/5 border border-white/5 rounded-lg disabled:opacity-30 disabled:pointer-events-none hover:bg-white/10 transition-all cursor-pointer"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteBrandLogo(logo.id)}
-                              className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/5 border border-red-500/10 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* TAB 10: TESTIMONIALS MANAGER */}
               {activeTab === "testimonials" && (
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
@@ -6422,7 +6643,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       <button
                         onClick={saveTestimonials}
                         disabled={saveStatus.testimonials === "saving"}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer shrink-0"
                       >
                         {saveStatus.testimonials === "saving" ? (
                           <>
@@ -6599,7 +6820,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                                 type="button"
                                 onClick={() => handleTestimonialUpload(testimonial.id)}
                                 disabled={isUploadingTestimonialId === testimonial.id}
-                                className="flex items-center gap-1 px-3 py-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold rounded-lg hover:bg-[#ffcc00] transition-all cursor-pointer"
+                                className="flex items-center gap-1 px-3 py-1 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] font-semibold rounded-lg hover:bg-white transition-all cursor-pointer"
                               >
                                 {isUploadingTestimonialId === testimonial.id ? (
                                   <>
@@ -6867,7 +7088,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                     <button
                       onClick={saveSettings}
                       disabled={saveStatus.settings === "saving"}
-                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-[#ffcc00] transition-all cursor-pointer shrink-0"
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] text-xs md:text-sm font-semibold rounded-xl hover:bg-white transition-all cursor-pointer shrink-0"
                     >
                       {saveStatus.settings === "saving" ? (
                         <>

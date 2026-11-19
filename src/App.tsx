@@ -29,9 +29,16 @@ function AppContent() {
   const [triggerReelPlay, setTriggerReelPlay] = useState(false);
   const isFirstRender = useRef(true);
 
-  // Initialize Lenis Smooth Scrolling on desktop fine pointers
+  // Initialize Lenis Smooth Scrolling on desktop public homepage only (never hijack wheel on /admin or /client)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const isPortalRoute =
+      path === "/admin" ||
+      hash === "#admin" ||
+      path === "/client" ||
+      hash === "#client";
+    if (isPortalRoute) return;
+
     const isFine = window.matchMedia("(pointer: fine)").matches;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!isFine || prefersReducedMotion) return;
@@ -42,17 +49,18 @@ function AppContent() {
       smoothWheel: true,
     });
 
+    let rafId = 0;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId = requestAnimationFrame(raf);
     }
-    const rafId = requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
 
     return () => {
       cancelAnimationFrame(rafId);
       lenis.destroy();
     };
-  }, []);
+  }, [path, hash]);
 
   // Listen for history and hash navigation
   useEffect(() => {
