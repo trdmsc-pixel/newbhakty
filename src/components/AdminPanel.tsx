@@ -2629,6 +2629,44 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
   // UI RENDERING
   // ----------------------------------------------------
 
+  const videoAssets = mediaAssets.filter((a) => a.type === "video");
+  const imageAssets = mediaAssets.filter((a) => a.type === "image");
+  const pendingInquiriesCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
+  const unreadChatsCount = chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0);
+  const unreadFeedbackCount = allFeedbacks.filter((f) => !f.acknowledged).length;
+  const totalAlertsCount = pendingInquiriesCount + unreadChatsCount + unreadFeedbackCount;
+
+  // Browser Tab Title Badge + Native Browser Notification + Sound Chime when new alerts arrive
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    document.title =
+      totalAlertsCount > 0
+        ? `(${totalAlertsCount}) Studio CMS — The Chanting Studio`
+        : "Studio CMS — The Chanting Studio";
+
+    if (prevAlertTotalRef.current !== null && totalAlertsCount > prevAlertTotalRef.current) {
+      playIntakeNotificationSound();
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          const notif = new Notification("The Chanting Studio — New Studio Alert", {
+            body: `${pendingInquiriesCount} pending inquiries • ${unreadFeedbackCount} client notes • ${unreadChatsCount} unread chats`,
+            icon: "/favicon.png",
+          });
+          notif.onclick = () => {
+            window.focus();
+            setNotificationsOpen(true);
+            notif.close();
+          };
+        } catch {}
+      }
+    }
+    prevAlertTotalRef.current = totalAlertsCount;
+
+    return () => {
+      document.title = "The Chanting Studio — AI-Native Cinematic Studio, Delhi";
+    };
+  }, [totalAlertsCount, isAuthenticated, pendingInquiriesCount, unreadFeedbackCount, unreadChatsCount]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
@@ -2711,44 +2749,6 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       </div>
     );
   }
-
-  const videoAssets = mediaAssets.filter((a) => a.type === "video");
-  const imageAssets = mediaAssets.filter((a) => a.type === "image");
-  const pendingInquiriesCount = submissionsList.filter((sub: any) => sub.status === "Pending" || !sub.status).length;
-  const unreadChatsCount = chatSessions.reduce((acc, s) => acc + (s.unread_count || 0), 0);
-  const unreadFeedbackCount = allFeedbacks.filter((f) => !f.acknowledged).length;
-  const totalAlertsCount = pendingInquiriesCount + unreadChatsCount + unreadFeedbackCount;
-
-  // Browser Tab Title Badge + Native Browser Notification + Sound Chime when new alerts arrive
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    document.title =
-      totalAlertsCount > 0
-        ? `(${totalAlertsCount}) Studio CMS — The Chanting Studio`
-        : "Studio CMS — The Chanting Studio";
-
-    if (prevAlertTotalRef.current !== null && totalAlertsCount > prevAlertTotalRef.current) {
-      playIntakeNotificationSound();
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        try {
-          const notif = new Notification("The Chanting Studio — New Studio Alert", {
-            body: `${pendingInquiriesCount} pending inquiries • ${unreadFeedbackCount} client notes • ${unreadChatsCount} unread chats`,
-            icon: "/favicon.png",
-          });
-          notif.onclick = () => {
-            window.focus();
-            setNotificationsOpen(true);
-            notif.close();
-          };
-        } catch {}
-      }
-    }
-    prevAlertTotalRef.current = totalAlertsCount;
-
-    return () => {
-      document.title = "The Chanting Studio — AI-Native Cinematic Studio, Delhi";
-    };
-  }, [totalAlertsCount, isAuthenticated, pendingInquiriesCount, unreadFeedbackCount, unreadChatsCount]);
 
   const primaryWebsiteTabs: Array<{ id: typeof activeTab; label: string }> = [
     { id: "settings", label: "Hero & Copy" },
