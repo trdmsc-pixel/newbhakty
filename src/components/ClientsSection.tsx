@@ -35,21 +35,24 @@ export const ClientsSection: React.FC = () => {
 
   const current = testimonials[activeIdx];
 
+  if (total === 0 || !current) return null;
+
   return (
-    <section id="clients" className="relative w-full py-28 bg-[var(--tcs-night)] select-none">
+    <section id="clients" className="relative w-full py-28 bg-[var(--tcs-night)] select-none border-t border-[var(--tcs-line)]">
       <div className="max-w-[1600px] mx-auto px-6 md:px-12">
-        {/* Trusted By Brand Marquee */}
-        <div className="mb-24">
-          <BrandMarquee />
+        {/* Section Eyebrow */}
+        <div className="text-center mb-16">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--tcs-dim)]">
+            CLIENT ENDORSEMENTS & FEEDBACK
+          </p>
         </div>
 
-        {/* Testimonials Carousel (Only if testimonials exist) */}
-        {total > 0 && current && (
-          <div
-            className="pt-16 border-t border-[var(--tcs-line)] max-w-4xl mx-auto"
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-          >
+        {/* Testimonials Carousel */}
+        <div
+          className="max-w-4xl mx-auto"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
             {/* Spectral Progress Line (7s auto-advance) */}
             {!prefersReducedMotion && total > 1 && (
               <div className="w-full h-[2px] bg-[var(--tcs-line)] overflow-hidden rounded-full mb-12">
@@ -116,7 +119,6 @@ export const ClientsSection: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
       </div>
     </section>
   );

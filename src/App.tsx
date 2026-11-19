@@ -7,6 +7,7 @@ import ShowcaseGrid from "./components/ShowcaseGrid";
 import StudioSection from "./components/StudioSection";
 import ClientsSection from "./components/ClientsSection";
 import BookingForm from "./components/BookingForm";
+import BrandMarquee from "./components/BrandMarquee";
 import Footer from "./components/Footer";
 import IntroLoader from "./components/IntroLoader";
 import CustomCursor from "./components/CustomCursor";
@@ -245,6 +246,11 @@ function AppContent() {
           externalTriggerPlay={triggerReelPlay}
           onResetTrigger={() => setTriggerReelPlay(false)}
         />
+
+        {/* Brand Roster / Partner Marquee */}
+        <section className="w-full py-12 border-y border-[var(--tcs-line)] bg-[var(--tcs-night)] overflow-hidden">
+          <BrandMarquee />
+        </section>
 
         {/* Section 3: Selected Work */}
         <ShowcaseGrid />

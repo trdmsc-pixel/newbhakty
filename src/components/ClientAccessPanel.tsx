@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { useToast } from "../context/ToastContext";
+import { Wordmark } from "./brand/Wordmark";
+import { Ring } from "./brand/Ring";
 import { 
   Lock, Mail, Phone, Building, User, Sparkles, Send, 
   ArrowLeft, LogOut, CheckCircle2, Clock, Play, Video, 
@@ -402,38 +404,37 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
   };
 
   return (
-    <div className="relative min-h-screen bg-[#050508] text-white flex flex-col justify-between selection:bg-violet-500/30 selection:text-violet-200">
+    <div className="relative min-h-screen bg-[var(--tcs-night)] text-[var(--tcs-offwhite)] flex flex-col justify-between selection:bg-[var(--tcs-offwhite)]/20 selection:text-white">
       
-      {/* Background decoration */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse" />
-      <div className="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-amber-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+      {/* Background Subtle Spectral Glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[400px] spectral-glow opacity-30 pointer-events-none -z-10" />
 
       {/* HEADER BAR */}
-      <header className="w-full border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-50">
+      <header className="w-full border-b border-[var(--tcs-line)] bg-[var(--tcs-night)]/85 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <button
             onClick={onNavigateHome}
-            className="flex items-center gap-2 text-xs font-mono tracking-widest text-gray-400 hover:text-white uppercase transition-colors"
+            className="flex items-center gap-2 text-xs font-mono tracking-widest text-[var(--tcs-muted)] hover:text-white uppercase transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5 text-accent" /> Back to Studio
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Studio
           </button>
           
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 rounded bg-gradient-to-r from-amber-300 to-violet-500" />
-            <span className="font-display font-medium text-sm text-white tracking-tight uppercase">
-              The Chanting Studio // Client Access
+            <Wordmark capHeight={13} ringAnimation="spin-slow" />
+            <span className="hidden sm:inline font-mono text-[10px] text-[var(--tcs-dim)] uppercase tracking-widest pl-2 border-l border-[var(--tcs-line)]">
+              Client Portal
             </span>
           </div>
 
           {sessionUser ? (
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-2 text-xs font-mono tracking-widest text-red-400 hover:text-red-300 uppercase transition-colors border border-red-500/10 hover:border-red-500/20 bg-red-500/5 px-3.5 py-1.5 rounded-full"
+              className="flex items-center gap-2 text-xs font-mono tracking-widest text-red-400 hover:text-red-300 uppercase transition-colors border border-red-500/20 bg-red-500/5 px-3.5 py-1.5 rounded-full cursor-pointer"
             >
               <LogOut className="w-3 h-3" /> Log Out
             </button>
           ) : (
-            <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <span className="text-[10px] font-mono text-[var(--tcs-dim)] uppercase tracking-widest bg-white/[0.03] px-3 py-1 rounded-full border border-[var(--tcs-line)]">
               🔒 Encrypted Gateway
             </span>
           )}
@@ -455,19 +456,19 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
               exit={{ opacity: 0, y: -20 }}
               className="w-full max-w-md mx-auto"
             >
-              <div className="glass-panel-heavy p-8 rounded-3xl border border-white/10 relative overflow-hidden">
+              <div className="bg-[var(--tcs-carbon)] p-8 rounded-2xl border border-[var(--tcs-line)] shadow-2xl relative overflow-hidden">
                 {/* Visual Accent */}
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-600 via-amber-400 to-violet-600" />
+                <div className="absolute top-0 inset-x-0 h-[2px]" style={{ background: "var(--tcs-spectrum-linear)" }} />
                 
                 <div className="text-center mb-8">
-                  <div className="w-12 h-12 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
-                    <Lock className="w-5 h-5 text-violet-400 animate-pulse" />
+                  <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-[var(--tcs-line)] flex items-center justify-center mx-auto mb-4">
+                    <Lock className="w-5 h-5 text-[var(--tcs-offwhite)]" />
                   </div>
-                  <h2 className="font-display font-light text-2xl text-white tracking-tight">
-                    {authMode === "login" ? "Global Client Gateway" : "Create Client Account"}
+                  <h2 className="font-display font-medium text-2xl text-[var(--tcs-offwhite)] tracking-tight">
+                    {authMode === "login" ? "Client Portal Login" : "Create Client Account"}
                   </h2>
-                  <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">
-                    {authMode === "login" ? "Sign in to manage and view deliverables" : "Register company and design specifications"}
+                  <p className="text-[var(--tcs-dim)] text-xs mt-1.5 font-mono uppercase tracking-wider">
+                    {authMode === "login" ? "Review deliverables, milestones & timelines" : "Register company and design specifications"}
                   </p>
                 </div>
 
@@ -475,31 +476,31 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                   /* LOGIN FORM */
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Mail Identity</label>
+                      <label className="text-[10px] uppercase font-mono tracking-wider text-[var(--tcs-dim)]">Mail Identity</label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-[var(--tcs-dim)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="email"
                           required
                           value={loginEmail}
                           onChange={(e) => setLoginEmail(e.target.value)}
                           placeholder="client@company.com"
-                          className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full pl-10 pr-4 py-3 bg-[var(--tcs-night)] border border-[var(--tcs-line)] focus:border-[var(--tcs-offwhite)] rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none font-mono"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-mono tracking-wider text-gray-400">Password Key</label>
+                      <label className="text-[10px] uppercase font-mono tracking-wider text-[var(--tcs-dim)]">Password Key</label>
                       <div className="relative">
-                        <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Lock className="w-4 h-4 text-[var(--tcs-dim)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="password"
                           required
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           placeholder="••••••••••••"
-                          className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none"
+                          className="w-full pl-10 pr-4 py-3 bg-[var(--tcs-night)] border border-[var(--tcs-line)] focus:border-[var(--tcs-offwhite)] rounded-xl text-sm transition-all text-white placeholder-gray-600 outline-none font-mono"
                         />
                       </div>
                     </div>
@@ -507,9 +508,9 @@ export default function ClientAccessPanel({ onNavigateHome }: ClientAccessPanelP
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold font-display tracking-wide text-xs uppercase rounded-xl transition-all shadow-lg shadow-violet-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
+                      className="w-full py-3.5 bg-[var(--tcs-offwhite)] hover:bg-white text-[var(--tcs-night)] font-semibold font-mono tracking-wider text-xs uppercase rounded-xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
                     >
-                      {isLoading ? "Validating Session..." : "Acquire Access"}
+                      {isLoading ? "Validating Session..." : "Access Deliverables"}
                     </button>
                   </form>
                 ) : (

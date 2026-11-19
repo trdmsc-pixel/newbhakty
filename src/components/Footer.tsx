@@ -210,9 +210,48 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
           </div>
         </div>
 
+        {/* Direct Studio Portals Row */}
+        <div className="py-8 my-4 border-b border-[var(--tcs-line)] flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)]">
+              Direct Studio Access & Client Portals
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => (navigate ? navigate("/client") : (window.location.pathname = "/client"))}
+              className="px-5 py-2.5 rounded-full bg-[var(--tcs-carbon)] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/60 text-[var(--tcs-offwhite)] font-mono text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/[0.04] transition-all cursor-pointer shadow-lg"
+            >
+              <span className="text-emerald-400 text-sm">🌐</span>
+              <span>Client Access Panel</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => (navigate ? navigate("/admin") : (window.location.pathname = "/admin"))}
+              className="px-5 py-2.5 rounded-full bg-[var(--tcs-carbon)] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/60 text-[var(--tcs-offwhite)] font-mono text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/[0.04] transition-all cursor-pointer shadow-lg"
+            >
+              <span className="text-amber-400 text-sm">🔐</span>
+              <span>Studio Administrator</span>
+            </button>
+          </div>
+        </div>
+
         {/* Bottom Bar: Copyright & Legal */}
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-[11px] text-[var(--tcs-dim)]">
-          <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
+          <div className="flex items-center gap-3">
+            {siteSettings.logo_img_url && (
+              <img
+                src={siteSettings.logo_img_url}
+                alt="Studio Logo"
+                className="h-6 w-auto object-contain brightness-125"
+              />
+            )}
+            <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
+          </div>
 
           <div className="flex items-center gap-6">
             <a

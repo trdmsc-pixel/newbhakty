@@ -100,8 +100,8 @@ export default function Navbar({ navigate }: NavbarProps) {
           </a>
 
           {/* Right: Desktop Navigation Items */}
-          <nav className="hidden md:flex items-center gap-8">
-            <div className="flex items-center gap-7">
+          <nav className="hidden md:flex items-center gap-7">
+            <div className="flex items-center gap-6">
               {navLinks.map((link) => {
                 const isActive = activeSection === link.target.replace("#", "");
                 return (
@@ -125,6 +125,26 @@ export default function Navbar({ navigate }: NavbarProps) {
                   </a>
                 );
               })}
+
+              {/* Direct Portal Access */}
+              <button
+                type="button"
+                onClick={() => (navigate ? navigate("/client") : (window.location.pathname = "/client"))}
+                className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-offwhite)]/60 hover:text-[var(--tcs-offwhite)] transition-colors cursor-pointer"
+                title="Client Portal Access"
+              >
+                Client Access
+              </button>
+
+              <button
+                type="button"
+                onClick={() => (navigate ? navigate("/admin") : (window.location.pathname = "/admin"))}
+                className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-offwhite)]/60 hover:text-[var(--tcs-offwhite)] transition-colors flex items-center gap-1 cursor-pointer"
+                title="Studio Administrator Login"
+              >
+                <span className="text-[10px]">🔒</span>
+                <span>Admin</span>
+              </button>
             </div>
 
             {/* Primary CTA: Start a project */}
@@ -177,7 +197,7 @@ export default function Navbar({ navigate }: NavbarProps) {
             className="fixed inset-0 z-40 bg-[var(--tcs-night)] flex flex-col justify-between p-8 pt-28 md:hidden"
           >
             {/* Nav links */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
               {navLinks.map((link, idx) => (
                 <motion.a
                   key={link.target}
@@ -195,6 +215,29 @@ export default function Navbar({ navigate }: NavbarProps) {
                 </motion.a>
               ))}
 
+              <div className="pt-4 border-t border-[var(--tcs-line)] flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    navigate ? navigate("/client") : (window.location.pathname = "/client");
+                  }}
+                  className="text-left font-mono text-xs uppercase tracking-widest text-[var(--tcs-offwhite)]/80 hover:text-white py-1.5 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>🌐</span> Client Access Panel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    navigate ? navigate("/admin") : (window.location.pathname = "/admin");
+                  }}
+                  className="text-left font-mono text-xs uppercase tracking-widest text-[var(--tcs-offwhite)]/80 hover:text-white py-1.5 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>🔐</span> Studio Administrator
+                </button>
+              </div>
+
               <motion.a
                 href="#contact"
                 onClick={(e) => {
@@ -204,7 +247,7 @@ export default function Navbar({ navigate }: NavbarProps) {
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35, duration: 0.35 }}
-                className="mt-4 inline-block font-display font-bold text-2xl uppercase tracking-wider text-[var(--tcs-offwhite)] border-b border-[var(--tcs-offwhite)] pb-2"
+                className="mt-2 inline-block font-display font-bold text-2xl uppercase tracking-wider text-[var(--tcs-offwhite)] border-b border-[var(--tcs-offwhite)] pb-2"
               >
                 Start a project →
               </motion.a>

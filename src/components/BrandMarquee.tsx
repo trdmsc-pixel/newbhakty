@@ -56,15 +56,17 @@ export default function BrandMarquee() {
 
         {prefersReducedMotion ? (
           /* Static grid under reduced motion */
-          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-14 max-w-5xl mx-auto px-6">
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 max-w-5xl mx-auto px-6">
             {(displayLogos.length > 0 ? displayLogos : defaultBrands).map((brand: any, idx) => (
               <div key={idx} className="flex-shrink-0">
                 {brand.url ? (
-                  <img
-                    src={brand.url}
-                    alt={brand.name}
-                    className="h-7 md:h-9 w-auto object-contain opacity-55 grayscale brightness-125"
-                  />
+                  <div className="h-10 md:h-12 w-28 md:w-36 flex items-center justify-center px-2">
+                    <img
+                      src={brand.url}
+                      alt={brand.name}
+                      className="max-h-7 md:max-h-8 max-w-full object-contain filter grayscale brightness-150 contrast-125 mix-blend-screen select-none opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                  </div>
                 ) : (
                   <span className="font-display font-medium text-sm uppercase tracking-wider text-[var(--tcs-offwhite)]/55">
                     {brand.name}
@@ -77,7 +79,7 @@ export default function BrandMarquee() {
           /* 40s Infinite Smooth Marquee */
           <div className="w-full overflow-hidden flex">
             <div
-              className={`tcs-marquee-track items-center gap-14 md:gap-20 ${
+              className={`tcs-marquee-track items-center gap-8 md:gap-14 ${
                 isHovered ? "animation-play-state-paused" : ""
               }`}
               style={isHovered ? { animationPlayState: "paused" } : {}}
@@ -86,17 +88,19 @@ export default function BrandMarquee() {
                 (brand: any, idx) => (
                   <div
                     key={idx}
-                    className="flex-shrink-0 opacity-55 hover:opacity-100 transition-opacity duration-300 cursor-default"
+                    className="flex-shrink-0 opacity-60 hover:opacity-100 transition-all duration-300 cursor-default"
                   >
                     {brand.url ? (
-                      <img
-                        src={brand.url}
-                        alt={brand.name}
-                        draggable="false"
-                        className="h-7 md:h-9 w-auto object-contain grayscale brightness-125 select-none"
-                      />
+                      <div className="h-10 md:h-12 w-28 md:w-36 flex items-center justify-center px-2">
+                        <img
+                          src={brand.url}
+                          alt={brand.name}
+                          draggable="false"
+                          className="max-h-7 md:max-h-8 max-w-full object-contain filter grayscale brightness-150 contrast-125 mix-blend-screen select-none transition-all duration-300"
+                        />
+                      </div>
                     ) : (
-                      <span className="font-display font-medium text-sm md:text-base uppercase tracking-widest text-[var(--tcs-offwhite)] whitespace-nowrap">
+                      <span className="font-display font-medium text-sm md:text-base uppercase tracking-widest text-[var(--tcs-offwhite)] whitespace-nowrap px-4">
                         {brand.name}
                       </span>
                     )}
