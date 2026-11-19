@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { optimizeHeroVideoUrl } from "../lib/cloudinary";
 
@@ -26,6 +26,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   // Optimized video source URL
   const optimizedVideoUrl = loopUrl ? optimizeHeroVideoUrl(loopUrl) : "";
@@ -51,6 +53,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     return () => observer.disconnect();
   }, [optimizedVideoUrl]);
 
+  // Ensure autoplay triggers on user interactions if browser initially restricts
+  useEffect(() => {
+    if (!videoRef.current || isVideoReady) return;
+    const playAttempt = () => {
+      videoRef.current?.play().then(() => setIsVideoReady(true)).catch(() => {});
+    };
+    window.addEventListener("touchstart", playAttempt, { once: true, passive: true });
+    window.addEventListener("click", playAttempt, { once: true, passive: true });
+    return () => {
+      window.removeEventListener("touchstart", playAttempt);
+      window.removeEventListener("click", playAttempt);
+    };
+  }, [isVideoReady]);
+
   // Parse lines for mask-up animation
   const titleLines = title.split("\n");
 
@@ -62,25 +78,36 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     >
       {/* Background Video / LCP Poster Layer */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {optimizedVideoUrl && !prefersReducedMotion ? (
+        {/* Poster layer with subtle Ken Burns drift */}
+        <motion.img
+          src={posterUrl || "/og.jpg"}
+          alt="The Chanting Studio Hero"
+          // @ts-ignore
+          fetchpriority="high"
+          animate={prefersReducedMotion ? {} : { scale: [1, 1.05, 1] }}
+          transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
+          className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ${
+            isVideoReady ? "opacity-0" : "opacity-100"
+          }`}
+        />
+
+        {/* Looping Ambient Cinematic Video */}
+        {optimizedVideoUrl && !prefersReducedMotion && !videoError && (
           <video
             ref={videoRef}
             src={optimizedVideoUrl}
-            poster={posterUrl || "/og.jpg"}
             autoPlay
             loop
             muted
             playsInline
-            preload="metadata"
-            className="w-full h-full object-cover object-center"
-          />
-        ) : (
-          <img
-            src={posterUrl || "/og.jpg"}
-            alt="The Chanting Studio Hero"
-            // @ts-ignore
-            fetchpriority="high"
-            className="w-full h-full object-cover object-center"
+            preload="auto"
+            onCanPlay={() => setIsVideoReady(true)}
+            onPlaying={() => setIsVideoReady(true)}
+            onEnded={() => videoRef.current?.play()}
+            onError={() => setVideoError(true)}
+            className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ${
+              isVideoReady ? "opacity-100" : "opacity-0"
+            }`}
           />
         )}
 

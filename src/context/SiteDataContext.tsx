@@ -80,14 +80,14 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hero_eyebrow: "AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE",
   hero_title: "Film-scale craft.\nAI-speed delivery.",
   hero_description: "Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses.",
-  hero_loop_url: "",
-  hero_poster_url: "/og.jpg",
-  hero_credit: "",
+  hero_loop_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781186188643-uz2iudjbk_seedance_2_0___tv_spot_ad___bmw23__bmw2_create_a_hyper_premium_cinematic_tv_spot_commercial_for_the_4k.webm",
+  hero_poster_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188194291-p22sxzh5f_3_series_exterior_left_front_three_quarter.avif",
+  hero_credit: "BMW 4K TV SPOT • DIRECTED BY THE CHANTING STUDIO",
 
   // Showreel Section (Section 5.2 & 8)
-  showreel_video_url: "",
-  showreel_poster_url: "/og.jpg",
-  showreel_duration: "1:15",
+  showreel_video_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188825650-g9hzeknyz_banner.webm",
+  showreel_poster_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781187896400-j5gl1zley_freepik_high_budget_cinematic_stu_2846789120.jpg",
+  showreel_duration: "0:45",
   showreel_aspect: "16:9",
 
   // Studio Capabilities / What We Make (Section 5.4 & 8)
