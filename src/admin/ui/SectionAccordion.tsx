@@ -28,10 +28,10 @@ export const SectionAccordion: React.FC<SectionAccordionProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.75rem] bg-[#11131A] border transition-all duration-200 overflow-hidden ${
+      className={`rounded-[1.75rem] bg-[#11131A] border transition-all duration-200 ${
         isOpen
           ? "border-white/[0.18] shadow-lg"
-          : "border-white/[0.08] hover:border-white/[0.14]"
+          : "border-white/[0.08] hover:border-white/[0.14] overflow-hidden"
       } ${className}`}
     >
       <button
