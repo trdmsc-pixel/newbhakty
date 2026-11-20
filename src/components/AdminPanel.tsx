@@ -16,6 +16,7 @@ import { WEB_THEMES, getActiveTheme } from "../lib/themes";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import { Wordmark } from "./brand/Wordmark";
 import { Ring } from "./brand/Ring";
+import { StudioSelect } from "./StudioSelect";
 import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 
@@ -2793,7 +2794,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
       {/* IMAGE-3 INSPIRED TOP FLOATING PILL NAVIGATION BAR */}
       <header className="sticky top-0 z-50 w-full bg-[#07080C]/88 backdrop-blur-xl border-b border-white/[0.07]">
-        <div className="max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3">
+        <div className="w-full px-5 sm:px-8 lg:px-10 h-20 flex items-center justify-between gap-3">
           {/* Left: Mobile Drawer Toggle + Studio Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
             <button
@@ -3058,7 +3059,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
       </AnimatePresence>
 
       {/* MAIN FULL-WIDTH EDITORIAL COMMAND CENTER */}
-      <main className="flex-1 w-full max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+      <main className="tcs-admin-workspace flex-1 w-full px-5 sm:px-8 lg:px-10 py-7 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="font-display font-medium text-3xl sm:text-4xl lg:text-[42px] text-[#F4EFE6] tracking-tight leading-none">
@@ -3271,7 +3272,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                         type="button"
                         onClick={saveSettings}
                         disabled={saveStatus.settings === "saving"}
-                        className="flex items-center gap-2 px-5 py-2.5 text-xs font-mono uppercase tracking-[0.14em] font-semibold rounded-lg bg-[var(--tcs-offwhite)] text-[var(--tcs-night)] hover:bg-white transition-all cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-2 px-6 py-3 text-xs font-mono uppercase tracking-[0.14em] font-semibold rounded-full bg-[#F4EFE6] text-[#07080C] hover:bg-white hover:-translate-y-[1px] shadow-lg transition-all cursor-pointer disabled:opacity-50"
                       >
                         <Save className="w-3.5 h-3.5" />
                         {saveStatus.settings === "saving" ? "Publishing..." : saveStatus.settings === "saved" ? "Published ✓" : "Publish Changes"}
@@ -3281,28 +3282,38 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
 
                   <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 items-start">
                   {/* 01 · HERO SECTION (#top) */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("01")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          01 · Hero Section (#top)
-                        </h3>
-                        {!openSettingsSections.includes("01") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.hero_title?.split("\n")[0] || "Film-scale craft."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          01
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Hero Section (#top)
+                          </h3>
+                          {!openSettingsSections.includes("01") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.hero_title?.split("\n")[0] || "Film-scale craft."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("01") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("01") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("01") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Eyebrow Label</label>
@@ -3374,16 +3385,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                         />
                         {videoAssets.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handleSettingChange("hero_loop_url", e.target.value)}
-                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
-                          >
-                            <option value="">↳ Pick from uploaded Video Assets...</option>
-                            {videoAssets.map((a) => (
-                              <option key={a.id} value={a.url}>{a.name}</option>
-                            ))}
-                          </select>
+                          <StudioSelect
+                            value={editSettings.hero_loop_url || ""}
+                            onChange={(val) => handleSettingChange("hero_loop_url", val)}
+                            placeholder="Pick from uploaded Video Assets..."
+                            options={videoAssets.map((a) => ({ value: a.url, label: a.name, meta: "Video Asset" }))}
+                          />
                         )}
                       </div>
                       <div className="space-y-2">
@@ -3396,47 +3403,53 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                         />
                         {imageAssets.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handleSettingChange("hero_poster_url", e.target.value)}
-                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
-                          >
-                            <option value="">↳ Pick from uploaded Image Assets...</option>
-                            {imageAssets.map((a) => (
-                              <option key={a.id} value={a.url}>{a.name}</option>
-                            ))}
-                          </select>
+                          <StudioSelect
+                            value={editSettings.hero_poster_url || ""}
+                            onChange={(val) => handleSettingChange("hero_poster_url", val)}
+                            placeholder="Pick from uploaded Image Assets..."
+                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Image Asset" }))}
+                          />
                         )}
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 02 · SHOWREEL SECTION (#reel) */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("02")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          02 · Showreel Section (#reel)
-                        </h3>
-                        {!openSettingsSections.includes("02") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.showreel_title || "Every frame, directed."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          02
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Showreel Section (#reel)
+                          </h3>
+                          {!openSettingsSections.includes("02") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.showreel_title || "Every frame, directed."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("02") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("02") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("02") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Showreel Eyebrow</label>
@@ -3468,16 +3481,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                         />
                         {videoAssets.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handleSettingChange("showreel_video_url", e.target.value)}
-                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
-                          >
-                            <option value="">↳ Pick from uploaded Video Assets...</option>
-                            {videoAssets.map((a) => (
-                              <option key={a.id} value={a.url}>{a.name}</option>
-                            ))}
-                          </select>
+                          <StudioSelect
+                            value={editSettings.showreel_video_url || ""}
+                            onChange={(val) => handleSettingChange("showreel_video_url", val)}
+                            placeholder="Pick from uploaded Video Assets..."
+                            options={videoAssets.map((a) => ({ value: a.url, label: a.name, meta: "Showreel Video" }))}
+                          />
                         )}
                       </div>
                       <div className="space-y-2">
@@ -3490,16 +3499,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
                         />
                         {imageAssets.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handleSettingChange("showreel_poster_url", e.target.value)}
-                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
-                          >
-                            <option value="">↳ Pick from uploaded Image Assets...</option>
-                            {imageAssets.map((a) => (
-                              <option key={a.id} value={a.url}>{a.name}</option>
-                            ))}
-                          </select>
+                          <StudioSelect
+                            value={editSettings.showreel_poster_url || ""}
+                            onChange={(val) => handleSettingChange("showreel_poster_url", val)}
+                            placeholder="Pick from uploaded Image Assets..."
+                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Poster Image" }))}
+                          />
                         )}
                       </div>
                       <div>
@@ -3514,44 +3519,54 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Aspect Ratio</label>
-                        <select
+                        <StudioSelect
                           value={editSettings.showreel_aspect || "16:9"}
-                          onChange={(e) => handleSettingChange("showreel_aspect", e.target.value)}
-                          className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--tcs-offwhite)] font-mono focus:outline-none focus:border-[var(--tcs-offwhite)]/50"
-                        >
-                          <option value="16:9">16:9 (Widescreen)</option>
-                          <option value="2.39">2.39:1 (Anamorphic Scope)</option>
-                        </select>
+                          onChange={(val) => handleSettingChange("showreel_aspect", val)}
+                          options={[
+                            { value: "16:9", label: "16:9 — Standard Widescreen", meta: "Full HD / 4K Cinema" },
+                            { value: "2.39", label: "2.39:1 — Anamorphic Scope", meta: "Ultra-wide theatrical frame" },
+                          ]}
+                        />
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 03 · BRAND MARQUEE & SELECTED WORK HEADINGS */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("03")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          03 · Brand Logos & Selected Work (#work)
-                        </h3>
-                        {!openSettingsSections.includes("03") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.work_title || "Brands, worlds and everything between."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          03
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Brand Logos & Selected Work (#work)
+                          </h3>
+                          {!openSettingsSections.includes("03") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.work_title || "Brands, worlds and everything between."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("03") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("03") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("03") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Brand Marquee Eyebrow</label>
@@ -3585,33 +3600,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 04 · WHAT WE MAKE (#studio Part A) */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("04")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          04 · What We Make (#studio — 6 Capabilities)
-                        </h3>
-                        {!openSettingsSections.includes("04") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.studio_make_title || "One studio. Every kind of frame."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          04
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            What We Make (#studio — 6 Capabilities)
+                          </h3>
+                          {!openSettingsSections.includes("04") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.studio_make_title || "One studio. Every kind of frame."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("04") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("04") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("04") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Section Eyebrow</label>
@@ -3660,33 +3685,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       ))}
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 05 · HOW WE WORK (#studio Part B) */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("05")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          05 · How We Work (#studio — 4 Process Steps)
-                        </h3>
-                        {!openSettingsSections.includes("05") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.studio_work_title || "Directorial precision from brief to master."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          05
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            How We Work (#studio — 4 Process Steps)
+                          </h3>
+                          {!openSettingsSections.includes("05") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.studio_work_title || "Directorial precision from brief to master."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("05") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("05") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("05") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Process Eyebrow</label>
@@ -3742,33 +3777,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       ))}
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 06 · TESTIMONIALS & START A PROJECT COPY (#clients & #contact) */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("06")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          06 · Testimonials & Start a Project (#clients & #contact)
-                        </h3>
-                        {!openSettingsSections.includes("06") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.booking_form_title || "Tell us what you\'re making."}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          06
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Testimonials & Start a Project (#clients & #contact)
+                          </h3>
+                          {!openSettingsSections.includes("06") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.booking_form_title || "Tell us what you\'re making."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("06") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("06") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("06") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Testimonials Section Eyebrow</label>
@@ -3812,33 +3857,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 07 · DIRECT CONTACT, WHATSAPP & SOCIAL CHANNELS */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("07")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          07 · Direct Contact, WhatsApp & Social Links
-                        </h3>
-                        {!openSettingsSections.includes("07") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.whatsapp_number || "+91 9958194155"}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          07
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Direct Contact, WhatsApp & Social Links
+                          </h3>
+                          {!openSettingsSections.includes("07") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.whatsapp_number || "+91 9958194155"}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("07") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("07") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("07") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] mb-1.5">Studio Contact Email</label>
@@ -3912,33 +3967,43 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
 
                   {/* 08 · FOOTER, EXTREME BOTTOM LOGO & SEO / PIXEL */}
-                  <section className="rounded-2xl bg-[#0B0D13] border border-[var(--tcs-line)] overflow-hidden transition-colors hover:border-[var(--tcs-offwhite)]/20">
+                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
                     <button
                       type="button"
                       onClick={() => toggleSettingsSection("08")}
-                      className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
                     >
-                      <div className="min-w-0">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[var(--tcs-offwhite)] font-semibold truncate">
-                          08 · Footer, Bottom Logo & SEO / Meta Pixel
-                        </h3>
-                        {!openSettingsSections.includes("08") && (
-                          <p className="font-sans text-xs text-[var(--tcs-dim)] truncate mt-0.5">
-                            {editSettings.footer_location || "Delhi, India → Worldwide"}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          08
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
+                            Footer, Bottom Logo & SEO / Meta Pixel
+                          </h3>
+                          {!openSettingsSections.includes("08") && (
+                            <p className="font-sans text-xs sm:text-sm text-[#F4EFE6]/50 truncate mt-0.5">
+                              {editSettings.footer_location || "Delhi, India → Worldwide"}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className="p-1.5 rounded-lg bg-white/[0.04] border border-[var(--tcs-line)] text-[var(--tcs-muted)] shrink-0">
-                        {openSettingsSections.includes("08") ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <span className="w-9 h-9 rounded-full bg-[#141720] border border-white/10 text-[#F4EFE6]/70 flex items-center justify-center shrink-0 transition-colors">
+                        {openSettingsSections.includes("08") ? <ChevronUp className="w-4 h-4 text-[#FF6A1F]" /> : <ChevronDown className="w-4 h-4" />}
                       </span>
                     </button>
                     {openSettingsSections.includes("08") && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[var(--tcs-line)] space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="px-6 pb-6 pt-5 border-t border-white/[0.08] space-y-5"
+                      >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)]">
@@ -3964,16 +4029,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                           )}
                         </div>
                         {imageAssets.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handleSettingChange("logo_img_url", e.target.value)}
-                            className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-3 py-2 text-[11px] text-[var(--tcs-muted)] font-mono"
-                          >
-                            <option value="">↳ Pick Footer Logo from uploaded Image Assets...</option>
-                            {imageAssets.map((a) => (
-                              <option key={a.id} value={a.url}>{a.name}</option>
-                            ))}
-                          </select>
+                          <StudioSelect
+                            value={editSettings.logo_img_url || ""}
+                            onChange={(val) => handleSettingChange("logo_img_url", val)}
+                            placeholder="Pick Footer Logo from uploaded Image Assets..."
+                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Brand Logo" }))}
+                          />
                         )}
                       </div>
 
@@ -4049,7 +4110,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
                       </div>
                     </div>
                   
-                      </div>
+                      </motion.div>
                     )}
                   </section>
                   </div>
