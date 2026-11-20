@@ -1,0 +1,1542 @@
+From ffc5167bc88ef4c0dfdc0af01c4fa86105e64e7e Mon Sep 17 00:00:00 2001
+From: The Chanting Studio Dev <studio@thechantingstudio.in>
+Date: Fri, 20 Nov 2026 00:12:31 +0000
+Subject: [PATCH] Revamp all Admin Panel dropdowns, bold typography, dialog
+ surfaces, and Navbar/Footer logo controls
+
+---
+ src/components/AdminPanel.tsx   | 707 ++++++++++++++++++++------------
+ src/components/Footer.tsx       |  21 +-
+ src/components/Navbar.tsx       |  13 +-
+ src/components/StudioSelect.tsx | 162 +++++---
+ src/index.css                   | 121 ++++--
+ 5 files changed, 684 insertions(+), 340 deletions(-)
+
+diff --git a/src/components/AdminPanel.tsx b/src/components/AdminPanel.tsx
+index dbd97c6..6b27f10 100644
+--- a/src/components/AdminPanel.tsx
++++ b/src/components/AdminPanel.tsx
+@@ -224,7 +224,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+   // UI Navigation state
+   const [activeTab, setActiveTab] = useState<"settings" | "navigation" | "portfolio" | "pricing" | "assets" | "submissions" | "analytics" | "intake_form" | "brand_logos" | "testimonials" | "live_chats" | "chat_settings" | "client_access">("settings");
+   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+-  const [openSettingsSections, setOpenSettingsSections] = useState<string[]>(["01", "02"]);
++  const [openSettingsSections, setOpenSettingsSections] = useState<string[]>(["00", "01", "02"]);
+   const [logoConfigOpen, setLogoConfigOpen] = useState(false);
+   const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
+   const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null);
+@@ -1633,7 +1633,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+     }
+   };
+ 
+-  const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url") => {
++  const handleSelectAssetForSetting = async (assetUrl: string, targetSetting: "hero_video_bg_url" | "logo_img_url" | "navbar_logo_url" | "footer_logo_url") => {
+     const resolvedKey = targetSetting === "hero_video_bg_url" 
+       ? (adminPageScope === "live" ? "page2_hero_video_bg_url" : adminPageScope === "app" ? "app_hero_video_bg_url" : "hero_video_bg_url") 
+       : (adminPageScope === "app" ? "app_logo_img_url" : targetSetting);
+@@ -3240,12 +3240,12 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                         type="button"
+                         onClick={() =>
+                           setOpenSettingsSections((prev) =>
+-                            prev.length === 8 ? [] : ["01", "02", "03", "04", "05", "06", "07", "08"]
++                            prev.length === 9 ? [] : ["00", "01", "02", "03", "04", "05", "06", "07", "08"]
+                           )
+                         }
+-                        className="px-3 py-2 rounded-lg border border-[var(--tcs-line)] bg-[var(--tcs-night)] text-[10px] font-mono uppercase tracking-wider text-[var(--tcs-muted)] hover:text-white transition-all cursor-pointer"
++                        className="px-4 py-2.5 rounded-full border border-white/15 bg-[#121520] text-xs font-sans font-bold uppercase tracking-wider text-[#F4EFE6]/80 hover:text-white hover:border-white/30 transition-all cursor-pointer"
+                       >
+-                        {openSettingsSections.length === 8 ? "Collapse All" : "Expand All"}
++                        {openSettingsSections.length === 9 ? "Collapse All" : "Expand All"}
+                       </button>
+                       <div className="flex items-center gap-1 bg-[var(--tcs-night)] border border-[var(--tcs-line)] rounded-lg p-0.5">
+                         <button
+@@ -3281,8 +3281,175 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </div>
+ 
+                   <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 items-start">
++                  {/* 00 · SITE BRANDING & LOGOS (NAVBAR & FOOTER) */}
++                  <section className="2xl:col-span-2 rounded-2xl tcs-admin-card transition-all duration-200">
++                    <button
++                      type="button"
++                      onClick={() => toggleSettingsSection("00")}
++                      className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:bg-white/[0.03] transition-colors rounded-2xl"
++                    >
++                      <div className="flex items-center gap-4 min-w-0">
++                        <span className="w-10 h-10 rounded-xl bg-[#FF6A1F]/18 border border-[#FF6A1F]/40 text-[#FFC93C] font-mono text-xs font-bold flex items-center justify-center shrink-0">
++                          00
++                        </span>
++                        <div className="min-w-0">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
++                            Site Branding & Logos (Navigation Bar + Footer)
++                          </h3>
++                          <p className="font-sans text-sm text-[#F4EFE6]/60 truncate mt-0.5">
++                            Control the main top navbar logo and the giant logo above the footer directly from Global Assets
++                          </p>
++                        </div>
++                      </div>
++                      <span className="w-10 h-10 rounded-full bg-[#181C29] border border-white/15 text-[#F4EFE6]/80 flex items-center justify-center shrink-0 transition-colors">
++                        {openSettingsSections.includes("00") ? <ChevronUp className="w-5 h-5 text-[#FF6A1F]" /> : <ChevronDown className="w-5 h-5" />}
++                      </span>
++                    </button>
++                    {openSettingsSections.includes("00") && (
++                      <motion.div
++                        initial={{ opacity: 0, y: -6 }}
++                        animate={{ opacity: 1, y: 0 }}
++                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
++                        className="px-6 pb-7 pt-5 border-t border-white/[0.1] grid grid-cols-1 lg:grid-cols-2 gap-6"
++                      >
++                        {/* Main Navigation Bar Logo */}
++                        <div className="p-5 rounded-2xl bg-[#0D1018] border border-white/[0.1] space-y-4">
++                          <div className="flex items-center justify-between gap-3">
++                            <div>
++                              <h4 className="font-display font-bold text-base text-[#F4EFE6]">Main Navigation Bar Logo</h4>
++                              <p className="text-xs text-[#F4EFE6]/55 mt-0.5">Displayed at the top-left of the website header</p>
++                            </div>
++                            {editSettings.navbar_logo_url && (
++                              <button
++                                type="button"
++                                onClick={() => handleSettingChange("navbar_logo_url", "")}
++                                className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/15 text-xs font-semibold text-[#F4EFE6]/80 hover:text-white transition-all cursor-pointer shrink-0"
++                              >
++                                Reset to Wordmark
++                              </button>
++                            )}
++                          </div>
++
++                          <div className="h-20 rounded-xl bg-[#07080C] border border-white/10 flex items-center justify-center px-6">
++                            {editSettings.navbar_logo_url ? (
++                              <img
++                                src={editSettings.navbar_logo_url}
++                                alt="Navbar Logo Preview"
++                                className="max-h-12 w-auto max-w-[240px] object-contain"
++                                referrerPolicy="no-referrer"
++                              />
++                            ) : (
++                              <Wordmark capHeight={16} />
++                            )}
++                          </div>
++
++                          <div className="space-y-3">
++                            <div>
++                              <label className="block uppercase">Navbar Logo Image URL</label>
++                              <input
++                                type="text"
++                                value={editSettings.navbar_logo_url || ""}
++                                onChange={(e) => handleSettingChange("navbar_logo_url", e.target.value)}
++                                placeholder="Leave empty for default THE CHANTING STUDIO wordmark"
++                                className="w-full"
++                              />
++                            </div>
++                            <div>
++                              <label className="block uppercase">Select from Global Media Assets</label>
++                              <StudioSelect
++                                value={editSettings.navbar_logo_url || ""}
++                                onChange={(val) => handleSettingChange("navbar_logo_url", val)}
++                                placeholder="Choose Navbar Logo from Global Assets..."
++                                options={[
++                                  { value: "", label: "Default Studio Wordmark (Vector)", meta: "Built-in signature wordmark" },
++                                  ...imageAssets.map((a) => ({
++                                    value: a.url,
++                                    label: a.name,
++                                    meta: "Global Image Asset",
++                                    previewUrl: a.url,
++                                  })),
++                                ]}
++                              />
++                            </div>
++                          </div>
++                        </div>
++
++                        {/* Bottom Logo Above Footer */}
++                        <div className="p-5 rounded-2xl bg-[#0D1018] border border-white/[0.1] space-y-4">
++                          <div className="flex items-center justify-between gap-3">
++                            <div>
++                              <h4 className="font-display font-bold text-base text-[#F4EFE6]">Bottom Logo Above Footer</h4>
++                              <p className="text-xs text-[#F4EFE6]/55 mt-0.5">Displayed as the large signature mark above the footer</p>
++                            </div>
++                            {(editSettings.footer_logo_url || editSettings.logo_img_url) && (
++                              <button
++                                type="button"
++                                onClick={() => {
++                                  handleSettingChange("footer_logo_url", "");
++                                  handleSettingChange("logo_img_url", "");
++                                }}
++                                className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/15 text-xs font-semibold text-[#F4EFE6]/80 hover:text-white transition-all cursor-pointer shrink-0"
++                              >
++                                Reset to Wordmark
++                              </button>
++                            )}
++                          </div>
++
++                          <div className="h-20 rounded-xl bg-[#07080C] border border-white/10 flex items-center justify-center px-6 overflow-hidden">
++                            {(editSettings.footer_logo_url || editSettings.logo_img_url) ? (
++                              <img
++                                src={editSettings.footer_logo_url || editSettings.logo_img_url}
++                                alt="Footer Logo Preview"
++                                className="max-h-14 w-auto max-w-[280px] object-contain"
++                                referrerPolicy="no-referrer"
++                              />
++                            ) : (
++                              <Wordmark capHeight={18} glow={true} />
++                            )}
++                          </div>
++
++                          <div className="space-y-3">
++                            <div>
++                              <label className="block uppercase">Footer Hero Logo Image URL</label>
++                              <input
++                                type="text"
++                                value={editSettings.footer_logo_url ?? editSettings.logo_img_url ?? ""}
++                                onChange={(e) => {
++                                  handleSettingChange("footer_logo_url", e.target.value);
++                                  handleSettingChange("logo_img_url", e.target.value);
++                                }}
++                                placeholder="Leave empty for default giant THE CHANTING STUDIO wordmark"
++                                className="w-full"
++                              />
++                            </div>
++                            <div>
++                              <label className="block uppercase">Select from Global Media Assets</label>
++                              <StudioSelect
++                                value={editSettings.footer_logo_url ?? editSettings.logo_img_url ?? ""}
++                                onChange={(val) => {
++                                  handleSettingChange("footer_logo_url", val);
++                                  handleSettingChange("logo_img_url", val);
++                                }}
++                                placeholder="Choose Footer Logo from Global Assets..."
++                                options={[
++                                  { value: "", label: "Default Giant Studio Wordmark (Vector)", meta: "Built-in signature animated ring" },
++                                  ...imageAssets.map((a) => ({
++                                    value: a.url,
++                                    label: a.name,
++                                    meta: "Global Image Asset",
++                                    previewUrl: a.url,
++                                  })),
++                                ]}
++                              />
++                            </div>
++                          </div>
++                        </div>
++                      </motion.div>
++                    )}
++                  </section>
++
+                   {/* 01 · HERO SECTION (#top) */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("01")}
+@@ -3293,7 +3460,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           01
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Hero Section (#top)
+                           </h3>
+                           {!openSettingsSections.includes("01") && (
+@@ -3407,7 +3574,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                             value={editSettings.hero_poster_url || ""}
+                             onChange={(val) => handleSettingChange("hero_poster_url", val)}
+                             placeholder="Pick from uploaded Image Assets..."
+-                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Image Asset" }))}
++                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Image Asset", previewUrl: a.url }))}
+                           />
+                         )}
+                       </div>
+@@ -3418,7 +3585,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 02 · SHOWREEL SECTION (#reel) */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("02")}
+@@ -3429,7 +3596,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           02
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Showreel Section (#reel)
+                           </h3>
+                           {!openSettingsSections.includes("02") && (
+@@ -3535,7 +3702,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 03 · BRAND MARQUEE & SELECTED WORK HEADINGS */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("03")}
+@@ -3546,7 +3713,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           03
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Brand Logos & Selected Work (#work)
+                           </h3>
+                           {!openSettingsSections.includes("03") && (
+@@ -3605,7 +3772,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 04 · WHAT WE MAKE (#studio Part A) */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("04")}
+@@ -3616,7 +3783,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           04
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             What We Make (#studio — 6 Capabilities)
+                           </h3>
+                           {!openSettingsSections.includes("04") && (
+@@ -3690,7 +3857,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 05 · HOW WE WORK (#studio Part B) */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("05")}
+@@ -3701,7 +3868,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           05
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             How We Work (#studio — 4 Process Steps)
+                           </h3>
+                           {!openSettingsSections.includes("05") && (
+@@ -3782,7 +3949,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 06 · TESTIMONIALS & START A PROJECT COPY (#clients & #contact) */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("06")}
+@@ -3793,7 +3960,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           06
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Testimonials & Start a Project (#clients & #contact)
+                           </h3>
+                           {!openSettingsSections.includes("06") && (
+@@ -3862,7 +4029,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 07 · DIRECT CONTACT, WHATSAPP & SOCIAL CHANNELS */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("07")}
+@@ -3873,7 +4040,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           07
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Direct Contact, WhatsApp & Social Links
+                           </h3>
+                           {!openSettingsSections.includes("07") && (
+@@ -3972,7 +4139,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                   </section>
+ 
+                   {/* 08 · FOOTER, EXTREME BOTTOM LOGO & SEO / PIXEL */}
+-                  <section className="rounded-2xl bg-[#0C0E16] border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] shadow-lg">
++                  <section className="rounded-2xl tcs-admin-card transition-all duration-200">
+                     <button
+                       type="button"
+                       onClick={() => toggleSettingsSection("08")}
+@@ -3983,7 +4150,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           08
+                         </span>
+                         <div className="min-w-0">
+-                          <h3 className="font-display text-base sm:text-lg font-medium text-[#F4EFE6] tracking-tight truncate">
++                          <h3 className="font-display text-lg sm:text-xl font-bold text-[#F4EFE6] tracking-tight truncate">
+                             Footer, Bottom Logo & SEO / Meta Pixel
+                           </h3>
+                           {!openSettingsSections.includes("08") && (
+@@ -4033,7 +4200,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                             value={editSettings.logo_img_url || ""}
+                             onChange={(val) => handleSettingChange("logo_img_url", val)}
+                             placeholder="Pick Footer Logo from uploaded Image Assets..."
+-                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Brand Logo" }))}
++                            options={imageAssets.map((a) => ({ value: a.url, label: a.name, meta: "Brand Logo", previewUrl: a.url }))}
+                           />
+                         )}
+                       </div>
+@@ -4221,16 +4388,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           </div>
+                           <div>
+                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Target Element ID Link</label>
+-                            <select
++                            <StudioSelect
+                               value={item.target_url}
+-                              onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
+-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
+-                            >
+-                              <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
+-                              <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
+-                              <option value="pricing-section" className="bg-zinc-950 text-white">Production Tiers (pricing-section)</option>
+-                              <option value="booking-section" className="bg-zinc-950 text-white">Booking Portal (booking-section)</option>
+-                            </select>
++                              onChange={(val) => handleMenuChange(item.id, "target_url", val)}
++                              placeholder="Choose target section..."
++                              options={[
++                                { value: "hero-section", label: "Hero Section", meta: "#top / hero-section" },
++                                { value: "work-section", label: "Work Showcase", meta: "#work / work-section" },
++                                { value: "pricing-section", label: "Studio Capabilities", meta: "#studio / pricing-section" },
++                                { value: "booking-section", label: "Project Inquiry", meta: "#contact / booking-section" },
++                              ]}
++                            />
+                           </div>
+                         </div>
+ 
+@@ -4495,16 +4663,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                           </div>
+                           <div>
+                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Target Element ID Link</label>
+-                            <select
++                            <StudioSelect
+                               value={item.target_url}
+-                              onChange={(e) => handleMenuChange(item.id, "target_url", e.target.value)}
+-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40"
+-                            >
+-                              <option value="hero-section" className="bg-zinc-950 text-white">Hero Section (hero-section)</option>
+-                              <option value="work-section" className="bg-zinc-950 text-white">Work Showcase (work-section)</option>
+-                              <option value="pricing-section" className="bg-zinc-950 text-white">Production Tiers (pricing-section)</option>
+-                              <option value="booking-section" className="bg-zinc-950 text-white">Booking Portal (booking-section)</option>
+-                            </select>
++                              onChange={(val) => handleMenuChange(item.id, "target_url", val)}
++                              placeholder="Choose target section..."
++                              options={[
++                                { value: "hero-section", label: "Hero Section", meta: "#top / hero-section" },
++                                { value: "work-section", label: "Work Showcase", meta: "#work / work-section" },
++                                { value: "pricing-section", label: "Studio Capabilities", meta: "#studio / pricing-section" },
++                                { value: "booking-section", label: "Project Inquiry", meta: "#contact / booking-section" },
++                              ]}
++                            />
+                           </div>
+                         </div>
+ 
+@@ -5021,24 +5190,21 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                                   <div>
+                                     <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Video Assets</label>
+-                                    <select
+-                                      onChange={(e) => {
+-                                        const selectedUrl = e.target.value;
++                                    <StudioSelect
++                                      value={work.videoUrl || ""}
++                                      onChange={(selectedUrl) => {
+                                         if (selectedUrl) {
+                                           handleWorkChange(work.id, "videoUrl", selectedUrl);
+                                           handleWorkChange(work.id, "highResVideoUrl", selectedUrl);
+                                         }
+                                       }}
+-                                      value={work.videoUrl || ""}
+-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
+-                                    >
+-                                      <option value="">-- Apply a Video Asset --</option>
+-                                      {mediaAssets.filter(asset => asset.type === "video").map((asset) => (
+-                                        <option key={asset.id} value={asset.url}>
+-                                          {asset.name}
+-                                        </option>
+-                                      ))}
+-                                    </select>
++                                      placeholder="Apply a Video Asset..."
++                                      options={mediaAssets.filter(asset => asset.type === "video").map((asset) => ({
++                                        value: asset.url,
++                                        label: asset.name,
++                                        meta: "Video Asset",
++                                      }))}
++                                    />
+                                   </div>
+ 
+                                   <div>
+@@ -5054,23 +5220,21 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                                   <div>
+                                     <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Image Assets for Thumbnail</label>
+-                                    <select
+-                                      onChange={(e) => {
+-                                        const selectedUrl = e.target.value;
++                                    <StudioSelect
++                                      value={work.imageUrl || ""}
++                                      onChange={(selectedUrl) => {
+                                         if (selectedUrl) {
+                                           handleWorkChange(work.id, "imageUrl", selectedUrl);
+                                         }
+                                       }}
+-                                      value={work.imageUrl || ""}
+-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
+-                                    >
+-                                      <option value="">-- Apply a Thumbnail Asset --</option>
+-                                      {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
+-                                        <option key={asset.id} value={asset.url}>
+-                                          {asset.name}
+-                                        </option>
+-                                      ))}
+-                                    </select>
++                                      placeholder="Apply a Thumbnail Asset..."
++                                      options={mediaAssets.filter(asset => asset.type === "image").map((asset) => ({
++                                        value: asset.url,
++                                        label: asset.name,
++                                        meta: "Image Asset",
++                                        previewUrl: asset.url,
++                                      }))}
++                                    />
+                                   </div>
+ 
+                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
+@@ -5150,23 +5314,21 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                                   <div>
+                                     <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Choose from Image Assets</label>
+-                                    <select
+-                                      onChange={(e) => {
+-                                        const selectedUrl = e.target.value;
++                                    <StudioSelect
++                                      value={work.imageUrl || ""}
++                                      onChange={(selectedUrl) => {
+                                         if (selectedUrl) {
+                                           handleWorkChange(work.id, "imageUrl", selectedUrl);
+                                         }
+                                       }}
+-                                      value={work.imageUrl || ""}
+-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50 font-sans"
+-                                    >
+-                                      <option value="">-- Apply an Image Asset --</option>
+-                                      {mediaAssets.filter(asset => asset.type === "image").map((asset) => (
+-                                        <option key={asset.id} value={asset.url}>
+-                                          {asset.name}
+-                                        </option>
+-                                      ))}
+-                                    </select>
++                                      placeholder="Apply an Image Asset..."
++                                      options={mediaAssets.filter(asset => asset.type === "image").map((asset) => ({
++                                        value: asset.url,
++                                        label: asset.name,
++                                        meta: "Image Asset",
++                                        previewUrl: asset.url,
++                                      }))}
++                                    />
+                                   </div>
+ 
+                                   {/* DUAL DRAG AND DROP UPLOADER ZONE */}
+@@ -5222,14 +5384,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                               <div>
+                                 <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Grid Layout Weight (Responsive)</label>
+-                                <select
++                                <StudioSelect
+                                   value={work.aspectRatioClass}
+-                                  onChange={(e) => handleWorkChange(work.id, "aspectRatioClass", e.target.value)}
+-                                  className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-sans"
+-                                >
+-                                  <option value="aspect-video md:col-span-2">Dynamic Wide (2 Grid Units)</option>
+-                                  <option value="aspect-square md:col-span-1">Perfect Square (1 Grid Unit)</option>
+-                                </select>
++                                  onChange={(val) => handleWorkChange(work.id, "aspectRatioClass", val)}
++                                  options={[
++                                    { value: "aspect-video md:col-span-2", label: "Dynamic Wide (2 Grid Units)", meta: "16:9 full-span showcase" },
++                                    { value: "aspect-square md:col-span-1", label: "Perfect Square (1 Grid Unit)", meta: "1:1 balanced grid card" },
++                                  ]}
++                                />
+                               </div>
+ 
+                               {!isImage ? (
+@@ -5265,7 +5427,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                   {/* Custom Tab Type Selection Modal */}
+                   {showAddTabModal && (
+-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
++                    <div className="tcs-admin-workspace fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+                       <div className="bg-[#0b0b0e] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+                         <h4 className="font-display font-medium text-lg text-white mb-2">Create New Portfolio Tab</h4>
+                         <p className="text-xs text-gray-400 mb-6">
+@@ -5648,15 +5810,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                           <div>
+                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Aura Theme Accent</label>
+-                            <select
++                            <StudioSelect
+                               value={tier.glowTheme}
+-                              onChange={(e) => handlePricingChange(tier.id, "glowTheme", e.target.value)}
+-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+-                            >
+-                              <option value="emerald">Emerald Aura (Saffron Accent)</option>
+-                              <option value="saffron">Golden Saffron</option>
+-                              <option value="violet">Cyber Violet</option>
+-                            </select>
++                              onChange={(val) => handlePricingChange(tier.id, "glowTheme", val)}
++                              options={[
++                                { value: "emerald", label: "Emerald Aura (Saffron Accent)" },
++                                { value: "saffron", label: "Golden Saffron" },
++                                { value: "violet", label: "Cyber Violet" },
++                              ]}
++                            />
+                           </div>
+ 
+                           <div className="flex items-center gap-2 mt-4 md:mt-0">
+@@ -5827,15 +5989,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                           <div>
+                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Offer Animation</label>
+-                            <select
++                            <StudioSelect
+                               value={tier.offerAnimation || "none"}
+-                              onChange={(e) => handlePricingChange(tier.id, "offerAnimation", e.target.value)}
+-                              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white"
+-                            >
+-                              <option value="none">None (Static)</option>
+-                              <option value="pulse">Pulse Glow</option>
+-                              <option value="shimmer">Gradient Shimmer</option>
+-                            </select>
++                              onChange={(val) => handlePricingChange(tier.id, "offerAnimation", val)}
++                              options={[
++                                { value: "none", label: "None (Static)" },
++                                { value: "pulse", label: "Pulse Glow" },
++                                { value: "shimmer", label: "Gradient Shimmer" },
++                              ]}
++                            />
+                           </div>
+                         </div>
+ 
+@@ -6023,38 +6185,61 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                             {(adminPageScope === "live" ? siteSettings.page2_hero_video_bg_url : siteSettings.hero_video_bg_url) || "Default Glowing Fluid Video"}
+                           </span>
+                         </div>
+-                        <select
+-                          onChange={(e) => handleSelectAssetForSetting(e.target.value, "hero_video_bg_url")}
++                        <StudioSelect
+                           value={(adminPageScope === "live" ? siteSettings.page2_hero_video_bg_url : siteSettings.hero_video_bg_url) || ""}
+-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
+-                        >
+-                          <option value="">-- Apply an Asset --</option>
+-                          {mediaAssets.map((asset) => (
+-                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
+-                          ))}
+-                        </select>
++                          onChange={(val) => handleSelectAssetForSetting(val, "hero_video_bg_url")}
++                          placeholder="Apply a Video Asset to Hero..."
++                          options={mediaAssets.filter((a) => a.type === "video").map((asset) => ({
++                            value: asset.url,
++                            label: asset.name,
++                            meta: "Video Asset",
++                          }))}
++                        />
+                       </div>
+                     </div>
+ 
+-                    <div>
+-                      <h3 className="text-xs font-mono uppercase text-[var(--tcs-offwhite)] mb-3 tracking-wide flex items-center gap-2">
+-                        <Compass className="w-3.5 h-3.5" /> Navbar Logo Brand Image
+-                      </h3>
+-                      <div className="space-y-3">
+-                        <div className="flex gap-2 text-xs truncate bg-[#11111c] border border-white/5 rounded-xl px-4 py-3 text-gray-300">
+-                          <span className="text-gray-500 font-mono">Active Link:</span>
+-                          <span className="truncate flex-1 font-mono">{siteSettings.logo_img_url || "Default Vector Movie Icon"}</span>
+-                        </div>
+-                        <select
+-                          onChange={(e) => handleSelectAssetForSetting(e.target.value, "logo_img_url")}
+-                          value={siteSettings.logo_img_url || ""}
+-                          className="w-full bg-[#11111c] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/50"
+-                        >
+-                          <option value="">-- Apply an Asset --</option>
+-                          {mediaAssets.map((asset) => (
+-                            <option key={asset.id} value={asset.url}>{asset.name} ({asset.type})</option>
+-                          ))}
+-                        </select>
++                    <div className="space-y-4">
++                      <div>
++                        <h3 className="text-sm font-display font-bold text-[#F4EFE6] mb-2.5 flex items-center gap-2">
++                          <Compass className="w-4 h-4 text-[#FF6A1F]" /> Main Navigation Bar Logo
++                        </h3>
++                        <StudioSelect
++                          value={siteSettings.navbar_logo_url || ""}
++                          onChange={(val) => handleSelectAssetForSetting(val, "navbar_logo_url")}
++                          placeholder="Select Navbar Logo from Assets..."
++                          options={[
++                            { value: "", label: "Default Studio Wordmark", meta: "Built-in vector" },
++                            ...mediaAssets.filter((a) => a.type === "image").map((asset) => ({
++                              value: asset.url,
++                              label: asset.name,
++                              meta: "Image Asset",
++                              previewUrl: asset.url,
++                            })),
++                          ]}
++                        />
++                      </div>
++
++                      <div>
++                        <h3 className="text-sm font-display font-bold text-[#F4EFE6] mb-2.5 flex items-center gap-2">
++                          <Compass className="w-4 h-4 text-[#FFC93C]" /> Bottom Logo Above Footer
++                        </h3>
++                        <StudioSelect
++                          value={siteSettings.footer_logo_url || siteSettings.logo_img_url || ""}
++                          onChange={(val) => {
++                            handleSelectAssetForSetting(val, "footer_logo_url");
++                            handleSelectAssetForSetting(val, "logo_img_url");
++                          }}
++                          placeholder="Select Footer Giant Logo from Assets..."
++                          options={[
++                            { value: "", label: "Default Giant Studio Wordmark", meta: "Built-in vector" },
++                            ...mediaAssets.filter((a) => a.type === "image").map((asset) => ({
++                              value: asset.url,
++                              label: asset.name,
++                              meta: "Image Asset",
++                              previewUrl: asset.url,
++                            })),
++                          ]}
++                        />
+                       </div>
+                     </div>
+                   </div>
+@@ -6139,14 +6324,15 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                   </div>
+                                   <div>
+                                     <label className="block text-[9px] font-mono text-gray-500 uppercase mb-0.5">Type</label>
+-                                    <select
++                                    <StudioSelect
++                                      compact
+                                       value={item.type}
+-                                      onChange={(e) => handleQueueTypeChange(item.id, e.target.value as "image" | "video")}
+-                                      className="w-full bg-black/40 border border-white/10 rounded-lg px-1.5 py-1 text-xs text-white"
+-                                    >
+-                                      <option value="image">Image</option>
+-                                      <option value="video">Video</option>
+-                                    </select>
++                                      onChange={(val) => handleQueueTypeChange(item.id, val as "image" | "video")}
++                                      options={[
++                                        { value: "image", label: "Image" },
++                                        { value: "video", label: "Video" },
++                                      ]}
++                                    />
+                                   </div>
+                                 </div>
+                               </div>
+@@ -6200,14 +6386,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                         <div className="grid grid-cols-2 gap-3 pt-1">
+                           <div>
+                             <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Asset Type</label>
+-                            <select
++                            <StudioSelect
+                               value={newAssetType}
+-                              onChange={(e) => setNewAssetType(e.target.value)}
+-                              className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+-                            >
+-                              <option value="image">Image Format</option>
+-                              <option value="video">MP4 Video Format</option>
+-                            </select>
++                              onChange={(val) => setNewAssetType(val)}
++                              options={[
++                                { value: "image", label: "Image Format" },
++                                { value: "video", label: "MP4 Video Format" },
++                              ]}
++                            />
+                           </div>
+                           <div className="flex items-end">
+                             <button
+@@ -6318,33 +6504,25 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                   </div>
+                                   
+                                   <div className="flex items-center gap-2 flex-wrap">
+-                                    <select
+-                                      onChange={(e) => {
+-                                        if (e.target.value) {
+-                                          handleBulkAction(e.target.value);
+-                                          e.target.value = ""; // Reset
+-                                        }
+-                                      }}
+-                                      className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40"
+-                                    >
+-                                      <option value="">-- Choose Bulk Action / Assignment --</option>
+-                                      <optgroup label="Portfolio Manager">
+-                                        <option value="portfolio_create_individual">Create New Portfolio Cards (one per asset)</option>
+-                                      </optgroup>
+-                                      <optgroup label="Navigation Menu">
+-                                        <option value="navigation_add">Add Selected to Navigation Menu links</option>
+-                                      </optgroup>
+-                                      <optgroup label="Global Copy & Media Settings">
+-                                        <option value="setting_assign_hero_video_bg_url">Assign first asset to Hero Video Background</option>
+-                                        <option value="setting_assign_logo_img_url">Assign first asset to Navbar Logo Image</option>
+-                                      </optgroup>
+-                                      <optgroup label="Brand Logos Marquee">
+-                                        <option value="brand_logos_add">Add selected image(s) to Brand Logos Marquee</option>
+-                                      </optgroup>
+-                                      <optgroup label="Danger Zone">
+-                                        <option value="delete_selected">Delete selected assets from Library</option>
+-                                      </optgroup>
+-                                    </select>
++                                    <div className="min-w-[290px]">
++                                      <StudioSelect
++                                        compact
++                                        value=""
++                                        onChange={(val) => {
++                                          if (val) handleBulkAction(val);
++                                        }}
++                                        placeholder="Choose Bulk Action / Assignment..."
++                                        options={[
++                                          { value: "portfolio_create_individual", label: "Create New Portfolio Cards", meta: "One card per selected asset" },
++                                          { value: "navigation_add", label: "Add to Navigation Menu", meta: "Append selected links" },
++                                          { value: "setting_assign_hero_video_bg_url", label: "Assign to Hero Background Video", meta: "Uses first selected asset" },
++                                          { value: "setting_assign_navbar_logo_url", label: "Assign to Main Navbar Logo", meta: "Uses first selected asset" },
++                                          { value: "setting_assign_footer_logo_url", label: "Assign to Footer Giant Logo", meta: "Uses first selected asset" },
++                                          { value: "brand_logos_add", label: "Add to Brand Logos Marquee", meta: "Selected image(s)" },
++                                          { value: "delete_selected", label: "Delete Selected Assets", meta: "Danger Zone — Permanent" },
++                                        ]}
++                                      />
++                                    </div>
+ 
+                                     <button
+                                       type="button"
+@@ -6512,17 +6690,20 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                             {/* Status Updater */}
+                             <div className="flex items-center gap-2">
+                               <span className="text-[10px] font-mono uppercase text-gray-500">Pipeline:</span>
+-                              <select
+-                                value={sub.status || "Pending"}
+-                                onChange={(e) => updateSubmissionStatus(sub.id, e.target.value)}
+-                                className="bg-[#11111c] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-[var(--tcs-offwhite)] focus:outline-none"
+-                              >
+-                                <option value="Pending">Pending Audit</option>
+-                                <option value="Reviewed">Under Review</option>
+-                                <option value="In Dialogue">In Dialogue</option>
+-                                <option value="Project Active">Project Active</option>
+-                                <option value="Discarded">Archived</option>
+-                              </select>
++                              <div className="min-w-[185px]">
++                                <StudioSelect
++                                  compact
++                                  value={sub.status || "Pending"}
++                                  onChange={(val) => updateSubmissionStatus(sub.id, val)}
++                                  options={[
++                                    { value: "Pending", label: "Pending Audit" },
++                                    { value: "Reviewed", label: "Under Review" },
++                                    { value: "In Dialogue", label: "In Dialogue" },
++                                    { value: "Project Active", label: "Project Active" },
++                                    { value: "Discarded", label: "Archived" },
++                                  ]}
++                                />
++                              </div>
+ 
+                               <button
+                                 onClick={() => deleteSubmission(sub.id)}
+@@ -6860,18 +7041,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                       <div>
+                         <label className="block text-[10px] font-mono uppercase text-gray-500 mb-1">Field Type</label>
+-                        <select
++                        <StudioSelect
+                           value={newFieldType}
+-                          onChange={(e) => setNewFieldType(e.target.value as any)}
+-                          className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--tcs-offwhite)]/40/40 cursor-pointer"
+-                          style={{ colorScheme: "dark" }}
+-                        >
+-                          <option value="text">Text Input (single line)</option>
+-                          <option value="email">Email Input</option>
+-                          <option value="textarea">Textarea (multiple lines)</option>
+-                          <option value="select">Dropdown Select Menu</option>
+-                          <option value="phone">Mobile Number with Country Selector</option>
+-                        </select>
++                          onChange={(val) => setNewFieldType(val as any)}
++                          options={[
++                            { value: "text", label: "Text Input (Single Line)" },
++                            { value: "email", label: "Email Input" },
++                            { value: "textarea", label: "Textarea (Multiple Lines)" },
++                            { value: "select", label: "Dropdown Select Menu" },
++                            { value: "phone", label: "Mobile Number with Country Selector" },
++                          ]}
++                        />
+                       </div>
+ 
+                       <div>
+@@ -7164,19 +7344,20 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                   </div>
+                                 </div>
+ 
+-                                <select
++                                <StudioSelect
++                                  compact
+                                   value={logo.url || ""}
+-                                  onChange={(e) => {
+-                                    const val = e.target.value;
++                                  onChange={(val) => {
+                                     setEditLogos((prev) => prev.map((l) => (l.id === logo.id ? { ...l, url: val } : l)));
+                                   }}
+-                                  className="w-full bg-[var(--tcs-night-2)] border border-[var(--tcs-line)] rounded-lg px-2.5 py-1.5 text-[11px] text-[var(--tcs-muted)] font-mono"
+-                                >
+-                                  <option value="">↳ Pick from Image Assets...</option>
+-                                  {mediaAssets.filter((asset) => asset.type === "image").map((asset) => (
+-                                    <option key={asset.id} value={asset.url}>{asset.name}</option>
+-                                  ))}
+-                                </select>
++                                  placeholder="Pick Logo from Image Assets..."
++                                  options={mediaAssets.filter((asset) => asset.type === "image").map((asset) => ({
++                                    value: asset.url,
++                                    label: asset.name,
++                                    meta: "Brand Asset",
++                                    previewUrl: asset.url,
++                                  }))}
++                                />
+ 
+                                 {selectedBrandLogoFiles[logo.id] && (
+                                   <button
+@@ -7337,20 +7518,20 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+ 
+                             <div>
+                               <label className="block text-[9px] font-mono uppercase text-gray-500 mb-1">Rating Stars (1 to 5)</label>
+-                              <select
+-                                value={testimonial.rating}
+-                                onChange={(e) => {
+-                                  const val = parseFloat(e.target.value);
+-                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, rating: val } : t));
++                              <StudioSelect
++                                compact
++                                value={String(testimonial.rating)}
++                                onChange={(val) => {
++                                  const num = parseFloat(val);
++                                  setEditTestimonials(prev => prev.map(t => t.id === testimonial.id ? { ...t, rating: num } : t));
+                                 }}
+-                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-white cursor-pointer"
+-                                style={{ colorScheme: "dark" }}
+-                              >
+-                                <option value="5">5 Stars</option>
+-                                <option value="4.5">4.5 Stars</option>
+-                                <option value="4">4 Stars</option>
+-                                <option value="3">3 Stars</option>
+-                              </select>
++                                options={[
++                                  { value: "5", label: "5 Stars" },
++                                  { value: "4.5", label: "4.5 Stars" },
++                                  { value: "4", label: "4 Stars" },
++                                  { value: "3", label: "3 Stars" },
++                                ]}
++                              />
+                             </div>
+ 
+                             <div className="md:col-span-2">
+@@ -7995,23 +8176,28 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                     placeholder="CDN URL (e.g. Cloudinary/jsDelivr link)"
+                                     className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                                   />
+-                                  <select
+-                                    value={newWorkType}
+-                                    onChange={(e) => setNewWorkType(e.target.value as any)}
+-                                    className="bg-black/50 border border-white/5 rounded-xl px-2 py-2 text-xs text-gray-300"
+-                                  >
+-                                    <option value="video">Video</option>
+-                                    <option value="image">Image</option>
+-                                  </select>
++                                  <div className="w-36 shrink-0">
++                                    <StudioSelect
++                                      compact
++                                      value={newWorkType}
++                                      onChange={(val) => setNewWorkType(val as any)}
++                                      options={[
++                                        { value: "video", label: "Video" },
++                                        { value: "image", label: "Image" },
++                                      ]}
++                                    />
++                                  </div>
+                                 </div>
+ 
+                                 {/* Asset library quick selector dropdown */}
+                                 <div className="space-y-1">
+                                   <label className="text-[8px] font-mono uppercase text-gray-500">Quick Select from Library</label>
+-                                  <select
+-                                    onChange={(e) => {
+-                                      if (e.target.value) {
+-                                        const asset = mediaAssets.find(a => a.url === e.target.value);
++                                  <StudioSelect
++                                    compact
++                                    value={newWorkUrl || ""}
++                                    onChange={(val) => {
++                                      if (val) {
++                                        const asset = mediaAssets.find(a => a.url === val);
+                                         if (asset) {
+                                           setNewWorkUrl(asset.url);
+                                           setNewWorkTitle(asset.name);
+@@ -8019,15 +8205,14 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                         }
+                                       }
+                                     }}
+-                                    className="w-full bg-black/60 border border-white/5 rounded-xl px-3 py-1.5 text-[10px] text-gray-400 outline-none"
+-                                  >
+-                                    <option value="">-- Choose asset from global manager --</option>
+-                                    {mediaAssets.map(asset => (
+-                                      <option key={asset.id} value={asset.url}>
+-                                        [{asset.type.toUpperCase()}] {asset.name}
+-                                      </option>
+-                                    ))}
+-                                  </select>
++                                    placeholder="Choose asset from Global Assets..."
++                                    options={mediaAssets.map(asset => ({
++                                      value: asset.url,
++                                      label: asset.name,
++                                      meta: asset.type.toUpperCase(),
++                                      previewUrl: asset.type === "image" ? asset.url : undefined,
++                                    }))}
++                                  />
+                                 </div>
+ 
+                                 <button
+@@ -8077,16 +8262,19 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                         <span className="text-[9px] font-mono text-white shrink-0 w-8 text-right">{t.progress}%</span>
+                                       </div>
+ 
+-                                      <select
+-                                        value={t.status}
+-                                        onChange={(e) => handleUpdateTaskInline(t.id, t.progress, e.target.value)}
+-                                        className="bg-black/60 border border-white/5 rounded px-1.5 py-0.5 text-[9px] text-gray-300"
+-                                      >
+-                                        <option value="Not Started">Not Started</option>
+-                                        <option value="In Progress">In Progress</option>
+-                                        <option value="Completed">Completed</option>
+-                                        <option value="On Hold">On Hold</option>
+-                                      </select>
++                                      <div className="w-40 shrink-0">
++                                        <StudioSelect
++                                          compact
++                                          value={t.status}
++                                          onChange={(val) => handleUpdateTaskInline(t.id, t.progress, val)}
++                                          options={[
++                                            { value: "Not Started", label: "Not Started" },
++                                            { value: "In Progress", label: "In Progress" },
++                                            { value: "Completed", label: "Completed" },
++                                            { value: "On Hold", label: "On Hold" },
++                                          ]}
++                                        />
++                                      </div>
+                                     </div>
+ 
+                                     {t.deadline && (
+@@ -8114,16 +8302,17 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+                                 <div className="grid grid-cols-2 gap-2">
+                                   <div className="space-y-1">
+                                     <label className="text-[8px] font-mono uppercase text-gray-500">Task Status</label>
+-                                    <select
++                                    <StudioSelect
++                                      compact
+                                       value={newTaskStatus}
+-                                      onChange={(e) => setNewTaskStatus(e.target.value)}
+-                                      className="w-full bg-black/40 border border-white/5 rounded-xl px-2.5 py-2 text-xs text-gray-300"
+-                                    >
+-                                      <option value="Not Started">Not Started</option>
+-                                      <option value="In Progress">In Progress</option>
+-                                      <option value="Completed">Completed</option>
+-                                      <option value="On Hold">On Hold</option>
+-                                    </select>
++                                      onChange={(val) => setNewTaskStatus(val)}
++                                      options={[
++                                        { value: "Not Started", label: "Not Started" },
++                                        { value: "In Progress", label: "In Progress" },
++                                        { value: "Completed", label: "Completed" },
++                                        { value: "On Hold", label: "On Hold" },
++                                      ]}
++                                    />
+                                   </div>
+                                   <div className="space-y-1">
+                                     <label className="text-[8px] font-mono uppercase text-gray-500">Target Deadline</label>
+@@ -8266,7 +8455,7 @@ export default function AdminPanel({ onNavigateHome }: { onNavigateHome: () => v
+           {/* CUSTOM GLOWING UPLOAD MODAL (Replicating Image 4 style) */}
+           <AnimatePresence>
+             {uploadModal.active && (
+-              <div className="fixed inset-0 z-[999] bg-[#050508]/85 backdrop-blur-2xl flex items-center justify-center p-4">
++              <div className="tcs-admin-workspace fixed inset-0 z-[999] bg-[#050508]/85 backdrop-blur-2xl flex items-center justify-center p-4">
+                 {/* Red Glowing Halo/Backlight Behind Card */}
+                 <div className="absolute w-[350px] h-[350px] bg-red-600/15 rounded-full filter blur-[120px] pointer-events-none animate-pulse" />
+                 
+diff --git a/src/components/Footer.tsx b/src/components/Footer.tsx
+index 7fa251b..739d7d0 100644
+--- a/src/components/Footer.tsx
++++ b/src/components/Footer.tsx
+@@ -46,13 +46,22 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
+   return (
+     <footer className="w-full bg-[var(--tcs-night)] border-t border-[var(--tcs-line)] pt-20 pb-12 select-none overflow-hidden">
+       <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+-        {/* Giant Wordmark fitted cleanly to content width across all viewports */}
++        {/* Giant Logo / Wordmark above footer — controllable from Admin Panel */}
+         <div className="w-full mb-16 md:mb-20 flex justify-center py-4 px-1">
+-          <Wordmark
+-            ringAnimation="spin-slow"
+-            glow={true}
+-            className="text-[clamp(1rem,4.1vw,4.4rem)] tracking-[0.09em] sm:tracking-[0.12em] max-w-full"
+-          />
++          {(siteSettings.footer_logo_url || siteSettings.logo_img_url) ? (
++            <img
++              src={siteSettings.footer_logo_url || siteSettings.logo_img_url}
++              alt="The Chanting Studio"
++              className="max-h-20 sm:max-h-28 md:max-h-36 w-auto max-w-full object-contain"
++              referrerPolicy="no-referrer"
++            />
++          ) : (
++            <Wordmark
++              ringAnimation="spin-slow"
++              glow={true}
++              className="text-[clamp(1rem,4.1vw,4.4rem)] tracking-[0.09em] sm:tracking-[0.12em] max-w-full"
++            />
++          )}
+         </div>
+ 
+         {/* Three Columns in Mono */}
+diff --git a/src/components/Navbar.tsx b/src/components/Navbar.tsx
+index 4d76f07..2488a9f 100644
+--- a/src/components/Navbar.tsx
++++ b/src/components/Navbar.tsx
+@@ -1,6 +1,7 @@
+ import React, { useState, useEffect } from "react";
+ import { motion, AnimatePresence } from "motion/react";
+ import { Wordmark } from "./brand/Wordmark";
++import { useSiteData } from "../context/SiteDataContext";
+ import { Ring } from "./brand/Ring";
+ 
+ interface NavbarProps {
+@@ -8,6 +9,7 @@ interface NavbarProps {
+ }
+ 
+ export default function Navbar({ navigate }: NavbarProps) {
++  const { siteSettings } = useSiteData();
+   const [mobileOpen, setMobileOpen] = useState(false);
+   const [isScrolled, setIsScrolled] = useState(false);
+   const [activeSection, setActiveSection] = useState("top");
+@@ -96,7 +98,16 @@ export default function Navbar({ navigate }: NavbarProps) {
+             }}
+             className="group flex items-center transition-opacity hover:opacity-90"
+           >
+-            <Wordmark capHeight={15} />
++            {siteSettings.navbar_logo_url ? (
++              <img
++                src={siteSettings.navbar_logo_url}
++                alt="The Chanting Studio"
++                className="h-7 sm:h-8 w-auto max-w-[180px] sm:max-w-[230px] object-contain"
++                referrerPolicy="no-referrer"
++              />
++            ) : (
++              <Wordmark capHeight={15} />
++            )}
+           </a>
+ 
+           {/* Right: Desktop Navigation Items */}
+diff --git a/src/components/StudioSelect.tsx b/src/components/StudioSelect.tsx
+index e81a006..870f7ea 100644
+--- a/src/components/StudioSelect.tsx
++++ b/src/components/StudioSelect.tsx
+@@ -1,11 +1,12 @@
+-import React, { useState, useRef, useEffect } from "react";
++import React, { useState, useRef, useEffect, useMemo } from "react";
+ import { motion, AnimatePresence } from "motion/react";
+-import { ChevronDown, Check } from "lucide-react";
++import { ChevronDown, Check, Search } from "lucide-react";
+ 
+ export interface StudioSelectOption {
+   value: string;
+   label: string;
+   meta?: string;
++  previewUrl?: string;
+ }
+ 
+ interface StudioSelectProps {
+@@ -14,6 +15,7 @@ interface StudioSelectProps {
+   options: StudioSelectOption[];
+   placeholder?: string;
+   className?: string;
++  compact?: boolean;
+ }
+ 
+ export const StudioSelect: React.FC<StudioSelectProps> = ({
+@@ -22,41 +24,80 @@ export const StudioSelect: React.FC<StudioSelectProps> = ({
+   options,
+   placeholder = "Select an option...",
+   className = "",
++  compact = false,
+ }) => {
+   const [open, setOpen] = useState(false);
++  const [search, setSearch] = useState("");
+   const containerRef = useRef<HTMLDivElement>(null);
+ 
+   useEffect(() => {
+     const handleOutside = (e: MouseEvent) => {
+       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+         setOpen(false);
++        setSearch("");
++      }
++    };
++    const handleEsc = (e: KeyboardEvent) => {
++      if (e.key === "Escape") {
++        setOpen(false);
++        setSearch("");
+       }
+     };
+     if (open) {
+       window.addEventListener("mousedown", handleOutside);
++      window.addEventListener("keydown", handleEsc);
+     }
+-    return () => window.removeEventListener("mousedown", handleOutside);
++    return () => {
++      window.removeEventListener("mousedown", handleOutside);
++      window.removeEventListener("keydown", handleEsc);
++    };
+   }, [open]);
+ 
+   const selected = options.find((opt) => opt.value === value);
+ 
++  const filteredOptions = useMemo(() => {
++    if (!search.trim()) return options;
++    const q = search.toLowerCase();
++    return options.filter(
++      (opt) =>
++        opt.label.toLowerCase().includes(q) ||
++        (opt.meta && opt.meta.toLowerCase().includes(q))
++    );
++  }, [options, search]);
++
+   return (
+     <div ref={containerRef} className={`relative w-full ${className}`}>
+       <button
+         type="button"
+         onClick={() => setOpen((prev) => !prev)}
+-        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-sans text-left transition-all duration-200 cursor-pointer border ${
++        className={`w-full flex items-center justify-between gap-3 rounded-2xl font-sans text-left transition-all duration-200 cursor-pointer border ${
++          compact ? "px-3.5 py-2.5 text-sm" : "px-4 py-3.5 text-[15px]"
++        } ${
+           open
+-            ? "bg-[#171B27] border-[#FF6A1F]/70 shadow-[0_0_0_3px_rgba(255,106,31,0.16)] text-[#F4EFE6]"
+-            : "bg-[#12151F] border-white/[0.11] hover:border-white/25 text-[#F4EFE6]"
++            ? "bg-[#1A1F2E] border-[#FF6A1F]/80 shadow-[0_0_0_3px_rgba(255,106,31,0.2)] text-[#F4EFE6]"
++            : "bg-gradient-to-b from-[#181C29] to-[#131722] border-white/[0.14] hover:border-white/30 text-[#F4EFE6] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+         }`}
+       >
+-        <span className={`truncate ${selected ? "text-[#F4EFE6]" : "text-[#F4EFE6]/45"}`}>
+-          {selected ? selected.label : placeholder}
+-        </span>
++        <div className="flex items-center gap-3 min-w-0">
++          {selected?.previewUrl && (
++            <img
++              src={selected.previewUrl}
++              alt=""
++              className="w-7 h-7 rounded-lg object-contain bg-[#090B11] border border-white/15 p-0.5 shrink-0"
++              referrerPolicy="no-referrer"
++            />
++          )}
++          <span
++            className={`truncate ${
++              selected ? "text-[#F4EFE6] font-semibold" : "text-[#F4EFE6]/55 font-medium"
++            }`}
++          >
++            {selected ? selected.label : placeholder}
++          </span>
++        </div>
+         <ChevronDown
+-          className={`w-4 h-4 shrink-0 text-[#F4EFE6]/60 transition-transform duration-200 ${
+-            open ? "rotate-180 text-[#FF6A1F]" : ""
++          className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
++            open ? "rotate-180 text-[#FF6A1F]" : "text-[#F4EFE6]/70"
+           }`}
+         />
+       </button>
+@@ -64,46 +105,75 @@ export const StudioSelect: React.FC<StudioSelectProps> = ({
+       <AnimatePresence>
+         {open && (
+           <motion.div
+-            initial={{ opacity: 0, y: 6, scale: 0.98 }}
++            initial={{ opacity: 0, y: 6, scale: 0.985 }}
+             animate={{ opacity: 1, y: 0, scale: 1 }}
+-            exit={{ opacity: 0, y: 4, scale: 0.98 }}
++            exit={{ opacity: 0, y: 4, scale: 0.985 }}
+             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+-            className="absolute left-0 right-0 top-[calc(100%+6px)] z-[90] rounded-2xl bg-[#11141E]/98 backdrop-blur-xl border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.75)] p-1.5 max-h-64 overflow-y-auto"
++            className="absolute left-0 right-0 top-[calc(100%+8px)] z-[110] rounded-2xl bg-[#131724] border border-white/20 shadow-[0_24px_64px_rgba(0,0,0,0.88)] overflow-hidden"
+           >
+-            {options.length === 0 ? (
+-              <div className="px-3.5 py-3 text-xs font-mono text-[#F4EFE6]/45 text-center">
+-                No options available
++            {options.length > 6 && (
++              <div className="p-2.5 border-b border-white/10 bg-[#0E111B]">
++                <div className="relative">
++                  <Search className="w-4 h-4 text-[#F4EFE6]/50 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
++                  <input
++                    type="text"
++                    value={search}
++                    onChange={(e) => setSearch(e.target.value)}
++                    placeholder="Filter options..."
++                    autoFocus
++                    className="w-full !pl-9 !pr-3 !py-2 !text-sm !rounded-xl bg-[#171C2B] border border-white/15 text-[#F4EFE6] placeholder:text-[#F4EFE6]/45 focus:outline-none focus:border-[#FF6A1F]/70"
++                  />
++                </div>
+               </div>
+-            ) : (
+-              options.map((opt) => {
+-                const isSelected = opt.value === value;
+-                return (
+-                  <button
+-                    key={opt.value}
+-                    type="button"
+-                    onClick={() => {
+-                      onChange(opt.value);
+-                      setOpen(false);
+-                    }}
+-                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-sm font-sans text-left transition-all cursor-pointer ${
+-                      isSelected
+-                        ? "bg-[#FF6A1F]/15 text-[#F4EFE6] font-medium"
+-                        : "text-[#F4EFE6]/80 hover:bg-white/[0.06] hover:text-white"
+-                    }`}
+-                  >
+-                    <div className="min-w-0">
+-                      <span className="block truncate">{opt.label}</span>
+-                      {opt.meta && (
+-                        <span className="block text-[11px] font-mono text-[#F4EFE6]/45 truncate">
+-                          {opt.meta}
+-                        </span>
+-                      )}
+-                    </div>
+-                    {isSelected && <Check className="w-4 h-4 text-[#FF6A1F] shrink-0" />}
+-                  </button>
+-                );
+-              })
+             )}
++
++            <div className="p-2 max-h-72 overflow-y-auto space-y-1">
++              {filteredOptions.length === 0 ? (
++                <div className="px-4 py-4 text-sm font-sans text-[#F4EFE6]/55 text-center">
++                  No matching options
++                </div>
++              ) : (
++                filteredOptions.map((opt) => {
++                  const isSelected = opt.value === value;
++                  return (
++                    <button
++                      key={`${opt.value}-${opt.label}`}
++                      type="button"
++                      onClick={() => {
++                        onChange(opt.value);
++                        setOpen(false);
++                        setSearch("");
++                      }}
++                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-[14.5px] font-sans text-left transition-all cursor-pointer ${
++                        isSelected
++                          ? "bg-[#FF6A1F]/18 border border-[#FF6A1F]/40 text-[#F4EFE6] font-bold"
++                          : "border border-transparent text-[#F4EFE6]/85 hover:bg-white/[0.08] hover:text-white font-medium"
++                      }`}
++                    >
++                      <div className="flex items-center gap-3 min-w-0">
++                        {opt.previewUrl && (
++                          <img
++                            src={opt.previewUrl}
++                            alt=""
++                            className="w-8 h-8 rounded-lg object-contain bg-[#090B11] border border-white/15 p-1 shrink-0"
++                            referrerPolicy="no-referrer"
++                          />
++                        )}
++                        <div className="min-w-0">
++                          <span className="block truncate">{opt.label}</span>
++                          {opt.meta && (
++                            <span className="block text-xs font-mono text-[#F4EFE6]/55 truncate mt-0.5">
++                              {opt.meta}
++                            </span>
++                          )}
++                        </div>
++                      </div>
++                      {isSelected && <Check className="w-4 h-4 text-[#FF6A1F] shrink-0" />}
++                    </button>
++                  );
++                })
++              )}
++            </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
+diff --git a/src/index.css b/src/index.css
+index aebe05c..204a668 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -225,29 +225,87 @@ html.lenis, html.lenis body {
+ 
+ /* ========================================= */
+ /* STUDIO ADMIN INTERIOR DESIGN SYSTEM       */
+-/* Enlarged readable website typography, tactile inputs, responsive spacing across ALL tabs */
++/* Enlarged bold website typography, tactile elevated cards & inputs across ALL Admin tabs & dialogs */
+ /* ========================================= */
+ .tcs-admin-workspace {
+   font-family: var(--font-sans);
+-  font-size: 14px;
++  font-size: 15px;
++  color: #F4EFE6;
+ }
+ 
+-.tcs-admin-workspace h2 {
+-  font-family: var(--font-display);
++.tcs-admin-workspace h1,
++.tcs-admin-workspace h2,
++.tcs-admin-workspace h3,
++.tcs-admin-workspace h4 {
++  font-family: var(--font-display) !important;
++  font-weight: 700 !important;
++  color: #F4EFE6;
+   letter-spacing: -0.015em;
+ }
+ 
+-.tcs-admin-workspace h3,
++.tcs-admin-workspace h2 {
++  font-size: clamp(1.35rem, 1.8vw, 1.75rem);
++  line-height: 1.25;
++}
++
++.tcs-admin-workspace h3 {
++  font-size: clamp(1.08rem, 1.25vw, 1.25rem);
++  line-height: 1.3;
++}
++
+ .tcs-admin-workspace h4 {
+-  font-family: var(--font-display);
++  font-size: 1.02rem;
++  line-height: 1.35;
++}
++
++/* Global readability floor: eliminate tiny 7px-11px unreadable labels & text across all 12 tabs */
++.tcs-admin-workspace .text-\[7px\],
++.tcs-admin-workspace .text-\[8px\],
++.tcs-admin-workspace .text-\[9px\],
++.tcs-admin-workspace .text-\[10px\] {
++  font-size: 12px !important;
++  line-height: 1.45 !important;
++}
++
++.tcs-admin-workspace .text-\[11px\] {
++  font-size: 13px !important;
++  line-height: 1.45 !important;
++}
++
++.tcs-admin-workspace .text-xs {
++  font-size: 13.5px !important;
++  line-height: 1.5 !important;
++}
++
++.tcs-admin-workspace .text-sm {
++  font-size: 15px !important;
++  line-height: 1.5 !important;
+ }
+ 
+ .tcs-admin-workspace label {
+-  font-family: var(--font-mono);
+-  font-size: 11px !important;
+-  letter-spacing: 0.1em;
+-  color: rgba(244, 239, 230, 0.62);
+-  margin-bottom: 0.45rem;
++  font-family: var(--font-sans) !important;
++  font-size: 12.5px !important;
++  font-weight: 700 !important;
++  letter-spacing: 0.05em;
++  color: rgba(244, 239, 230, 0.88) !important;
++  margin-bottom: 0.5rem;
++}
++
++/* Enhanced layered obsidian dialog boxes & section cards */
++.tcs-admin-card {
++  background: linear-gradient(180deg, #181C29 0%, #10131C 100%) !important;
++  border: 1px solid rgba(244, 239, 230, 0.12) !important;
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 38px rgba(0, 0, 0, 0.42);
++}
++
++.tcs-admin-card:hover {
++  border-color: rgba(244, 239, 230, 0.22) !important;
++}
++
++.tcs-admin-dialog {
++  background: linear-gradient(180deg, #1A1F2E 0%, #11141E 100%) !important;
++  border: 1px solid rgba(244, 239, 230, 0.16) !important;
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 28px 70px rgba(0, 0, 0, 0.82);
+ }
+ 
+ .tcs-admin-workspace input[type="text"],
+@@ -255,47 +313,54 @@ html.lenis, html.lenis body {
+ .tcs-admin-workspace input[type="url"],
+ .tcs-admin-workspace input[type="number"],
+ .tcs-admin-workspace input[type="password"],
++.tcs-admin-workspace input[type="date"],
+ .tcs-admin-workspace textarea,
+ .tcs-admin-workspace select {
+   font-family: var(--font-sans) !important;
+-  font-size: 0.9rem !important;
++  font-size: 15px !important;
++  font-weight: 500;
+   line-height: 1.5;
+-  padding: 0.72rem 1rem !important;
+-  border-radius: 0.75rem !important;
+-  background-color: #12151F !important;
+-  border: 1px solid rgba(244, 239, 230, 0.11) !important;
++  padding: 0.85rem 1.1rem !important;
++  border-radius: 0.9rem !important;
++  background: linear-gradient(180deg, #181C29 0%, #131722 100%) !important;
++  border: 1px solid rgba(244, 239, 230, 0.14) !important;
+   color: #F4EFE6 !important;
+-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
++  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
++}
++
++.tcs-admin-workspace input::placeholder,
++.tcs-admin-workspace textarea::placeholder {
++  color: rgba(244, 239, 230, 0.42) !important;
+ }
+ 
+ .tcs-admin-workspace input:hover,
+ .tcs-admin-workspace textarea:hover,
+ .tcs-admin-workspace select:hover {
+-  border-color: rgba(244, 239, 230, 0.24) !important;
+-  background-color: #151925 !important;
++  border-color: rgba(244, 239, 230, 0.28) !important;
++  background: linear-gradient(180deg, #1C2130 0%, #161A26 100%) !important;
+ }
+ 
+ .tcs-admin-workspace input:focus,
+ .tcs-admin-workspace textarea:focus,
+ .tcs-admin-workspace select:focus {
+   outline: none !important;
+-  border-color: rgba(255, 106, 31, 0.75) !important;
+-  box-shadow: 0 0 0 3px rgba(255, 106, 31, 0.16) !important;
+-  background-color: #161A27 !important;
++  border-color: rgba(255, 106, 31, 0.85) !important;
++  box-shadow: 0 0 0 3px rgba(255, 106, 31, 0.2) !important;
++  background: #1B2030 !important;
+ }
+ 
+ .tcs-admin-workspace select {
+   appearance: none;
+-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F4EFE6' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
++  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F4EFE6' stroke-opacity='0.75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+   background-repeat: no-repeat;
+-  background-position: right 0.9rem center;
+-  padding-right: 2.5rem !important;
++  background-position: right 0.95rem center;
++  padding-right: 2.6rem !important;
+   cursor: pointer;
+ }
+ 
+ .tcs-admin-workspace select option {
+-  background-color: #0E1018;
++  background-color: #131724;
+   color: #F4EFE6;
+-  padding: 0.5rem;
++  padding: 0.6rem;
+ }
+-- 
+2.39.5
+

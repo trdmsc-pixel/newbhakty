@@ -10,9 +10,8 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   const { siteSettings } = useSiteData();
 
   const contactEmail = siteSettings.contact_email || "studio@thechantingstudio.in";
-  const rawWhatsApp = siteSettings.whatsapp_number || "+91 9958194155";
-  const digitsOnly = rawWhatsApp.replace(/[^0-9]/g, "");
-  const cleanWhatsApp = !digitsOnly || digitsOnly === "919999999999" ? "919958194155" : digitsOnly;
+  const rawWhatsApp = siteSettings.whatsapp_number || "+919999999999";
+  const cleanWhatsApp = rawWhatsApp.replace(/[^0-9]/g, "");
   const whatsappUrl = `https://wa.me/${cleanWhatsApp}`;
 
   const scrollTo = (targetId: string) => {
@@ -46,13 +45,22 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   return (
     <footer className="w-full bg-[var(--tcs-night)] border-t border-[var(--tcs-line)] pt-20 pb-12 select-none overflow-hidden">
       <div className="max-w-[1600px] mx-auto px-6 md:px-12">
-        {/* Giant Wordmark fitted cleanly to content width across all viewports */}
+        {/* Giant Logo / Wordmark above footer — controllable from Admin Panel */}
         <div className="w-full mb-16 md:mb-20 flex justify-center py-4 px-1">
-          <Wordmark
-            ringAnimation="spin-slow"
-            glow={true}
-            className="text-[clamp(1rem,4.1vw,4.4rem)] tracking-[0.09em] sm:tracking-[0.12em] max-w-full"
-          />
+          {(siteSettings.footer_logo_url || siteSettings.logo_img_url) ? (
+            <img
+              src={siteSettings.footer_logo_url || siteSettings.logo_img_url}
+              alt="The Chanting Studio"
+              className="max-h-20 sm:max-h-28 md:max-h-36 w-auto max-w-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <Wordmark
+              ringAnimation="spin-slow"
+              glow={true}
+              className="text-[clamp(1rem,4.1vw,4.4rem)] tracking-[0.09em] sm:tracking-[0.12em] max-w-full"
+            />
+          )}
         </div>
 
         {/* Three Columns in Mono */}
@@ -139,7 +147,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 </a>
               </li>
               <li className="text-[var(--tcs-dim)] uppercase tracking-wider">
-                {siteSettings.footer_location || "Delhi, India → Worldwide"}
+                Delhi, India → Worldwide
               </li>
             </ul>
           </div>
@@ -216,7 +224,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)]">
-              {siteSettings.footer_portals_label || "Direct Studio Access & Client Portals"}
+              Direct Studio Access & Client Portals
             </span>
           </div>
 
@@ -248,10 +256,10 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               <img
                 src={siteSettings.logo_img_url}
                 alt="Studio Logo"
-                className="h-5 sm:h-6 w-auto max-w-[130px] object-contain shrink-0 brightness-125"
+                className="h-6 w-auto object-contain brightness-125"
               />
             )}
-            <p>{siteSettings.footer_copyright || "© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio"}</p>
+            <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
           </div>
 
           <div className="flex items-center gap-6">

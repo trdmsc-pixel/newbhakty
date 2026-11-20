@@ -225,29 +225,87 @@ html.lenis, html.lenis body {
 
 /* ========================================= */
 /* STUDIO ADMIN INTERIOR DESIGN SYSTEM       */
-/* Enlarged readable website typography, tactile inputs, responsive spacing across ALL tabs */
+/* Enlarged bold website typography, tactile elevated cards & inputs across ALL Admin tabs & dialogs */
 /* ========================================= */
 .tcs-admin-workspace {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
+  color: #F4EFE6;
 }
 
-.tcs-admin-workspace h2 {
-  font-family: var(--font-display);
+.tcs-admin-workspace h1,
+.tcs-admin-workspace h2,
+.tcs-admin-workspace h3,
+.tcs-admin-workspace h4 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  color: #F4EFE6;
   letter-spacing: -0.015em;
 }
 
-.tcs-admin-workspace h3,
+.tcs-admin-workspace h2 {
+  font-size: clamp(1.35rem, 1.8vw, 1.75rem);
+  line-height: 1.25;
+}
+
+.tcs-admin-workspace h3 {
+  font-size: clamp(1.08rem, 1.25vw, 1.25rem);
+  line-height: 1.3;
+}
+
 .tcs-admin-workspace h4 {
-  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+/* Global readability floor: eliminate tiny 7px-11px unreadable labels & text across all 12 tabs */
+.tcs-admin-workspace .text-\[7px\],
+.tcs-admin-workspace .text-\[8px\],
+.tcs-admin-workspace .text-\[9px\],
+.tcs-admin-workspace .text-\[10px\] {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.tcs-admin-workspace .text-\[11px\] {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.tcs-admin-workspace .text-xs {
+  font-size: 13.5px !important;
+  line-height: 1.5 !important;
+}
+
+.tcs-admin-workspace .text-sm {
+  font-size: 15px !important;
+  line-height: 1.5 !important;
 }
 
 .tcs-admin-workspace label {
-  font-family: var(--font-mono);
-  font-size: 11px !important;
-  letter-spacing: 0.1em;
-  color: rgba(244, 239, 230, 0.62);
-  margin-bottom: 0.45rem;
+  font-family: var(--font-sans) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em;
+  color: rgba(244, 239, 230, 0.88) !important;
+  margin-bottom: 0.5rem;
+}
+
+/* Enhanced layered obsidian dialog boxes & section cards */
+.tcs-admin-card {
+  background: linear-gradient(180deg, #181C29 0%, #10131C 100%) !important;
+  border: 1px solid rgba(244, 239, 230, 0.12) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 38px rgba(0, 0, 0, 0.42);
+}
+
+.tcs-admin-card:hover {
+  border-color: rgba(244, 239, 230, 0.22) !important;
+}
+
+.tcs-admin-dialog {
+  background: linear-gradient(180deg, #1A1F2E 0%, #11141E 100%) !important;
+  border: 1px solid rgba(244, 239, 230, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 28px 70px rgba(0, 0, 0, 0.82);
 }
 
 .tcs-admin-workspace input[type="text"],
@@ -255,47 +313,54 @@ html.lenis, html.lenis body {
 .tcs-admin-workspace input[type="url"],
 .tcs-admin-workspace input[type="number"],
 .tcs-admin-workspace input[type="password"],
+.tcs-admin-workspace input[type="date"],
 .tcs-admin-workspace textarea,
 .tcs-admin-workspace select {
   font-family: var(--font-sans) !important;
-  font-size: 0.9rem !important;
+  font-size: 15px !important;
+  font-weight: 500;
   line-height: 1.5;
-  padding: 0.72rem 1rem !important;
-  border-radius: 0.75rem !important;
-  background-color: #12151F !important;
-  border: 1px solid rgba(244, 239, 230, 0.11) !important;
+  padding: 0.85rem 1.1rem !important;
+  border-radius: 0.9rem !important;
+  background: linear-gradient(180deg, #181C29 0%, #131722 100%) !important;
+  border: 1px solid rgba(244, 239, 230, 0.14) !important;
   color: #F4EFE6 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.tcs-admin-workspace input::placeholder,
+.tcs-admin-workspace textarea::placeholder {
+  color: rgba(244, 239, 230, 0.42) !important;
 }
 
 .tcs-admin-workspace input:hover,
 .tcs-admin-workspace textarea:hover,
 .tcs-admin-workspace select:hover {
-  border-color: rgba(244, 239, 230, 0.24) !important;
-  background-color: #151925 !important;
+  border-color: rgba(244, 239, 230, 0.28) !important;
+  background: linear-gradient(180deg, #1C2130 0%, #161A26 100%) !important;
 }
 
 .tcs-admin-workspace input:focus,
 .tcs-admin-workspace textarea:focus,
 .tcs-admin-workspace select:focus {
   outline: none !important;
-  border-color: rgba(255, 106, 31, 0.75) !important;
-  box-shadow: 0 0 0 3px rgba(255, 106, 31, 0.16) !important;
-  background-color: #161A27 !important;
+  border-color: rgba(255, 106, 31, 0.85) !important;
+  box-shadow: 0 0 0 3px rgba(255, 106, 31, 0.2) !important;
+  background: #1B2030 !important;
 }
 
 .tcs-admin-workspace select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F4EFE6' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F4EFE6' stroke-opacity='0.75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.9rem center;
-  padding-right: 2.5rem !important;
+  background-position: right 0.95rem center;
+  padding-right: 2.6rem !important;
   cursor: pointer;
 }
 
 .tcs-admin-workspace select option {
-  background-color: #0E1018;
+  background-color: #131724;
   color: #F4EFE6;
-  padding: 0.5rem;
+  padding: 0.6rem;
 }

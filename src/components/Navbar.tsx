@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Wordmark } from "./brand/Wordmark";
+import { useSiteData } from "../context/SiteDataContext";
 import { Ring } from "./brand/Ring";
 
 interface NavbarProps {
@@ -8,6 +9,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ navigate }: NavbarProps) {
+  const { siteSettings } = useSiteData();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("top");
@@ -87,7 +89,7 @@ export default function Navbar({ navigate }: NavbarProps) {
         }`}
       >
         <div className="max-w-[1600px] mx-auto px-6 md:px-12 flex items-center justify-between">
-          {/* Left: Brand Wordmark */}
+          {/* Left: Brand Wordmark / Navbar Logo */}
           <a
             href="#top"
             onClick={(e) => {
@@ -96,7 +98,16 @@ export default function Navbar({ navigate }: NavbarProps) {
             }}
             className="group flex items-center transition-opacity hover:opacity-90"
           >
-            <Wordmark capHeight={15} />
+            {siteSettings.navbar_logo_url ? (
+              <img
+                src={siteSettings.navbar_logo_url}
+                alt="The Chanting Studio"
+                className="h-7 sm:h-8 w-auto max-w-[180px] sm:max-w-[230px] object-contain"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <Wordmark capHeight={15} />
+            )}
           </a>
 
           {/* Right: Desktop Navigation Items */}
