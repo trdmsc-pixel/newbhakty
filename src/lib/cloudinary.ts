@@ -9,19 +9,14 @@ export const cloudinaryCloudName = "github-cdn";
 export const cloudinaryUploadPreset = "github-cdn";
 
 const compressImage = async (file: File): Promise<Blob | File> => {
-  // Never rasterize or convert SVGs or animated GIFs
-  if (
-    file.type === "image/svg+xml" ||
-    file.name.toLowerCase().endsWith(".svg") ||
-    file.type === "image/gif" ||
-    file.name.toLowerCase().endsWith(".gif")
-  ) {
-    return file;
-  }
-
   const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
-  // If PNG logo/image is already under 5MB, keep original to guarantee 100% untouched alpha channel
-  if (isPng && file.size < 5 * 1024 * 1024) {
+  const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+  const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+  const isWebp = file.type === "image/webp" || file.name.toLowerCase().endsWith(".webp");
+
+  // PERMANENT FIX: Never touch, convert, or compress PNG, SVG, GIF, or WebP files!
+  // Always return the exact original file bytes to preserve 100% alpha transparency and original resolution.
+  if (isPng || isSvg || isGif || isWebp) {
     return file;
   }
 
@@ -309,9 +304,19 @@ export const uploadToCloudinary = async (
 ): Promise<string> => {
   let activeBlob: Blob | File = file;
 
-  if (file.type.startsWith("image/")) {
+  const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+  const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+  const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+  const isWebp = file.type === "image/webp" || file.name.toLowerCase().endsWith(".webp");
+
+  // PERMANENT FIX: PNGs, SVGs, GIFs, and WebPs ALWAYS retain their original untouched file bytes!
+  // NEVER convert PNG to JPEG or touch canvas!
+  if (isPng || isSvg || isGif || isWebp) {
+    activeBlob = file;
+  } else if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
+    // Only compress large non-PNG images (e.g. huge JPEGs > 2MB)
     if (onProgress) {
-      onProgress("Compressing and optimizing image quality...");
+      onProgress("Compressing and optimizing JPEG image quality...");
     }
     try {
       activeBlob = await compressImage(file);
