@@ -77,6 +77,11 @@ const SiteDataContext = createContext<SiteDataContextProps | undefined>(undefine
 // Initial fallback/default site settings
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   // Hero Section (Section 5.1 & 8)
+  navbar_logo_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
+  navbar_logo_height: "34",
+  footer_logo_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
+  footer_logo_height: "110",
+  logo_img_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
   hero_eyebrow: "AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE",
   hero_title: "Film-scale craft.\nAI-speed delivery.",
   hero_description: "Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses.",

@@ -51,7 +51,12 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <img
               src={siteSettings.footer_logo_url || siteSettings.logo_img_url}
               alt="The Chanting Studio"
-              className="max-h-20 sm:max-h-28 md:max-h-36 w-auto max-w-full object-contain mix-blend-screen"
+              style={{
+                height: siteSettings.footer_logo_height
+                  ? `${parseInt(siteSettings.footer_logo_height, 10)}px`
+                  : undefined,
+              }}
+              className="max-h-36 sm:max-h-48 md:max-h-60 w-auto max-w-full object-contain transition-all duration-150"
               referrerPolicy="no-referrer"
             />
           ) : (

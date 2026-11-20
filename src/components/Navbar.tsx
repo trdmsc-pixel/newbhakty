@@ -102,7 +102,12 @@ export default function Navbar({ navigate }: NavbarProps) {
               <img
                 src={siteSettings.navbar_logo_url}
                 alt="The Chanting Studio"
-                className="h-7 sm:h-8 w-auto max-w-[180px] sm:max-w-[230px] object-contain mix-blend-screen"
+                style={{
+                  height: siteSettings.navbar_logo_height
+                    ? `${parseInt(siteSettings.navbar_logo_height, 10)}px`
+                    : undefined,
+                }}
+                className="h-8 w-auto max-w-[280px] sm:max-w-[360px] object-contain transition-all duration-150"
                 referrerPolicy="no-referrer"
               />
             ) : (
