@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import "./ui/tokens.css";
 import { tabTransition } from "./ui/motion";
@@ -118,31 +118,22 @@ const TAB_ORDER = [
 export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => void }) {
   const {
     siteSettings,
-    saveSettings,
     portfolioWorks,
-    addPortfolioWork,
-    updatePortfolioWork,
-    deletePortfolioWork,
-    portfolioTabs,
-    addPortfolioTab,
-    updatePortfolioTab,
-    deletePortfolioTab,
+    portfolioTabs = [],
     brandLogos,
-    addBrandLogo,
-    updateBrandLogo,
-    deleteBrandLogo,
     testimonials,
-    addTestimonial,
-    updateTestimonial,
-    deleteTestimonial,
     navigationMenu,
-    addNavigationItem,
-    updateNavigationItem,
-    deleteNavigationItem,
-    reorderNavigationItems,
     mediaAssets,
+    updateSiteSetting,
+    updateMultipleSiteSettings,
+    updateNavigationMenu,
+    updatePortfolioWorks,
+    updatePortfolioTabs,
+    updateBrandLogos,
+    updateTestimonials,
     addMediaAsset,
     deleteMediaAsset,
+    refreshAllData,
   } = useSiteData();
 
   const toast = useToast();
@@ -261,16 +252,18 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
   };
 
   // Site Settings Editing & Undo/Redo Stacks
-  const [editSettings, setEditSettings] = useState<Record<string, string>>({});
+  const [editSettings, setEditSettings] = useState<Record<string, string>>(() => ({ ...(siteSettings || {}) }));
+  const [hasInitializedSettings, setHasInitializedSettings] = useState(false);
   const [settingsHistory, setSettingsHistory] = useState<Record<string, string>[]>([]);
   const [settingsFuture, setSettingsFuture] = useState<Record<string, string>[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
-    if (siteSettings && Object.keys(siteSettings).length > 0) {
-      setEditSettings(siteSettings);
+    if (!hasInitializedSettings && siteSettings && Object.keys(siteSettings).length > 0) {
+      setEditSettings({ ...siteSettings });
+      setHasInitializedSettings(true);
     }
-  }, [siteSettings]);
+  }, [siteSettings, hasInitializedSettings]);
 
   const handleSettingChange = (key: string, val: string) => {
     setSettingsHistory((prev) => [...prev.slice(-20), { ...editSettings }]);
@@ -299,8 +292,11 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
-      await saveSettings(editSettings);
-      toast.success("Published settings to live database!");
+      const ok = await updateMultipleSiteSettings(editSettings);
+      if (ok !== false) {
+        toast.success("Published settings to live database!");
+        setSettingsFuture([]);
+      }
     } catch (err: any) {
       toast.error(err?.message || "Failed to publish settings.");
     } finally {
@@ -308,7 +304,28 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
     }
   };
 
-  const hasUnsavedSettings = JSON.stringify(editSettings) !== JSON.stringify(siteSettings);
+  const hasUnsavedSettings = useMemo(() => {
+    if (!siteSettings || !editSettings) return false;
+    const allKeys = new Set([...Object.keys(siteSettings), ...Object.keys(editSettings)]);
+    for (const k of allKeys) {
+      if ((siteSettings[k] ?? "") !== (editSettings[k] ?? "")) {
+        return true;
+      }
+    }
+    return false;
+  }, [siteSettings, editSettings]);
+
+  // Global shortcut (⌘S / Ctrl+S) to publish edits
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSaveSettings();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editSettings, updateMultipleSiteSettings]);
 
   // Inquiries / Form Submissions
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
@@ -429,21 +446,208 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       options: f.options,
       order_index: intakeFields.length + 1,
     };
-    setIntakeFields((prev) => [...prev, newField]);
-    toast.success("Added field to inquiry form");
+    const updated = [...intakeFields, newField];
+    setIntakeFields(updated);
+    handleSettingChange("booking_form_fields_json", JSON.stringify(updated));
+    toast.success("Added field to inquiry form draft");
     return newField;
   };
 
   const handleUpdateIntakeField = async (id: string, updates: Partial<IntakeFormField>) => {
-    setIntakeFields((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, ...updates } : f))
-    );
-    toast.info("Updated field configuration");
+    const updated = intakeFields.map((f) => (f.id === id ? { ...f, ...updates } : f));
+    setIntakeFields(updated);
+    handleSettingChange("booking_form_fields_json", JSON.stringify(updated));
+    toast.info("Updated field configuration in draft");
   };
 
   const handleDeleteIntakeField = async (id: string) => {
-    setIntakeFields((prev) => prev.filter((f) => f.id !== id));
-    toast.success("Removed field from form");
+    const updated = intakeFields.filter((f) => f.id !== id);
+    setIntakeFields(updated);
+    handleSettingChange("booking_form_fields_json", JSON.stringify(updated));
+    toast.success("Removed field from form draft");
+    return true;
+  };
+
+  // Portfolio Works & Tabs Handlers
+  const handleAddWork = async (w: Partial<VideoBlock>) => {
+    const newWork: VideoBlock = {
+      id: "work_" + Date.now(),
+      title: w.title || "Untitled Film",
+      category: w.category || "Commercial",
+      creator: w.creator || "The Chanting Studio",
+      videoUrl: w.videoUrl || "",
+      highResVideoUrl: w.highResVideoUrl || w.videoUrl || "",
+      imageUrl: w.imageUrl || "",
+      duration: w.duration || "01:00",
+      ratio: (w.ratio as any) || "landscape",
+      aspectRatioClass: w.aspectRatioClass || "aspect-video",
+      tags: w.tags || ["AI Production"],
+      tab_id: w.tab_id || portfolioTabs[0]?.id || "commercials",
+      description: w.description || "",
+      page: "ai",
+      ...w,
+    };
+    const updated = [...portfolioWorks, newWork];
+    await updatePortfolioWorks(updated);
+    toast.success("Added film to curation");
+    return newWork;
+  };
+
+  const handleUpdateWork = async (id: string, updates: Partial<VideoBlock>) => {
+    const updated = portfolioWorks.map((w) =>
+      w.id === id ? { ...w, ...updates } : w
+    );
+    await updatePortfolioWorks(updated);
+    toast.success("Saved film details");
+    return true;
+  };
+
+  const handleDeleteWork = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this film from the portfolio?")) return false;
+    const updated = portfolioWorks.filter((w) => w.id !== id);
+    await updatePortfolioWorks(updated);
+    toast.success("Film removed from curation");
+    return true;
+  };
+
+  const handleAddTab = async (type: "video" | "image") => {
+    const newTab: PortfolioTabType = {
+      id: "tab_" + Date.now(),
+      tab_title: type === "video" ? "New Reel" : "New Curation",
+      tab_type: type,
+      page: "ai",
+      display_order: portfolioTabs.length + 1,
+    };
+    const updated = [...portfolioTabs, newTab];
+    await updatePortfolioTabs(updated);
+    toast.success("Added portfolio category tab");
+    return newTab;
+  };
+
+  const handleUpdateTab = async (id: string, name: string) => {
+    const updated = portfolioTabs.map((t) =>
+      t.id === id ? { ...t, tab_title: name } : t
+    );
+    await updatePortfolioTabs(updated);
+    toast.success("Updated portfolio tab title");
+    return true;
+  };
+
+  const handleDeleteTab = async (id: string) => {
+    if (!confirm("Delete this portfolio category? Films under this category will remain.")) return false;
+    const updated = portfolioTabs.filter((t) => t.id !== id);
+    await updatePortfolioTabs(updated);
+    toast.success("Portfolio category removed");
+    return true;
+  };
+
+  // Brand Logos Handlers
+  const handleAddBrandLogo = async (name: string, logoUrl: string) => {
+    const newLogo: BrandLogo = {
+      id: "logo_" + Date.now(),
+      name,
+      url: logoUrl,
+      display_order: brandLogos.length + 1,
+      page: "ai",
+    };
+    const updated = [...brandLogos, newLogo];
+    await updateBrandLogos(updated);
+    toast.success(`Added ${name} to brand marquee`);
+    return newLogo;
+  };
+
+  const handleUpdateBrandLogo = async (id: string, updates: Partial<BrandLogo>) => {
+    const updated = brandLogos.map((l) =>
+      l.id === id ? { ...l, ...updates } : l
+    );
+    await updateBrandLogos(updated);
+    toast.success("Updated brand logo");
+    return true;
+  };
+
+  const handleDeleteBrandLogo = async (id: string) => {
+    if (!confirm("Remove this client logo from the marquee?")) return false;
+    const updated = brandLogos.filter((l) => l.id !== id);
+    await updateBrandLogos(updated);
+    toast.success("Client logo removed");
+    return true;
+  };
+
+  // Testimonials Handlers
+  const handleAddTestimonial = async (t: Partial<Testimonial>) => {
+    const newT: Testimonial = {
+      id: "testimonial_" + Date.now(),
+      client_name: t.client_name || "Client Name",
+      role: t.role || "Director",
+      company: t.company || "Brand Partner",
+      text: (t as any).quote || t.text || "Outstanding cinematic work.",
+      video_url: t.video_url || "",
+      rating: t.rating || 5,
+      display_order: testimonials.length + 1,
+      ...t,
+    };
+    const updated = [...testimonials, newT];
+    await updateTestimonials(updated);
+    toast.success("Added client endorsement");
+    return newT;
+  };
+
+  const handleUpdateTestimonial = async (id: string, updates: Partial<Testimonial>) => {
+    const updated = testimonials.map((t) =>
+      t.id === id ? { ...t, ...updates } : t
+    );
+    await updateTestimonials(updated);
+    toast.success("Updated endorsement");
+    return true;
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+    if (!confirm("Delete this testimonial?")) return false;
+    const updated = testimonials.filter((t) => t.id !== id);
+    await updateTestimonials(updated);
+    toast.success("Testimonial removed");
+    return true;
+  };
+
+  // Navigation Links Handlers
+  const handleAddNavItem = async (item: Partial<NavigationMenuItem>) => {
+    const newItem: NavigationMenuItem = {
+      id: "nav_" + Date.now(),
+      label: item.label || "New Link",
+      target_url: (item as any).href || item.target_url || "#",
+      display_order: navigationMenu.length + 1,
+      ...item,
+    };
+    const updated = [...navigationMenu, newItem];
+    await updateNavigationMenu(updated);
+    toast.success("Added navigation link");
+    return newItem;
+  };
+
+  const handleUpdateNavItem = async (id: string, updates: Partial<NavigationMenuItem>) => {
+    const updated = navigationMenu.map((item) =>
+      item.id === id ? { ...item, ...updates } : item
+    );
+    await updateNavigationMenu(updated);
+    toast.success("Updated navigation link");
+    return true;
+  };
+
+  const handleDeleteNavItem = async (id: string) => {
+    if (!confirm("Delete this navigation item?")) return false;
+    const updated = navigationMenu.filter((item) => item.id !== id);
+    await updateNavigationMenu(updated);
+    toast.success("Navigation link removed");
+    return true;
+  };
+
+  const handleReorderNavItems = async (newOrder: NavigationMenuItem[]) => {
+    const reordered = newOrder.map((item, idx) => ({
+      ...item,
+      display_order: idx + 1,
+    }));
+    await updateNavigationMenu(reordered);
+    toast.success("Reordered navigation links");
     return true;
   };
 
@@ -1040,9 +1244,9 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
           {activeTab === "brand_logos" && (
             <BrandLogosTab
               brandLogos={brandLogos}
-              onAddLogo={addBrandLogo}
-              onUpdateLogo={updateBrandLogo}
-              onDeleteLogo={deleteBrandLogo}
+              onAddLogo={handleAddBrandLogo}
+              onUpdateLogo={handleUpdateBrandLogo}
+              onDeleteLogo={handleDeleteBrandLogo}
               mediaAssets={mediaAssets}
               onOpenUpload={() => handleOpenUpload("")}
             />
@@ -1052,12 +1256,12 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
             <PortfolioTab
               portfolioWorks={portfolioWorks}
               portfolioTabs={portfolioTabs}
-              onAddWork={addPortfolioWork}
-              onUpdateWork={updatePortfolioWork}
-              onDeleteWork={deletePortfolioWork}
-              onAddTab={addPortfolioTab}
-              onUpdateTab={updatePortfolioTab}
-              onDeleteTab={deletePortfolioTab}
+              onAddWork={handleAddWork}
+              onUpdateWork={handleUpdateWork}
+              onDeleteWork={handleDeleteWork}
+              onAddTab={handleAddTab}
+              onUpdateTab={handleUpdateTab}
+              onDeleteTab={handleDeleteTab}
               mediaAssets={mediaAssets}
               onOpenUpload={(workId) => handleOpenUpload(workId)}
             />
@@ -1066,9 +1270,9 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
           {activeTab === "testimonials" && (
             <TestimonialsTab
               testimonials={testimonials}
-              onAddTestimonial={addTestimonial}
-              onUpdateTestimonial={updateTestimonial}
-              onDeleteTestimonial={deleteTestimonial}
+              onAddTestimonial={handleAddTestimonial}
+              onUpdateTestimonial={handleUpdateTestimonial}
+              onDeleteTestimonial={handleDeleteTestimonial}
               mediaAssets={mediaAssets}
               onOpenUpload={() => handleOpenUpload("")}
             />
@@ -1086,10 +1290,10 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
           {activeTab === "navigation" && (
             <NavigationTab
               navItems={navigationMenu}
-              onAddItem={addNavigationItem}
-              onUpdateItem={updateNavigationItem}
-              onDeleteItem={deleteNavigationItem}
-              onReorder={reorderNavigationItems}
+              onAddItem={handleAddNavItem}
+              onUpdateItem={handleUpdateNavItem}
+              onDeleteItem={handleDeleteNavItem}
+              onReorder={handleReorderNavItems}
             />
           )}
 
