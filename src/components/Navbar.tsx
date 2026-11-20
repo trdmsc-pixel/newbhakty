@@ -102,7 +102,7 @@ export default function Navbar({ navigate }: NavbarProps) {
               <img
                 src={siteSettings.navbar_logo_url}
                 alt="The Chanting Studio"
-                className="h-7 sm:h-8 w-auto max-w-[180px] sm:max-w-[230px] object-contain"
+                className="h-7 sm:h-8 w-auto max-w-[180px] sm:max-w-[230px] object-contain mix-blend-screen"
                 referrerPolicy="no-referrer"
               />
             ) : (

@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <img
               src={siteSettings.footer_logo_url || siteSettings.logo_img_url}
               alt="The Chanting Studio"
-              className="max-h-20 sm:max-h-28 md:max-h-36 w-auto max-w-full object-contain"
+              className="max-h-20 sm:max-h-28 md:max-h-36 w-auto max-w-full object-contain mix-blend-screen"
               referrerPolicy="no-referrer"
             />
           ) : (
@@ -256,7 +256,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               <img
                 src={siteSettings.logo_img_url}
                 alt="Studio Logo"
-                className="h-6 w-auto object-contain brightness-125"
+                className="h-6 w-auto object-contain mix-blend-screen brightness-125"
               />
             )}
             <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>

@@ -8,7 +8,23 @@ export const isCloudinaryConfigured = true;
 export const cloudinaryCloudName = "github-cdn";
 export const cloudinaryUploadPreset = "github-cdn";
 
-const compressImage = async (file: File): Promise<Blob> => {
+const compressImage = async (file: File): Promise<Blob | File> => {
+  // Never rasterize or convert SVGs or animated GIFs
+  if (
+    file.type === "image/svg+xml" ||
+    file.name.toLowerCase().endsWith(".svg") ||
+    file.type === "image/gif" ||
+    file.name.toLowerCase().endsWith(".gif")
+  ) {
+    return file;
+  }
+
+  const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+  // If PNG logo/image is already under 5MB, keep original to guarantee 100% untouched alpha channel
+  if (isPng && file.size < 5 * 1024 * 1024) {
+    return file;
+  }
+
   return new Promise((resolve) => {
     const img = new Image();
     img.src = URL.createObjectURL(file);
@@ -29,6 +45,10 @@ const compressImage = async (file: File): Promise<Blob> => {
           width = Math.round((width * MAX_HEIGHT) / height);
           height = MAX_HEIGHT;
         }
+      } else if (isPng) {
+        // Under dimensions, return original file without modifying
+        resolve(file);
+        return;
       }
 
       canvas.width = width;
@@ -39,7 +59,19 @@ const compressImage = async (file: File): Promise<Blob> => {
         return;
       }
 
+      // Explicitly clear transparent canvas buffer so transparent pixels are NOT filled with black
+      ctx.clearRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
+
+      // CRITICAL: PNG must always be exported as "image/png" to preserve full alpha transparency.
+      // Never use "image/jpeg" for PNGs because JPEG lacks alpha and turns transparent pixels solid black!
+      const outputMime = isPng
+        ? "image/png"
+        : file.type === "image/webp"
+        ? "image/webp"
+        : "image/jpeg";
+      const quality = isPng ? undefined : 0.85;
+
       canvas.toBlob(
         (blob) => {
           if (blob) {
@@ -48,8 +80,8 @@ const compressImage = async (file: File): Promise<Blob> => {
             resolve(file);
           }
         },
-        "image/jpeg",
-        0.82 // 82% quality compression (excellent balance of size vs quality)
+        outputMime,
+        quality
       );
     };
     img.onerror = () => {
@@ -323,8 +355,13 @@ export const uploadToCloudinary = async (
         const base64Data = reader.result as string;
 
         let targetName = file.name;
-        // Adjust image extensions if compressed to JPEG
-        if (file.type.startsWith("image/") && activeBlob.type === "image/jpeg" && !targetName.toLowerCase().endsWith(".jpg") && !targetName.toLowerCase().endsWith(".jpeg")) {
+        // Adjust image extensions only if original was JPEG and compressed to JPEG
+        if (
+          file.type === "image/jpeg" &&
+          activeBlob.type === "image/jpeg" &&
+          !targetName.toLowerCase().endsWith(".jpg") &&
+          !targetName.toLowerCase().endsWith(".jpeg")
+        ) {
           const parts = targetName.split(".");
           if (parts.length > 1) {
             parts[parts.length - 1] = "jpg";

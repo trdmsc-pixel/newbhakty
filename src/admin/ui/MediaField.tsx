@@ -83,7 +83,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
               <img
                 src={cleanUrl}
                 alt=""
-                className="w-full h-full object-contain p-0.5"
+                className="w-full h-full object-contain p-0.5 mix-blend-screen"
                 referrerPolicy="no-referrer"
               />
             )
