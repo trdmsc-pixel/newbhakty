@@ -15,12 +15,12 @@ const ZOOM_CONFIG: Record<ZoomLevel, { label: string; days: number; pxPerDay: nu
 };
 
 const GATE_BAR_COLORS: Record<GateStatus, { bg: string; text: string }> = {
-  approved: { bg: "#3FA37A", text: "#FFFFFF" },
-  in_work: { bg: "#2F6BFF", text: "#FFFFFF" },
+  approved: { bg: "#1F7A52", text: "#FFFFFF" },
+  in_work: { bg: "#1D4FD8", text: "#FFFFFF" },
   waiting_on_client: { bg: "#F59E0B", text: "#0F1115" },
-  revising: { bg: "#EA580C", text: "#FFFFFF" },
+  revising: { bg: "#C2410C", text: "#FFFFFF" },
   not_started: { bg: "#DCE3EE", text: "#374151" },
-  skipped: { bg: "#E5E7EB", text: "#6B7280" },
+  skipped: { bg: "#E5E7EB", text: "#4B5260" },
 };
 
 export const TimelineScreen: React.FC = () => {
@@ -201,16 +201,16 @@ export const TimelineScreen: React.FC = () => {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-[12px]" style={{ color: "var(--sos-text-2)" }}>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-[#3FA37A]" /> Approved
+          <span className="w-3 h-3 rounded-full bg-[#1F7A52]" /> Approved
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-[#2F6BFF]" /> In Work
+          <span className="w-3 h-3 rounded-full bg-[#1D4FD8]" /> In Work
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-[#F59E0B]" /> Waiting on Client
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-[#EA580C]" /> Revising
+          <span className="w-3 h-3 rounded-full bg-[#C2410C]" /> Revising
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Flag className="w-3.5 h-3.5" style={{ color: "var(--sos-ink)" }} /> Hard Deadline
@@ -218,8 +218,8 @@ export const TimelineScreen: React.FC = () => {
         <span className="inline-flex items-center gap-1.5">
           <span className="w-4 border-t-2 border-dashed" style={{ borderColor: "var(--sos-primary)" }} /> Forecast
         </span>
-        <span className="inline-flex items-center gap-1.5 text-[#E5484D]">
-          <span className="w-3 h-3 rounded bg-[#E5484D]/25 border border-[#E5484D]" /> Late overrun gap
+        <span className="inline-flex items-center gap-1.5 text-[#B42318]">
+          <span className="w-3 h-3 rounded bg-[#B42318]/25 border border-[#B42318]" /> Late overrun gap
         </span>
       </div>
 
@@ -381,7 +381,7 @@ export const TimelineScreen: React.FC = () => {
                       {/* Red Gap Shading ONLY if Forecast > Deadline */}
                       {isLate && deadlinePx !== null && (
                         <div
-                          className="absolute top-3 bottom-3 rounded-[10px] border border-[#E5484D]/50 pointer-events-none"
+                          className="absolute top-3 bottom-3 rounded-[10px] border border-[#B42318]/50 pointer-events-none"
                           style={{
                             left: `${Math.max(0, deadlinePx)}px`,
                             width: `${Math.max(6, forecastPx - deadlinePx)}px`,

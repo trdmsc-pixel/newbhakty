@@ -56,6 +56,7 @@ import {
   syncUpdateSettings,
   syncUpdateTask,
   syncUpsertHoliday,
+  type StudioViewer,
 } from "./supabaseSync";
 
 const STORAGE_KEY = "tcs_studio_os_phase2_v1";
@@ -82,6 +83,8 @@ interface StudioToast {
 }
 
 interface StudioOSContextValue {
+  viewer: StudioViewer;
+  isOwner: boolean;
   settings: StudioSettings;
   members: StudioMember[];
   clients: StudioClient[];
@@ -253,6 +256,9 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const studioClosedForToday = closedDate === format(new Date(), "yyyy-MM-dd");
 
   const [supabaseSyncStatus, setSupabaseSyncStatus] = useState<"local" | "synced" | "schema_pending">("local");
+  const [viewer, setViewer] = useState<StudioViewer>({ memberId: null, name: "", role: "owner", isOwner: true, email: "" });
+  const viewerRef = useRef(viewer);
+  viewerRef.current = viewer;
   const syncStatusRef = useRef(supabaseSyncStatus);
   syncStatusRef.current = supabaseSyncStatus;
 
@@ -284,10 +290,13 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setState(next);
   }, []);
 
-  // Persist to localStorage as offline fallback
+  // Persist to localStorage as offline fallback (never cache money data for non-owners)
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const safe = viewerRef.current.isOwner
+        ? state
+        : { ...state, payments: [], projects: state.projects.map((p) => ({ ...p, fee_amount: undefined })) };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
     } catch {
       // ignore storage quota errors
     }
@@ -318,6 +327,7 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         generationBlocks: result.data.generationBlocks,
         timeEntries: result.data.timeEntries,
       };
+      if (result.data.viewer) setViewer(result.data.viewer);
       commitState(next);
       setSupabaseSyncStatus("synced");
       syncStatusRef.current = "synced";
@@ -477,7 +487,8 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         due_date: input.due_date,
         estimate_hours: input.estimate_hours,
         actual_hours: 0,
-        assignee_member_id: cur.members[0]?.id || INITIAL_MEMBERS[0].id,
+        assignee_member_id:
+          input.assignee_member_id || viewerRef.current.memberId || cur.members[0]?.id || INITIAL_MEMBERS[0].id,
         checklist: [],
         source: input.source || "manual",
         promised_to_name: input.promised_to_name,
@@ -1034,6 +1045,8 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [activeTimerTaskId, timerSeconds, updateTask, pushToast, flushTimerSegment]);
 
   const value: StudioOSContextValue = {
+    viewer,
+    isOwner: viewer.isOwner,
     settings: state.settings,
     members: state.members,
     clients: state.clients,

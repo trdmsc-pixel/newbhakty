@@ -5,6 +5,7 @@ import { parseQuickAdd } from "../nlParser";
 import { PriorityBadge, TaskStatusChip } from "./StatusChip";
 import { studioApi } from "../api";
 import { ReviewItem, SplitReviewList, toReviewItems } from "./SplitReviewList";
+import { AssigneePicker } from "./Team";
 
 const isMultiItem = (text: string) => text.includes("\n") || text.trim().split(/\s+/).length > 24;
 
@@ -26,7 +27,10 @@ export const QuickAddModal: React.FC = () => {
     reloadFromCloud,
     setWhatsAppImportOpen,
     supabaseSyncStatus,
+    viewer,
+    members,
   } = useStudioOS();
+  const [assignee, setAssignee] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [pinToNow, setPinToNow] = useState(false);
   const [multiText, setMultiText] = useState<string | null>(null);
@@ -66,6 +70,7 @@ export const QuickAddModal: React.FC = () => {
     } else {
       setInput("");
       setPinToNow(false);
+      setAssignee(null);
       setMultiText(null);
       setReviewItems(null);
       recognitionRef.current?.stop?.();
@@ -158,6 +163,7 @@ export const QuickAddModal: React.FC = () => {
       promised_to_name: parsed.promisedToClient ? matchedClient?.contacts[0]?.name || matchedClient?.name : undefined,
       waiting_on_name: parsed.waitingOnClient ? matchedClient?.contacts[0]?.name || matchedClient?.name : undefined,
       is_in_now: pinToNow,
+      assignee_member_id: assignee || viewer.memberId || undefined,
     });
     setQuickAddOpen(false);
   };
@@ -287,7 +293,7 @@ export const QuickAddModal: React.FC = () => {
               {parsed.dueLabel && (
                 <span
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium"
-                  style={{ background: "#E8F0FF", color: "#2F6BFF" }}
+                  style={{ background: "#E8F0FF", color: "#1D4FD8" }}
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   {parsed.dueLabel}
@@ -308,7 +314,7 @@ export const QuickAddModal: React.FC = () => {
               {parsed.promisedToClient && (
                 <span
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium"
-                  style={{ background: "#FFF3E0", color: "#C26A00" }}
+                  style={{ background: "#FFF3E0", color: "#9A4A00" }}
                 >
                   <UserCheck className="w-3.5 h-3.5" />
                   Promise to {matchedClient?.contacts[0]?.name || matchedClient?.name}
@@ -330,6 +336,17 @@ export const QuickAddModal: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             {multiText === null ? (
               <div className="flex flex-col gap-1.5">
+                {members.filter((m) => m.is_active).length > 1 && (
+                  <div className="inline-flex items-center gap-2 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+                    <AssigneePicker value={assignee || viewer.memberId} onChange={setAssignee} size={26} label="Assign to" />
+                    <span>
+                      Assign to{" "}
+                      <strong style={{ color: "var(--sos-text-1)" }}>
+                        {members.find((m) => m.id === (assignee || viewer.memberId))?.name || "me"}
+                      </strong>
+                    </span>
+                  </div>
+                )}
                 <label className="inline-flex items-center gap-2 text-[13px] cursor-pointer select-none" style={{ color: "var(--sos-text-2)" }}>
                   <input
                     type="checkbox"

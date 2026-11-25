@@ -92,10 +92,10 @@ const money = (amount: number, currency: string) => {
 const milestoneDate = (p: PortalProject) => p.promised_date || p.forecast_date || p.hard_deadline;
 
 const HEALTH: Record<PortalProject["health"], { label: string; bg: string; text: string }> = {
-  on_track: { label: "On track", bg: "#E7F7EE", text: "#22875A" },
-  tight: { label: "On track", bg: "#E7F7EE", text: "#22875A" },
-  at_risk: { label: "Watching closely", bg: "#FFF3E0", text: "#C26A00" },
-  late: { label: "Date under review", bg: "#FFF3E0", text: "#C26A00" },
+  on_track: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
+  tight: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
+  at_risk: { label: "Watching closely", bg: "#FFF3E0", text: "#9A4A00" },
+  late: { label: "Date under review", bg: "#FFF3E0", text: "#9A4A00" },
 };
 const TYPE_LABEL: Record<string, string> = {
   ad_film: "Ad film",
@@ -223,7 +223,7 @@ const PortalLogin: React.FC = () => {
               />
             </label>
             {state === "error" && (
-              <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#E5484D" }}>
+              <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#B42318" }}>
                 {message}
               </p>
             )}
@@ -263,7 +263,7 @@ const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: 
       >
         {!project.cover_image_url && <span>{project.emoji || "🎬"}</span>}
         {awaiting > 0 && (
-          <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold" style={{ background: "#FFFFFF", color: "#C26A00" }}>
+          <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold" style={{ background: "#FFFFFF", color: "#9A4A00" }}>
             Awaiting your approval
           </span>
         )}
@@ -278,7 +278,7 @@ const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: 
               {project.title}
             </h3>
           </div>
-          {done ? <Pill bg="#E7F7EE" text="#22875A">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+          {done ? <Pill bg="#E7F7EE" text="#17663F">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
         </div>
         <div className="flex items-center justify-between text-[13px]" style={{ color: "var(--sos-text-2)" }}>
           <span className="truncate">{done ? "Complete" : project.current_stage || "Getting started"}</span>
@@ -327,7 +327,7 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
                 <p className="text-[14px] font-semibold" style={{ color: current || done ? "var(--sos-text-1)" : "var(--sos-text-3)" }}>
                   {g.name}
                 </p>
-                <p className="text-[12px]" style={{ color: g.status === "waiting_on_client" ? "#C26A00" : "var(--sos-text-3)" }}>
+                <p className="text-[12px]" style={{ color: g.status === "waiting_on_client" ? "#9A4A00" : "var(--sos-text-3)" }}>
                   {label}
                 </p>
               </div>
@@ -446,7 +446,7 @@ const ApprovalCard: React.FC<{
     <div className="sos-card p-5 md:p-6 space-y-4" style={{ borderColor: "#F5D9A8" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "#C26A00" }}>
+          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "#9A4A00" }}>
             Awaiting your approval
           </p>
           <h2 className="sos-display text-[22px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
@@ -499,7 +499,7 @@ const ApprovalCard: React.FC<{
       ) : (
         <div className="space-y-3">
           {nextRound > included && (
-            <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FFF3E0", color: "#C26A00" }}>
+            <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FFF3E0", color: "#9A4A00" }}>
               This would be round {nextRound}; {included} rounds are included. The studio will confirm any effect on time or scope.
             </p>
           )}
@@ -554,7 +554,7 @@ const ApprovalCard: React.FC<{
         </div>
       )}
       {error && (
-        <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#E5484D" }}>
+        <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#B42318" }}>
           {error}
         </p>
       )}
@@ -596,7 +596,7 @@ const ProjectView: React.FC<{
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-1.5">
-          {done ? <Pill bg="#E7F7EE" text="#22875A">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+          {done ? <Pill bg="#E7F7EE" text="#17663F">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
           {!done && milestoneDate(project) && (
             <p className="text-[13px] sos-tabular" style={{ color: "var(--sos-text-2)" }}>
               Expected delivery <strong>{fmtDate(milestoneDate(project))}</strong>
@@ -606,7 +606,7 @@ const ProjectView: React.FC<{
       </div>
 
       {flash && (
-        <div className="p-4 rounded-[18px] text-[14px] font-medium" style={{ background: "#E7F7EE", color: "#22875A" }}>
+        <div className="p-4 rounded-[18px] text-[14px] font-medium" style={{ background: "#E7F7EE", color: "#17663F" }}>
           {flash}
         </div>
       )}
@@ -681,12 +681,12 @@ const ProjectView: React.FC<{
                 {invoices.map((i) => {
                   const chip =
                     i.status === "paid"
-                      ? { bg: "#E7F7EE", text: "#22875A", label: "Paid" }
+                      ? { bg: "#E7F7EE", text: "#17663F", label: "Paid" }
                       : i.status === "overdue"
-                      ? { bg: "#FFF3E0", text: "#C26A00", label: "Due" }
+                      ? { bg: "#FFF3E0", text: "#9A4A00", label: "Due" }
                       : i.status === "partly_paid"
-                      ? { bg: "#E8F0FF", text: "#2F6BFF", label: "Part paid" }
-                      : { bg: "#E8F0FF", text: "#2F6BFF", label: "Sent" };
+                      ? { bg: "#E8F0FF", text: "#1D4FD8", label: "Part paid" }
+                      : { bg: "#E8F0FF", text: "#1D4FD8", label: "Sent" };
                   return (
                     <div key={i.id} className="flex items-center gap-3 px-3.5 py-3 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>
                       <div className="flex-1 min-w-0">

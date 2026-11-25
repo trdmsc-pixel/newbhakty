@@ -14,15 +14,16 @@ import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { CheckSquare, Flag, Plus, Search, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { StudioTask, TaskStatus } from "../types";
-import { HealthPill, StackedAvatars, TaskStatusChip } from "../components/StatusChip";
+import { HealthPill, TaskStatusChip } from "../components/StatusChip";
+import { AssigneePicker } from "../components/Team";
 
 const BOARD_COLUMNS: Array<{ id: TaskStatus; label: string; badgeBg: string; badgeText: string }> = [
   { id: "backlog", label: "Backlog", badgeBg: "#F1F2F4", badgeText: "#5F6672" },
-  { id: "todo", label: "To Do", badgeBg: "#E8F0FF", badgeText: "#2F6BFF" },
-  { id: "in_progress", label: "In Progress", badgeBg: "#E7F7EE", badgeText: "#22875A" },
-  { id: "waiting_on_client", label: "Waiting on Client", badgeBg: "#FFF3E0", badgeText: "#C26A00" },
+  { id: "todo", label: "To Do", badgeBg: "#E8F0FF", badgeText: "#1D4FD8" },
+  { id: "in_progress", label: "In Progress", badgeBg: "#E7F7EE", badgeText: "#17663F" },
+  { id: "waiting_on_client", label: "Waiting on Client", badgeBg: "#FFF3E0", badgeText: "#9A4A00" },
   { id: "in_review", label: "In Review", badgeBg: "#EEEBFD", badgeText: "#5B3FE4" },
-  { id: "done", label: "Done", badgeBg: "#E7F7EE", badgeText: "#22875A" },
+  { id: "done", label: "Done", badgeBg: "#E7F7EE", badgeText: "#17663F" },
 ];
 
 const DraggableTaskCard: React.FC<{
@@ -31,6 +32,7 @@ const DraggableTaskCard: React.FC<{
   projectEmoji: string;
   onOpenProject: () => void;
 }> = ({ task, projectCode, projectEmoji, onOpenProject }) => {
+  const { updateTask } = useStudioOS();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
   });
@@ -43,12 +45,12 @@ const DraggableTaskCard: React.FC<{
   };
 
   const today = new Date();
-  let dueColor = "#22875A";
+  let dueColor = "#17663F";
   let dueText = "";
   if (task.due_date) {
     const diff = differenceInCalendarDays(parseISO(task.due_date), today);
     dueText = format(parseISO(task.due_date), "d MMM");
-    if (diff <= 1) dueColor = "#E5484D";
+    if (diff <= 1) dueColor = "#B42318";
     else if (diff <= 3) dueColor = "#F59E0B";
   }
 
@@ -88,11 +90,11 @@ const DraggableTaskCard: React.FC<{
       )}
 
       {task.waiting_on_name && task.status === "waiting_on_client" && (
-        <p className="text-[12px] font-medium text-[#C26A00]">Waiting on {task.waiting_on_name}</p>
+        <p className="text-[12px] font-medium text-[#9A4A00]">Waiting on {task.waiting_on_name}</p>
       )}
 
       <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--sos-border)" }}>
-        <StackedAvatars items={[{ initials: "SS", color: "#5B3FE4", name: "Shyam Sharma" }]} size={26} />
+        <AssigneePicker value={task.assignee_member_id} onChange={(id) => updateTask(task.id, { assignee_member_id: id })} size={26} />
         <div className="flex items-center gap-3 text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
           {task.checklist.length > 0 && (
             <span className="inline-flex items-center gap-1">

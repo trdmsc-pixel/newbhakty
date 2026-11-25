@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Check, Clock, Plus, Search, Trash2, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
-import { PriorityBadge, StackedAvatars, TaskStatusChip } from "../components/StatusChip";
+import { PriorityBadge, TaskStatusChip } from "../components/StatusChip";
+import { AssigneePicker } from "../components/Team";
 import { TaskStatus } from "../types";
 
 const STATUS_CYCLE: TaskStatus[] = ["backlog", "todo", "in_progress", "waiting_on_client", "in_review", "done"];
@@ -201,7 +202,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                       <TaskStatusChip status={task.status} onClick={() => cycleStatus(task.id, task.status)} />
                     </td>
                     <td className="py-3.5 px-3">
-                      <StackedAvatars items={[{ initials: "SS", color: "#5B3FE4", name: "Shyam Sharma" }]} size={28} />
+                      <AssigneePicker value={task.assignee_member_id} onChange={(id) => updateTask(task.id, { assignee_member_id: id })} size={28} />
                     </td>
                     <td className="py-3.5 px-3 text-[13px] sos-tabular whitespace-nowrap" style={{ color: "var(--sos-text-2)" }}>
                       {task.due_date ? format(parseISO(task.due_date), "d MMM") : "—"}

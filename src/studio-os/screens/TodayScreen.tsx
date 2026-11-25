@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { TeamLoadCard } from "../components/Team";
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO } from "date-fns";
 import {
   ArrowRight,
@@ -360,7 +361,7 @@ export const TodayScreen: React.FC = () => {
             </div>
 
             <div className="sos-tile p-3 space-y-1">
-              <p className="font-semibold text-[#C26A00]">
+              <p className="font-semibold text-[#9A4A00]">
                 Promises 48h &amp; Replies ({morningBrief.promises48h.length + morningBrief.repliesOwed.length})
               </p>
               {morningBrief.promises48h.slice(0, 2).map((p, i) => (
@@ -477,10 +478,10 @@ export const TodayScreen: React.FC = () => {
                         type="button"
                         onClick={() => toggleTaskDone(task.id)}
                         aria-label={`Complete ${task.title}`}
-                        className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:border-[#3FA37A] hover:bg-[#E7F7EE]"
+                        className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:border-[#1F7A52] hover:bg-[#E7F7EE]"
                         style={{ borderColor: "var(--sos-text-3)" }}
                       >
-                        <Check className="w-3.5 h-3.5 opacity-0 hover:opacity-100 text-[#22875A]" strokeWidth={2.5} />
+                        <Check className="w-3.5 h-3.5 opacity-0 hover:opacity-100 text-[#17663F]" strokeWidth={2.5} />
                       </button>
 
                       <div className="min-w-0 flex-1">
@@ -560,7 +561,7 @@ export const TodayScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => moveTaskToNextWeek(loadStats.candidate!.id)}
-                  className="sos-pill-btn inline-flex items-center gap-1 px-3 h-7 text-[11px] font-bold bg-[#C26A00] text-white shrink-0 self-start sm:self-auto"
+                  className="sos-pill-btn inline-flex items-center gap-1 px-3 h-7 text-[11px] font-bold bg-[#9A4A00] text-white shrink-0 self-start sm:self-auto"
                 >
                   Move to next week <ArrowRight className="w-3 h-3" />
                 </button>
@@ -580,7 +581,7 @@ export const TodayScreen: React.FC = () => {
                 className="px-3 py-1 rounded-full text-[12px] font-medium"
                 style={{
                   background: timerRunning ? "#E7F7EE" : "var(--sos-surface-2)",
-                  color: timerRunning ? "#22875A" : "var(--sos-text-2)",
+                  color: timerRunning ? "#17663F" : "var(--sos-text-2)",
                 }}
               >
                 {timerRunning ? "● Active" : "Ready"}
@@ -672,10 +673,10 @@ export const TodayScreen: React.FC = () => {
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{
                             backgroundColor: isLate
-                              ? "#E5484D"
+                              ? "#B42318"
                               : project.health === "at_risk"
                               ? "#F59E0B"
-                              : "#22875A",
+                              : "#17663F",
                           }}
                         />
                         <span className="text-[13px] font-bold truncate">
@@ -687,7 +688,7 @@ export const TodayScreen: React.FC = () => {
                     <div className="text-right shrink-0">
                       <span
                         className="sos-num text-[22px] font-bold leading-none"
-                        style={{ color: isLate ? "#E5484D" : "#0F1115" }}
+                        style={{ color: isLate ? "#B42318" : "#0F1115" }}
                       >
                         {daysLeft >= 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d`}
                       </span>
@@ -827,7 +828,7 @@ export const TodayScreen: React.FC = () => {
             <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
               Promised by you
             </h2>
-            <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-[#FFF3E0] text-[#C26A00]">
+            <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-[#FFF3E0] text-[#9A4A00]">
               {promises.length}
             </span>
           </div>
@@ -848,13 +849,13 @@ export const TodayScreen: React.FC = () => {
                     <div className="flex items-center justify-between gap-2 text-[12px] mb-1">
                       <span className="font-semibold inline-flex items-center gap-1" style={{ color: "var(--sos-text-2)" }}>
                         {p.channel === "whatsapp" ? (
-                          <MessageCircle className="w-3.5 h-3.5 text-[#22875A]" />
+                          <MessageCircle className="w-3.5 h-3.5 text-[#17663F]" />
                         ) : (
-                          <Mail className="w-3.5 h-3.5 text-[#2F6BFF]" />
+                          <Mail className="w-3.5 h-3.5 text-[#1D4FD8]" />
                         )}
                         {p.promised_to_name || "Client"}
                       </span>
-                      <span className="sos-tabular font-semibold text-[#C26A00]">
+                      <span className="sos-tabular font-semibold text-[#9A4A00]">
                         {p.due_date ? format(parseISO(p.due_date), "d MMM") : "Soon"}
                       </span>
                     </div>
@@ -930,7 +931,7 @@ export const TodayScreen: React.FC = () => {
             <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
               Waiting on clients
             </h2>
-            <Hourglass className="w-4 h-4 text-[#C26A00]" strokeWidth={1.75} />
+            <Hourglass className="w-4 h-4 text-[#9A4A00]" strokeWidth={1.75} />
           </div>
           <div className="flex flex-wrap gap-2">
             {waitingGates.length === 0 ? (
@@ -943,7 +944,7 @@ export const TodayScreen: React.FC = () => {
                   key={w.id}
                   type="button"
                   onClick={() => openProject(w.projectId)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-medium bg-[#FFF3E0] text-[#C26A00] hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-medium bg-[#FFF3E0] text-[#9A4A00] hover:opacity-90 transition-opacity"
                 >
                   <Clock className="w-3.5 h-3.5" />
                   <span>{w.label}</span>
@@ -980,6 +981,7 @@ export const TodayScreen: React.FC = () => {
           </div>
         </section>
       </div>
+      <TeamLoadCard compact />
     </div>
   );
 };

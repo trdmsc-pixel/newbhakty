@@ -54,7 +54,7 @@ export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId })
           <div key={t.id} className="flex items-start gap-3 px-3 py-3 rounded-[16px] hover:bg-[var(--sos-surface-2)] transition-colors">
             <span
               className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-              style={{ background: "var(--sos-surface-2)", color: owed ? "#C26A00" : "var(--sos-text-3)" }}
+              style={{ background: "var(--sos-surface-2)", color: owed ? "#9A4A00" : "var(--sos-text-3)" }}
             >
               {owed ? <Mail className="w-4 h-4" strokeWidth={1.75} /> : <MailCheck className="w-4 h-4" strokeWidth={1.75} />}
             </span>
@@ -64,7 +64,7 @@ export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId })
                   {t.subject || "(no subject)"}
                 </p>
                 {owed && (
-                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "#FFF3E0", color: "#C26A00" }}>
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "#FFF3E0", color: "#9A4A00" }}>
                     Reply owed
                   </span>
                 )}

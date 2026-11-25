@@ -28,6 +28,19 @@ import {
 } from "./types";
 import { isUuid, newUuid } from "./uuid";
 
+export const DEFAULT_INVOICE_URL = "https://invoice-gen-blond.vercel.app/";
+// Every studio_projects column except fee_amount (column-locked for non-owners).
+const PROJECT_COLUMNS =
+  "id,code,title,client_id,type,status,currency,runtime_seconds,versions,aspect_ratios,hard_deadline,promised_date,forecast_date,health,current_gate_id,cover_image_url,emoji,drive_folder_url,review_link_url,is_confidential,portal_visible,is_public_showcase,priority,owner_member_id,pinned,last_client_touch_at,last_studio_touch_at,created_at,updated_at";
+
+export interface StudioViewer {
+  memberId: string | null;
+  name: string;
+  role: "owner" | "producer" | "artist" | "editor" | "music";
+  isOwner: boolean;
+  email: string;
+}
+
 export interface StudioOSCloudSnapshot {
   settings: StudioSettings;
   members: StudioMember[];
@@ -40,9 +53,10 @@ export interface StudioOSCloudSnapshot {
   holidays: StudioHoliday[];
   generationBlocks: StudioGenerationBlock[];
   timeEntries: StudioTimeEntry[];
+  viewer?: StudioViewer;
 }
 
-const MEMBER_COLORS = ["#5B3FE4", "#2F6BFF", "#22875A", "#D97706", "#E5484D"];
+const MEMBER_COLORS = ["#5B3FE4", "#1D4FD8", "#17663F", "#D97706", "#B42318"];
 
 function deriveInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -77,6 +91,7 @@ function toSettingsRow(s: StudioSettings) {
     usd_to_inr: s.usd_to_inr,
     eur_to_inr: s.eur_to_inr,
     expenses_enabled: s.expenses_enabled,
+    invoice_generator_url: s.invoice_generator_url || DEFAULT_INVOICE_URL,
   };
 }
 
@@ -98,6 +113,7 @@ function fromSettingsRow(row: any): StudioSettings {
     usd_to_inr: Number(row.usd_to_inr ?? INITIAL_SETTINGS.usd_to_inr),
     eur_to_inr: Number(row.eur_to_inr ?? INITIAL_SETTINGS.eur_to_inr),
     expenses_enabled: Boolean(row.expenses_enabled),
+    invoice_generator_url: row.invoice_generator_url || DEFAULT_INVOICE_URL,
   };
 }
 
@@ -111,6 +127,7 @@ function toMemberRow(m: StudioMember, authUserId?: string | null) {
     avatar_url: m.avatar_url || null,
     hourly_capacity: m.hourly_capacity,
     is_active: m.is_active,
+    color: m.color || null,
   };
 }
 
@@ -122,9 +139,11 @@ function fromMemberRow(row: any, idx: number): StudioMember {
     role: row.role || "owner",
     avatar_url: row.avatar_url || undefined,
     initials: deriveInitials(row.name || "SS"),
-    color: MEMBER_COLORS[idx % MEMBER_COLORS.length],
+    color: row.color || MEMBER_COLORS[idx % MEMBER_COLORS.length],
     hourly_capacity: Number(row.hourly_capacity ?? 7),
     is_active: row.is_active !== false,
+    linked: Boolean(row.user_id),
+    invited_at: row.invited_at || undefined,
   };
 }
 
@@ -446,6 +465,8 @@ function toPaymentRow(p: StudioPayment) {
     received_at: p.received_at ?? null,
     status: p.status || "draft",
     notes: p.notes ?? null,
+    received_amount: p.received_amount ?? null,
+    file_url: p.file_url ?? null,
   };
 }
 
@@ -462,6 +483,8 @@ function fromPaymentRow(row: any): StudioPayment {
     received_at: row.received_at || undefined,
     status: row.status || "draft",
     notes: row.notes || undefined,
+    received_amount: row.received_amount !== null && row.received_amount !== undefined ? Number(row.received_amount) : undefined,
+    file_url: row.file_url || undefined,
   };
 }
 
@@ -580,7 +603,17 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       return { status: "local" };
     }
 
-    if (!projProbe || projProbe.length === 0) {
+    const { data: who } = await supabase.rpc("studio_os_whoami");
+    const viewer: StudioViewer = {
+      memberId: (who as any)?.member_id || null,
+      name: (who as any)?.name || session.user.email || "",
+      role: ((who as any)?.role as StudioViewer["role"]) || "owner",
+      isOwner: Boolean((who as any)?.is_owner),
+      email: session.user.email || "",
+    };
+
+    // Demo seeding only ever runs for the owner on a truly empty workspace.
+    if (viewer.isOwner && (!projProbe || projProbe.length === 0)) {
       await seedAllTables(session.user.id);
     }
 
@@ -602,7 +635,7 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       supabase.from("studio_members").select("*").is("archived_at", null).order("created_at", { ascending: true }),
       supabase.from("studio_clients").select("*").is("archived_at", null).order("name", { ascending: true }),
       supabase.from("studio_client_contacts").select("*").is("archived_at", null),
-      supabase.from("studio_projects").select("*").is("archived_at", null).order("updated_at", { ascending: false }),
+      supabase.from("studio_projects").select(PROJECT_COLUMNS).is("archived_at", null).order("updated_at", { ascending: false }),
       supabase.from("studio_gates").select("*").is("archived_at", null).order("order_index", { ascending: true }),
       supabase.from("studio_tasks").select("*").is("archived_at", null).order("created_at", { ascending: false }),
       supabase.from("studio_payments").select("*").is("archived_at", null).order("due_at", { ascending: true }),
@@ -643,7 +676,7 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       settings = fromSettingsRow(settingsRow);
     } else {
       settings = INITIAL_SETTINGS;
-      await supabase.from("studio_settings").upsert(toSettingsRow(INITIAL_SETTINGS), { onConflict: "id" });
+      if (viewer.isOwner) await supabase.from("studio_settings").upsert(toSettingsRow(INITIAL_SETTINGS), { onConflict: "id" });
     }
 
     const members =
@@ -659,7 +692,13 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       )
     );
 
-    const projects = (projectsRes.data || []).map(fromProjectRow);
+    // fee_amount is column-locked in the DB; owners read it through an owner-checked RPC.
+    const feeMap = new Map<string, number>();
+    if (viewer.isOwner) {
+      const { data: fees } = await supabase.rpc("studio_project_fees");
+      for (const f of (fees as any[]) || []) if (f.fee_amount !== null) feeMap.set(f.project_id, Number(f.fee_amount));
+    }
+    const projects = (projectsRes.data || []).map((row: any) => fromProjectRow({ ...row, fee_amount: feeMap.get(row.id) ?? null }));
     const gates = (gatesRes.data || []).map(fromGateRow);
     const tasks = (tasksRes.data || []).map(fromTaskRow);
     const payments = (paymentsRes.data || []).map(fromPaymentRow);
@@ -677,7 +716,8 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       data: {
         settings,
         members,
-        clients: clients.length > 0 ? clients : INITIAL_CLIENTS,
+        clients: clients.length > 0 || !viewer.isOwner ? clients : INITIAL_CLIENTS,
+        viewer,
         projects,
         gates,
         tasks,

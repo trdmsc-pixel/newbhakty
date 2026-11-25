@@ -7,17 +7,17 @@ const TASK_STATUS_META: Record<
   { label: string; bg: string; text: string; dot?: string; icon?: "hourglass" | "check" }
 > = {
   backlog: { label: "Backlog", bg: "#F1F2F4", text: "#5F6672", dot: "#9AA0AA" },
-  todo: { label: "To do", bg: "#E8F0FF", text: "#2F6BFF", dot: "#2F6BFF" },
-  in_progress: { label: "In progress", bg: "#E7F7EE", text: "#22875A", dot: "#22875A" },
+  todo: { label: "To do", bg: "#E8F0FF", text: "#1D4FD8", dot: "#1D4FD8" },
+  in_progress: { label: "In progress", bg: "#E7F7EE", text: "#17663F", dot: "#17663F" },
   waiting_on_client: {
     label: "Waiting on client",
     bg: "#FFF3E0",
-    text: "#C26A00",
+    text: "#9A4A00",
     icon: "hourglass",
   },
   in_review: { label: "In review", bg: "#EEEBFD", text: "#5B3FE4", dot: "#5B3FE4" },
   revising: { label: "Revising", bg: "#FFF1E6", text: "#C2410C", dot: "#C2410C" },
-  done: { label: "Done", bg: "#E7F7EE", text: "#22875A", icon: "check" },
+  done: { label: "Done", bg: "#E7F7EE", text: "#17663F", icon: "check" },
 };
 
 export const TaskStatusChip: React.FC<{
@@ -53,11 +53,11 @@ const GATE_STATUS_META: Record<
   { label: string; bg: string; text: string; icon?: "hourglass" | "check" | "pause" }
 > = {
   not_started: { label: "Not Started", bg: "#F1F2F4", text: "#5F6672" },
-  in_work: { label: "In Work", bg: "#E8F0FF", text: "#2F6BFF" },
-  waiting_on_client: { label: "Waiting on Client", bg: "#FFF3E0", text: "#C26A00", icon: "hourglass" },
-  approved: { label: "Approved", bg: "#E7F7EE", text: "#22875A", icon: "check" },
+  in_work: { label: "In Work", bg: "#E8F0FF", text: "#1D4FD8" },
+  waiting_on_client: { label: "Waiting on Client", bg: "#FFF3E0", text: "#9A4A00", icon: "hourglass" },
+  approved: { label: "Approved", bg: "#E7F7EE", text: "#17663F", icon: "check" },
   revising: { label: "Revising", bg: "#FFF1E6", text: "#C2410C" },
-  skipped: { label: "Skipped", bg: "#E9F2FF", text: "#3B6FD9", icon: "pause" },
+  skipped: { label: "Skipped", bg: "#E9F2FF", text: "#1D4FD8", icon: "pause" },
 };
 
 export const GateStatusChip: React.FC<{ status: GateStatus }> = ({ status }) => {
@@ -82,10 +82,10 @@ export const GateStatusChip: React.FC<{ status: GateStatus }> = ({ status }) => 
 };
 
 const HEALTH_META: Record<ProjectHealth, { label: string; bg: string; text: string; dot: string }> = {
-  on_track: { label: "On Track", bg: "#E7F7EE", text: "#22875A", dot: "#22875A" },
-  tight: { label: "Tight", bg: "#E8F0FF", text: "#2F6BFF", dot: "#2F6BFF" },
-  at_risk: { label: "At Risk", bg: "#FFF3E0", text: "#C26A00", dot: "#F59E0B" },
-  late: { label: "Late", bg: "#FDECEC", text: "#E5484D", dot: "#E5484D" },
+  on_track: { label: "On Track", bg: "#E7F7EE", text: "#17663F", dot: "#17663F" },
+  tight: { label: "Tight", bg: "#E8F0FF", text: "#1D4FD8", dot: "#1D4FD8" },
+  at_risk: { label: "At Risk", bg: "#FFF3E0", text: "#9A4A00", dot: "#F59E0B" },
+  late: { label: "Late", bg: "#FDECEC", text: "#B42318", dot: "#B42318" },
 };
 
 export const HealthPill: React.FC<{ health: ProjectHealth }> = ({ health }) => {
@@ -104,11 +104,11 @@ export const HealthPill: React.FC<{ health: ProjectHealth }> = ({ health }) => {
 export const PriorityBadge: React.FC<{ priority: TaskPriority }> = ({ priority }) => {
   const color =
     priority === "urgent"
-      ? "#EA580C"
+      ? "#C2410C"
       : priority === "high"
       ? "#F59E0B"
       : priority === "normal"
-      ? "#2F6BFF"
+      ? "#1D4FD8"
       : "#9AA0AA";
   const label = priority.charAt(0).toUpperCase() + priority.slice(1);
   return (

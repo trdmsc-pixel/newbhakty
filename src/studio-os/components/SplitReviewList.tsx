@@ -1,6 +1,6 @@
 import React from "react";
 import { useStudioOS } from "../StudioOSContext";
-import { ConfidenceMeter } from "../screens/InboxScreen";
+import { ConfidenceMeter } from "./ConfidenceMeter";
 
 export type SplitKind = "task" | "promise" | "deadline" | "approval" | "payment";
 
@@ -16,10 +16,10 @@ export interface ReviewItem {
 }
 
 const KIND_META: Record<SplitKind, { label: string; bg: string; text: string }> = {
-  task: { label: "Task", bg: "#E8F0FF", text: "#2F6BFF" },
-  promise: { label: "Promise", bg: "#FFF3E0", text: "#C26A00" },
+  task: { label: "Task", bg: "#E8F0FF", text: "#1D4FD8" },
+  promise: { label: "Promise", bg: "#FFF3E0", text: "#9A4A00" },
   deadline: { label: "Deadline", bg: "#FFF1E6", text: "#C2410C" },
-  approval: { label: "Approval", bg: "#E7F7EE", text: "#22875A" },
+  approval: { label: "Approval", bg: "#E7F7EE", text: "#17663F" },
   payment: { label: "Payment", bg: "#F1F2F4", text: "#5F6672" },
 };
 

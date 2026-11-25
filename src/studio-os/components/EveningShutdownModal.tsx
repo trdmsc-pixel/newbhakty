@@ -148,7 +148,7 @@ export const EveningShutdownModal: React.FC = () => {
               ) : (
                 completedToday.map((t) => (
                   <div key={t.id} className="sos-tile p-3 flex items-center gap-2.5 text-[13px]">
-                    <span className="w-5 h-5 rounded-full bg-[#3FA37A] text-white flex items-center justify-center shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-[#1F7A52] text-white flex items-center justify-center shrink-0">
                       <Check className="w-3 h-3" />
                     </span>
                     <span className="font-semibold" style={{ color: "var(--sos-text-1)" }}>

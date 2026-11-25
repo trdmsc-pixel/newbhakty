@@ -257,7 +257,7 @@ export const NewProjectModal: React.FC = () => {
                 className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1 rounded-full"
                 style={{ background: "var(--sos-surface)", color: "var(--sos-text-1)" }}
               >
-                {copiedQuote ? <Check className="w-3 h-3 text-[#22875A]" /> : <Copy className="w-3 h-3" />}
+                {copiedQuote ? <Check className="w-3 h-3 text-[#17663F]" /> : <Copy className="w-3 h-3" />}
                 {copiedQuote ? "Copied" : "Copy quote line"}
               </button>
             </div>

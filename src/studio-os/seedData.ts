@@ -195,7 +195,7 @@ const RAW_CLIENTS: StudioClient[] = [
     currency: "USD",
     avg_approval_latency_days: 1.5,
     is_confidential: false,
-    color: "#2F6BFF",
+    color: "#1D4FD8",
     contacts: [
       {
         id: "con-damodar",
@@ -286,7 +286,7 @@ const RAW_CLIENTS: StudioClient[] = [
     currency: "INR",
     avg_approval_latency_days: 2,
     is_confidential: false,
-    color: "#E5484D",
+    color: "#B42318",
     contacts: [
       {
         id: "con-uplifting",
@@ -306,7 +306,7 @@ const RAW_CLIENTS: StudioClient[] = [
     currency: "USD",
     avg_approval_latency_days: 3,
     is_confidential: false,
-    color: "#3FA37A",
+    color: "#1F7A52",
     contacts: [
       {
         id: "con-devaki",

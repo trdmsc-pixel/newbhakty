@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { TeamLoadCard } from "../components/Team";
 import { format, subDays, parseISO } from "date-fns";
 import {
   CartesianGrid,
@@ -279,6 +280,7 @@ export const OverviewScreen: React.FC = () => {
             })}
         </div>
       </section>
+      <TeamLoadCard />
     </div>
   );
 };

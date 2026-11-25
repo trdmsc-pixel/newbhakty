@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Calendar, Check, Diamond, Film, Lock, Minus, Plus, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -6,6 +6,9 @@ import { GateStatusChip, HealthPill, StackedAvatars } from "../components/Status
 import { BoardScreen } from "./BoardScreen";
 import { TableScreen } from "./TableScreen";
 import { ProjectEmailsTab } from "../components/ProjectEmailsTab";
+import { AssignMembersModal, MemberStack } from "../components/Team";
+import { ProjectMoneyTab } from "../components/Money";
+import { supabase } from "../../lib/supabase";
 import { ProjectDeliverablesTab, SendForApprovalModal } from "../components/ProjectDeliverables";
 import { computeGenerationEstimate } from "../forecastEngine";
 import { GateStatus, GenerationBlockStatus } from "../types";
@@ -28,9 +31,21 @@ export const ProjectDetailScreen: React.FC = () => {
     getProjectForecast,
     setQuickAddOpen,
     pushToast,
+    isOwner,
+    supabaseSyncStatus,
   } = useStudioOS();
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [projectTeamIds, setProjectTeamIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!selectedProjectId || supabaseSyncStatus !== "synced" || !supabase) return;
+    supabase
+      .from("studio_project_members")
+      .select("member_id")
+      .eq("project_id", selectedProjectId)
+      .then(({ data }) => setProjectTeamIds((data || []).map((r: any) => r.member_id)));
+  }, [selectedProjectId, supabaseSyncStatus, assignOpen]);
 
-  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables">("approvals");
+  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables" | "money">("approvals");
   const [sendGateId, setSendGateId] = useState<string | null>(null);
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const client = clients.find((c) => c.id === project?.client_id);
@@ -79,6 +94,7 @@ export const ProjectDetailScreen: React.FC = () => {
   return (
     <div className="space-y-6">
       {sendGate && project && <SendForApprovalModal project={project} gate={sendGate} onClose={() => setSendGateId(null)} />}
+      {assignOpen && project && <AssignMembersModal project={project} onClose={() => setAssignOpen(false)} />}
       {/* Project Header */}
       <div className="sos-card p-5 md:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -110,7 +126,7 @@ export const ProjectDetailScreen: React.FC = () => {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
               <span>Client: <strong>{client?.name}</strong></span>
               <span>Code: <strong className="sos-tabular">{project.code}</strong></span>
-              <span>Fee (owner only): <strong className="sos-tabular">{feeDisplay}</strong></span>
+              {isOwner && <span>Fee (owner only): <strong className="sos-tabular">{feeDisplay}</strong></span>}
               <span>
                 Last updated:{" "}
                 <strong className="sos-tabular">{format(parseISO(project.updated_at), "d MMM yyyy")}</strong>
@@ -123,11 +139,14 @@ export const ProjectDetailScreen: React.FC = () => {
               <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
                 Assigned
               </span>
-              <StackedAvatars items={[{ initials: "SS", color: "#5B3FE4", name: "Shyam Sharma" }]} size={34} />
+              <MemberStack
+                memberIds={[project.owner_member_id, ...projectTeamIds, ...tasks.filter((t) => t.project_id === project.id && t.status !== "done").map((t) => t.assignee_member_id)]}
+                size={34}
+              />
             </div>
             <button
               type="button"
-              onClick={() => pushToast("Team member assignment unlocks in Phase 5", "info")}
+              onClick={() => (isOwner ? setAssignOpen(true) : pushToast("Only the studio owner can change the project team", "info"))}
               className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white"
               style={{ background: "var(--sos-primary)" }}
             >
@@ -147,6 +166,7 @@ export const ProjectDetailScreen: React.FC = () => {
               { id: "board", label: "Board" },
               { id: "deliverables", label: "Deliverables" },
               { id: "emails", label: "Emails" },
+              ...(isOwner ? ([{ id: "money", label: "Money" }] as const) : []),
             ] as const
           ).map((t) => (
             <button
@@ -179,7 +199,7 @@ export const ProjectDetailScreen: React.FC = () => {
                     ◆ marks client approval gates. Adjusting any gate&apos;s estimate days recomputes the live forecast instantly.
                   </p>
                 </div>
-                <span className="sos-num text-[14px] font-semibold px-3 py-1 rounded-full bg-[#E7F7EE] text-[#22875A]">
+                <span className="sos-num text-[14px] font-semibold px-3 py-1 rounded-full bg-[#E7F7EE] text-[#17663F]">
                   {progressPct}% complete
                 </span>
               </div>
@@ -224,7 +244,7 @@ export const ProjectDetailScreen: React.FC = () => {
                           {g.needs_client_approval && (
                             <span
                               title="Requires client approval"
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#C26A00]"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#9A4A00]"
                             >
                               <Diamond className="w-2.5 h-2.5 fill-current" /> Approval
                             </span>
@@ -469,11 +489,11 @@ export const ProjectDetailScreen: React.FC = () => {
                             const active = b.status === st;
                             const activeBg =
                               st === "keeper"
-                                ? "#3FA37A"
+                                ? "#1F7A52"
                                 : st === "generating"
-                                ? "#2F6BFF"
+                                ? "#1D4FD8"
                                 : st === "rejected"
-                                ? "#E5484D"
+                                ? "#B42318"
                                 : "var(--sos-ink)";
                             return (
                               <button
@@ -503,6 +523,7 @@ export const ProjectDetailScreen: React.FC = () => {
           {tab === "board" && <BoardScreen projectFilterId={project.id} />}
           {tab === "emails" && <ProjectEmailsTab projectId={project.id} />}
           {tab === "deliverables" && <ProjectDeliverablesTab project={project} gates={projectGates} />}
+          {tab === "money" && isOwner && <ProjectMoneyTab project={project} />}
         </div>
 
         {/* Right Rail: Forecast + Next Milestone + Recent Activity */}
@@ -545,7 +566,7 @@ export const ProjectDetailScreen: React.FC = () => {
                 <div key={a.id} className="flex items-start gap-2.5 text-[13px]">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0"
-                    style={{ background: a.actor === "client" ? "#2F6BFF" : "#5B3FE4" }}
+                    style={{ background: a.actor === "client" ? "#1D4FD8" : "#5B3FE4" }}
                   >
                     {a.actor_name.slice(0, 2).toUpperCase()}
                   </div>

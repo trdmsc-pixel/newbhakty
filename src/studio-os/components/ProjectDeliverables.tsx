@@ -163,7 +163,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
                   type="button"
                   onClick={() => toggleShare(d)}
                   className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold"
-                  style={d.shared_with_client ? { background: "#E7F7EE", color: "#22875A" } : { background: "var(--sos-surface)", color: "var(--sos-text-3)" }}
+                  style={d.shared_with_client ? { background: "#E7F7EE", color: "#17663F" } : { background: "var(--sos-surface)", color: "var(--sos-text-3)" }}
                   title="Toggle client visibility"
                 >
                   {d.shared_with_client ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}

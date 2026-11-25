@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
@@ -26,17 +26,19 @@ import {
 import { StudioOSProvider, useStudioOS } from "./StudioOSContext";
 import { TodayScreen } from "./screens/TodayScreen";
 import { BoardScreen } from "./screens/BoardScreen";
-import { TimelineScreen } from "./screens/TimelineScreen";
+const TimelineScreen = lazy(() => import("./screens/TimelineScreen").then((m) => ({ default: m.TimelineScreen })));
 import { TableScreen } from "./screens/TableScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
-import { OverviewScreen } from "./screens/OverviewScreen";
-import { WeeklyReviewScreen } from "./screens/WeeklyReviewScreen";
-import { ClientsScreen, PhasePlaceholderScreen, SettingsScreen } from "./screens/SecondaryScreens";
+const OverviewScreen = lazy(() => import("./screens/OverviewScreen").then((m) => ({ default: m.OverviewScreen })));
+const WeeklyReviewScreen = lazy(() => import("./screens/WeeklyReviewScreen").then((m) => ({ default: m.WeeklyReviewScreen })));
+const ClientsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) => ({ default: m.ClientsScreen })));
+const SettingsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) => ({ default: m.SettingsScreen })));
 import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
 import { RealtimeBridge } from "./components/RealtimeBridge";
-import { InboxScreen } from "./screens/InboxScreen";
+const InboxScreen = lazy(() => import("./screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
+const MoneyScreen = lazy(() => import("./screens/MoneyScreen").then((m) => ({ default: m.MoneyScreen })));
 import { InboxProvider, useInbox } from "./InboxContext";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { EveningShutdownModal, StudioClosedOverlay } from "./components/EveningShutdownModal";
@@ -76,7 +78,14 @@ const StudioOSShell: React.FC<{
     toasts,
     pushToast,
     openQuickAdd,
+    viewer,
+    isOwner,
+    members,
   } = useStudioOS();
+  const me = members.find((m) => m.id === viewer.memberId);
+  const meName = me?.name || viewer.name || "Shyam Sharma";
+  const meInitials = me?.initials || meName.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const roleLabel = { owner: "Founder", producer: "Producer", artist: "Artist", editor: "Editor", music: "Music" }[viewer.role] || "Team";
   const { pendingCount } = useInbox();
 
   // Android share target (/studio-os?share=1&title=&text=&url=) and Gmail OAuth return (?gmail=status)
@@ -199,6 +208,8 @@ const StudioOSShell: React.FC<{
     { id: "money", label: "Money", icon: <Wallet className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
   ];
 
+  const OWNER_ONLY: StudioRoute[] = ["inbox", "money", "weekly_review", "clients"];
+  const visibleNav = isOwner ? navItems : navItems.filter((n) => !OWNER_ONLY.includes(n.id));
   const pinnedProjects = projects.filter((p) => p.pinned);
 
   return (
@@ -243,7 +254,7 @@ const StudioOSShell: React.FC<{
                   General
                 </p>
               )}
-              {navItems.map((item) => {
+              {visibleNav.map((item) => {
                 const active = route === item.id;
                 return (
                   <button
@@ -422,7 +433,10 @@ const StudioOSShell: React.FC<{
             {/* Right controls */}
             <div className="flex items-center gap-2.5">
               <div className="hidden lg:flex items-center gap-2">
-                <StackedAvatars items={[{ initials: "SS", color: "#5B3FE4", name: "Shyam Sharma" }]} size={30} />
+                <StackedAvatars
+                  items={members.filter((m) => m.is_active).map((m) => ({ initials: m.initials, color: m.color, name: m.name }))}
+                  size={30}
+                />
               </div>
 
               <button
@@ -451,7 +465,7 @@ const StudioOSShell: React.FC<{
               >
                 <Bell className="w-4 h-4" strokeWidth={1.75} />
                 {projects.some((p) => p.health === "late") && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E5484D]" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" />
                 )}
               </button>
 
@@ -459,15 +473,18 @@ const StudioOSShell: React.FC<{
                 className="hidden sm:flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border"
                 style={{ borderColor: "var(--sos-border)" }}
               >
-                <div className="w-7 h-7 rounded-full bg-[#5B3FE4] text-white text-[11px] font-bold flex items-center justify-center">
-                  SS
+                <div
+                  className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center"
+                  style={{ background: me?.color || "#5B3FE4" }}
+                >
+                  {meInitials}
                 </div>
                 <div className="leading-tight">
                   <p className="text-[12px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                    Shyam Sharma
+                    {meName}
                   </p>
                   <p className="text-[10px]" style={{ color: "var(--sos-text-3)" }}>
-                    Founder
+                    {roleLabel}
                   </p>
                 </div>
               </div>
@@ -476,6 +493,13 @@ const StudioOSShell: React.FC<{
 
           {/* Active Screen */}
           <main className="flex-1 overflow-y-auto p-4 md:p-7 pb-24 md:pb-8">
+            <Suspense
+              fallback={
+                <div className="py-24 flex justify-center" aria-busy="true">
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--sos-primary)" }} />
+                </div>
+              }
+            >
             {route === "today" && <TodayScreen />}
             {route === "board" && <BoardScreen />}
             {route === "timeline" && <TimelineScreen />}
@@ -488,15 +512,9 @@ const StudioOSShell: React.FC<{
             {route === "settings" && (
               <SettingsScreen onInstallPWA={handleInstallPWA} canInstallPWA={Boolean(deferredPrompt)} />
             )}
-            {route === "inbox" && <InboxScreen />}
-            {route === "money" && (
-              <PhasePlaceholderScreen
-                title="Money & Invoices"
-                phase="Phase 5"
-                description="Multi-currency invoices (INR/USD/EUR), TDS tracking, and the feature-flagged Expenses ledger will launch in Phase 5."
-                icon="money"
-              />
-            )}
+            {route === "inbox" && (isOwner ? <InboxScreen /> : <TodayScreen />)}
+            {route === "money" && (isOwner ? <MoneyScreen /> : <TodayScreen />)}
+            </Suspense>
           </main>
         </div>
       </div>
@@ -541,13 +559,13 @@ const StudioOSShell: React.FC<{
 
         <button
           type="button"
-          onClick={() => setRoute("inbox")}
+          onClick={() => setRoute(isOwner ? "inbox" : "table")}
           className="relative flex flex-col items-center gap-0.5 text-[11px] font-medium"
-          style={{ color: route === "inbox" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
+          style={{ color: route === "inbox" || (!isOwner && route === "table") ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
-          <Inbox className="w-5 h-5" />
-          Inbox
-          {pendingCount > 0 && (
+          {isOwner ? <Inbox className="w-5 h-5" /> : <Table2 className="w-5 h-5" />}
+          {isOwner ? "Inbox" : "Table"}
+          {isOwner && pendingCount > 0 && (
             <span
               className="absolute -top-1 left-1/2 ml-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center sos-tabular"
               style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
@@ -601,6 +619,13 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
 
   useEffect(() => {
     let active = true;
+    // Owner by email, or any active studio_members row (team access, Phase 5).
+    const resolve = async (email: string | null) => {
+      if (!email || !supabase) return null;
+      if (isOwnerEmail(email)) return email;
+      const { data } = await supabase.rpc("studio_os_whoami");
+      return (data as any)?.ok ? email : null;
+    };
     const init = async () => {
       if (!isSupabaseConfigured || !supabase) {
         if (active) setCheckingAuth(false);
@@ -608,10 +633,9 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
       }
       try {
         const { data } = await supabase.auth.getSession();
-        const email = data.session?.user?.email || null;
-        if (active && email && isOwnerEmail(email)) {
-          setUserEmail(email);
-        }
+        const allowed = await resolve(data.session?.user?.email || null);
+        if (active) setUserEmail(allowed);
+        if (active && data.session && !allowed) setAuthError("This account isn't on the Studio OS team. Ask the studio owner for an invite.");
       } catch {
         // ignore
       } finally {
@@ -621,10 +645,9 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
     init();
 
     const sub = supabase?.auth?.onAuthStateChange((_event, session) => {
-      const email = session?.user?.email || null;
-      if (active) {
-        setUserEmail(email && isOwnerEmail(email) ? email : null);
-      }
+      resolve(session?.user?.email || null).then((allowed) => {
+        if (active) setUserEmail(allowed);
+      });
     });
 
     return () => {
@@ -637,11 +660,6 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
     e.preventDefault();
     setAuthError("");
     const normalized = emailInput.trim().toLowerCase();
-
-    if (!isOwnerEmail(normalized)) {
-      setAuthError("Access denied. Studio OS is private to Shyam Sharma (owner account only).");
-      return;
-    }
 
     if (!isSupabaseConfigured || !supabase) {
       setAuthError("Supabase Auth is not configured in this environment.");
@@ -658,7 +676,17 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
         setAuthError(error?.message || "Invalid email or password.");
       } else {
         localStorage.setItem("tcs_studio_os_email", normalized);
-        setUserEmail(data.user.email || normalized);
+        const email = data.user.email || normalized;
+        let allowed = isOwnerEmail(email);
+        if (!allowed) {
+          const { data: who } = await supabase.rpc("studio_os_whoami");
+          allowed = Boolean((who as any)?.ok);
+        }
+        if (allowed) setUserEmail(email);
+        else {
+          await supabase.auth.signOut().catch(() => {});
+          setAuthError("This account isn't on the Studio OS team. Ask the studio owner for an invite.");
+        }
       }
     } catch (err: any) {
       setAuthError(err?.message || "Sign-in failed.");
@@ -667,7 +695,25 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
     }
   };
 
+  const sendMagicLink = async () => {
+    setAuthError("");
+    const email = emailInput.trim().toLowerCase();
+    if (!email || !supabase) return;
+    setIsLoggingIn(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/studio-os`, shouldCreateUser: false },
+    });
+    setIsLoggingIn(false);
+    setAuthError(error ? "Couldn't send a link — is this email on the team?" : "Check your inbox for a sign-in link.");
+  };
+
   const handleLogout = async () => {
+    try {
+      localStorage.removeItem("tcs_studio_os_phase2_v1");
+    } catch {
+      /* ignore */
+    }
     if (supabase) {
       await supabase.auth.signOut().catch(() => {});
     }
@@ -705,14 +751,14 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
               Studio OS
             </h1>
             <p className="text-[14px] mt-1" style={{ color: "var(--sos-text-2)" }}>
-              Private production workspace for The Chanting Studio. Owner access only.
+              Private production workspace for The Chanting Studio. Team access only.
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>
-                Owner Email
+                Email
               </label>
               <input
                 type="email"
@@ -731,7 +777,6 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
               </label>
               <input
                 type="password"
-                required
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Enter your Supabase owner password"
@@ -741,7 +786,11 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
             </div>
 
             {authError && (
-              <p className="text-[13px] px-3.5 py-2.5 rounded-[12px] bg-[#FDECEC] text-[#E5484D]">
+              <p
+                className={`text-[13px] px-3.5 py-2.5 rounded-[12px] ${
+                  authError.startsWith("Check") ? "bg-[#EEEBFD] text-[#5B3FE4]" : "bg-[#FDECEC] text-[#B42318]"
+                }`}
+              >
                 {authError}
               </p>
             )}
@@ -754,6 +803,15 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
             >
               {isLoggingIn && <Loader2 className="w-4 h-4 animate-spin" />}
               {isLoggingIn ? "Signing in..." : "Enter Studio OS"}
+            </button>
+            <button
+              type="button"
+              onClick={sendMagicLink}
+              disabled={isLoggingIn}
+              className="w-full h-11 text-[13px] font-medium rounded-full"
+              style={{ color: "var(--sos-text-2)" }}
+            >
+              Team member? Email me a sign-in link
             </button>
           </form>
         </div>

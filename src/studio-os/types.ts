@@ -62,6 +62,7 @@ export interface StudioSettings {
   usd_to_inr: number;
   eur_to_inr: number;
   expenses_enabled: boolean;
+  invoice_generator_url?: string;
 }
 
 export interface StudioMember {
@@ -74,6 +75,8 @@ export interface StudioMember {
   color: string;
   hourly_capacity: number;
   is_active: boolean;
+  linked?: boolean;
+  invited_at?: string;
 }
 
 export interface ClientContact {
@@ -243,6 +246,8 @@ export interface StudioPayment {
   received_at?: string;
   status: "draft" | "sent" | "partly_paid" | "paid" | "overdue";
   notes?: string;
+  received_amount?: number;
+  file_url?: string;
 }
 
 export interface ActivityLogItem {

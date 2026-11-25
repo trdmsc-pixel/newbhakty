@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { studioApi } from "../api";
 import { AutomationSettings } from "../components/AutomationSettings";
+import { DataExport, MoneySettings, TeamSettings } from "../components/OwnerSettings";
 import {
   Bell,
   BellOff,
@@ -124,7 +125,7 @@ export const ClientsScreen: React.FC = () => {
                           className="shrink-0 inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold disabled:opacity-50"
                           style={
                             ct.is_portal_user
-                              ? { background: "#E7F7EE", color: "#22875A" }
+                              ? { background: "#E7F7EE", color: "#17663F" }
                               : { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }
                           }
                         >
@@ -173,6 +174,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
     resetDemoData,
     supabaseSyncStatus,
     pushToast,
+    isOwner,
   } = useStudioOS();
 
   const [overrun, setOverrun] = useState(String(settings.overrun_factor));
@@ -332,6 +334,8 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
         </p>
       </div>
 
+      {isOwner && (
+        <>
       {/* Forecast & Calibration Form */}
       <form onSubmit={handleSave} className="sos-card p-6 space-y-5">
         <div
@@ -460,6 +464,10 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
         </div>
       </form>
 
+      {/* Phase 5 — Team & Money */}
+      <TeamSettings />
+      <MoneySettings />
+
       {/* Phase 3 — Automatic inputs */}
       <AutomationSettings />
 
@@ -543,6 +551,10 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
         </div>
       </section>
 
+          <DataExport />
+        </>
+      )}
+
       {/* Web Push Notifications (VAPID) */}
       <section className="sos-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -616,14 +628,18 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
               <Download className="w-4 h-4" /> Install App
             </button>
           )}
+          {isOwner && (
           <button
             type="button"
-            onClick={resetDemoData}
+            onClick={() => {
+              if (window.confirm("Reset ALL Studio OS data to the demo seed? This deletes your real projects, tasks and invoices.")) resetDemoData();
+            }}
             className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-medium border"
             style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
           >
             <RotateCcw className="w-4 h-4" /> Reset Seed Data
           </button>
+          )}
         </div>
       </div>
     </div>

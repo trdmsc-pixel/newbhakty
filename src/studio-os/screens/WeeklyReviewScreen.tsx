@@ -210,7 +210,7 @@ export const WeeklyReviewScreen: React.FC = () => {
                     className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
                     style={{
                       background: ratio > 1.5 ? "#FFF3E0" : "#E7F7EE",
-                      color: ratio > 1.5 ? "#C26A00" : "#22875A",
+                      color: ratio > 1.5 ? "#9A4A00" : "#17663F",
                     }}
                   >
                     {ratio}×
@@ -229,7 +229,7 @@ export const WeeklyReviewScreen: React.FC = () => {
               <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
                 Stale Leads (&gt;14d silent)
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[12px] font-semibold bg-[#FFF3E0] text-[#C26A00]">
+              <span className="px-2.5 py-0.5 rounded-full text-[12px] font-semibold bg-[#FFF3E0] text-[#9A4A00]">
                 {staleLeads.length}
               </span>
             </div>
@@ -246,7 +246,7 @@ export const WeeklyReviewScreen: React.FC = () => {
                       <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>
                         {project.emoji} {project.title}
                       </p>
-                      <p className="text-[12px] text-[#C26A00] sos-tabular">
+                      <p className="text-[12px] text-[#9A4A00] sos-tabular">
                         Silent for {silentDays} days · Status: {project.status}
                       </p>
                     </div>

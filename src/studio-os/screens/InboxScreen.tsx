@@ -19,16 +19,17 @@ import {
 import { useStudioOS } from "../StudioOSContext";
 import { InboxItem, InboxItemAction, InboxItemSource, useInbox, gmailThreadUrl } from "../InboxContext";
 import { studioApi } from "../api";
+import { ConfidenceMeter } from "../components/ConfidenceMeter";
 
 const HIGH = 0.85;
 
 const ACTION_META: Record<InboxItemAction, { label: string; bg: string; text: string }> = {
-  create_task: { label: "Create task", bg: "#E8F0FF", text: "#2F6BFF" },
-  create_promise: { label: "Track promise", bg: "#FFF3E0", text: "#C26A00" },
-  reply_owed: { label: "Reply owed", bg: "#FFF3E0", text: "#C26A00" },
+  create_task: { label: "Create task", bg: "#E8F0FF", text: "#1D4FD8" },
+  create_promise: { label: "Track promise", bg: "#FFF3E0", text: "#9A4A00" },
+  reply_owed: { label: "Reply owed", bg: "#FFF3E0", text: "#9A4A00" },
   log_payment: { label: "Log payment note", bg: "#F1F2F4", text: "#5F6672" },
-  update_payment: { label: "Mark paid", bg: "#E7F7EE", text: "#22875A" },
-  approve_gate: { label: "Approve stage", bg: "#E7F7EE", text: "#22875A" },
+  update_payment: { label: "Mark paid", bg: "#E7F7EE", text: "#17663F" },
+  approve_gate: { label: "Approve stage", bg: "#E7F7EE", text: "#17663F" },
   update_deadline: { label: "Move deadline", bg: "#FFF1E6", text: "#C2410C" },
   new_lead: { label: "New lead", bg: "#EEEBFD", text: "#5B3FE4" },
   ignore: { label: "No action", bg: "#F1F2F4", text: "#5F6672" },
@@ -60,23 +61,6 @@ const SourceIcon: React.FC<{ source: InboxItemSource }> = ({ source }) => {
   );
 };
 
-export const ConfidenceMeter: React.FC<{ value: number }> = ({ value }) => {
-  const filled = Math.round(Math.max(0, Math.min(1, value)) * 5);
-  return (
-    <span className="inline-flex items-end gap-[2px]" title={`AI confidence ${Math.round(value * 100)}%`} aria-label={`Confidence ${Math.round(value * 100)}%`}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span
-          key={i}
-          className="w-[3px] rounded-full"
-          style={{ height: 5 + i * 2, background: i < filled ? "var(--sos-text-2)" : "var(--sos-border)" }}
-        />
-      ))}
-      <span className="ml-1 text-[11px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
-        {Math.round(value * 100)}%
-      </span>
-    </span>
-  );
-};
 
 const ClientAvatar: React.FC<{ name?: string; color?: string }> = ({ name, color }) => {
   const initials = (name || "?")
@@ -167,7 +151,7 @@ const SuggestionCard: React.FC<{ item: InboxItem }> = ({ item }) => {
       {dx !== 0 && (
         <div
           className="absolute inset-0 flex items-center justify-between px-6 text-[13px] font-semibold"
-          style={{ background: dx > 0 ? "#E7F7EE" : "var(--sos-surface-2)", color: dx > 0 ? "#22875A" : "var(--sos-text-2)" }}
+          style={{ background: dx > 0 ? "#E7F7EE" : "var(--sos-surface-2)", color: dx > 0 ? "#17663F" : "var(--sos-text-2)" }}
         >
           <span className="flex items-center gap-1.5">{dx > 0 && <><Check className="w-4 h-4" /> Accept</>}</span>
           <span className="flex items-center gap-1.5">{dx < 0 && <>Dismiss <X className="w-4 h-4" /></>}</span>
