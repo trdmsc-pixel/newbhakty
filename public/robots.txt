@@ -5,3 +5,4 @@ Disallow: /client
 Disallow: /api/
 
 Sitemap: https://www.thechantingstudio.in/sitemap.xml
+Disallow: /studio-os

@@ -21,6 +21,7 @@ import { supabase, isSupabaseConfigured } from "./lib/supabase";
 // Code-split heavy administrative and client-portal bundles
 const AdminPanel = lazy(() => import("./components/AdminPanel"));
 const ClientAccessPanel = lazy(() => import("./components/ClientAccessPanel"));
+const StudioOSApp = lazy(() => import("./studio-os/StudioOSApp"));
 
 function AppContent() {
   const { siteSettings } = useSiteData();
@@ -36,7 +37,10 @@ function AppContent() {
       path === "/admin" ||
       hash === "#admin" ||
       path === "/client" ||
-      hash === "#client";
+      hash === "#client" ||
+      path === "/studio-os" ||
+      path.startsWith("/studio-os/") ||
+      hash === "#studio-os";
     if (isPortalRoute) return;
 
     const isFine = window.matchMedia("(pointer: fine)").matches;
@@ -174,6 +178,20 @@ function AppContent() {
         }
       >
         <AdminPanel onNavigateHome={() => navigate("/")} />
+      </Suspense>
+    );
+  }
+
+  if (path === "/studio-os" || path.startsWith("/studio-os/") || hash === "#studio-os") {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#EEF0F4] flex items-center justify-center">
+            <Ring size={48} stroke={4} animate="spin-slow" />
+          </div>
+        }
+      >
+        <StudioOSApp onNavigateHome={() => navigate("/")} />
       </Suspense>
     );
   }

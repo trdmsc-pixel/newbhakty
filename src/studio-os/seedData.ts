@@ -1,0 +1,1184 @@
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { deterministicUuid, isUuid } from "./uuid";
+import {
+  ActivityLogItem,
+  GateTemplateKey,
+  ProjectHealth,
+  StudioClient,
+  StudioGate,
+  StudioMember,
+  StudioPayment,
+  StudioProject,
+  StudioSettings,
+  StudioTask,
+} from "./types";
+
+export const GATE_TEMPLATES: Record<
+  GateTemplateKey,
+  {
+    label: string;
+    description: string;
+    gates: Array<{ code: string; name: string; needs_client_approval: boolean; estimate_days: number }>;
+  }
+> = {
+  film: {
+    label: "Standard Film / Ad Film",
+    description: "G0 Brief → G4 Seedance 20s blocks → G6 Draft ◆ → G8 Final → G10 Paid",
+    gates: [
+      { code: "G0", name: "Brief / Script locked", needs_client_approval: true, estimate_days: 1 },
+      { code: "G1", name: "Character sheets", needs_client_approval: true, estimate_days: 1.5 },
+      { code: "G2", name: "Locations & look", needs_client_approval: true, estimate_days: 1.5 },
+      { code: "G3", name: "Storyboard / key frames", needs_client_approval: true, estimate_days: 2 },
+      { code: "G4", name: "Generation (20-s blocks)", needs_client_approval: false, estimate_days: 3 },
+      { code: "G5", name: "Edit + score", needs_client_approval: false, estimate_days: 2 },
+      { code: "G6", name: "First draft", needs_client_approval: true, estimate_days: 1 },
+      { code: "G7", name: "Revisions (2 rounds)", needs_client_approval: false, estimate_days: 1.5 },
+      { code: "G8", name: "Final delivery", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G9", name: "Invoice", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G10", name: "Paid", needs_client_approval: false, estimate_days: 0 },
+    ],
+  },
+  music_video: {
+    label: "Music Video",
+    description: "Adds Song timing map after G0 Brief",
+    gates: [
+      { code: "G0", name: "Brief / Concept locked", needs_client_approval: true, estimate_days: 1 },
+      { code: "G0.5", name: "Song timing map", needs_client_approval: false, estimate_days: 1 },
+      { code: "G1", name: "Character sheets", needs_client_approval: true, estimate_days: 1.5 },
+      { code: "G2", name: "Locations & look", needs_client_approval: true, estimate_days: 1.5 },
+      { code: "G3", name: "Storyboard / key frames", needs_client_approval: true, estimate_days: 2 },
+      { code: "G4", name: "Generation (20-s blocks)", needs_client_approval: false, estimate_days: 4 },
+      { code: "G5", name: "Edit + lip/beat sync", needs_client_approval: false, estimate_days: 2 },
+      { code: "G6", name: "First draft", needs_client_approval: true, estimate_days: 1 },
+      { code: "G7", name: "Revisions (2 rounds)", needs_client_approval: false, estimate_days: 1.5 },
+      { code: "G8", name: "Final delivery", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G9", name: "Invoice", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G10", name: "Paid", needs_client_approval: false, estimate_days: 0 },
+    ],
+  },
+  series_episode: {
+    label: "Series Episode",
+    description: "Streamlined episode pipeline reusing approved series bible",
+    gates: [
+      { code: "G0", name: "Episode script", needs_client_approval: false, estimate_days: 1 },
+      { code: "G1", name: "New character/location sheets", needs_client_approval: true, estimate_days: 1.5 },
+      { code: "G4", name: "Generation", needs_client_approval: false, estimate_days: 3 },
+      { code: "G5", name: "Edit + audio sync", needs_client_approval: false, estimate_days: 1.5 },
+      { code: "G6", name: "First draft", needs_client_approval: true, estimate_days: 1 },
+      { code: "G8", name: "Final delivery", needs_client_approval: false, estimate_days: 0.5 },
+    ],
+  },
+  hybrid: {
+    label: "Hybrid Live-Action + AI",
+    description: "Adds Footage received gate for live plates & VFX extension",
+    gates: [
+      { code: "G0", name: "Brief / Script locked", needs_client_approval: true, estimate_days: 1 },
+      { code: "G0.5", name: "Footage received", needs_client_approval: false, estimate_days: 1 },
+      { code: "G2", name: "Look & VFX tests", needs_client_approval: true, estimate_days: 2 },
+      { code: "G4", name: "AI extension & VFX", needs_client_approval: false, estimate_days: 3 },
+      { code: "G5", name: "Edit + grade + score", needs_client_approval: false, estimate_days: 2 },
+      { code: "G6", name: "First draft", needs_client_approval: true, estimate_days: 1 },
+      { code: "G7", name: "Revisions", needs_client_approval: false, estimate_days: 1.5 },
+      { code: "G8", name: "Final delivery", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G9", name: "Invoice", needs_client_approval: false, estimate_days: 0.5 },
+      { code: "G10", name: "Paid", needs_client_approval: false, estimate_days: 0 },
+    ],
+  },
+  internal: {
+    label: "Internal Studio Project",
+    description: "No client approval gates",
+    gates: [
+      { code: "G0", name: "Scope defined", needs_client_approval: false, estimate_days: 1 },
+      { code: "G4", name: "Build / Production", needs_client_approval: false, estimate_days: 4 },
+      { code: "G8", name: "Launch / Complete", needs_client_approval: false, estimate_days: 1 },
+    ],
+  },
+};
+
+export function createGatesFromTemplate(
+  projectId: string,
+  template: GateTemplateKey,
+  activeIndex = 0
+): StudioGate[] {
+  const def = GATE_TEMPLATES[template] || GATE_TEMPLATES.film;
+  const resolvedProjectId = isUuid(projectId) ? projectId : deterministicUuid(projectId);
+  return def.gates.map((g, idx) => ({
+    id: deterministicUuid(`${resolvedProjectId}-g${idx}`),
+    project_id: resolvedProjectId,
+    order_index: idx,
+    code: g.code,
+    name: g.name,
+    needs_client_approval: g.needs_client_approval,
+    estimate_days: g.estimate_days,
+    status: idx < activeIndex ? "approved" : idx === activeIndex ? "in_work" : "not_started",
+    revision_round: 0,
+    revisions_included: 2,
+    portal_visible: template !== "internal",
+    approved_at: idx < activeIndex ? "2026-11-22T10:00:00+05:30" : undefined,
+    started_at: idx <= activeIndex ? "2026-11-23T10:00:00+05:30" : undefined,
+  }));
+}
+
+/**
+ * Forecast Engine (Section 5.1)
+ * Computes realistic predicted delivery date & project health.
+ */
+export function computeProjectForecast(
+  project: StudioProject,
+  gates: StudioGate[],
+  client: StudioClient | undefined,
+  settings: StudioSettings,
+  today: Date = new Date()
+): {
+  forecast_date: string;
+  health: ProjectHealth;
+  remaining_work_days: number;
+  approval_wait_days: number;
+  explanation: string;
+} {
+  if (project.status === "delivered" || project.status === "paid") {
+    const d = project.hard_deadline || format(today, "yyyy-MM-dd");
+    return {
+      forecast_date: d,
+      health: "on_track",
+      remaining_work_days: 0,
+      approval_wait_days: 0,
+      explanation: "Project already delivered.",
+    };
+  }
+
+  const projectGates = gates.filter(
+    (g) => g.project_id === project.id && g.status !== "approved" && g.status !== "skipped"
+  );
+
+  // Exclude G9/G10 invoice/paid from delivery forecast
+  const deliveryGates = projectGates.filter((g) => !["G9", "G10"].includes(g.code));
+
+  const rawWorkDays = deliveryGates.reduce((acc, g) => acc + (g.estimate_days || 0), 0);
+  const remainingWorkDays = Math.round(rawWorkDays * settings.overrun_factor * 10) / 10;
+
+  const remainingApprovalGates = deliveryGates.filter((g) => g.needs_client_approval).length;
+  const latency = client?.avg_approval_latency_days ?? settings.default_approval_latency_days;
+  const approvalWaitDays = Math.round(remainingApprovalGates * latency * 10) / 10;
+
+  const totalCalendarDays = Math.ceil(remainingWorkDays + approvalWaitDays);
+  const forecastDt = addDays(today, Math.max(1, totalCalendarDays));
+  const forecastDateStr = format(forecastDt, "yyyy-MM-dd");
+
+  let health: ProjectHealth = "on_track";
+  if (project.hard_deadline) {
+    const deadlineDt = parseISO(project.hard_deadline);
+    const deltaDays = differenceInCalendarDays(forecastDt, deadlineDt);
+    if (deltaDays <= -3) health = "on_track";
+    else if (deltaDays <= 0) health = "tight";
+    else if (deltaDays <= 3) health = "at_risk";
+    else health = "late";
+  }
+
+  const explanation = `${rawWorkDays}d work × ${settings.overrun_factor} + ${remainingApprovalGates} approvals × ${latency}d`;
+
+  return {
+    forecast_date: forecastDateStr,
+    health,
+    remaining_work_days: remainingWorkDays,
+    approval_wait_days: approvalWaitDays,
+    explanation,
+  };
+}
+
+const RAW_SETTINGS: StudioSettings = {
+  id: "settings-singleton",
+  overrun_factor: 1.6,
+  default_approval_latency_days: 2,
+  work_hours_per_day: 7,
+  studio_closes_at: "21:30",
+  wip_limit: 3,
+  takes_per_keeper: 3,
+  block_seconds: 20,
+  timezone: "Asia/Kolkata",
+  ai_provider: "gemini",
+  brief_time: "07:30",
+  usd_to_inr: 84.5,
+  eur_to_inr: 91.0,
+  expenses_enabled: false,
+};
+
+const RAW_MEMBERS: StudioMember[] = [
+  {
+    id: "member-shyam",
+    name: "Shyam Sharma",
+    email: "shyam@thechantingstudio.in",
+    role: "owner",
+    initials: "SS",
+    color: "#5B3FE4",
+    hourly_capacity: 7,
+    is_active: true,
+  },
+];
+
+const RAW_CLIENTS: StudioClient[] = [
+  {
+    id: "cli-arculus",
+    name: "CompoSecure / Arculus",
+    organisation: "CompoSecure Inc.",
+    email_domains: ["arculus.co", "composecure.com"],
+    timezone: "America/New_York",
+    currency: "USD",
+    avg_approval_latency_days: 1.5,
+    is_confidential: false,
+    color: "#2F6BFF",
+    contacts: [
+      {
+        id: "con-damodar",
+        client_id: "cli-arculus",
+        name: "Damodar Mahajan",
+        email: "dmahajan@arculus.co",
+        role: "VP Product",
+        is_portal_user: true,
+      },
+      {
+        id: "con-adam",
+        client_id: "cli-arculus",
+        name: "Dr. Adam Lowe",
+        email: "alowe@arculus.co",
+        role: "CTO",
+        is_portal_user: false,
+      },
+    ],
+  },
+  {
+    id: "cli-str",
+    name: "STR Media",
+    organisation: "STR Media / Sundara Design",
+    email_domains: ["strmedia.com", "sundaradesign.com"],
+    timezone: "America/New_York",
+    currency: "USD",
+    avg_approval_latency_days: 2,
+    is_confidential: false,
+    color: "#F59E0B",
+    contacts: [
+      {
+        id: "con-joshua",
+        client_id: "cli-str",
+        name: "Joshua M. Greene",
+        role: "Executive Producer (Yogesvara dasa)",
+        is_portal_user: true,
+      },
+      {
+        id: "con-conny",
+        client_id: "cli-str",
+        name: "Conny Brunner",
+        role: "Sundara Design",
+        is_portal_user: false,
+      },
+      {
+        id: "con-doug",
+        client_id: "cli-str",
+        name: "Doug Going",
+        role: "Sundara Design",
+        is_portal_user: false,
+      },
+    ],
+  },
+  {
+    id: "cli-smile",
+    name: "SMILE CSR Impact Foundation",
+    organisation: "SMILE CSR Impact Foundation",
+    email_domains: ["smilecsr.org"],
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    avg_approval_latency_days: 2.5,
+    is_confidential: true,
+    notes: "Confidential project — never show fee amounts in briefs.",
+    color: "#5B3FE4",
+    contacts: [
+      {
+        id: "con-gauranga",
+        client_id: "cli-smile",
+        name: "Gauranga Das",
+        role: "Director",
+        is_portal_user: true,
+      },
+      {
+        id: "con-anoop",
+        client_id: "cli-smile",
+        name: "Anoop Goyal",
+        role: "POC",
+        is_portal_user: true,
+      },
+    ],
+  },
+  {
+    id: "cli-uplifting",
+    name: "Uplifting Cinema Pvt. Ltd.",
+    organisation: "Uplifting Cinema Pvt. Ltd.",
+    email_domains: ["upliftingcinema.com"],
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    avg_approval_latency_days: 2,
+    is_confidential: false,
+    color: "#E5484D",
+    contacts: [
+      {
+        id: "con-uplifting",
+        client_id: "cli-uplifting",
+        name: "Uplifting Producer",
+        role: "Producer",
+        is_portal_user: true,
+      },
+    ],
+  },
+  {
+    id: "cli-tovp",
+    name: "TOVP",
+    organisation: "Temple of the Vedic Planetarium",
+    email_domains: ["tovp.org"],
+    timezone: "America/Argentina/Buenos_Aires",
+    currency: "USD",
+    avg_approval_latency_days: 3,
+    is_confidential: false,
+    color: "#3FA37A",
+    contacts: [
+      {
+        id: "con-devaki",
+        client_id: "cli-tovp",
+        name: "Devaki-nandana das",
+        role: "Museum Director",
+        is_portal_user: true,
+      },
+    ],
+  },
+  {
+    id: "cli-hsr",
+    name: "Ashok Krishna Das (Music)",
+    organisation: "Hanuman Se Ram Productions",
+    email_domains: [],
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    avg_approval_latency_days: 2,
+    is_confidential: false,
+    color: "#D97706",
+    contacts: [
+      {
+        id: "con-ashok",
+        client_id: "cli-hsr",
+        name: "Ashok Krishna Das",
+        role: "Composer",
+        is_portal_user: true,
+      },
+    ],
+  },
+  {
+    id: "cli-iskcon-ny",
+    name: "ISKCON New York",
+    organisation: "ISKCON New York",
+    email_domains: ["iskconnyc.com"],
+    timezone: "America/New_York",
+    currency: "USD",
+    avg_approval_latency_days: 2,
+    is_confidential: false,
+    color: "#0EA5E9",
+    contacts: [],
+  },
+  {
+    id: "cli-gif",
+    name: "Global Image Factory",
+    organisation: "Global Image Factory",
+    email_domains: [],
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    avg_approval_latency_days: 2,
+    is_confidential: false,
+    color: "#64748B",
+    contacts: [],
+  },
+  {
+    id: "cli-internal",
+    name: "Internal (The Chanting Studio)",
+    organisation: "Chaitravarna Ventures Pvt. Ltd.",
+    email_domains: ["thechantingstudio.in"],
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    avg_approval_latency_days: 0,
+    is_confidential: false,
+    color: "#0E0E10",
+    contacts: [],
+  },
+];
+
+const RAW_PROJECTS: StudioProject[] = [
+  {
+    id: "proj-arc",
+    code: "ARC",
+    title: 'Arculus "Checkpoint for Agentic AI"',
+    client_id: "cli-arculus",
+    type: "ad_film",
+    status: "active",
+    fee_amount: 3000,
+    currency: "USD",
+    runtime_seconds: 91,
+    versions: 2,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-12-02",
+    promised_date: "2026-11-30",
+    health: "on_track",
+    emoji: "🎬",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p1",
+    owner_member_id: "member-shyam",
+    pinned: true,
+    last_client_touch_at: "2026-11-24T18:00:00+05:30",
+    last_studio_touch_at: "2026-11-25T21:00:00+05:30",
+    updated_at: "2026-11-26T01:00:00+05:30",
+  },
+  {
+    id: "proj-tok",
+    code: "TOK",
+    title: "Tokenized Metal Cards",
+    client_id: "cli-arculus",
+    type: "ad_film",
+    status: "delivered",
+    fee_amount: 2500,
+    currency: "USD",
+    runtime_seconds: 60,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-11-21",
+    health: "on_track",
+    emoji: "💳",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p2",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-21T18:00:00+05:30",
+  },
+  {
+    id: "proj-uss",
+    code: "USS",
+    title: "U.S. Sports Commemorative Ticketing",
+    client_id: "cli-arculus",
+    type: "ad_film",
+    status: "active",
+    fee_amount: 2200,
+    currency: "USD",
+    runtime_seconds: 60,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-11-28",
+    health: "at_risk",
+    emoji: "🏟️",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p1",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-25T15:00:00+05:30",
+  },
+  {
+    id: "proj-cht",
+    code: "CHT",
+    title: "Chaitanya 16-Episode Series",
+    client_id: "cli-str",
+    type: "series",
+    status: "active",
+    fee_amount: 14000,
+    currency: "USD",
+    runtime_seconds: 600,
+    versions: 16,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-12-18",
+    health: "tight",
+    emoji: "🪷",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p1",
+    owner_member_id: "member-shyam",
+    pinned: true,
+    last_client_touch_at: "2026-11-23T19:00:00+05:30",
+    updated_at: "2026-11-25T20:00:00+05:30",
+  },
+  {
+    id: "proj-sbs",
+    code: "SBS",
+    title: "Śrīmad-Bhāgavatam Series",
+    client_id: "cli-smile",
+    type: "trailer",
+    status: "active",
+    currency: "INR",
+    runtime_seconds: 120,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2027-02-15",
+    promised_date: "2026-12-04",
+    health: "on_track",
+    emoji: "📜",
+    is_confidential: true,
+    portal_visible: true,
+    priority: "p1",
+    owner_member_id: "member-shyam",
+    pinned: true,
+    last_client_touch_at: "2026-11-25T11:30:00+05:30",
+    updated_at: "2026-11-25T22:00:00+05:30",
+  },
+  {
+    id: "proj-rtg",
+    code: "RTG",
+    title: "Radha and the Great Rescue Trailer",
+    client_id: "cli-uplifting",
+    type: "trailer",
+    status: "active",
+    fee_amount: 200000,
+    currency: "INR",
+    runtime_seconds: 120,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-11-30",
+    health: "at_risk",
+    emoji: "🎞️",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p1",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-25T17:00:00+05:30",
+  },
+  {
+    id: "proj-hsr",
+    code: "HSR",
+    title: "Hanuman Se Ram Music Video",
+    client_id: "cli-hsr",
+    type: "music_video",
+    status: "active",
+    currency: "INR",
+    runtime_seconds: 300,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-12-22",
+    health: "on_track",
+    emoji: "🎵",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p2",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-24T12:00:00+05:30",
+  },
+  {
+    id: "proj-gma",
+    code: "GMA",
+    title: "Gau Mata Ke Aansoo Music Video",
+    client_id: "cli-hsr",
+    type: "music_video",
+    status: "active",
+    currency: "INR",
+    runtime_seconds: 353,
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    hard_deadline: "2026-12-28",
+    health: "on_track",
+    emoji: "🐄",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p2",
+    owner_member_id: "member-shyam",
+    pinned: true,
+    updated_at: "2026-11-24T12:00:00+05:30",
+  },
+  {
+    id: "proj-tvp",
+    code: "TVP",
+    title: "TOVP VR Museum",
+    client_id: "cli-tovp",
+    type: "explainer",
+    status: "quoted",
+    fee_amount: 10800,
+    currency: "USD",
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    health: "on_track",
+    emoji: "🏛️",
+    is_confidential: false,
+    portal_visible: true,
+    priority: "p2",
+    owner_member_id: "member-shyam",
+    last_client_touch_at: "2026-09-06T12:00:00+05:30",
+    updated_at: "2026-11-20T12:00:00+05:30",
+  },
+  {
+    id: "proj-bim",
+    code: "BIM",
+    title: "BI Media Lab Proposal",
+    client_id: "cli-str",
+    type: "explainer",
+    status: "lead",
+    currency: "USD",
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    health: "on_track",
+    emoji: "🔬",
+    is_confidential: false,
+    portal_visible: false,
+    priority: "p3",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-18T12:00:00+05:30",
+  },
+  {
+    id: "proj-int",
+    code: "INT",
+    title: "The Chanting Studio — Internal",
+    client_id: "cli-internal",
+    type: "internal",
+    status: "active",
+    currency: "INR",
+    versions: 1,
+    aspect_ratios: ["16:9"],
+    health: "on_track",
+    emoji: "⚡",
+    is_confidential: false,
+    portal_visible: false,
+    priority: "p2",
+    owner_member_id: "member-shyam",
+    updated_at: "2026-11-25T23:00:00+05:30",
+  },
+];
+
+export const INITIAL_SETTINGS: StudioSettings = {
+  ...RAW_SETTINGS,
+  id: deterministicUuid(RAW_SETTINGS.id),
+};
+
+export const INITIAL_MEMBERS: StudioMember[] = RAW_MEMBERS.map((m) => ({
+  ...m,
+  id: deterministicUuid(m.id),
+}));
+
+export const INITIAL_CLIENTS: StudioClient[] = RAW_CLIENTS.map((c) => {
+  const cid = deterministicUuid(c.id);
+  return {
+    ...c,
+    id: cid,
+    contacts: c.contacts.map((ct) => ({
+      ...ct,
+      id: deterministicUuid(ct.id),
+      client_id: cid,
+    })),
+  };
+});
+
+export const INITIAL_PROJECTS: StudioProject[] = RAW_PROJECTS.map((p) => ({
+  ...p,
+  id: deterministicUuid(p.id),
+  client_id: deterministicUuid(p.client_id),
+  owner_member_id: deterministicUuid(p.owner_member_id),
+}));
+
+export const INITIAL_GATES: StudioGate[] = [
+  // ARC: G3 approved, G4 in work
+  ...createGatesFromTemplate("proj-arc", "film", 4).map((g) =>
+    g.code === "G4" ? { ...g, estimate_days: 1.5 } : g.code === "G5" ? { ...g, estimate_days: 1 } : g
+  ),
+  // TOK: delivered (G8 done, G9 invoice)
+  ...createGatesFromTemplate("proj-tok", "film", 9),
+  // USS: G7 revising
+  ...createGatesFromTemplate("proj-uss", "film", 7).map((g) =>
+    g.code === "G7" ? { ...g, status: "revising" as const, revision_round: 1 } : g
+  ),
+  // CHT: series_episode, G4 in work
+  ...createGatesFromTemplate("proj-cht", "series_episode", 2),
+  // SBS: G1 character sheets in work
+  ...createGatesFromTemplate("proj-sbs", "film", 1).map((g) =>
+    g.code === "G1" ? { ...g, status: "in_work" as const, estimate_days: 3 } : g
+  ),
+  // RTG: G5 edit + score
+  ...createGatesFromTemplate("proj-rtg", "film", 5).map((g) =>
+    g.code === "G5" ? { ...g, estimate_days: 2 } : g
+  ),
+  // HSR: music_video, G3 waiting on client
+  ...createGatesFromTemplate("proj-hsr", "music_video", 4).map((g) =>
+    g.code === "G3"
+      ? { ...g, status: "waiting_on_client" as const, sent_for_approval_at: "2026-11-24T10:00:00+05:30" }
+      : g
+  ),
+  // GMA: music_video, G2 in work
+  ...createGatesFromTemplate("proj-gma", "music_video", 3),
+  // TVP: G0 not started
+  ...createGatesFromTemplate("proj-tvp", "film", 0),
+  // BIM: G0 waiting on client
+  ...createGatesFromTemplate("proj-bim", "film", 0).map((g) =>
+    g.code === "G0"
+      ? { ...g, status: "waiting_on_client" as const, sent_for_approval_at: "2026-11-20T10:00:00+05:30" }
+      : g
+  ),
+  // INT: internal
+  ...createGatesFromTemplate("proj-int", "internal", 1),
+];
+
+function resolveLegacyGateId(legacyGateId?: string): string | undefined {
+  if (!legacyGateId) return undefined;
+  if (isUuid(legacyGateId)) return legacyGateId;
+  const match = legacyGateId.match(/^(.*)-g(\d+)$/);
+  if (match) {
+    return deterministicUuid(`${deterministicUuid(match[1])}-g${match[2]}`);
+  }
+  return deterministicUuid(legacyGateId);
+}
+
+const RAW_TASKS: StudioTask[] = [
+  // NOW (max 3 tasks)
+  {
+    id: "task-arc-1",
+    key: "ARC-1",
+    project_id: "proj-arc",
+    gate_id: "proj-arc-g4",
+    title: "Read Dr. Adam's 24 Nov PDF comments & lock lead character + USB plug + LED colour",
+    description: "Confirm Card + USB 2-version spec before finishing Seedance blocks.",
+    type: "task",
+    status: "in_progress",
+    priority: "urgent",
+    do_date: "2026-11-26",
+    due_date: "2026-11-26",
+    estimate_hours: 2,
+    actual_hours: 0.5,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c1", text: "Review Adam's 24 Nov PDF notes", done: true },
+      { id: "c2", text: "Confirm lead character consistency", done: false },
+      { id: "c3", text: "Confirm USB plug type & status-light colour", done: false },
+    ],
+    source: "email",
+    channel: "gmail",
+    is_in_now: true,
+    portal_visible: false,
+    created_at: "2026-11-24T18:00:00+05:30",
+    updated_at: "2026-11-26T00:30:00+05:30",
+  },
+  {
+    id: "task-uss-1",
+    key: "USS-1",
+    project_id: "proj-uss",
+    gate_id: "proj-uss-g7",
+    title: "Confirm copyright-cleaned cut was delivered (requested 28 Oct)",
+    description: "Verify clean master link and check invoice INV-49382 file name.",
+    type: "task",
+    status: "in_progress",
+    priority: "urgent",
+    do_date: "2026-11-26",
+    due_date: "2026-11-26",
+    estimate_hours: 1,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c4", text: "Confirm copyright-cleaned cut delivered", done: false },
+      { id: "c5", text: "Check invoice INV-49382 file name", done: false },
+    ],
+    source: "email",
+    channel: "gmail",
+    is_in_now: true,
+    portal_visible: false,
+    created_at: "2026-11-25T10:00:00+05:30",
+    updated_at: "2026-11-25T10:00:00+05:30",
+  },
+  {
+    id: "task-rtg-1",
+    key: "RTG-1",
+    project_id: "proj-rtg",
+    gate_id: "proj-rtg-g5",
+    title: "AI temp score + fast edit pass for Radha trailer delivery",
+    description: "Client expects delivery ~end Nov; scope/pricing conversation follows.",
+    type: "task",
+    status: "in_progress",
+    priority: "urgent",
+    do_date: "2026-11-26",
+    due_date: "2026-11-29",
+    estimate_hours: 4,
+    actual_hours: 1,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c6", text: "Generate AI temp score", done: false },
+      { id: "c7", text: "Fast trailer cut", done: false },
+      { id: "c8", text: "Export & send review link", done: false },
+    ],
+    source: "manual",
+    channel: "whatsapp",
+    is_in_now: true,
+    portal_visible: false,
+    created_at: "2026-11-25T12:00:00+05:30",
+    updated_at: "2026-11-25T12:00:00+05:30",
+  },
+
+  // Promises & Replies Owed
+  {
+    id: "task-arc-2",
+    key: "ARC-2",
+    project_id: "proj-arc",
+    gate_id: "proj-arc-g6",
+    title: "Deliver Arculus Card + USB first drafts (incl. 3–4s AI legal end-card)",
+    type: "promise",
+    status: "todo",
+    priority: "urgent",
+    do_date: "2026-11-30",
+    due_date: "2026-11-30",
+    estimate_hours: 4,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c9", text: "Card version first draft", done: false },
+      { id: "c10", text: "USB version first draft", done: false },
+      { id: "c11", text: "Add 3–4s AI legal end-card", done: false },
+    ],
+    source: "email",
+    promised_to_name: "Damodar Mahajan",
+    channel: "gmail",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-24T19:00:00+05:30",
+    updated_at: "2026-11-24T19:00:00+05:30",
+  },
+  {
+    id: "task-cht-1",
+    key: "CHT-1",
+    project_id: "proj-cht",
+    gate_id: "proj-cht-g3",
+    title: "Send Ep 7–8 audio-sync result (promised 18 Nov)",
+    type: "reply_owed",
+    status: "todo",
+    priority: "urgent",
+    do_date: "2026-11-26",
+    due_date: "2026-11-26",
+    estimate_hours: 1.5,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "email",
+    promised_to_name: "Joshua M. Greene",
+    channel: "gmail",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-23T10:00:00+05:30",
+    updated_at: "2026-11-23T10:00:00+05:30",
+  },
+  {
+    id: "task-cht-2",
+    key: "CHT-2",
+    project_id: "proj-cht",
+    title: "Answer Conny's Ep 5–8 question & reschedule missed Zoom (after 30 Nov)",
+    description: "Joshua is away 26–30 Nov; Ep 9 narration v4 + art received 23 Nov.",
+    type: "reply_owed",
+    status: "todo",
+    priority: "high",
+    do_date: "2026-11-27",
+    due_date: "2026-11-27",
+    estimate_hours: 1,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "email",
+    promised_to_name: "Conny Brunner",
+    channel: "gmail",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-24T10:00:00+05:30",
+    updated_at: "2026-11-24T10:00:00+05:30",
+  },
+  {
+    id: "task-cht-3",
+    key: "CHT-3",
+    project_id: "proj-cht",
+    gate_id: "proj-cht-g2",
+    title: "Episodes 3 & 4 production generation",
+    type: "task",
+    status: "todo",
+    priority: "urgent",
+    do_date: "2026-11-28",
+    due_date: "2026-12-03",
+    estimate_hours: 8,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "manual",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-22T10:00:00+05:30",
+    updated_at: "2026-11-22T10:00:00+05:30",
+  },
+  {
+    id: "task-sbs-1",
+    key: "SBS-1",
+    project_id: "proj-sbs",
+    title: "Reply to Gauranga's 24 Nov question & 25 Nov creative-feedback email",
+    description: "Also request full script and ask for TDS certificate.",
+    type: "reply_owed",
+    status: "todo",
+    priority: "high",
+    do_date: "2026-11-26",
+    due_date: "2026-11-27",
+    estimate_hours: 1,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c12", text: "Reply to 24 Nov question", done: false },
+      { id: "c13", text: "Reply to 25 Nov creative feedback", done: false },
+      { id: "c14", text: "Ask for TDS certificate & full script", done: false },
+    ],
+    source: "email",
+    promised_to_name: "Gauranga Das",
+    channel: "gmail",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-25T11:30:00+05:30",
+    updated_at: "2026-11-25T11:30:00+05:30",
+  },
+  {
+    id: "task-sbs-2",
+    key: "SBS-2",
+    project_id: "proj-sbs",
+    gate_id: "proj-sbs-g1",
+    title: "Share first character & look references",
+    type: "promise",
+    status: "todo",
+    priority: "high",
+    do_date: "2026-12-03",
+    due_date: "2026-12-04",
+    estimate_hours: 5,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "email",
+    promised_to_name: "Gauranga Das",
+    channel: "whatsapp",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-25T14:00:00+05:30",
+    updated_at: "2026-11-25T14:00:00+05:30",
+  },
+  {
+    id: "task-tok-1",
+    key: "TOK-1",
+    project_id: "proj-tok",
+    gate_id: "proj-tok-g9",
+    title: "Verify invoice INV-49384 template/name, then follow up payment",
+    type: "admin",
+    status: "todo",
+    priority: "normal",
+    do_date: "2026-11-27",
+    due_date: "2026-11-28",
+    estimate_hours: 0.5,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "manual",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-21T19:00:00+05:30",
+    updated_at: "2026-11-21T19:00:00+05:30",
+  },
+  {
+    id: "task-tvp-1",
+    key: "TVP-1",
+    project_id: "proj-tvp",
+    title: "Friendly follow-up on TOVP VR Museum quote (silent since 6 Sep)",
+    type: "follow_up",
+    status: "waiting_on_client",
+    priority: "normal",
+    do_date: "2026-11-28",
+    due_date: "2026-12-01",
+    estimate_hours: 0.5,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "manual",
+    waiting_on_name: "Devaki-nandana das",
+    channel: "gmail",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-15T10:00:00+05:30",
+    updated_at: "2026-11-15T10:00:00+05:30",
+  },
+  {
+    id: "task-hsr-1",
+    key: "HSR-1",
+    project_id: "proj-hsr",
+    gate_id: "proj-hsr-g4",
+    title: "Await storyboard keyframe feedback from Ashok Krishna Das",
+    type: "task",
+    status: "waiting_on_client",
+    priority: "normal",
+    estimate_hours: 1,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "whatsapp",
+    waiting_on_name: "Ashok Krishna Das",
+    channel: "whatsapp",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-24T10:00:00+05:30",
+    updated_at: "2026-11-24T10:00:00+05:30",
+  },
+  {
+    id: "task-int-1",
+    key: "INT-1",
+    project_id: "proj-int",
+    title: "Fix email signature domain typo on accounts@ (chantingstudio.in → thechantingstudio.in)",
+    type: "admin",
+    status: "todo",
+    priority: "normal",
+    do_date: "2026-11-27",
+    due_date: "2026-11-28",
+    estimate_hours: 0.25,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "manual",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-25T10:00:00+05:30",
+    updated_at: "2026-11-25T10:00:00+05:30",
+  },
+  {
+    id: "task-int-2",
+    key: "INT-2",
+    project_id: "proj-int",
+    title: "Higgsfield Enterprise call (book or decline)",
+    type: "admin",
+    status: "backlog",
+    priority: "low",
+    estimate_hours: 0.5,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [],
+    source: "email",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-24T10:00:00+05:30",
+    updated_at: "2026-11-24T10:00:00+05:30",
+  },
+  {
+    id: "task-int-3",
+    key: "INT-3",
+    project_id: "proj-int",
+    title: "First hire JD (Production & Client Partner) + FY 2025-26 balance sheet/ITR",
+    type: "admin",
+    status: "backlog",
+    priority: "low",
+    estimate_hours: 3,
+    actual_hours: 0,
+    assignee_member_id: "member-shyam",
+    checklist: [
+      { id: "c15", text: "Draft Production & Client Partner role", done: false },
+      { id: "c16", text: "Compile FY 2025-26 balance sheet / ITR docs", done: false },
+      { id: "c17", text: "Launch Instagram @notshaam", done: false },
+    ],
+    source: "manual",
+    is_in_now: false,
+    portal_visible: false,
+    created_at: "2026-11-20T10:00:00+05:30",
+    updated_at: "2026-11-20T10:00:00+05:30",
+  },
+];
+
+const RAW_PAYMENTS: StudioPayment[] = [
+  {
+    id: "pay-tok-1",
+    project_id: "proj-tok",
+    invoice_no: "INV-49384",
+    amount: 2500,
+    currency: "USD",
+    tds_amount: 0,
+    sent_at: "2026-11-21",
+    due_at: "2026-12-05",
+    status: "sent",
+    notes: "Verify template/name then follow up.",
+  },
+  {
+    id: "pay-uss-1",
+    project_id: "proj-uss",
+    invoice_no: "INV-49382",
+    amount: 2200,
+    currency: "USD",
+    tds_amount: 0,
+    sent_at: "2026-10-28",
+    due_at: "2026-11-20",
+    status: "overdue",
+    notes: "Check invoice file name.",
+  },
+  {
+    id: "pay-arc-1",
+    project_id: "proj-arc",
+    invoice_no: "DRAFT-ARC",
+    amount: 3000,
+    currency: "USD",
+    tds_amount: 0,
+    due_at: "2026-12-10",
+    status: "draft",
+    notes: "Invoice after final delivery.",
+  },
+  {
+    id: "pay-sbs-1",
+    project_id: "proj-sbs",
+    invoice_no: "SBS-ADV-1",
+    amount: 0,
+    currency: "INR",
+    tds_amount: 0,
+    due_at: "2026-12-15",
+    status: "draft",
+    notes: "Confidential — Series advance part 1 due 15 Dec (amount hidden in briefs).",
+  },
+];
+
+const RAW_ACTIVITY: ActivityLogItem[] = [
+  {
+    id: "act-1",
+    actor: "client",
+    actor_name: "Dr. Adam Lowe",
+    entity_type: "project",
+    entity_id: "proj-arc",
+    action: "sent PDF comments on Checkpoint for Agentic AI",
+    at: "2026-11-24T18:10:00+05:30",
+  },
+  {
+    id: "act-2",
+    actor: "client",
+    actor_name: "Gauranga Das",
+    entity_type: "project",
+    entity_id: "proj-sbs",
+    action: "shared creative feedback email on Śrīmad-Bhāgavatam",
+    at: "2026-11-25T11:30:00+05:30",
+  },
+  {
+    id: "act-3",
+    actor: "member",
+    actor_name: "Shyam Sharma",
+    entity_type: "gate",
+    entity_id: "proj-arc-g3",
+    action: "marked G3 Storyboard / key frames as Approved",
+    at: "2026-11-23T16:40:00+05:30",
+  },
+  {
+    id: "act-4",
+    actor: "system",
+    actor_name: "Studio OS",
+    entity_type: "project",
+    entity_id: "proj-rtg",
+    action: "flagged Radha trailer as At Risk (deadline 30 Nov)",
+    at: "2026-11-25T20:00:00+05:30",
+  },
+];
+
+export const INITIAL_TASKS: StudioTask[] = RAW_TASKS.map((t) => ({
+  ...t,
+  id: deterministicUuid(t.id),
+  project_id: deterministicUuid(t.project_id),
+  gate_id: resolveLegacyGateId(t.gate_id),
+  assignee_member_id: deterministicUuid(t.assignee_member_id),
+}));
+
+export const INITIAL_PAYMENTS: StudioPayment[] = RAW_PAYMENTS.map((p) => ({
+  ...p,
+  id: deterministicUuid(p.id),
+  project_id: deterministicUuid(p.project_id),
+}));
+
+export const INITIAL_ACTIVITY: ActivityLogItem[] = RAW_ACTIVITY.map((a) => ({
+  ...a,
+  id: deterministicUuid(a.id),
+  entity_id: a.entity_type === "gate" ? resolveLegacyGateId(a.entity_id) || deterministicUuid(a.entity_id) : deterministicUuid(a.entity_id),
+}));

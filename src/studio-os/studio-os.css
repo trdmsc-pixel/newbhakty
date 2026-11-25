@@ -1,0 +1,146 @@
+/* Studio OS Design System — Scoped cleanly under .studio-os-root */
+
+.studio-os-root {
+  --sos-canvas: #EEF0F4;
+  --sos-canvas-gradient: linear-gradient(135deg, #DCE7FB 0%, #F3F6FC 45%, #E6EEFB 100%);
+  --sos-surface: #FFFFFF;
+  --sos-surface-2: #F5F6F8;
+  --sos-border: #ECEEF2;
+  --sos-text-1: #0F1115;
+  --sos-text-2: #5F6672;
+  --sos-text-3: #9AA0AA;
+  --sos-ink: #0E0E10;
+  --sos-ink-text: #FFFFFF;
+  --sos-primary: #5B3FE4;
+  --sos-blue: #2F6BFF;
+  --sos-green: #3FA37A;
+  --sos-amber: #F59E0B;
+  --sos-yellow-card: #F6CB45;
+  --sos-red: #E5484D;
+  --sos-violet-soft: #EEEBFD;
+  --sos-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px rgba(16, 24, 40, 0.06);
+  --sos-shadow-hover: 0 4px 12px rgba(16, 24, 40, 0.06), 0 16px 36px rgba(16, 24, 40, 0.09);
+
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  color: var(--sos-text-1);
+  background: var(--sos-canvas-gradient);
+  min-height: 100vh;
+}
+
+.studio-os-root.studio-os-dark {
+  --sos-canvas: #0B0B0D;
+  --sos-canvas-gradient: #0B0B0D;
+  --sos-surface: #151518;
+  --sos-surface-2: #1C1C20;
+  --sos-border: #26262B;
+  --sos-text-1: #EDEDEF;
+  --sos-text-2: #A1A1AA;
+  --sos-text-3: #71717A;
+  --sos-ink: #FFFFFF;
+  --sos-ink-text: #0E0E10;
+  --sos-primary: #7C66F0;
+  --sos-blue: #4D82FF;
+  --sos-green: #4CC38A;
+  --sos-amber: #FBBF24;
+  --sos-yellow-card: #E6B93A;
+  --sos-red: #F2555A;
+  --sos-violet-soft: #272235;
+  --sos-shadow: none;
+  --sos-shadow-hover: none;
+}
+
+.studio-os-root .sos-display {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+}
+
+.studio-os-root .sos-num {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-os-root .sos-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-os-root .sos-card {
+  background: var(--sos-surface);
+  border: 1px solid var(--sos-border);
+  border-radius: 24px;
+  box-shadow: var(--sos-shadow);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
+}
+
+.studio-os-root .sos-panel {
+  background: var(--sos-surface);
+  border: 1px solid var(--sos-border);
+  border-radius: 32px;
+  box-shadow: var(--sos-shadow);
+}
+
+.studio-os-root .sos-tile {
+  background: var(--sos-surface-2);
+  border-radius: 18px;
+}
+
+.studio-os-root .sos-pill-btn {
+  border-radius: 999px;
+  transition: transform 150ms ease-out, background-color 150ms ease-out, opacity 150ms ease-out;
+}
+
+.studio-os-root .sos-pill-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.studio-os-root .sos-pill-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.studio-os-root *:focus-visible {
+  outline: 2px solid var(--sos-blue);
+  outline-offset: 2px;
+}
+
+/* Hatched progress bar fill */
+.sos-stripe-green {
+  background-color: var(--sos-green);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.22) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.sos-stripe-amber {
+  background-color: var(--sos-amber);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.22) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Custom subtle scrollbars inside Studio OS */
+.studio-os-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.studio-os-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.studio-os-root ::-webkit-scrollbar-thumb {
+  background: var(--sos-border);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-os-root * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
