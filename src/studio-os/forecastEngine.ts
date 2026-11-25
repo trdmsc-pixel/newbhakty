@@ -1,5 +1,5 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import {
+import type {
   HolidayRegion,
   ProjectHealth,
   StudioClient,
@@ -9,7 +9,7 @@ import {
   StudioProject,
   StudioSettings,
   StudioTask,
-} from "./types";
+} from "./types.js";
 
 export interface ProjectForecastResult {
   forecast_date: string;

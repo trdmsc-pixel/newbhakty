@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import webpush from "web-push";
+import * as webpushNamespace from "web-push";
 import { computeProjectForecast, generateBriefSummary } from "../src/studio-os/forecastEngine.js";
 import type {
   ClientContact,
@@ -11,6 +11,8 @@ import type {
   StudioSettings,
   StudioTask,
 } from "../src/studio-os/types.js";
+
+const webpush = ((webpushNamespace as any).default || webpushNamespace) as typeof webpushNamespace;
 
 const OWNER_EMAILS = new Set([
   "shyam@thechantingstudio.in",
