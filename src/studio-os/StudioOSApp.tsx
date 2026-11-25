@@ -35,6 +35,7 @@ import { WeeklyReviewScreen } from "./screens/WeeklyReviewScreen";
 import { ClientsScreen, PhasePlaceholderScreen, SettingsScreen } from "./screens/SecondaryScreens";
 import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
+import { RealtimeBridge } from "./components/RealtimeBridge";
 import { InboxScreen } from "./screens/InboxScreen";
 import { InboxProvider, useInbox } from "./InboxContext";
 import { NewProjectModal } from "./components/NewProjectModal";
@@ -567,6 +568,7 @@ const StudioOSShell: React.FC<{
       </nav>
 
       {/* Modals & Evening Shutdown Ritual */}
+      <RealtimeBridge />
       <QuickAddModal />
       <WhatsAppImportModal />
       <NewProjectModal />

@@ -6,6 +6,7 @@ import { GateStatusChip, HealthPill, StackedAvatars } from "../components/Status
 import { BoardScreen } from "./BoardScreen";
 import { TableScreen } from "./TableScreen";
 import { ProjectEmailsTab } from "../components/ProjectEmailsTab";
+import { ProjectDeliverablesTab, SendForApprovalModal } from "../components/ProjectDeliverables";
 import { computeGenerationEstimate } from "../forecastEngine";
 import { GateStatus, GenerationBlockStatus } from "../types";
 
@@ -29,7 +30,8 @@ export const ProjectDetailScreen: React.FC = () => {
     pushToast,
   } = useStudioOS();
 
-  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails">("approvals");
+  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables">("approvals");
+  const [sendGateId, setSendGateId] = useState<string | null>(null);
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const client = clients.find((c) => c.id === project?.client_id);
   const projectGates = useMemo(
@@ -72,8 +74,11 @@ export const ProjectDetailScreen: React.FC = () => {
     pushToast(`Updated gate to ${status.replace(/_/g, " ")}`, "success");
   };
 
+  const sendGate = projectGates.find((g) => g.id === sendGateId);
+
   return (
     <div className="space-y-6">
+      {sendGate && project && <SendForApprovalModal project={project} gate={sendGate} onClose={() => setSendGateId(null)} />}
       {/* Project Header */}
       <div className="sos-card p-5 md:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -140,6 +145,7 @@ export const ProjectDetailScreen: React.FC = () => {
               { id: "overview", label: "Overview" },
               { id: "list", label: `List (${projectTasks.length})` },
               { id: "board", label: "Board" },
+              { id: "deliverables", label: "Deliverables" },
               { id: "emails", label: "Emails" },
             ] as const
           ).map((t) => (
@@ -281,7 +287,7 @@ export const ProjectDetailScreen: React.FC = () => {
                       {g.needs_client_approval && g.status !== "approved" && (
                         <button
                           type="button"
-                          onClick={() => handleGateStatusChange(g.id, "waiting_on_client")}
+                          onClick={() => setSendGateId(g.id)}
                           className="sos-pill-btn inline-flex items-center gap-1 px-3 h-8 text-[12px] font-semibold border"
                           style={{
                             background: "var(--sos-surface)",
@@ -289,7 +295,7 @@ export const ProjectDetailScreen: React.FC = () => {
                             color: "var(--sos-blue)",
                           }}
                         >
-                          <Send className="w-3 h-3" /> Send
+                          <Send className="w-3 h-3" /> {g.status === "waiting_on_client" ? "Resend" : "Send for approval"}
                         </button>
                       )}
                     </div>
@@ -496,6 +502,7 @@ export const ProjectDetailScreen: React.FC = () => {
           {tab === "list" && <TableScreen projectFilterId={project.id} />}
           {tab === "board" && <BoardScreen projectFilterId={project.id} />}
           {tab === "emails" && <ProjectEmailsTab projectId={project.id} />}
+          {tab === "deliverables" && <ProjectDeliverablesTab project={project} gates={projectGates} />}
         </div>
 
         {/* Right Rail: Forecast + Next Milestone + Recent Activity */}

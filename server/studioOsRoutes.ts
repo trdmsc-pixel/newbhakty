@@ -335,7 +335,7 @@ function mapTasks(rows: any[]): StudioTask[] {
   }));
 }
 
-async function loadStudioStateFromService(sb: SupabaseClient) {
+export async function loadStudioStateFromService(sb: SupabaseClient) {
   const [settingsRes, clientsRes, contactsRes, projectsRes, gatesRes, holidaysRes, tasksRes] =
     await Promise.all([
       sb.from("studio_settings").select("*").limit(1).maybeSingle(),

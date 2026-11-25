@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { studioApi } from "../api";
 import { AutomationSettings } from "../components/AutomationSettings";
 import {
   Bell,
@@ -32,7 +33,31 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export const ClientsScreen: React.FC = () => {
-  const { clients, projects, openProject } = useStudioOS();
+  const { clients, projects, openProject, pushToast, reloadFromCloud, supabaseSyncStatus } = useStudioOS();
+  const [inviting, setInviting] = useState<string | null>(null);
+
+  const invite = async (contactId: string, currentEmail?: string) => {
+    let email = currentEmail;
+    if (!email) {
+      email = window.prompt("Email address for this contact's portal access:")?.trim() || "";
+      if (!email) return;
+    }
+    setInviting(contactId);
+    try {
+      const res = await studioApi<{ email: string }>("/api/studio-os/portal/invite", { body: { contact_id: contactId, email } });
+      pushToast(`Portal invite sent to ${res.email}`, "success");
+      reloadFromCloud();
+    } catch (err: any) {
+      pushToast(err?.message || "Could not send invite", "warn");
+    } finally {
+      setInviting(null);
+    }
+  };
+
+  const copyPortalLink = () => {
+    navigator.clipboard?.writeText(`${window.location.origin}/portal`);
+    pushToast("Portal link copied", "info");
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -42,6 +67,9 @@ export const ClientsScreen: React.FC = () => {
         <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
           Approval latency, time zones, and active productions per client.
         </p>
+        <button type="button" onClick={copyPortalLink} className="mt-2 text-[12px] font-medium" style={{ color: "var(--sos-primary)" }}>
+          Copy client portal link
+        </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {clients.map((c) => {
@@ -82,9 +110,28 @@ export const ClientsScreen: React.FC = () => {
               {c.contacts.length > 0 && (
                 <div className="space-y-1">
                   {c.contacts.map((ct) => (
-                    <p key={ct.id} className="text-[12px]" style={{ color: "var(--sos-text-2)" }}>
-                      <strong>{ct.name}</strong> {ct.role ? `· ${ct.role}` : ""}
-                    </p>
+                    <div key={ct.id} className="flex items-center justify-between gap-2">
+                      <p className="text-[12px] min-w-0 truncate" style={{ color: "var(--sos-text-2)" }}>
+                        <strong>{ct.name}</strong> {ct.role ? `· ${ct.role}` : ""}
+                        {ct.email ? <span style={{ color: "var(--sos-text-3)" }}> · {ct.email}</span> : null}
+                      </p>
+                      {supabaseSyncStatus === "synced" && (
+                        <button
+                          type="button"
+                          disabled={inviting === ct.id}
+                          onClick={() => invite(ct.id, ct.email)}
+                          title={ct.is_portal_user ? "Resend the portal sign-in link" : "Give this contact access to the client portal"}
+                          className="shrink-0 inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold disabled:opacity-50"
+                          style={
+                            ct.is_portal_user
+                              ? { background: "#E7F7EE", color: "#22875A" }
+                              : { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }
+                          }
+                        >
+                          {ct.is_portal_user ? "Portal ✓ · Resend" : "Invite to portal"}
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

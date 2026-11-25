@@ -197,6 +197,7 @@ export function feeNumbersFor(ctx: StudioCtx, clientId?: string | null): number[
 
 export interface NewTaskInput {
   projectId?: string | null;
+  gateId?: string | null;
   title: string;
   description?: string;
   type?: "task" | "promise" | "reply_owed" | "follow_up" | "admin";
@@ -227,6 +228,7 @@ export async function createTask(sb: SupabaseClient, ctx: StudioCtx, input: NewT
       .insert({
         key,
         project_id: project.id,
+        gate_id: input.gateId || null,
         title: input.title.slice(0, 160),
         description: input.description?.slice(0, 1000) || null,
         type: input.type || "task",

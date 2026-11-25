@@ -757,7 +757,7 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         approved_at:
           nextStatus === "approved" && !target.approved_at ? nowIso : target.approved_at,
         sent_for_approval_at:
-          nextStatus === "waiting_on_client" && !target.sent_for_approval_at
+          nextStatus === "waiting_on_client" && (!target.sent_for_approval_at || target.status !== "waiting_on_client")
             ? nowIso
             : target.sent_for_approval_at,
       };
