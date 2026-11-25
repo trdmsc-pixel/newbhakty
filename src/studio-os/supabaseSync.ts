@@ -3,22 +3,28 @@ import {
   INITIAL_ACTIVITY,
   INITIAL_CLIENTS,
   INITIAL_GATES,
+  INITIAL_GENERATION_BLOCKS,
+  INITIAL_HOLIDAYS,
   INITIAL_MEMBERS,
   INITIAL_PAYMENTS,
   INITIAL_PROJECTS,
   INITIAL_SETTINGS,
   INITIAL_TASKS,
+  INITIAL_TIME_ENTRIES,
 } from "./seedData";
 import {
   ActivityLogItem,
   ClientContact,
   StudioClient,
   StudioGate,
+  StudioGenerationBlock,
+  StudioHoliday,
   StudioMember,
   StudioPayment,
   StudioProject,
   StudioSettings,
   StudioTask,
+  StudioTimeEntry,
 } from "./types";
 import { isUuid, newUuid } from "./uuid";
 
@@ -31,6 +37,9 @@ export interface StudioOSCloudSnapshot {
   tasks: StudioTask[];
   payments: StudioPayment[];
   activity: ActivityLogItem[];
+  holidays: StudioHoliday[];
+  generationBlocks: StudioGenerationBlock[];
+  timeEntries: StudioTimeEntry[];
 }
 
 const MEMBER_COLORS = ["#5B3FE4", "#2F6BFF", "#22875A", "#D97706", "#E5484D"];
@@ -254,6 +263,7 @@ function toGateRow(g: StudioGate) {
     name: g.name,
     needs_client_approval: Boolean(g.needs_client_approval),
     estimate_days: g.estimate_days ?? 1,
+    actual_days: g.actual_days ?? null,
     started_at: g.started_at ?? null,
     sent_for_approval_at: g.sent_for_approval_at ?? null,
     approved_at: g.approved_at ?? null,
@@ -274,6 +284,8 @@ function fromGateRow(row: any): StudioGate {
     name: row.name,
     needs_client_approval: Boolean(row.needs_client_approval),
     estimate_days: Number(row.estimate_days ?? 1),
+    actual_days:
+      row.actual_days !== null && row.actual_days !== undefined ? Number(row.actual_days) : undefined,
     started_at: row.started_at || undefined,
     sent_for_approval_at: row.sent_for_approval_at || undefined,
     approved_at: row.approved_at || undefined,
@@ -282,6 +294,80 @@ function fromGateRow(row: any): StudioGate {
     revisions_included: Number(row.revisions_included ?? 2),
     client_comment: row.client_comment || undefined,
     portal_visible: row.portal_visible !== false,
+  };
+}
+
+function toHolidayRow(h: StudioHoliday) {
+  return {
+    id: h.id,
+    holiday_date: h.holiday_date,
+    name: h.name,
+    region: h.region,
+    is_active: Boolean(h.is_active),
+  };
+}
+
+function fromHolidayRow(row: any): StudioHoliday {
+  return {
+    id: row.id,
+    holiday_date: toDateOnly(row.holiday_date) || "",
+    name: row.name,
+    region: row.region || "IN",
+    is_active: row.is_active !== false,
+  };
+}
+
+function toGenerationBlockRow(b: StudioGenerationBlock) {
+  return {
+    id: b.id,
+    project_id: b.project_id,
+    gate_id: isUuid(b.gate_id) ? b.gate_id : null,
+    block_number: b.block_number,
+    label: b.label ?? null,
+    prompt_ref: b.prompt_ref ?? null,
+    takes: b.takes ?? 0,
+    status: b.status || "planned",
+    seconds: b.seconds ?? 20,
+    updated_at: b.updated_at || new Date().toISOString(),
+  };
+}
+
+function fromGenerationBlockRow(row: any): StudioGenerationBlock {
+  return {
+    id: row.id,
+    project_id: row.project_id,
+    gate_id: row.gate_id || undefined,
+    block_number: Number(row.block_number ?? 1),
+    label: row.label || undefined,
+    prompt_ref: row.prompt_ref || undefined,
+    takes: Number(row.takes ?? 0),
+    status: row.status || "planned",
+    seconds: Number(row.seconds ?? 20),
+    updated_at: row.updated_at || undefined,
+  };
+}
+
+function toTimeEntryRow(te: StudioTimeEntry) {
+  return {
+    id: te.id,
+    task_id: isUuid(te.task_id) ? te.task_id : null,
+    member_id: isUuid(te.member_id) ? te.member_id : null,
+    started_at: te.started_at,
+    ended_at: te.ended_at ?? null,
+    kind: te.kind || "active",
+    notes: te.notes ?? null,
+  };
+}
+
+function fromTimeEntryRow(row: any): StudioTimeEntry {
+  return {
+    id: row.id,
+    task_id: row.task_id || undefined,
+    member_id: row.member_id || undefined,
+    started_at: row.started_at,
+    ended_at: row.ended_at || undefined,
+    kind: row.kind === "pause" ? "pause" : "active",
+    notes: row.notes || undefined,
   };
 }
 
@@ -445,6 +531,24 @@ async function seedAllTables(authUserId?: string | null): Promise<void> {
     .from("studio_activity_log")
     .upsert(INITIAL_ACTIVITY.map(toActivityRow), { onConflict: "id" });
   if (actErr) throw actErr;
+
+  await seedPhase2Extensions();
+}
+
+async function seedPhase2Extensions() {
+  if (!supabase) return;
+  await supabase
+    .from("studio_holidays")
+    .upsert(INITIAL_HOLIDAYS.map(toHolidayRow), { onConflict: "holiday_date,region" })
+    .then(() => {});
+  await supabase
+    .from("studio_generation_blocks")
+    .upsert(INITIAL_GENERATION_BLOCKS.map(toGenerationBlockRow), { onConflict: "id" })
+    .then(() => {});
+  await supabase
+    .from("studio_time_entries")
+    .upsert(INITIAL_TIME_ENTRIES.map(toTimeEntryRow), { onConflict: "id" })
+    .then(() => {});
 }
 
 export async function loadOrSeedStudioOSFromSupabase(): Promise<
@@ -480,7 +584,7 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       await seedAllTables(session.user.id);
     }
 
-    const [
+    let [
       settingsRes,
       membersRes,
       clientsRes,
@@ -490,6 +594,9 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       tasksRes,
       paymentsRes,
       activityRes,
+      holidaysRes,
+      genBlocksRes,
+      timeEntriesRes,
     ] = await Promise.all([
       supabase.from("studio_settings").select("*").is("archived_at", null).limit(1),
       supabase.from("studio_members").select("*").is("archived_at", null).order("created_at", { ascending: true }),
@@ -500,11 +607,34 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       supabase.from("studio_tasks").select("*").is("archived_at", null).order("created_at", { ascending: false }),
       supabase.from("studio_payments").select("*").is("archived_at", null).order("due_at", { ascending: true }),
       supabase.from("studio_activity_log").select("*").order("at", { ascending: false }).limit(80),
+      supabase.from("studio_holidays").select("*").is("archived_at", null).order("holiday_date", { ascending: true }),
+      supabase.from("studio_generation_blocks").select("*").is("archived_at", null).order("block_number", { ascending: true }),
+      supabase.from("studio_time_entries").select("*").is("archived_at", null).order("started_at", { ascending: false }).limit(200),
     ]);
 
     if (projectsRes.error || tasksRes.error || gatesRes.error) {
       console.warn("Studio OS fetch warning:", projectsRes.error || tasksRes.error || gatesRes.error);
       return { status: "local" };
+    }
+
+    // Backfill Phase 2 seeds if Phase 1 database had zero holidays/genBlocks/timeEntries yet
+    if (!holidaysRes.error && (!holidaysRes.data || holidaysRes.data.length === 0)) {
+      await supabase
+        .from("studio_holidays")
+        .upsert(INITIAL_HOLIDAYS.map(toHolidayRow), { onConflict: "holiday_date,region" });
+      holidaysRes = await supabase.from("studio_holidays").select("*").is("archived_at", null).order("holiday_date", { ascending: true });
+    }
+    if (!genBlocksRes.error && (!genBlocksRes.data || genBlocksRes.data.length === 0)) {
+      await supabase
+        .from("studio_generation_blocks")
+        .upsert(INITIAL_GENERATION_BLOCKS.map(toGenerationBlockRow), { onConflict: "id" });
+      genBlocksRes = await supabase.from("studio_generation_blocks").select("*").is("archived_at", null).order("block_number", { ascending: true });
+    }
+    if (!timeEntriesRes.error && (!timeEntriesRes.data || timeEntriesRes.data.length === 0)) {
+      await supabase
+        .from("studio_time_entries")
+        .upsert(INITIAL_TIME_ENTRIES.map(toTimeEntryRow), { onConflict: "id" });
+      timeEntriesRes = await supabase.from("studio_time_entries").select("*").is("archived_at", null).order("started_at", { ascending: false }).limit(200);
     }
 
     const settingsRow = settingsRes.data?.[0];
@@ -534,6 +664,13 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
     const tasks = (tasksRes.data || []).map(fromTaskRow);
     const payments = (paymentsRes.data || []).map(fromPaymentRow);
     const activity = (activityRes.data || []).map(fromActivityRow);
+    const holidays = holidaysRes.error ? INITIAL_HOLIDAYS : (holidaysRes.data || []).map(fromHolidayRow);
+    const generationBlocks = genBlocksRes.error
+      ? INITIAL_GENERATION_BLOCKS
+      : (genBlocksRes.data || []).map(fromGenerationBlockRow);
+    const timeEntries = timeEntriesRes.error
+      ? INITIAL_TIME_ENTRIES
+      : (timeEntriesRes.data || []).map(fromTimeEntryRow);
 
     return {
       status: "synced",
@@ -546,6 +683,9 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
         tasks,
         payments,
         activity,
+        holidays,
+        generationBlocks,
+        timeEntries,
       },
     };
   } catch (err) {
@@ -662,22 +802,71 @@ export async function syncInsertActivity(item: ActivityLogItem): Promise<string 
   return error ? error.message : null;
 }
 
-export async function syncInsertTimeEntry(
-  taskId: string,
-  memberId: string | undefined,
-  seconds: number
+export async function syncInsertTimeEntryExact(entry: StudioTimeEntry): Promise<string | null> {
+  if (!supabase) return null;
+  const { error } = await supabase.from("studio_time_entries").insert(toTimeEntryRow(entry));
+  return error ? error.message : null;
+}
+
+export async function syncInsertGenerationBlocks(blocks: StudioGenerationBlock[]): Promise<string | null> {
+  if (!supabase || blocks.length === 0) return null;
+  const { error } = await supabase
+    .from("studio_generation_blocks")
+    .upsert(blocks.map(toGenerationBlockRow), { onConflict: "id" });
+  return error ? error.message : null;
+}
+
+export async function syncUpdateGenerationBlock(block: StudioGenerationBlock): Promise<string | null> {
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from("studio_generation_blocks")
+    .upsert(toGenerationBlockRow(block), { onConflict: "id" });
+  return error ? error.message : null;
+}
+
+export async function syncUpsertHoliday(holiday: StudioHoliday): Promise<string | null> {
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from("studio_holidays")
+    .upsert(toHolidayRow(holiday), { onConflict: "id" });
+  return error ? error.message : null;
+}
+
+export async function syncDeleteHoliday(holidayId: string): Promise<string | null> {
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from("studio_holidays")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", holidayId);
+  return error ? error.message : null;
+}
+
+export async function syncSavePushSubscription(
+  endpoint: string,
+  keys: { p256dh: string; auth: string },
+  memberId?: string
 ): Promise<string | null> {
-  if (!supabase || seconds <= 0) return null;
-  const ended = new Date();
-  const started = new Date(ended.getTime() - seconds * 1000);
-  const { error } = await supabase.from("studio_time_entries").insert({
-    id: newUuid(),
-    task_id: taskId,
-    member_id: isUuid(memberId) ? memberId : null,
-    started_at: started.toISOString(),
-    ended_at: ended.toISOString(),
-    kind: "active",
-  });
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from("studio_push_subscriptions")
+    .upsert(
+      {
+        endpoint,
+        keys,
+        member_id: isUuid(memberId) ? memberId : null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "endpoint" }
+    );
+  return error ? error.message : null;
+}
+
+export async function syncRemovePushSubscription(endpoint: string): Promise<string | null> {
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from("studio_push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
   return error ? error.message : null;
 }
 
@@ -687,8 +876,8 @@ export async function resetStudioOSInSupabase(): Promise<string | null> {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData?.session?.user?.id ?? null;
 
-    // Clear child tables in FK order before re-seeding
     await supabase.from("studio_time_entries").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("studio_generation_blocks").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await supabase.from("studio_activity_log").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await supabase.from("studio_payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await supabase.from("studio_tasks").delete().neq("id", "00000000-0000-0000-0000-000000000000");

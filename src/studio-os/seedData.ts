@@ -1,17 +1,22 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays, format, subDays } from "date-fns";
 import { deterministicUuid, isUuid } from "./uuid";
+import { computeProjectForecast } from "./forecastEngine";
 import {
   ActivityLogItem,
   GateTemplateKey,
-  ProjectHealth,
   StudioClient,
   StudioGate,
+  StudioGenerationBlock,
+  StudioHoliday,
   StudioMember,
   StudioPayment,
   StudioProject,
   StudioSettings,
   StudioTask,
+  StudioTimeEntry,
 } from "./types";
+
+export { computeProjectForecast };
 
 export const GATE_TEMPLATES: Record<
   GateTemplateKey,
@@ -114,76 +119,40 @@ export function createGatesFromTemplate(
     revision_round: 0,
     revisions_included: 2,
     portal_visible: template !== "internal",
+    actual_days:
+      idx < activeIndex && g.estimate_days > 0
+        ? Math.round(g.estimate_days * (1.4 + (idx % 3) * 0.15) * 2) / 2
+        : undefined,
     approved_at: idx < activeIndex ? "2026-11-22T10:00:00+05:30" : undefined,
     started_at: idx <= activeIndex ? "2026-11-23T10:00:00+05:30" : undefined,
   }));
 }
 
-/**
- * Forecast Engine (Section 5.1)
- * Computes realistic predicted delivery date & project health.
- */
-export function computeProjectForecast(
+export function createGenerationBlocksForProject(
   project: StudioProject,
-  gates: StudioGate[],
-  client: StudioClient | undefined,
-  settings: StudioSettings,
-  today: Date = new Date()
-): {
-  forecast_date: string;
-  health: ProjectHealth;
-  remaining_work_days: number;
-  approval_wait_days: number;
-  explanation: string;
-} {
-  if (project.status === "delivered" || project.status === "paid") {
-    const d = project.hard_deadline || format(today, "yyyy-MM-dd");
+  gateId?: string,
+  blockSeconds = 20
+): StudioGenerationBlock[] {
+  const sec = Math.max(20, project.runtime_seconds || 60);
+  const perVersion = Math.max(1, Math.ceil(sec / Math.max(5, blockSeconds)));
+  const versions = Math.max(1, project.versions || 1);
+  const total = perVersion * versions;
+  return Array.from({ length: total }, (_, idx) => {
+    const versionIdx = Math.floor(idx / perVersion) + 1;
+    const shotInVer = (idx % perVersion) + 1;
     return {
-      forecast_date: d,
-      health: "on_track",
-      remaining_work_days: 0,
-      approval_wait_days: 0,
-      explanation: "Project already delivered.",
+      id: deterministicUuid(`${project.id}:gen:${idx + 1}`),
+      project_id: project.id,
+      gate_id: gateId,
+      block_number: idx + 1,
+      label: versions > 1 ? `V${versionIdx} · Block ${shotInVer} (${shotInVer * blockSeconds - blockSeconds}–${shotInVer * blockSeconds}s)` : `Block ${shotInVer} (${(shotInVer - 1) * blockSeconds}–${shotInVer * blockSeconds}s)`,
+      prompt_ref: `${project.code}-B${String(idx + 1).padStart(2, "0")}`,
+      takes: 0,
+      status: "planned",
+      seconds: blockSeconds,
+      updated_at: new Date().toISOString(),
     };
-  }
-
-  const projectGates = gates.filter(
-    (g) => g.project_id === project.id && g.status !== "approved" && g.status !== "skipped"
-  );
-
-  // Exclude G9/G10 invoice/paid from delivery forecast
-  const deliveryGates = projectGates.filter((g) => !["G9", "G10"].includes(g.code));
-
-  const rawWorkDays = deliveryGates.reduce((acc, g) => acc + (g.estimate_days || 0), 0);
-  const remainingWorkDays = Math.round(rawWorkDays * settings.overrun_factor * 10) / 10;
-
-  const remainingApprovalGates = deliveryGates.filter((g) => g.needs_client_approval).length;
-  const latency = client?.avg_approval_latency_days ?? settings.default_approval_latency_days;
-  const approvalWaitDays = Math.round(remainingApprovalGates * latency * 10) / 10;
-
-  const totalCalendarDays = Math.ceil(remainingWorkDays + approvalWaitDays);
-  const forecastDt = addDays(today, Math.max(1, totalCalendarDays));
-  const forecastDateStr = format(forecastDt, "yyyy-MM-dd");
-
-  let health: ProjectHealth = "on_track";
-  if (project.hard_deadline) {
-    const deadlineDt = parseISO(project.hard_deadline);
-    const deltaDays = differenceInCalendarDays(forecastDt, deadlineDt);
-    if (deltaDays <= -3) health = "on_track";
-    else if (deltaDays <= 0) health = "tight";
-    else if (deltaDays <= 3) health = "at_risk";
-    else health = "late";
-  }
-
-  const explanation = `${rawWorkDays}d work × ${settings.overrun_factor} + ${remainingApprovalGates} approvals × ${latency}d`;
-
-  return {
-    forecast_date: forecastDateStr,
-    health,
-    remaining_work_days: remainingWorkDays,
-    approval_wait_days: approvalWaitDays,
-    explanation,
-  };
+  });
 }
 
 const RAW_SETTINGS: StudioSettings = {
@@ -1182,3 +1151,73 @@ export const INITIAL_ACTIVITY: ActivityLogItem[] = RAW_ACTIVITY.map((a) => ({
   id: deterministicUuid(a.id),
   entity_id: a.entity_type === "gate" ? resolveLegacyGateId(a.entity_id) || deterministicUuid(a.entity_id) : deterministicUuid(a.entity_id),
 }));
+
+export const INITIAL_HOLIDAYS: StudioHoliday[] = [
+  { id: deterministicUuid("hol-us-thanksgiving-2026"), holiday_date: "2026-11-26", name: "Thanksgiving Day", region: "US", is_active: true },
+  { id: deterministicUuid("hol-us-friday-2026"), holiday_date: "2026-11-27", name: "Day After Thanksgiving", region: "US", is_active: true },
+  { id: deterministicUuid("hol-ar-immaculate-2026"), holiday_date: "2026-12-08", name: "Immaculate Conception Day", region: "AR", is_active: true },
+  { id: deterministicUuid("hol-global-xmas-2026"), holiday_date: "2026-12-25", name: "Christmas Day", region: "GLOBAL", is_active: true },
+  { id: deterministicUuid("hol-global-ny-2027"), holiday_date: "2027-01-01", name: "New Year's Day", region: "GLOBAL", is_active: true },
+  { id: deterministicUuid("hol-in-republic-2027"), holiday_date: "2027-01-26", name: "Republic Day", region: "IN", is_active: true },
+  { id: deterministicUuid("hol-in-holi-2027"), holiday_date: "2027-03-25", name: "Holi", region: "IN", is_active: true },
+  { id: deterministicUuid("hol-ar-may-2027"), holiday_date: "2027-05-25", name: "May Revolution Day", region: "AR", is_active: true },
+  { id: deterministicUuid("hol-us-july4-2027"), holiday_date: "2027-07-04", name: "US Independence Day", region: "US", is_active: true },
+  { id: deterministicUuid("hol-in-indep-2027"), holiday_date: "2027-08-15", name: "India Independence Day", region: "IN", is_active: true },
+  { id: deterministicUuid("hol-in-gandhi-2027"), holiday_date: "2027-10-02", name: "Gandhi Jayanti", region: "IN", is_active: true },
+  { id: deterministicUuid("hol-in-diwali-2027"), holiday_date: "2027-10-29", name: "Diwali", region: "IN", is_active: true },
+];
+
+const arcProject = INITIAL_PROJECTS.find((p) => p.code === "ARC")!;
+const arcG4 = resolveLegacyGateId("proj-arc-g4");
+const rtgProject = INITIAL_PROJECTS.find((p) => p.code === "RTG")!;
+const rtgG5 = resolveLegacyGateId("proj-rtg-g5");
+
+export const INITIAL_GENERATION_BLOCKS: StudioGenerationBlock[] = [
+  ...createGenerationBlocksForProject(arcProject, arcG4, 20).map((b, idx) => ({
+    ...b,
+    takes: idx < 4 ? 3 + (idx % 2) : idx < 6 ? 2 : 0,
+    status: (idx < 4 ? "keeper" : idx < 6 ? "generating" : "planned") as StudioGenerationBlock["status"],
+  })),
+  ...createGenerationBlocksForProject(rtgProject, rtgG5, 20).map((b, idx) => ({
+    ...b,
+    takes: idx < 3 ? 4 : idx === 3 ? 2 : 0,
+    status: (idx < 3 ? "keeper" : idx === 3 ? "rejected" : "planned") as StudioGenerationBlock["status"],
+  })),
+];
+
+export const INITIAL_TIME_ENTRIES: StudioTimeEntry[] = [
+  5.2, 6.4, 4.8, 7.1, 6.0, 5.5, 3.8,
+].flatMap((activeHrs, idx) => {
+  const day = subDays(new Date(), 6 - idx);
+  const dayStr = format(day, "yyyy-MM-dd");
+  const pauseHrs = Math.round((0.8 + (idx % 3) * 0.4) * 10) / 10;
+  const taskId = INITIAL_TASKS[idx % INITIAL_TASKS.length].id;
+  const memberId = INITIAL_MEMBERS[0].id;
+  const startActive = new Date(`${dayStr}T10:00:00+05:30`);
+  const endActive = new Date(startActive.getTime() + activeHrs * 3600000);
+  const startPause = new Date(`${dayStr}T14:00:00+05:30`);
+  const endPause = new Date(startPause.getTime() + pauseHrs * 3600000);
+  return [
+    {
+      id: deterministicUuid(`te-active-${idx}`),
+      task_id: taskId,
+      member_id: memberId,
+      started_at: startActive.toISOString(),
+      ended_at: endActive.toISOString(),
+      kind: "active" as const,
+      notes: "Deep production focus",
+    },
+    {
+      id: deterministicUuid(`te-pause-${idx}`),
+      task_id: taskId,
+      member_id: memberId,
+      started_at: startPause.toISOString(),
+      ended_at: endPause.toISOString(),
+      kind: "pause" as const,
+      notes: "Render queue & break",
+    },
+  ];
+});
+
+// Keep unused addDays import satisfied cleanly if callers rely on date-fns utilities
+export const _seedDateRef = addDays;

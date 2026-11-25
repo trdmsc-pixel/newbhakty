@@ -1,29 +1,42 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { addDays, format, parseISO } from "date-fns";
 import {
   ActivityLogItem,
   GateStatus,
   GateTemplateKey,
+  HolidayRegion,
   StudioClient,
   StudioGate,
+  StudioGenerationBlock,
+  StudioHoliday,
   StudioMember,
   StudioPayment,
   StudioProject,
   StudioRoute,
   StudioSettings,
   StudioTask,
+  StudioTimeEntry,
   TaskStatus,
 } from "./types";
 import {
+  computeRealOverrunCalibration,
   computeProjectForecast,
+  ProjectForecastResult,
+} from "./forecastEngine";
+import {
   createGatesFromTemplate,
+  createGenerationBlocksForProject,
   INITIAL_ACTIVITY,
   INITIAL_CLIENTS,
   INITIAL_GATES,
+  INITIAL_GENERATION_BLOCKS,
+  INITIAL_HOLIDAYS,
   INITIAL_MEMBERS,
   INITIAL_PAYMENTS,
   INITIAL_PROJECTS,
   INITIAL_SETTINGS,
   INITIAL_TASKS,
+  INITIAL_TIME_ENTRIES,
 } from "./seedData";
 import { ProjectCreateInput, TaskCreateInput } from "./schemas";
 import { isUuid, newUuid } from "./uuid";
@@ -31,17 +44,22 @@ import {
   loadOrSeedStudioOSFromSupabase,
   resetStudioOSInSupabase,
   syncArchiveTasks,
+  syncDeleteHoliday,
   syncInsertActivity,
+  syncInsertGenerationBlocks,
   syncInsertProjectWithGates,
   syncInsertTask,
-  syncInsertTimeEntry,
+  syncInsertTimeEntryExact,
   syncUpdateGate,
+  syncUpdateGenerationBlock,
   syncUpdateProject,
   syncUpdateSettings,
   syncUpdateTask,
+  syncUpsertHoliday,
 } from "./supabaseSync";
 
-const STORAGE_KEY = "tcs_studio_os_phase1_v2";
+const STORAGE_KEY = "tcs_studio_os_phase2_v1";
+const CLOSED_DATE_KEY = "tcs_studio_os_closed_date";
 
 interface PersistedState {
   settings: StudioSettings;
@@ -52,6 +70,9 @@ interface PersistedState {
   tasks: StudioTask[];
   payments: StudioPayment[];
   activity: ActivityLogItem[];
+  holidays: StudioHoliday[];
+  generationBlocks: StudioGenerationBlock[];
+  timeEntries: StudioTimeEntry[];
 }
 
 interface StudioToast {
@@ -69,6 +90,13 @@ interface StudioOSContextValue {
   tasks: StudioTask[];
   payments: StudioPayment[];
   activity: ActivityLogItem[];
+  holidays: StudioHoliday[];
+  generationBlocks: StudioGenerationBlock[];
+  timeEntries: StudioTimeEntry[];
+
+  // Calibration
+  realOverrunCalibration: ReturnType<typeof computeRealOverrunCalibration>;
+  applyCalibratedOverrunFactor: () => void;
 
   // Navigation & UI
   route: StudioRoute;
@@ -85,9 +113,14 @@ interface StudioOSContextValue {
   setNewProjectOpen: (open: boolean) => void;
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+  eveningShutdownOpen: boolean;
+  setEveningShutdownOpen: (open: boolean) => void;
+  studioClosedForToday: boolean;
+  completeEveningShutdown: (tomorrowTaskIds: string[]) => void;
+  reopenStudio: () => void;
   supabaseSyncStatus: "local" | "synced" | "schema_pending";
 
-  // Focus Timer
+  // Focus Timer (persists active & pause sessions to studio_time_entries)
   activeTimerTaskId: string | null;
   timerRunning: boolean;
   timerSeconds: number;
@@ -103,14 +136,20 @@ interface StudioOSContextValue {
   toggleTaskDone: (taskId: string) => void;
   toggleTaskInNow: (taskId: string) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
+  moveTaskToNextWeek: (taskId: string) => void;
   addProject: (input: ProjectCreateInput) => StudioProject;
   updateProject: (projectId: string, patch: Partial<StudioProject>) => void;
   updateGate: (gateId: string, patch: Partial<StudioGate>) => void;
   updateSettings: (patch: Partial<StudioSettings>) => void;
+  initGenerationBlocks: (projectId: string) => void;
+  addGenerationBlock: (projectId: string) => void;
+  updateGenerationBlock: (blockId: string, patch: Partial<StudioGenerationBlock>) => void;
+  addHoliday: (holiday: { holiday_date: string; name: string; region: HolidayRegion }) => void;
+  deleteHoliday: (holidayId: string) => void;
   resetDemoData: () => void;
 
   // Helpers
-  getProjectForecast: (projectId: string) => ReturnType<typeof computeProjectForecast> | null;
+  getProjectForecast: (projectId: string) => ProjectForecastResult | null;
   toasts: StudioToast[];
   pushToast: (message: string, tone?: "success" | "info" | "warn") => void;
 }
@@ -127,14 +166,17 @@ function getSeedState(): PersistedState {
     tasks: INITIAL_TASKS,
     payments: INITIAL_PAYMENTS,
     activity: INITIAL_ACTIVITY,
+    holidays: INITIAL_HOLIDAYS,
+    generationBlocks: INITIAL_GENERATION_BLOCKS,
+    timeEntries: INITIAL_TIME_ENTRIES,
   };
 }
 
 function loadInitialState(): PersistedState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("tcs_studio_os_phase1_v2");
     if (raw) {
-      const parsed = JSON.parse(raw) as PersistedState;
+      const parsed = JSON.parse(raw) as Partial<PersistedState>;
       if (
         parsed &&
         isUuid(parsed.settings?.id) &&
@@ -143,8 +185,19 @@ function loadInitialState(): PersistedState {
         Array.isArray(parsed.tasks)
       ) {
         return {
-          ...parsed,
+          settings: parsed.settings || INITIAL_SETTINGS,
           members: Array.isArray(parsed.members) && parsed.members.length > 0 ? parsed.members : INITIAL_MEMBERS,
+          clients: Array.isArray(parsed.clients) ? parsed.clients : INITIAL_CLIENTS,
+          projects: parsed.projects,
+          gates: Array.isArray(parsed.gates) ? parsed.gates : INITIAL_GATES,
+          tasks: parsed.tasks,
+          payments: Array.isArray(parsed.payments) ? parsed.payments : INITIAL_PAYMENTS,
+          activity: Array.isArray(parsed.activity) ? parsed.activity : INITIAL_ACTIVITY,
+          holidays: Array.isArray(parsed.holidays) ? parsed.holidays : INITIAL_HOLIDAYS,
+          generationBlocks: Array.isArray(parsed.generationBlocks)
+            ? parsed.generationBlocks
+            : INITIAL_GENERATION_BLOCKS,
+          timeEntries: Array.isArray(parsed.timeEntries) ? parsed.timeEntries : INITIAL_TIME_ENTRIES,
         };
       }
     }
@@ -174,19 +227,34 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [eveningShutdownOpen, setEveningShutdownOpen] = useState(false);
+  const [closedDate, setClosedDate] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(CLOSED_DATE_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const studioClosedForToday = closedDate === format(new Date(), "yyyy-MM-dd");
+
   const [supabaseSyncStatus, setSupabaseSyncStatus] = useState<"local" | "synced" | "schema_pending">("local");
   const syncStatusRef = useRef(supabaseSyncStatus);
   syncStatusRef.current = supabaseSyncStatus;
 
   const [toasts, setToasts] = useState<StudioToast[]>([]);
 
-  // Focus timer state
+  // Focus timer state & active/pause segment tracker
   const [activeTimerTaskId, setActiveTimerTaskId] = useState<string | null>(() => {
     const firstNow = state.tasks.find((t) => t.is_in_now && t.status !== "done");
     return firstNow?.id || null;
   });
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const timerSegmentRef = useRef<{
+    kind: "active" | "pause";
+    startedAtMs: number;
+    taskId?: string;
+  } | null>(null);
 
   const pushToast = useCallback((message: string, tone: "success" | "info" | "warn" = "success") => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -231,6 +299,9 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         tasks: result.data.tasks,
         payments: result.data.payments,
         activity: result.data.activity,
+        holidays: result.data.holidays,
+        generationBlocks: result.data.generationBlocks,
+        timeEntries: result.data.timeEntries,
       };
       commitState(next);
       setSupabaseSyncStatus("synced");
@@ -250,7 +321,7 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [commitState]);
 
-  // Focus timer interval
+  // Focus timer tick
   useEffect(() => {
     if (!timerRunning) return;
     const interval = setInterval(() => {
@@ -271,16 +342,16 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
-  // Recompute project forecasts dynamically from gates + client latency + settings
+  // Recompute project forecasts dynamically from gates + client latency + settings + holidays
   const forecastMap = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof computeProjectForecast>>();
+    const map = new Map<string, ProjectForecastResult>();
     const now = new Date();
     for (const p of state.projects) {
       const client = state.clients.find((c) => c.id === p.client_id);
-      map.set(p.id, computeProjectForecast(p, state.gates, client, state.settings, now));
+      map.set(p.id, computeProjectForecast(p, state.gates, client, state.settings, state.holidays, now));
     }
     return map;
-  }, [state.projects, state.gates, state.clients, state.settings]);
+  }, [state.projects, state.gates, state.clients, state.settings, state.holidays]);
 
   const projectsWithForecast = useMemo(() => {
     return state.projects.map((p) => {
@@ -293,6 +364,11 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
     });
   }, [state.projects, forecastMap]);
+
+  const realOverrunCalibration = useMemo(
+    () => computeRealOverrunCalibration(state.gates),
+    [state.gates]
+  );
 
   const getProjectForecast = useCallback(
     (projectId: string) => forecastMap.get(projectId) || null,
@@ -326,6 +402,31 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     },
     [pushToast]
   );
+
+  const flushTimerSegment = useCallback(() => {
+    const seg = timerSegmentRef.current;
+    if (!seg) return;
+    const nowMs = Date.now();
+    timerSegmentRef.current = null;
+    if (nowMs - seg.startedAtMs < 1000) return;
+
+    const entry: StudioTimeEntry = {
+      id: newUuid(),
+      task_id: seg.taskId,
+      member_id: stateRef.current.members[0]?.id,
+      started_at: new Date(seg.startedAtMs).toISOString(),
+      ended_at: new Date(nowMs).toISOString(),
+      kind: seg.kind,
+    };
+    const cur = stateRef.current;
+    commitState({
+      ...cur,
+      timeEntries: [entry, ...cur.timeEntries.slice(0, 199)],
+    });
+    if (syncStatusRef.current === "synced") {
+      syncInsertTimeEntryExact(entry).then((err) => handleSyncError(err, "time entry"));
+    }
+  }, [commitState, handleSyncError]);
 
   const addTask = useCallback(
     (input: TaskCreateInput): StudioTask => {
@@ -510,6 +611,26 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [updateTask]
   );
 
+  const moveTaskToNextWeek = useCallback(
+    (taskId: string) => {
+      const target = stateRef.current.tasks.find((t) => t.id === taskId);
+      if (!target) return;
+      const baseDt = target.do_date
+        ? parseISO(target.do_date)
+        : target.due_date
+        ? parseISO(target.due_date)
+        : new Date();
+      const nextIso = format(addDays(baseDt, 7), "yyyy-MM-dd");
+      updateTask(taskId, {
+        do_date: nextIso,
+        due_date: nextIso,
+        is_in_now: false,
+      });
+      pushToast(`Rescheduled ${target.key} to ${format(addDays(baseDt, 7), "d MMM")}`, "info");
+    },
+    [updateTask, pushToast]
+  );
+
   const addProject = useCallback(
     (input: ProjectCreateInput): StudioProject => {
       const cur = stateRef.current;
@@ -593,22 +714,42 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const target = cur.gates.find((g) => g.id === gateId);
       if (!target) return;
 
+      const nowIso = new Date().toISOString();
       const nextStatus: GateStatus = patch.status || target.status;
+
+      let computedActualDays =
+        patch.actual_days !== undefined ? patch.actual_days : target.actual_days;
+      if (nextStatus === "approved" && patch.actual_days === undefined && !target.actual_days) {
+        if (target.started_at) {
+          const elapsedDays = (Date.now() - Date.parse(target.started_at)) / 86400000;
+          computedActualDays = Math.max(0.5, Math.round(elapsedDays * 2) / 2);
+        } else {
+          computedActualDays = target.estimate_days;
+        }
+      }
+
       const updatedGate: StudioGate = {
         ...target,
         ...patch,
+        actual_days: computedActualDays,
+        started_at:
+          nextStatus === "in_work" && !target.started_at ? nowIso : target.started_at,
         approved_at:
-          nextStatus === "approved" && !target.approved_at ? new Date().toISOString() : target.approved_at,
+          nextStatus === "approved" && !target.approved_at ? nowIso : target.approved_at,
         sent_for_approval_at:
           nextStatus === "waiting_on_client" && !target.sent_for_approval_at
-            ? new Date().toISOString()
+            ? nowIso
             : target.sent_for_approval_at,
       };
       const actItem = buildActivityItem(
         "gate",
         gateId,
         `updated ${target.code} ${target.name} (${
-          patch.status ? patch.status.replace(/_/g, " ") : `${patch.estimate_days ?? target.estimate_days}d`
+          patch.status
+            ? patch.status.replace(/_/g, " ")
+            : patch.actual_days !== undefined
+            ? `actual ${patch.actual_days}d`
+            : `${patch.estimate_days ?? target.estimate_days}d`
         })`
       );
 
@@ -648,6 +789,173 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [commitState, handleSyncError, pushToast]
   );
 
+  const applyCalibratedOverrunFactor = useCallback(() => {
+    const cal = computeRealOverrunCalibration(stateRef.current.gates);
+    if (cal.gateCount === 0) {
+      pushToast("Approve at least 1 gate first to calibrate.", "warn");
+      return;
+    }
+    updateSettings({ overrun_factor: cal.ratio });
+    pushToast(`Applied calibrated ${cal.ratio}× overrun factor`, "success");
+  }, [updateSettings, pushToast]);
+
+  const initGenerationBlocks = useCallback(
+    (projectId: string) => {
+      const cur = stateRef.current;
+      const proj = cur.projects.find((p) => p.id === projectId);
+      if (!proj) return;
+      const existing = cur.generationBlocks.filter((b) => b.project_id === projectId);
+      if (existing.length > 0) return;
+
+      const genGate = cur.gates.find((g) => g.project_id === projectId && g.code === "G4") ||
+        cur.gates.find((g) => g.project_id === projectId);
+      const newBlocks = createGenerationBlocksForProject(
+        proj,
+        genGate?.id,
+        cur.settings.block_seconds || 20
+      );
+
+      commitState({
+        ...cur,
+        generationBlocks: [...cur.generationBlocks, ...newBlocks],
+      });
+
+      if (syncStatusRef.current === "synced") {
+        syncInsertGenerationBlocks(newBlocks).then((err) => handleSyncError(err, "init blocks"));
+      }
+      pushToast(`Generated ${newBlocks.length} 20-sec blocks for ${proj.code}`, "success");
+    },
+    [commitState, handleSyncError, pushToast]
+  );
+
+  const addGenerationBlock = useCallback(
+    (projectId: string) => {
+      const cur = stateRef.current;
+      const proj = cur.projects.find((p) => p.id === projectId);
+      if (!proj) return;
+      const existing = cur.generationBlocks.filter((b) => b.project_id === projectId);
+      const nextNum = existing.reduce((m, b) => Math.max(m, b.block_number), 0) + 1;
+      const sec = cur.settings.block_seconds || 20;
+      const genGate = cur.gates.find((g) => g.project_id === projectId && g.code === "G4");
+
+      const block: StudioGenerationBlock = {
+        id: newUuid(),
+        project_id: projectId,
+        gate_id: genGate?.id,
+        block_number: nextNum,
+        label: `Block ${nextNum} (${(nextNum - 1) * sec}–${nextNum * sec}s)`,
+        prompt_ref: `${proj.code}-B${String(nextNum).padStart(2, "0")}`,
+        takes: 0,
+        status: "planned",
+        seconds: sec,
+        updated_at: new Date().toISOString(),
+      };
+
+      commitState({
+        ...cur,
+        generationBlocks: [...cur.generationBlocks, block],
+      });
+      if (syncStatusRef.current === "synced") {
+        syncInsertGenerationBlocks([block]).then((err) => handleSyncError(err, "add block"));
+      }
+    },
+    [commitState, handleSyncError]
+  );
+
+  const updateGenerationBlock = useCallback(
+    (blockId: string, patch: Partial<StudioGenerationBlock>) => {
+      const cur = stateRef.current;
+      const target = cur.generationBlocks.find((b) => b.id === blockId);
+      if (!target) return;
+      const updated: StudioGenerationBlock = {
+        ...target,
+        ...patch,
+        updated_at: new Date().toISOString(),
+      };
+      commitState({
+        ...cur,
+        generationBlocks: cur.generationBlocks.map((b) => (b.id === blockId ? updated : b)),
+      });
+      if (syncStatusRef.current === "synced") {
+        syncUpdateGenerationBlock(updated).then((err) => handleSyncError(err, "update block"));
+      }
+    },
+    [commitState, handleSyncError]
+  );
+
+  const addHoliday = useCallback(
+    (input: { holiday_date: string; name: string; region: HolidayRegion }) => {
+      const cur = stateRef.current;
+      const holiday: StudioHoliday = {
+        id: newUuid(),
+        holiday_date: input.holiday_date,
+        name: input.name.trim(),
+        region: input.region,
+        is_active: true,
+      };
+      commitState({
+        ...cur,
+        holidays: [...cur.holidays, holiday].sort((a, b) => a.holiday_date.localeCompare(b.holiday_date)),
+      });
+      if (syncStatusRef.current === "synced") {
+        syncUpsertHoliday(holiday).then((err) => handleSyncError(err, "add holiday"));
+      }
+      pushToast(`Added holiday: ${holiday.name}`, "success");
+    },
+    [commitState, handleSyncError, pushToast]
+  );
+
+  const deleteHoliday = useCallback(
+    (holidayId: string) => {
+      const cur = stateRef.current;
+      commitState({
+        ...cur,
+        holidays: cur.holidays.filter((h) => h.id !== holidayId),
+      });
+      if (syncStatusRef.current === "synced") {
+        syncDeleteHoliday(holidayId).then((err) => handleSyncError(err, "remove holiday"));
+      }
+    },
+    [commitState, handleSyncError]
+  );
+
+  const completeEveningShutdown = useCallback(
+    (tomorrowTaskIds: string[]) => {
+      const tomorrowIso = format(addDays(new Date(), 1), "yyyy-MM-dd");
+      const pickSet = new Set(tomorrowTaskIds.slice(0, stateRef.current.settings.wip_limit || 3));
+
+      // Clear old Now pins if finished or replaced, and pin tomorrow's chosen 3
+      const cur = stateRef.current;
+      for (const t of cur.tasks) {
+        if (pickSet.has(t.id)) {
+          updateTask(t.id, { is_in_now: true, do_date: tomorrowIso });
+        } else if (t.is_in_now && pickSet.size > 0) {
+          updateTask(t.id, { is_in_now: false });
+        }
+      }
+
+      const todayIso = format(new Date(), "yyyy-MM-dd");
+      try {
+        localStorage.setItem(CLOSED_DATE_KEY, todayIso);
+      } catch {
+        // ignore
+      }
+      setClosedDate(todayIso);
+      setEveningShutdownOpen(false);
+      pushToast("Evening Shutdown complete — Studio Closed for tonight.", "info");
+    },
+    [updateTask, pushToast]
+  );
+
+  const reopenStudio = useCallback(() => {
+    try {
+      localStorage.removeItem(CLOSED_DATE_KEY);
+    } catch {
+      // ignore
+    }
+    setClosedDate(null);
+  }, []);
+
   const resetDemoData = useCallback(() => {
     const fresh = getSeedState();
     commitState(fresh);
@@ -658,35 +966,52 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     pushToast("Restored Studio OS seed data", "info");
   }, [commitState, handleSyncError, pushToast]);
 
-  const startTimerForTask = useCallback((taskId: string) => {
-    setActiveTimerTaskId(taskId);
-    setTimerRunning(true);
-  }, []);
+  const startTimerForTask = useCallback(
+    (taskId: string) => {
+      flushTimerSegment();
+      setActiveTimerTaskId(taskId);
+      setTimerRunning(true);
+      timerSegmentRef.current = {
+        kind: "active",
+        startedAtMs: Date.now(),
+        taskId,
+      };
+    },
+    [flushTimerSegment]
+  );
 
   const toggleTimer = useCallback(() => {
-    setTimerRunning((r) => !r);
-  }, []);
+    setTimerRunning((wasRunning) => {
+      flushTimerSegment();
+      const nextRunning = !wasRunning;
+      timerSegmentRef.current = {
+        kind: nextRunning ? "active" : "pause",
+        startedAtMs: Date.now(),
+        taskId: activeTimerTaskId || undefined,
+      };
+      return nextRunning;
+    });
+  }, [activeTimerTaskId, flushTimerSegment]);
 
   const resetTimer = useCallback(() => {
+    flushTimerSegment();
     setTimerRunning(false);
     setTimerSeconds(0);
-  }, []);
+  }, [flushTimerSegment]);
 
   const stopTimer = useCallback(() => {
+    flushTimerSegment();
     if (activeTimerTaskId && timerSeconds > 0) {
       const addedHours = Math.round((timerSeconds / 3600) * 100) / 100;
       const t = stateRef.current.tasks.find((x) => x.id === activeTimerTaskId);
       if (t) {
         updateTask(activeTimerTaskId, { actual_hours: Math.round((t.actual_hours + addedHours) * 100) / 100 });
-        if (syncStatusRef.current === "synced") {
-          syncInsertTimeEntry(activeTimerTaskId, stateRef.current.members[0]?.id, timerSeconds).catch(() => {});
-        }
         pushToast(`Logged ${Math.max(1, Math.round(timerSeconds / 60))}m to ${t.key}`, "info");
       }
     }
     setTimerRunning(false);
     setTimerSeconds(0);
-  }, [activeTimerTaskId, timerSeconds, updateTask, pushToast]);
+  }, [activeTimerTaskId, timerSeconds, updateTask, pushToast, flushTimerSegment]);
 
   const value: StudioOSContextValue = {
     settings: state.settings,
@@ -697,6 +1022,11 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     tasks: state.tasks,
     payments: state.payments,
     activity: state.activity,
+    holidays: state.holidays,
+    generationBlocks: state.generationBlocks,
+    timeEntries: state.timeEntries,
+    realOverrunCalibration,
+    applyCalibratedOverrunFactor,
     route,
     setRoute,
     selectedProjectId,
@@ -711,6 +1041,11 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setNewProjectOpen,
     commandPaletteOpen,
     setCommandPaletteOpen,
+    eveningShutdownOpen,
+    setEveningShutdownOpen,
+    studioClosedForToday,
+    completeEveningShutdown,
+    reopenStudio,
     supabaseSyncStatus,
     activeTimerTaskId,
     timerRunning,
@@ -725,10 +1060,16 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     toggleTaskDone,
     toggleTaskInNow,
     toggleChecklistItem,
+    moveTaskToNextWeek,
     addProject,
     updateProject,
     updateGate,
     updateSettings,
+    initGenerationBlocks,
+    addGenerationBlock,
+    updateGenerationBlock,
+    addHoliday,
+    deleteHoliday,
     resetDemoData,
     getProjectForecast,
     toasts,

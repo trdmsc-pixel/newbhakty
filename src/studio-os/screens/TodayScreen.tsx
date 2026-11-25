@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO } from "date-fns";
 import {
+  ArrowRight,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock,
+  Copy,
   Hourglass,
   Mail,
   MessageCircle,
@@ -15,8 +19,10 @@ import {
   RotateCcw,
   Square,
   Sparkles,
+  Sun,
 } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
+import { generateBriefSummary } from "../forecastEngine";
 import { HealthPill, TaskStatusChip } from "../components/StatusChip";
 
 export const TodayScreen: React.FC = () => {
@@ -25,10 +31,13 @@ export const TodayScreen: React.FC = () => {
     projects,
     gates,
     clients,
+    holidays,
     settings,
     toggleTaskDone,
     toggleTaskInNow,
+    moveTaskToNextWeek,
     setQuickAddOpen,
+    setEveningShutdownOpen,
     openProject,
     activeTimerTaskId,
     timerRunning,
@@ -37,11 +46,13 @@ export const TodayScreen: React.FC = () => {
     toggleTimer,
     resetTimer,
     stopTimer,
+    pushToast,
   } = useStudioOS();
 
   const today = useMemo(() => new Date(), []);
   const [selectedDay, setSelectedDay] = useState<Date>(today);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [briefExpanded, setBriefExpanded] = useState(true);
 
   // 1. Now tasks (strict WIP limit = settings.wip_limit, default 3)
   const nowTasks = useMemo(
@@ -130,21 +141,64 @@ export const TodayScreen: React.FC = () => {
     [projects, today]
   );
 
-  // 6. Load meter (next 7 days)
+  // 6. Load meter (next 7 days) + lowest-priority P3 deferral candidate
   const loadStats = useMemo(() => {
     const horizon = addDays(today, 7);
-    const planned = tasks
-      .filter((t) => {
-        if (t.status === "done") return false;
-        if (!t.do_date && !t.due_date) return t.is_in_now;
-        const d = parseISO(t.do_date || t.due_date!);
-        return d <= horizon;
-      })
-      .reduce((acc, t) => acc + (t.estimate_hours || 1), 0);
+    const windowTasks = tasks.filter((t) => {
+      if (t.status === "done") return false;
+      if (!t.do_date && !t.due_date) return t.is_in_now;
+      const d = parseISO(t.do_date || t.due_date!);
+      return d <= horizon;
+    });
+    const planned = windowTasks.reduce((acc, t) => acc + (t.estimate_hours || 1), 0);
     const available = settings.work_hours_per_day * 7;
     const pct = Math.min(130, Math.round((planned / available) * 100));
-    return { planned: Math.round(planned * 10) / 10, available, pct, overloaded: planned > available };
-  }, [tasks, settings.work_hours_per_day, today]);
+    const overloaded = planned > available;
+
+    // Pick lowest-priority task (preferring non-Now low/P3 tasks) when overloaded
+    const projPriorityMap = new Map<string, "p1" | "p2" | "p3">(
+      projects.map((p) => [p.id, p.priority] as [string, "p1" | "p2" | "p3"])
+    );
+    const candidate = overloaded
+      ? [...windowTasks]
+          .filter((t) => !t.is_in_now)
+          .sort((a, b) => {
+            const pRank: Record<string, number> = { low: 0, normal: 1, high: 2, urgent: 3 };
+            const projRank: Record<"p1" | "p2" | "p3", number> = { p3: 0, p2: 1, p1: 2 };
+            const aProj = projPriorityMap.get(a.project_id) ?? "p2";
+            const bProj = projPriorityMap.get(b.project_id) ?? "p2";
+            if (projRank[aProj] !== projRank[bProj]) return projRank[aProj] - projRank[bProj];
+            if ((pRank[a.priority] ?? 1) !== (pRank[b.priority] ?? 1)) {
+              return (pRank[a.priority] ?? 1) - (pRank[b.priority] ?? 1);
+            }
+            return b.estimate_hours - a.estimate_hours;
+          })[0] || null
+      : null;
+
+    return {
+      planned: Math.round(planned * 10) / 10,
+      available,
+      pct,
+      overloaded,
+      overflowHours: Math.max(0, Math.round((planned - available) * 10) / 10),
+      candidate,
+    };
+  }, [tasks, projects, settings.work_hours_per_day, today]);
+
+  // Morning Brief summary (<=200 words, matches 07:30 IST Resend email)
+  const morningBrief = useMemo(
+    () =>
+      generateBriefSummary({
+        projects,
+        gates,
+        tasks,
+        clients,
+        settings,
+        holidays,
+        today,
+      }),
+    [projects, gates, tasks, clients, settings, holidays, today]
+  );
 
   // 7. Date strip for Upcoming Tasks
   const stripDays = useMemo(() => {
@@ -159,17 +213,35 @@ export const TodayScreen: React.FC = () => {
       .slice(0, 5);
   }, [tasks, selectedDay]);
 
-  // 8. Studio closes countdown
-  const closesInText = useMemo(() => {
+  // 8. Studio closes countdown (in Asia/Kolkata IST) + auto-prompt 60m prior
+  const { closesInText, shutdownWindowActive } = useMemo(() => {
     const [hh, mm] = settings.studio_closes_at.split(":").map(Number);
     const closeDt = new Date(today);
     closeDt.setHours(hh || 21, mm || 30, 0, 0);
     const diffMins = Math.round((closeDt.getTime() - today.getTime()) / 60000);
-    if (diffMins <= 0) return "Studio closed for tonight";
+    if (diffMins <= 0) {
+      return { closesInText: "Evening Shutdown Ready", shutdownWindowActive: true };
+    }
     const h = Math.floor(diffMins / 60);
     const m = diffMins % 60;
-    return `Studio closes in ${h}h ${m}m`;
+    return {
+      closesInText: `Studio closes in ${h}h ${m}m`,
+      shutdownWindowActive: diffMins <= 60,
+    };
   }, [settings.studio_closes_at, today]);
+
+  useEffect(() => {
+    if (!shutdownWindowActive) return;
+    const todayIso = format(today, "yyyy-MM-dd");
+    try {
+      if (localStorage.getItem("tcs_studio_os_shutdown_prompted") !== todayIso) {
+        localStorage.setItem("tcs_studio_os_shutdown_prompted", todayIso);
+        setEveningShutdownOpen(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, [shutdownWindowActive, today, setEveningShutdownOpen]);
 
   // Focus Timer display
   const activeTimerTask = tasks.find((t) => t.id === activeTimerTaskId) || nowTasks[0];
@@ -207,15 +279,137 @@ export const TodayScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Studio Closes Black Pill Card */}
-        <div
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full self-start md:self-auto"
-          style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}
+        {/* Studio Closes Black Pill Trigger -> opens Evening Shutdown */}
+        <button
+          type="button"
+          onClick={() => setEveningShutdownOpen(true)}
+          className="sos-pill-btn inline-flex items-center gap-2.5 px-4 py-2.5 self-start md:self-auto"
+          style={{
+            background: shutdownWindowActive ? "var(--sos-primary)" : "var(--sos-ink)",
+            color: shutdownWindowActive ? "#FFFFFF" : "var(--sos-ink-text)",
+          }}
         >
           <Moon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
           <span className="text-[13px] font-medium sos-tabular">{closesInText}</span>
-        </div>
+        </button>
       </div>
+
+      {/* 07:30 IST Morning Brief Summary Banner */}
+      <section className="sos-card p-4 md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}
+            >
+              <Sun className="w-4 h-4" />
+            </span>
+            <div>
+              <h2 className="sos-display text-[16px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+                07:30 Morning Brief
+              </h2>
+              <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
+                {morningBrief.wordCount} words · Confidential projects masked
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(morningBrief.briefText);
+                pushToast("Copied Morning Brief text", "info");
+              }}
+              className="sos-pill-btn inline-flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium border"
+              style={{
+                background: "var(--sos-surface-2)",
+                borderColor: "var(--sos-border)",
+                color: "var(--sos-text-2)",
+              }}
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy brief
+            </button>
+            <button
+              type="button"
+              onClick={() => setBriefExpanded((b) => !b)}
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
+              aria-label="Toggle Morning Brief"
+            >
+              {briefExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {briefExpanded && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t text-[12px]" style={{ borderColor: "var(--sos-border)" }}>
+            <div className="sos-tile p-3 space-y-1">
+              <p className="font-semibold" style={{ color: "var(--sos-primary)" }}>
+                Today&apos;s Top {morningBrief.topNow.length}
+              </p>
+              {morningBrief.topNow.length === 0 ? (
+                <p style={{ color: "var(--sos-text-3)" }}>Clear queue</p>
+              ) : (
+                morningBrief.topNow.map((item, i) => (
+                  <p key={i} className="truncate" style={{ color: "var(--sos-text-1)" }}>
+                    <strong>{item.key}</strong> · {item.title}
+                  </p>
+                ))
+              )}
+            </div>
+
+            <div className="sos-tile p-3 space-y-1">
+              <p className="font-semibold text-[#C26A00]">
+                Promises 48h &amp; Replies ({morningBrief.promises48h.length + morningBrief.repliesOwed.length})
+              </p>
+              {morningBrief.promises48h.slice(0, 2).map((p, i) => (
+                <p key={`p-${i}`} className="truncate" style={{ color: "var(--sos-text-1)" }}>
+                  {p.key} → {p.who} ({p.due})
+                </p>
+              ))}
+              {morningBrief.repliesOwed.slice(0, 2).map((r, i) => (
+                <p key={`r-${i}`} className="truncate" style={{ color: "var(--sos-text-2)" }}>
+                  Reply: {r.who} ({r.daysWaiting}d)
+                </p>
+              ))}
+            </div>
+
+            <div className="sos-tile p-3 space-y-1">
+              <p className="font-semibold" style={{ color: "var(--sos-blue)" }}>
+                Waiting on Clients ({morningBrief.waitingOnClients.length})
+              </p>
+              {morningBrief.waitingOnClients.length === 0 ? (
+                <p style={{ color: "var(--sos-text-3)" }}>None blocked</p>
+              ) : (
+                morningBrief.waitingOnClients.slice(0, 3).map((w, i) => (
+                  <p key={i} className="truncate" style={{ color: "var(--sos-text-1)" }}>
+                    {w.label} · {w.days}d
+                  </p>
+                ))
+              )}
+            </div>
+
+            <div className="sos-tile p-3 space-y-1">
+              <p
+                className="font-semibold"
+                style={{ color: morningBrief.lateProjects.length ? "var(--sos-red)" : "var(--sos-green)" }}
+              >
+                Late Forecasts ({morningBrief.lateProjects.length})
+              </p>
+              {morningBrief.lateProjects.length === 0 ? (
+                <p style={{ color: "var(--sos-green)" }}>All active schedules within buffer</p>
+              ) : (
+                morningBrief.lateProjects.slice(0, 3).map((lp, i) => (
+                  <p key={i} className="truncate" style={{ color: "var(--sos-red)" }}>
+                    {lp.label} ({lp.forecastDate}{lp.deadlineDate ? ` vs ${lp.deadlineDate}` : ""})
+                  </p>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Bento Grid — 12 columns on desktop, single column on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -353,6 +547,25 @@ export const TodayScreen: React.FC = () => {
                 style={{ width: `${Math.min(100, loadStats.pct)}%` }}
               />
             </div>
+
+            {loadStats.overloaded && loadStats.candidate && (
+              <div className="mt-3 p-3 rounded-[14px] bg-[#FFF3E0] text-[#9A5200] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[12px]">
+                <span>
+                  Overloaded (+{loadStats.overflowHours}h). Move low-priority{" "}
+                  <strong>
+                    {loadStats.candidate.key}: {loadStats.candidate.title.slice(0, 40)}
+                  </strong>{" "}
+                  ({loadStats.candidate.estimate_hours}h) to next week?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => moveTaskToNextWeek(loadStats.candidate!.id)}
+                  className="sos-pill-btn inline-flex items-center gap-1 px-3 h-7 text-[11px] font-bold bg-[#C26A00] text-white shrink-0 self-start sm:self-auto"
+                >
+                  Move to next week <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         </section>
 

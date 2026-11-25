@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
+  CalendarRange,
+  ClipboardCheck,
   FolderKanban,
   Inbox,
   Kanban,
@@ -24,17 +26,20 @@ import {
 import { StudioOSProvider, useStudioOS } from "./StudioOSContext";
 import { TodayScreen } from "./screens/TodayScreen";
 import { BoardScreen } from "./screens/BoardScreen";
+import { TimelineScreen } from "./screens/TimelineScreen";
 import { TableScreen } from "./screens/TableScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
+import { OverviewScreen } from "./screens/OverviewScreen";
+import { WeeklyReviewScreen } from "./screens/WeeklyReviewScreen";
 import {
   ClientsScreen,
-  OverviewPreviewScreen,
   PhasePlaceholderScreen,
   SettingsScreen,
 } from "./screens/SecondaryScreens";
 import { QuickAddModal } from "./components/QuickAddModal";
 import { NewProjectModal } from "./components/NewProjectModal";
+import { EveningShutdownModal, StudioClosedOverlay } from "./components/EveningShutdownModal";
 import { StackedAvatars } from "./components/StatusChip";
 import { StudioRoute } from "./types";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
@@ -155,7 +160,9 @@ const StudioOSShell: React.FC<{
     { id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: "P3" },
     { id: "projects", label: "Projects", icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "board", label: "Board", icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { id: "timeline", label: "Timeline", icon: <CalendarRange className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "table", label: "Table", icon: <Table2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { id: "weekly_review", label: "Weekly Review", icon: <ClipboardCheck className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: "Sun" },
     { id: "clients", label: "Clients", icon: <Users className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "money", label: "Money", icon: <Wallet className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
   ];
@@ -397,12 +404,23 @@ const StudioOSShell: React.FC<{
 
               <button
                 type="button"
-                onClick={() => pushToast("All calm — no overdue alerts.", "info")}
-                className="w-9 h-9 rounded-full flex items-center justify-center border"
+                onClick={() => {
+                  const lateCount = projects.filter((p) => p.health === "late").length;
+                  if (lateCount > 0) {
+                    setRoute("timeline");
+                    pushToast(`${lateCount} project(s) with late forecast`, "warn");
+                  } else {
+                    pushToast("All calm — no late forecasts.", "info");
+                  }
+                }}
+                className="relative w-9 h-9 rounded-full flex items-center justify-center border"
                 style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
                 aria-label="Notifications"
               >
                 <Bell className="w-4 h-4" strokeWidth={1.75} />
+                {projects.some((p) => p.health === "late") && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E5484D]" />
+                )}
               </button>
 
               <div
@@ -428,11 +446,13 @@ const StudioOSShell: React.FC<{
           <main className="flex-1 overflow-y-auto p-4 md:p-7 pb-24 md:pb-8">
             {route === "today" && <TodayScreen />}
             {route === "board" && <BoardScreen />}
+            {route === "timeline" && <TimelineScreen />}
             {route === "table" && <TableScreen />}
             {route === "projects" && <ProjectsScreen />}
             {route === "project_detail" && <ProjectDetailScreen />}
+            {route === "weekly_review" && <WeeklyReviewScreen />}
             {route === "clients" && <ClientsScreen />}
-            {route === "overview" && <OverviewPreviewScreen />}
+            {route === "overview" && <OverviewScreen />}
             {route === "settings" && (
               <SettingsScreen onInstallPWA={handleInstallPWA} canInstallPWA={Boolean(deferredPrompt)} />
             )}
@@ -514,9 +534,11 @@ const StudioOSShell: React.FC<{
         </button>
       </nav>
 
-      {/* Modals */}
+      {/* Modals & Evening Shutdown Ritual */}
       <QuickAddModal />
       <NewProjectModal />
+      <EveningShutdownModal />
+      <StudioClosedOverlay />
 
       {/* Calm Toasts */}
       <div className="fixed bottom-20 md:bottom-6 right-5 z-50 space-y-2 pointer-events-none">

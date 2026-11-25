@@ -8,7 +8,7 @@ import { TaskStatus } from "../types";
 const STATUS_CYCLE: TaskStatus[] = ["backlog", "todo", "in_progress", "waiting_on_client", "in_review", "done"];
 
 export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFilterId }) => {
-  const { tasks, projects, gates, updateTask, deleteTasks, setQuickAddOpen, openProject, pushToast } = useStudioOS();
+  const { tasks, projects, gates, updateTask, deleteTasks, setQuickAddOpen, openProject, setRoute, pushToast } = useStudioOS();
   const [tab, setTab] = useState<"all" | "done" | "backlog">("all");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -71,14 +71,41 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
               Click any status pill to advance it inline, or select multiple rows for bulk actions.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setQuickAddOpen(true)}
-            className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-11 text-[13px] font-semibold text-white self-start"
-            style={{ background: "var(--sos-primary)" }}
-          >
-            <Plus className="w-4 h-4" /> Quick Add
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
+              <button
+                type="button"
+                onClick={() => setRoute("board")}
+                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
+                style={{ color: "var(--sos-text-2)" }}
+              >
+                Board
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoute("timeline")}
+                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
+                style={{ color: "var(--sos-text-2)" }}
+              >
+                Timeline
+              </button>
+              <button
+                type="button"
+                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-white"
+                style={{ background: "var(--sos-blue)" }}
+              >
+                Table
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setQuickAddOpen(true)}
+              className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white"
+              style={{ background: "var(--sos-primary)" }}
+            >
+              <Plus className="w-4 h-4" /> Quick Add
+            </button>
+          </div>
         </div>
       )}
 

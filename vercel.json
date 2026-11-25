@@ -1,5 +1,15 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/forecast",
+      "schedule": "30 19 * * *"
+    },
+    {
+      "path": "/api/cron/brief",
+      "schedule": "0 2 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",

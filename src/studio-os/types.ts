@@ -109,6 +109,7 @@ export interface StudioGate {
   name: string;
   needs_client_approval: boolean;
   estimate_days: number;
+  actual_days?: number;
   started_at?: string;
   sent_for_approval_at?: string;
   approved_at?: string;
@@ -117,6 +118,51 @@ export interface StudioGate {
   revisions_included: number;
   client_comment?: string;
   portal_visible: boolean;
+}
+
+export type HolidayRegion = "IN" | "US" | "AR" | "GLOBAL";
+
+export interface StudioHoliday {
+  id: string;
+  holiday_date: string; // YYYY-MM-DD
+  name: string;
+  region: HolidayRegion;
+  is_active: boolean;
+}
+
+export type GenerationBlockStatus = "planned" | "generating" | "keeper" | "rejected";
+
+export interface StudioGenerationBlock {
+  id: string;
+  project_id: string;
+  gate_id?: string;
+  block_number: number;
+  label?: string;
+  prompt_ref?: string;
+  takes: number;
+  status: GenerationBlockStatus;
+  seconds: number;
+  updated_at?: string;
+}
+
+export interface StudioTimeEntry {
+  id: string;
+  task_id?: string;
+  member_id?: string;
+  started_at: string;
+  ended_at?: string;
+  kind: "active" | "pause";
+  notes?: string;
+}
+
+export interface StudioPushSubscription {
+  id: string;
+  member_id?: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
 }
 
 export interface StudioProject {
@@ -215,7 +261,9 @@ export type StudioRoute =
   | "inbox"
   | "projects"
   | "board"
+  | "timeline"
   | "table"
+  | "weekly_review"
   | "clients"
   | "money"
   | "settings"

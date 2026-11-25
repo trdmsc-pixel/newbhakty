@@ -242,6 +242,14 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
               </button>
               <button
                 type="button"
+                onClick={() => setRoute("timeline")}
+                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
+                style={{ color: "var(--sos-text-2)" }}
+              >
+                Timeline
+              </button>
+              <button
+                type="button"
                 onClick={() => setRoute("table")}
                 className="px-4 py-1.5 rounded-full text-[13px] font-medium"
                 style={{ color: "var(--sos-text-2)" }}

@@ -1,7 +1,34 @@
 import React, { useEffect, useState } from "react";
-import { Download, Globe, Inbox, Lock, RotateCcw, Sparkles, Wallet } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Calendar,
+  Download,
+  Globe,
+  Inbox,
+  Lock,
+  Plus,
+  RotateCcw,
+  Send,
+  Sparkles,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
-import { HealthPill } from "../components/StatusChip";
+import { supabase } from "../../lib/supabase";
+import { syncRemovePushSubscription, syncSavePushSubscription } from "../supabaseSync";
+import { HolidayRegion } from "../types";
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export const ClientsScreen: React.FC = () => {
   const { clients, projects, openProject } = useStudioOS();
@@ -29,7 +56,10 @@ export const ClientsScreen: React.FC = () => {
                     {c.name.slice(0, 2).toUpperCase()}
                   </span>
                   <div>
-                    <h3 className="sos-display text-[17px] font-semibold flex items-center gap-1.5" style={{ color: "var(--sos-text-1)" }}>
+                    <h3
+                      className="sos-display text-[17px] font-semibold flex items-center gap-1.5"
+                      style={{ color: "var(--sos-text-1)" }}
+                    >
                       {c.name}
                       {c.is_confidential && <Lock className="w-3.5 h-3.5 text-[#5B3FE4]" />}
                     </h3>
@@ -83,12 +113,35 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
   onInstallPWA,
   canInstallPWA,
 }) => {
-  const { settings, updateSettings, resetDemoData, supabaseSyncStatus } = useStudioOS();
+  const {
+    settings,
+    members,
+    holidays,
+    realOverrunCalibration,
+    applyCalibratedOverrunFactor,
+    updateSettings,
+    addHoliday,
+    deleteHoliday,
+    resetDemoData,
+    supabaseSyncStatus,
+    pushToast,
+  } = useStudioOS();
+
   const [overrun, setOverrun] = useState(String(settings.overrun_factor));
   const [latency, setLatency] = useState(String(settings.default_approval_latency_days));
   const [hours, setHours] = useState(String(settings.work_hours_per_day));
   const [closesAt, setClosesAt] = useState(settings.studio_closes_at);
   const [wipLimit, setWipLimit] = useState(String(settings.wip_limit));
+  const [takesPerKeeper, setTakesPerKeeper] = useState(String(settings.takes_per_keeper));
+
+  // Holidays form
+  const [holDate, setHolDate] = useState("");
+  const [holName, setHolName] = useState("");
+  const [holRegion, setHolRegion] = useState<HolidayRegion>("IN");
+
+  // Push subscription state
+  const [pushEndpoint, setPushEndpoint] = useState<string | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
     setOverrun(String(settings.overrun_factor));
@@ -96,7 +149,18 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
     setHours(String(settings.work_hours_per_day));
     setClosesAt(settings.studio_closes_at);
     setWipLimit(String(settings.wip_limit));
+    setTakesPerKeeper(String(settings.takes_per_keeper));
   }, [settings]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => {
+        if (sub) setPushEndpoint(sub.endpoint);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,21 +170,145 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
       work_hours_per_day: Math.max(1, parseFloat(hours) || 7),
       studio_closes_at: closesAt,
       wip_limit: Math.min(5, Math.max(1, parseInt(wipLimit, 10) || 3)),
+      takes_per_keeper: Math.max(1, parseFloat(takesPerKeeper) || 3),
     });
   };
 
+  const handleEnablePush = async () => {
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      pushToast("Web Push is not supported on this browser.", "warn");
+      return;
+    }
+    setPushBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        pushToast("Notification permission was not granted.", "warn");
+        return;
+      }
+
+      let publicKey =
+        (typeof import.meta !== "undefined" && import.meta.env
+          ? import.meta.env.VITE_VAPID_PUBLIC_KEY
+          : "") || "";
+
+      if (!publicKey) {
+        const res = await fetch("/api/studio-os/push-public-key").catch(() => null);
+        if (res && res.ok) {
+          const data = await res.json();
+          publicKey = data?.publicKey || "";
+        }
+      }
+
+      if (!publicKey) {
+        pushToast("Set VAPID_PUBLIC_KEY in Vercel env vars to register Web Push.", "warn");
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
+      });
+      const json = sub.toJSON();
+      const keys = {
+        p256dh: json.keys?.p256dh || "",
+        auth: json.keys?.auth || "",
+      };
+      const err = await syncSavePushSubscription(sub.endpoint, keys, members[0]?.id);
+      if (err) {
+        pushToast(`Saved locally — cloud warning: ${err}`, "warn");
+      } else {
+        setPushEndpoint(sub.endpoint);
+        pushToast("Web Push enabled & stored in Supabase.", "success");
+      }
+    } catch (err: any) {
+      pushToast(err?.message || "Failed to enable Web Push.", "warn");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisablePush = async () => {
+    setPushBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await syncRemovePushSubscription(sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setPushEndpoint(null);
+      pushToast("Web Push disabled.", "info");
+    } catch {
+      // ignore
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    try {
+      const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : "";
+      const res = await fetch("/api/studio-os/test-push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Test push failed");
+      pushToast(`Sent test push to ${data.sent ?? 1} device(s).`, "success");
+    } catch (err: any) {
+      pushToast(err?.message || "Could not send test push.", "warn");
+    }
+  };
+
+  const handleAddHoliday = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holDate || !holName.trim()) return;
+    addHoliday({ holiday_date: holDate, name: holName.trim(), region: holRegion });
+    setHolDate("");
+    setHolName("");
+  };
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6 pb-16">
       <div>
         <h1 className="sos-display text-[32px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
           Settings
         </h1>
         <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-          Tune forecast assumptions, studio hours, and PWA install.
+          Forecast calibration, regional holidays, Web Push notifications, and PWA installation.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="sos-card p-6 space-y-4">
+      {/* Forecast & Calibration Form */}
+      <form onSubmit={handleSave} className="sos-card p-6 space-y-5">
+        <div
+          className="p-4 rounded-[18px] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          style={{ background: "var(--sos-violet-soft)" }}
+        >
+          <div className="space-y-0.5">
+            <p className="text-[13px] font-semibold" style={{ color: "var(--sos-primary)" }}>
+              Your real overrun factor: {realOverrunCalibration.ratio}× (from {realOverrunCalibration.gateCount} gates)
+            </p>
+            <p className="text-[12px]" style={{ color: "var(--sos-text-2)" }}>
+              Based on actual vs estimated days recorded whenever a gate is marked Approved.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={applyCalibratedOverrunFactor}
+            disabled={realOverrunCalibration.gateCount === 0}
+            className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-9 text-[12px] font-semibold text-white shrink-0 disabled:opacity-45"
+            style={{ background: "var(--sos-primary)" }}
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Apply {realOverrunCalibration.ratio}×
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-[12px] font-semibold mb-1" style={{ color: "var(--sos-text-2)" }}>
@@ -186,6 +374,21 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
               style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
             />
           </div>
+          <div>
+            <label className="block text-[12px] font-semibold mb-1" style={{ color: "var(--sos-text-2)" }}>
+              Takes per Keeper (Generation Block Calibration)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              min={1}
+              max={20}
+              value={takesPerKeeper}
+              onChange={(e) => setTakesPerKeeper(e.target.value)}
+              className="w-full h-11 px-3.5 rounded-[14px] border sos-tabular"
+              style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "var(--sos-border)" }}>
@@ -209,6 +412,139 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
         </div>
       </form>
 
+      {/* Studio Holidays Manager (IN + US + AR + GLOBAL) */}
+      <section className="sos-card p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="sos-display text-[18px] font-semibold flex items-center gap-2" style={{ color: "var(--sos-text-1)" }}>
+              <Calendar className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />
+              Regional Holidays ({holidays.length})
+            </h3>
+            <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+              Included in `computeProjectForecast()` based on studio (IN) and each client&apos;s timezone (US / AR).
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleAddHoliday} className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+          <input
+            type="date"
+            required
+            value={holDate}
+            onChange={(e) => setHolDate(e.target.value)}
+            className="sm:col-span-3 h-10 px-3 rounded-[12px] border text-[13px] sos-tabular"
+            style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+          />
+          <input
+            type="text"
+            required
+            placeholder="Holiday name..."
+            value={holName}
+            onChange={(e) => setHolName(e.target.value)}
+            className="sm:col-span-5 h-10 px-3 rounded-[12px] border text-[13px]"
+            style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+          />
+          <select
+            value={holRegion}
+            onChange={(e) => setHolRegion(e.target.value as HolidayRegion)}
+            className="sm:col-span-2 h-10 px-2.5 rounded-[12px] border text-[13px]"
+            style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+          >
+            <option value="IN">IN</option>
+            <option value="US">US</option>
+            <option value="AR">AR</option>
+            <option value="GLOBAL">GLOBAL</option>
+          </select>
+          <button
+            type="submit"
+            className="sm:col-span-2 sos-pill-btn h-10 text-[13px] font-semibold text-white inline-flex items-center justify-center gap-1"
+            style={{ background: "var(--sos-green)" }}
+          >
+            <Plus className="w-3.5 h-3.5" /> Add
+          </button>
+        </form>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+          {holidays.map((h) => (
+            <div key={h.id} className="sos-tile p-3 flex items-center justify-between gap-2 text-[12px]">
+              <div className="min-w-0">
+                <span className="font-bold sos-tabular" style={{ color: "var(--sos-primary)" }}>
+                  {h.holiday_date}
+                </span>{" "}
+                <span className="px-1.5 py-0.5 rounded bg-black/5 text-[10px] font-bold mr-1">
+                  {h.region}
+                </span>
+                <span className="font-medium truncate" style={{ color: "var(--sos-text-1)" }}>
+                  {h.name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => deleteHoliday(h.id)}
+                className="p-1.5 rounded-full hover:opacity-70 shrink-0"
+                style={{ color: "var(--sos-text-3)" }}
+                aria-label={`Delete ${h.name}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Web Push Notifications (VAPID) */}
+      <section className="sos-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h3 className="sos-display text-[18px] font-semibold flex items-center gap-2" style={{ color: "var(--sos-text-1)" }}>
+            <Bell className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />
+            Calm Push Notifications (VAPID)
+          </h3>
+          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+            Fires ONLY for promises due in 3h, client portal approvals/change requests, or a project forecast turning late.
+          </p>
+          {pushEndpoint && (
+            <p className="text-[11px] font-medium" style={{ color: "var(--sos-green)" }}>
+              Subscribed on this device
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {pushEndpoint ? (
+            <>
+              <button
+                type="button"
+                onClick={handleSendTestPush}
+                className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white"
+                style={{ background: "var(--sos-blue)" }}
+              >
+                <Send className="w-3.5 h-3.5" /> Send Test
+              </button>
+              <button
+                type="button"
+                disabled={pushBusy}
+                onClick={handleDisablePush}
+                className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-medium border"
+                style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
+              >
+                <BellOff className="w-3.5 h-3.5" /> Disable
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={pushBusy}
+              onClick={handleEnablePush}
+              className="sos-pill-btn inline-flex items-center gap-1.5 px-5 h-10 text-[13px] font-semibold text-white"
+              style={{ background: "var(--sos-primary)" }}
+            >
+              <Bell className="w-3.5 h-3.5" /> {pushBusy ? "Subscribing..." : "Enable Push Alerts"}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* PWA Install & Reset Seed Data */}
       <div className="sos-card p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
@@ -237,75 +573,6 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
           >
             <RotateCcw className="w-4 h-4" /> Reset Seed Data
           </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const OverviewPreviewScreen: React.FC = () => {
-  const { tasks, projects, payments, openProject } = useStudioOS();
-  const openCount = tasks.filter((t) => t.status !== "done").length;
-  const doneCount = tasks.filter((t) => t.status === "done").length;
-  const usdPending = payments
-    .filter((p) => p.currency === "USD" && p.status !== "paid")
-    .reduce((s, p) => s + p.amount, 0);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="sos-display text-[32px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-          Overview
-        </h1>
-        <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-          High-level studio pulse. Full Gantt timeline &amp; weekly analytics charts arrive in Phase 2.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="rounded-[24px] p-6" style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}>
-          <p className="text-[13px] opacity-75">Open Tasks</p>
-          <p className="sos-num text-[56px] font-semibold leading-none mt-2">{openCount}</p>
-          <p className="text-[12px] opacity-70 mt-2">{doneCount} completed</p>
-        </div>
-
-        <div className="sos-card p-6">
-          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Active Productions</p>
-          <p className="sos-num text-[56px] font-semibold leading-none mt-2" style={{ color: "var(--sos-text-1)" }}>
-            {projects.filter((p) => p.status === "active").length}
-          </p>
-          <p className="text-[12px] mt-2" style={{ color: "var(--sos-text-3)" }}>
-            {projects.filter((p) => p.status === "lead" || p.status === "quoted").length} in pipeline
-          </p>
-        </div>
-
-        <div className="rounded-[24px] p-6" style={{ background: "var(--sos-yellow-card)", color: "#0F1115" }}>
-          <p className="text-[13px] font-medium">USD Pipeline / Invoiced</p>
-          <p className="sos-num text-[48px] font-semibold leading-none mt-2">${usdPending.toLocaleString()}</p>
-          <p className="text-[12px] opacity-75 mt-2">Owner-only snapshot</p>
-        </div>
-      </div>
-
-      <div className="sos-card p-6 space-y-4">
-        <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-          Projects Health
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {projects
-            .filter((p) => p.status === "active")
-            .map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => openProject(p.id)}
-                className="sos-tile p-4 text-left flex items-center justify-between gap-2"
-              >
-                <span className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>
-                  {p.emoji} {p.title}
-                </span>
-                <HealthPill health={p.health} />
-              </button>
-            ))}
         </div>
       </div>
     </div>

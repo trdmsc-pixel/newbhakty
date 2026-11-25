@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import { registerStudioOSRoutes } from "./server/studioOsRoutes.js";
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -258,6 +259,7 @@ app.use((req, res, next) => {
     }
   });
 
+  registerStudioOSRoutes(app);
 
   // Serve static UI assets or run Vite middleware
 async function startServer() {
