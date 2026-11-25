@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { AutomationSettings } from "../components/AutomationSettings";
 import {
   Bell,
   BellOff,
@@ -280,7 +281,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
           Settings
         </h1>
         <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-          Forecast calibration, regional holidays, Web Push notifications, and PWA installation.
+          Forecast calibration, AI & Gmail inputs, regional holidays, Web Push, and PWA installation.
         </p>
       </div>
 
@@ -411,6 +412,9 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
           </button>
         </div>
       </form>
+
+      {/* Phase 3 — Automatic inputs */}
+      <AutomationSettings />
 
       {/* Studio Holidays Manager (IN + US + AR + GLOBAL) */}
       <section className="sos-card p-6 space-y-4">

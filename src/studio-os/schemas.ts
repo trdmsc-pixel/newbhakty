@@ -17,6 +17,7 @@ export const taskCreateSchema = z.object({
   waiting_on_name: z.string().optional(),
   channel: z.enum(["gmail", "whatsapp", "portal", "internal"]).optional(),
   is_in_now: z.boolean().default(false),
+  source: z.enum(["manual", "email", "whatsapp", "website", "portal", "ai"]).optional(),
 });
 
 export const projectCreateSchema = z.object({

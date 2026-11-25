@@ -1,4 +1,4 @@
-const CACHE_NAME = "studio-os-shell-v2";
+const CACHE_NAME = "studio-os-shell-v3";
 const SHELL_URLS = ["/studio-os", "/studio-os-manifest.json", "/favicon.png"];
 
 self.addEventListener("install", (event) => {

@@ -32,12 +32,11 @@ import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { WeeklyReviewScreen } from "./screens/WeeklyReviewScreen";
-import {
-  ClientsScreen,
-  PhasePlaceholderScreen,
-  SettingsScreen,
-} from "./screens/SecondaryScreens";
+import { ClientsScreen, PhasePlaceholderScreen, SettingsScreen } from "./screens/SecondaryScreens";
 import { QuickAddModal } from "./components/QuickAddModal";
+import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
+import { InboxScreen } from "./screens/InboxScreen";
+import { InboxProvider, useInbox } from "./InboxContext";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { EveningShutdownModal, StudioClosedOverlay } from "./components/EveningShutdownModal";
 import { StackedAvatars } from "./components/StatusChip";
@@ -75,7 +74,39 @@ const StudioOSShell: React.FC<{
     setNewProjectOpen,
     toasts,
     pushToast,
+    openQuickAdd,
   } = useStudioOS();
+  const { pendingCount } = useInbox();
+
+  // Android share target (/studio-os?share=1&title=&text=&url=) and Gmail OAuth return (?gmail=status)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let touched = false;
+    if (params.get("share") || window.location.pathname.startsWith("/studio-os/share")) {
+      const shared = [params.get("title"), params.get("text"), params.get("url")]
+        .map((v) => (v || "").trim())
+        .filter(Boolean)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .join("\n");
+      if (shared) openQuickAdd(shared);
+      touched = true;
+    }
+    const gmail = params.get("gmail");
+    if (gmail) {
+      const messages: Record<string, string> = {
+        connected: "Gmail connected — first sync within 15 minutes.",
+        denied: "Google sign-in was cancelled.",
+        expired: "Sign-in link expired — please try again.",
+        no_refresh_token: "Google didn't return a refresh token — remove Studio OS access in your Google account and reconnect.",
+        bad_scope: "Unexpected Google permissions — connection refused.",
+      };
+      pushToast(messages[gmail] || "Gmail connection failed — please retry.", gmail === "connected" ? "success" : "warn");
+      setRoute("settings");
+      touched = true;
+    }
+    if (touched) window.history.replaceState({}, "", "/studio-os");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -157,7 +188,7 @@ const StudioOSShell: React.FC<{
   const navItems: Array<{ id: StudioRoute; label: string; icon: React.ReactNode; badge?: string }> = [
     { id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: "P3" },
+    { id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
     { id: "projects", label: "Projects", icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "board", label: "Board", icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "timeline", label: "Timeline", icon: <CalendarRange className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
@@ -456,14 +487,7 @@ const StudioOSShell: React.FC<{
             {route === "settings" && (
               <SettingsScreen onInstallPWA={handleInstallPWA} canInstallPWA={Boolean(deferredPrompt)} />
             )}
-            {route === "inbox" && (
-              <PhasePlaceholderScreen
-                title="AI Inbox & Auto-Updates"
-                phase="Phase 3"
-                description="Multi-account Gmail sync, promise detection, reply-owed drafts, WhatsApp share target, and website inquiry leads will land here in Phase 3."
-                icon="inbox"
-              />
-            )}
+            {route === "inbox" && <InboxScreen />}
             {route === "money" && (
               <PhasePlaceholderScreen
                 title="Money & Invoices"
@@ -516,12 +540,20 @@ const StudioOSShell: React.FC<{
 
         <button
           type="button"
-          onClick={() => setRoute("table")}
-          className="flex flex-col items-center gap-0.5 text-[11px] font-medium"
-          style={{ color: route === "table" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
+          onClick={() => setRoute("inbox")}
+          className="relative flex flex-col items-center gap-0.5 text-[11px] font-medium"
+          style={{ color: route === "inbox" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
-          <Table2 className="w-5 h-5" />
-          Table
+          <Inbox className="w-5 h-5" />
+          Inbox
+          {pendingCount > 0 && (
+            <span
+              className="absolute -top-1 left-1/2 ml-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center sos-tabular"
+              style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
+            >
+              {pendingCount}
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -536,6 +568,7 @@ const StudioOSShell: React.FC<{
 
       {/* Modals & Evening Shutdown Ritual */}
       <QuickAddModal />
+      <WhatsAppImportModal />
       <NewProjectModal />
       <EveningShutdownModal />
       <StudioClosedOverlay />
@@ -728,7 +761,9 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
 
   return (
     <StudioOSProvider>
-      <StudioOSShell onNavigateHome={onNavigateHome} userEmail={userEmail} onLogout={handleLogout} />
+      <InboxProvider>
+        <StudioOSShell onNavigateHome={onNavigateHome} userEmail={userEmail} onLogout={handleLogout} />
+      </InboxProvider>
     </StudioOSProvider>
   );
 }

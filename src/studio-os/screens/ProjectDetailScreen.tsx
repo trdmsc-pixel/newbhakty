@@ -5,6 +5,7 @@ import { useStudioOS } from "../StudioOSContext";
 import { GateStatusChip, HealthPill, StackedAvatars } from "../components/StatusChip";
 import { BoardScreen } from "./BoardScreen";
 import { TableScreen } from "./TableScreen";
+import { ProjectEmailsTab } from "../components/ProjectEmailsTab";
 import { computeGenerationEstimate } from "../forecastEngine";
 import { GateStatus, GenerationBlockStatus } from "../types";
 
@@ -28,7 +29,7 @@ export const ProjectDetailScreen: React.FC = () => {
     pushToast,
   } = useStudioOS();
 
-  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board">("approvals");
+  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails">("approvals");
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const client = clients.find((c) => c.id === project?.client_id);
   const projectGates = useMemo(
@@ -139,6 +140,7 @@ export const ProjectDetailScreen: React.FC = () => {
               { id: "overview", label: "Overview" },
               { id: "list", label: `List (${projectTasks.length})` },
               { id: "board", label: "Board" },
+              { id: "emails", label: "Emails" },
             ] as const
           ).map((t) => (
             <button
@@ -493,6 +495,7 @@ export const ProjectDetailScreen: React.FC = () => {
 
           {tab === "list" && <TableScreen projectFilterId={project.id} />}
           {tab === "board" && <BoardScreen projectFilterId={project.id} />}
+          {tab === "emails" && <ProjectEmailsTab projectId={project.id} />}
         </div>
 
         {/* Right Rail: Forecast + Next Milestone + Recent Activity */}

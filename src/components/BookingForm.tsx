@@ -118,6 +118,24 @@ export default function BookingForm() {
         saveToLocalStorage(submissionData);
       }
 
+      // Studio OS Phase 3: hand the inquiry to the server, which HMAC-signs it for /api/ingest/website
+      // (creates Client + Lead project + "Reply to inquiry within 24h"). Never blocks the visitor.
+      fetch("/api/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          company: company.trim(),
+          brief: brief.trim(),
+          budget,
+          selected_tier: selectedTier,
+          phone: phone.trim() ? `${countryCode} ${phone.trim()}` : "",
+          timeline,
+        }),
+      }).catch(() => {});
+
       // Parse budget currency and value
       const isINR = budget.includes("₹") || budget.includes("lakh");
       const currency = isINR ? "INR" : "USD";

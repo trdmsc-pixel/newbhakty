@@ -109,6 +109,11 @@ interface StudioOSContextValue {
   setSearchQuery: (q: string) => void;
   quickAddOpen: boolean;
   setQuickAddOpen: (open: boolean) => void;
+  quickAddPrefill: string;
+  openQuickAdd: (prefill?: string) => void;
+  whatsAppImportOpen: boolean;
+  setWhatsAppImportOpen: (open: boolean) => void;
+  reloadFromCloud: () => Promise<void>;
   newProjectOpen: boolean;
   setNewProjectOpen: (open: boolean) => void;
   commandPaletteOpen: boolean;
@@ -224,7 +229,17 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpenRaw] = useState(false);
+  const [quickAddPrefill, setQuickAddPrefill] = useState("");
+  const [whatsAppImportOpen, setWhatsAppImportOpen] = useState(false);
+  const setQuickAddOpen = useCallback((open: boolean) => {
+    if (!open) setQuickAddPrefill("");
+    setQuickAddOpenRaw(open);
+  }, []);
+  const openQuickAdd = useCallback((prefill?: string) => {
+    setQuickAddPrefill(prefill || "");
+    setQuickAddOpenRaw(true);
+  }, []);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [eveningShutdownOpen, setEveningShutdownOpen] = useState(false);
@@ -278,12 +293,12 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [state]);
 
-  // Initial load & seed-on-first-run from Supabase
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+  // Initial load & seed-on-first-run from Supabase (also used to refresh after server-side changes)
+  const mountedRef = useRef(true);
+  const reloadFromCloud = useCallback(async () => {
+    {
       const result = await loadOrSeedStudioOSFromSupabase();
-      if (!mounted) return;
+      if (!mountedRef.current) return;
       if (result.status !== "synced") {
         setSupabaseSyncStatus(result.status);
         syncStatusRef.current = result.status;
@@ -315,11 +330,16 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (prev && next.tasks.some((t) => t.id === prev && t.status !== "done")) return prev;
         return next.tasks.find((t) => t.is_in_now && t.status !== "done")?.id || null;
       });
-    })();
-    return () => {
-      mounted = false;
-    };
+    }
   }, [commitState]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    reloadFromCloud();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [reloadFromCloud]);
 
   // Focus timer tick
   useEffect(() => {
@@ -459,7 +479,7 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         actual_hours: 0,
         assignee_member_id: cur.members[0]?.id || INITIAL_MEMBERS[0].id,
         checklist: [],
-        source: "manual",
+        source: input.source || "manual",
         promised_to_name: input.promised_to_name,
         waiting_on_name: input.waiting_on_name,
         channel: input.channel || "internal",
@@ -1037,6 +1057,11 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSearchQuery,
     quickAddOpen,
     setQuickAddOpen,
+    quickAddPrefill,
+    openQuickAdd,
+    whatsAppImportOpen,
+    setWhatsAppImportOpen,
+    reloadFromCloud,
     newProjectOpen,
     setNewProjectOpen,
     commandPaletteOpen,

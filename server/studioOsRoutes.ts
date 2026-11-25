@@ -20,7 +20,7 @@ const OWNER_EMAILS = new Set([
   "accounts@thechantingstudio.in",
 ]);
 
-function getEnv(key: string): string {
+export function getEnv(key: string): string {
   const val = process.env[key];
   return typeof val === "string" ? val.trim() : "";
 }
@@ -33,7 +33,7 @@ function getSupabaseUrl(): string {
   return raw.replace(/\/+$/, "");
 }
 
-function getServiceSupabase(): SupabaseClient | null {
+export function getServiceSupabase(): SupabaseClient | null {
   const url = getSupabaseUrl();
   const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) return null;
@@ -54,14 +54,14 @@ function getAuthVerifySupabase(): SupabaseClient | null {
   });
 }
 
-function extractBearerToken(req: Request): string {
+export function extractBearerToken(req: Request): string {
   const header = req.headers.authorization || req.headers.Authorization;
   if (typeof header !== "string") return "";
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match ? match[1].trim() : "";
 }
 
-async function verifyOwnerJwt(token: string): Promise<{ ok: boolean; email?: string }> {
+export async function verifyOwnerJwt(token: string): Promise<{ ok: boolean; email?: string }> {
   if (!token) return { ok: false };
   const client = getAuthVerifySupabase();
   if (!client) return { ok: false };
@@ -89,13 +89,22 @@ async function verifyOwnerJwt(token: string): Promise<{ ok: boolean; email?: str
   return { ok: false };
 }
 
-async function verifyCronOrOwnerAuth(req: Request): Promise<boolean> {
+export async function verifyCronOrOwnerAuth(req: Request): Promise<boolean> {
   const cronSecret = getEnv("CRON_SECRET");
   const bearer = extractBearerToken(req);
   const querySecret = typeof req.query.secret === "string" ? req.query.secret.trim() : "";
 
   if (cronSecret && (bearer === cronSecret || querySecret === cronSecret)) {
     return true;
+  }
+
+  // pg_cron calls carry a secret generated inside Supabase Vault (never in env vars).
+  if (bearer && bearer.length >= 32) {
+    const sb = getServiceSupabase();
+    if (sb) {
+      const { data } = await sb.rpc("studio_os_cron_secret_matches", { p_token: bearer });
+      if (data === true) return true;
+    }
   }
 
   if (bearer && bearer !== cronSecret) {
@@ -124,7 +133,7 @@ interface PushNotificationPayload {
   tag?: string;
 }
 
-async function sendWebPushToAll(
+export async function sendWebPushToAll(
   sb: SupabaseClient,
   payload: PushNotificationPayload
 ): Promise<{ sent: number; failed: number; skippedReason?: string }> {
