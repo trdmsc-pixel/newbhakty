@@ -106,15 +106,15 @@ begin
   begin
     update public.studio_projects set fee_amount = 1 where code = 'ZT1';
     perform pg_temp.ok(false, 'member must not change fee');
-  exception when raise_exception then perform pg_temp.ok(true, 'fee change blocked'); end;
+  exception when raise_exception then perform pg_temp.ok(sqlerrm like 'not allowed%', 'fee change blocked by guard'); end;
   begin
     update public.studio_projects set is_confidential = false where code = 'ZT4';
     perform pg_temp.ok(false, 'member must not change confidentiality');
-  exception when raise_exception then perform pg_temp.ok(true, 'confidentiality change blocked'); end;
+  exception when raise_exception then perform pg_temp.ok(sqlerrm like 'not allowed%', 'confidentiality change blocked by guard'); end;
   begin
     insert into public.studio_projects (code, title) values ('ZTX', 'new');
     perform pg_temp.ok(false, 'member must not create projects');
-  exception when insufficient_privilege or raise_exception then perform pg_temp.ok(true, 'project creation blocked'); end;
+  exception when insufficient_privilege or raise_exception then perform pg_temp.ok(sqlerrm not like 'FAIL%', 'project creation blocked'); end;
   begin
     insert into public.studio_tasks (key, project_id, title) values ('ZT2-9', 'f2000000-0000-4000-8000-000000000002', 'x');
     perform pg_temp.ok(false, 'member must not add tasks to unassigned project');

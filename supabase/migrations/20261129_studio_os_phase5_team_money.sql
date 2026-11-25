@@ -129,8 +129,9 @@ begin
 end $$;
 
 -- Members may not change money/confidentiality fields.
+-- SECURITY INVOKER on purpose: current_user must be the caller's role.
 create or replace function public.studio_projects_guard()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security invoker set search_path = public as $$
 begin
   if current_user = 'authenticated' and not public.studio_os_is_owner() then
     if tg_op = 'INSERT' then
@@ -147,6 +148,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.studio_projects_guard() from public, anon, authenticated;
 drop trigger if exists trg_studio_projects_guard on public.studio_projects;
 create trigger trg_studio_projects_guard before insert or update on public.studio_projects
   for each row execute function public.studio_projects_guard();

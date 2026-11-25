@@ -134,7 +134,7 @@ begin
   begin
     perform public.portal_approve_gate('aaaaaaaa-0000-4000-8000-00000000a0e2', null);
     perform pg_temp.ok(false, 'approving a gate not awaiting approval must fail');
-  exception when raise_exception then perform pg_temp.ok(true, 'only waiting gates are approvable'); end;
+  exception when raise_exception then perform pg_temp.ok(sqlerrm = 'not_awaiting_approval', 'only waiting gates are approvable'); end;
 
   -- Happy paths
   r := public.portal_approve_gate('aaaaaaaa-0000-4000-8000-00000000a0e1', 'Looks great');
