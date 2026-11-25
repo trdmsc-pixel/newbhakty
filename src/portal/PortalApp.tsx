@@ -249,7 +249,7 @@ const PortalLogin: React.FC = () => {
 // ---------------------------------------------------------------------------
 // Project list
 // ---------------------------------------------------------------------------
-export const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: () => void }> = ({ project, awaiting, onOpen }) => {
+const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: () => void }> = ({ project, awaiting, onOpen }) => {
   const h = HEALTH[project.health] || HEALTH.on_track;
   const date = fmtDate(milestoneDate(project));
   const done = project.status === "delivered" || project.status === "paid";
@@ -562,7 +562,7 @@ const ApprovalCard: React.FC<{
   );
 };
 
-export const ProjectView: React.FC<{
+const ProjectView: React.FC<{
   project: PortalProject;
   gates: PortalGate[];
   deliverables: PortalDeliverable[];
