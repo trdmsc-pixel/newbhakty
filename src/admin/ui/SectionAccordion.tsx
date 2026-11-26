@@ -28,28 +28,28 @@ export const SectionAccordion: React.FC<SectionAccordionProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.75rem] bg-[#11131A] border transition-all duration-200 ${
+      className={`rounded-[1.75rem] bg-[var(--a-surface-1)] border transition-all duration-200 ${
         isOpen
-          ? "border-white/[0.18] shadow-lg"
-          : "border-white/[0.08] hover:border-white/[0.14] overflow-hidden"
+          ? "border-[var(--a-line-strong)] shadow-lg"
+          : "border-[var(--a-line)] hover:border-[var(--a-line-strong)] overflow-hidden"
       } ${className}`}
     >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="w-full p-5 sm:p-6 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors hover:bg-white/[0.02]"
+        className="w-full p-5 sm:p-6 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors hover:bg-[var(--a-surface-2)]"
       >
         <div className="flex items-center gap-4 min-w-0">
-          <span className="w-[2.5rem] h-[2.5rem] rounded-full bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FFC93C] font-mono font-bold text-admin-meta flex items-center justify-center shrink-0">
+          <span className="w-[2.5rem] h-[2.5rem] rounded-full bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 text-[var(--a-accent)] font-mono font-bold text-admin-meta flex items-center justify-center shrink-0">
             {number}
           </span>
           <div className="min-w-0">
-            <h3 className="text-admin-h3 text-[#F4EFE6] font-semibold tracking-tight truncate">
+            <h3 className="text-admin-h3 text-[var(--a-text)] font-semibold tracking-tight truncate">
               {title}
             </h3>
             {summary && (
-              <p className="text-admin-meta text-[#F4EFE6]/55 truncate mt-0.5">
+              <p className="text-admin-meta text-[var(--a-text-3)] truncate mt-0.5">
                 {summary}
               </p>
             )}
@@ -66,8 +66,8 @@ export const SectionAccordion: React.FC<SectionAccordionProps> = ({
           )}
 
           <div
-            className={`w-[2.5rem] h-[2.5rem] rounded-full bg-[#181B24] border border-white/[0.08] flex items-center justify-center text-[#F4EFE6]/70 transition-transform duration-200 ${
-              isOpen ? "rotate-180 text-[#FF6A1F]" : ""
+            className={`w-[2.5rem] h-[2.5rem] rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] flex items-center justify-center text-[var(--a-text-2)] transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-[var(--a-accent)]" : ""
             }`}
           >
             <ChevronDown className="w-4 h-4" />
@@ -84,7 +84,7 @@ export const SectionAccordion: React.FC<SectionAccordionProps> = ({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="p-6 sm:p-8 pt-2 sm:pt-4 border-t border-white/[0.08]">
+            <div className="p-6 sm:p-8 pt-2 sm:pt-4 border-t border-[var(--a-line)]">
               {children}
             </div>
           </motion.div>

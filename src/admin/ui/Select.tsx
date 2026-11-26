@@ -146,8 +146,8 @@ export const Select: React.FC<SelectProps> = ({
           compact ? "h-[2.75rem] px-4" : "h-[3.25rem] px-5"
         } ${
           open
-            ? "bg-[#20242F] border-[#FF6A1F] shadow-[0_0_0_3px_rgba(255,106,31,0.45)] text-[#F4EFE6]"
-            : "bg-[#181B24] border-white/[0.08] hover:border-white/[0.18] text-[#F4EFE6]"
+            ? "bg-[var(--a-surface-3)] border-[var(--a-accent)] shadow-[0_0_0_2px_var(--a-blue)] text-[var(--a-text)]"
+            : "bg-[var(--a-surface-2)] border-[var(--a-line)] hover:border-[var(--a-line-strong)] text-[var(--a-text)]"
         }`}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -155,13 +155,13 @@ export const Select: React.FC<SelectProps> = ({
             <img
               src={selected.previewUrl}
               alt=""
-              className="w-7 h-7 rounded-lg object-contain bg-[#07080C] border border-white/10 p-0.5 shrink-0 mix-blend-screen"
+              className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0 mix-blend-screen"
               referrerPolicy="no-referrer"
             />
           )}
           <span
             className={`truncate ${
-              selected ? "text-[#F4EFE6] font-semibold" : "text-[#F4EFE6]/45"
+              selected ? "text-[var(--a-text)] font-semibold" : "text-[var(--a-text-3)]"
             }`}
           >
             {selected ? selected.label : placeholder}
@@ -169,13 +169,14 @@ export const Select: React.FC<SelectProps> = ({
         </div>
         <ChevronDown
           className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-            open ? "rotate-180 text-[#FF6A1F]" : "text-[#F4EFE6]/60"
+            open ? "rotate-180 text-[var(--a-accent)]" : "text-[var(--a-text-2)]"
           }`}
         />
       </button>
 
       {typeof document !== "undefined" &&
         createPortal(
+          <div className={`tcs-admin !min-h-0 !bg-transparent ${buttonRef.current?.closest(".tcs-admin-dark") ? "tcs-admin-dark" : ""}`}>
           <AnimatePresence>
             {open && (
               <motion.div
@@ -201,19 +202,19 @@ export const Select: React.FC<SelectProps> = ({
                   maxHeight: coords.maxHeight,
                   zIndex: 99999,
                 }}
-                className="rounded-[1.25rem] bg-[#181B24] border border-white/20 shadow-[0_24px_50px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)] flex flex-col overflow-hidden backdrop-blur-xl"
+                className="rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line-strong)] shadow-[0_24px_50px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)] flex flex-col overflow-hidden backdrop-blur-xl"
               >
                 {options.length > 5 && (
-                  <div className="p-2.5 border-b border-white/10 bg-[#11131A] shrink-0">
+                  <div className="p-2.5 border-b border-[var(--a-line)] bg-[var(--a-surface-1)] shrink-0">
                     <div className="relative">
-                      <Search className="w-4 h-4 text-[#F4EFE6]/45 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Search className="w-4 h-4 text-[var(--a-text-3)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Filter options..."
                         autoFocus
-                        className="w-full !pl-9 !pr-3 !py-2 !text-admin-meta !rounded-full bg-[#181B24] border border-white/10 text-[#F4EFE6] placeholder:text-[#F4EFE6]/40 focus:outline-none focus:border-[#FF6A1F]"
+                        className="w-full !pl-9 !pr-3 !py-2 !text-admin-meta !rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] text-[var(--a-text)] placeholder:text-[var(--a-text-3)] focus:outline-none focus:border-[var(--a-blue)]"
                       />
                     </div>
                   </div>
@@ -221,7 +222,7 @@ export const Select: React.FC<SelectProps> = ({
 
                 <div className="p-2 overflow-y-auto space-y-1 flex-1 min-h-0">
                   {filteredOptions.length === 0 ? (
-                    <div className="px-4 py-4 text-admin-meta text-[#F4EFE6]/55 text-center">
+                    <div className="px-4 py-4 text-admin-meta text-[var(--a-text-3)] text-center">
                       No matching options
                     </div>
                   ) : (
@@ -238,8 +239,8 @@ export const Select: React.FC<SelectProps> = ({
                           }}
                           className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-full text-admin-body text-left transition-all cursor-pointer ${
                             isSelected
-                              ? "bg-[#FF6A1F]/15 border border-[#FF6A1F]/40 text-[#F4EFE6] font-semibold"
-                              : "border border-transparent text-[#F4EFE6]/80 hover:bg-[#20242F] hover:text-white"
+                              ? "bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/40 text-[var(--a-text)] font-semibold"
+                              : "border border-transparent text-[var(--a-text-2)] hover:bg-[var(--a-surface-3)] hover:text-[var(--a-text)]"
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -247,20 +248,20 @@ export const Select: React.FC<SelectProps> = ({
                               <img
                                 src={opt.previewUrl}
                                 alt=""
-                                className="w-7 h-7 rounded-lg object-contain bg-[#07080C] border border-white/10 p-0.5 shrink-0 mix-blend-screen"
+                                className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0 mix-blend-screen"
                                 referrerPolicy="no-referrer"
                               />
                             )}
                             <div className="min-w-0">
                               <span className="block truncate">{opt.label}</span>
                               {opt.meta && (
-                                <span className="block text-admin-eyebrow text-[#F4EFE6]/50 truncate mt-0.5">
+                                <span className="block text-admin-eyebrow text-[var(--a-text-3)] truncate mt-0.5">
                                   {opt.meta}
                                 </span>
                               )}
                             </div>
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-[#FF6A1F] shrink-0" />}
+                          {isSelected && <Check className="w-4 h-4 text-[var(--a-accent)] shrink-0" />}
                         </button>
                       );
                     })
@@ -268,7 +269,8 @@ export const Select: React.FC<SelectProps> = ({
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>,
+          </AnimatePresence>
+          </div>,
           document.body
         )}
     </div>

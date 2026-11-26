@@ -90,15 +90,15 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
       <button
         type="button"
         onClick={onTriggerUpload}
-        className="w-full rounded-[1.75rem] border-2 border-dashed border-white/20 hover:border-[#FF6A1F] bg-[#11131A]/60 hover:bg-[#11131A] p-8 sm:p-12 flex flex-col items-center justify-center text-center transition-all cursor-pointer group shadow-sm"
+        className="w-full rounded-[1.75rem] border-2 border-dashed border-[var(--a-line-strong)] hover:border-[var(--a-accent)] bg-[var(--a-surface-1)]/60 hover:bg-[var(--a-surface-1)] p-8 sm:p-12 flex flex-col items-center justify-center text-center transition-all cursor-pointer group shadow-sm"
       >
-        <div className="w-16 h-16 rounded-full bg-white/[0.06] group-hover:bg-[#FF6A1F]/20 text-[#F4EFE6] group-hover:text-[#FF6A1F] flex items-center justify-center mb-4 transition-all group-hover:scale-110">
+        <div className="w-16 h-16 rounded-full bg-[var(--a-surface-2)] group-hover:bg-[var(--a-accent-soft)] text-[var(--a-text)] group-hover:text-[var(--a-accent)] flex items-center justify-center mb-4 transition-all group-hover:scale-110">
           <Upload className="w-8 h-8" />
         </div>
-        <h3 className="text-admin-h2 font-semibold text-[#F4EFE6]">
+        <h3 className="text-admin-h2 font-semibold text-[var(--a-text)]">
           Drop media files here or click to upload
         </h3>
-        <p className="text-admin-body text-[#F4EFE6]/55 max-w-md mt-1.5">
+        <p className="text-admin-body text-[var(--a-text-3)] max-w-md mt-1.5">
           Upload 4K Master videos (MP4, WebM) or high-resolution imagery up to 100MB with automatic CDN distribution
         </p>
       </button>
@@ -137,7 +137,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
           title={`All Assets (${filteredAssets.length})`}
         >
           {filteredAssets.length === 0 ? (
-            <div className="py-16 text-center text-[#F4EFE6]/50">
+            <div className="py-16 text-center text-[var(--a-text-3)]">
               No assets match your search criteria.
             </div>
           ) : viewMode === "grid" ? (
@@ -157,7 +157,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                   >
                     <div>
                       {/* 16:9 Thumbnail Frame */}
-                      <div className="w-full aspect-video rounded-[1rem] bg-[#07080C] border border-white/10 overflow-hidden relative mb-3.5 flex items-center justify-center">
+                      <div className="w-full aspect-video rounded-[1rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] overflow-hidden relative mb-3.5 flex items-center justify-center">
                         {isVideo ? (
                           <video
                             src={asset.url}
@@ -185,21 +185,21 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                         </span>
                       </div>
 
-                      <p className="text-admin-label font-semibold text-[#F4EFE6] truncate">
+                      <p className="text-admin-label font-semibold text-[var(--a-text)] truncate">
                         {asset.name}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.08] mt-3">
+                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--a-line)] mt-3">
                       <button
                         type="button"
                         onClick={(e) => handleCopyUrl(e, asset.url, asset.id)}
-                        className="inline-flex items-center gap-1.5 text-admin-meta text-[#F4EFE6]/70 hover:text-white transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-admin-meta text-[var(--a-text-2)] hover:text-[var(--a-text)] transition-colors cursor-pointer"
                       >
                         {copiedId === asset.id ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Copied</span>
+                            <Check className="w-3.5 h-3.5 text-[var(--a-ok-text)]" />
+                            <span className="text-[var(--a-ok-text)]">Copied</span>
                           </>
                         ) : (
                           <>
@@ -216,7 +216,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                           await onDeleteAsset(asset.id);
                         }}
                         aria-label="Delete asset"
-                        className="p-1.5 rounded-full text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-full text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -231,21 +231,21 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                 <div
                   key={asset.id}
                   onClick={() => setSelectedAsset(asset)}
-                  className="rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] hover:border-white/20 p-4 flex items-center justify-between gap-4 cursor-pointer transition-all"
+                  className="rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] hover:border-[var(--a-line-strong)] p-4 flex items-center justify-between gap-4 cursor-pointer transition-all"
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div className="w-14 h-10 rounded-lg bg-[#07080C] overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+                    <div className="w-14 h-10 rounded-lg bg-[var(--a-surface-2)] overflow-hidden shrink-0 flex items-center justify-center border border-[var(--a-line)]">
                       {asset.type === "video" ? (
-                        <Film className="w-4 h-4 text-[#FF6A1F]" />
+                        <Film className="w-4 h-4 text-[var(--a-accent)]" />
                       ) : (
-                        <ImageIcon className="w-4 h-4 text-[#FFC93C]" />
+                        <ImageIcon className="w-4 h-4 text-[var(--a-accent)]" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-admin-label font-semibold text-[#F4EFE6] truncate">
+                      <p className="text-admin-label font-semibold text-[var(--a-text)] truncate">
                         {asset.name}
                       </p>
-                      <p className="text-admin-meta font-mono text-xs text-[#F4EFE6]/45 truncate mt-0.5">
+                      <p className="text-admin-meta font-mono text-xs text-[var(--a-text-3)] truncate mt-0.5">
                         {asset.url}
                       </p>
                     </div>
@@ -255,7 +255,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleCopyUrl(e, asset.url, asset.id)}
-                      className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/10 text-admin-meta text-[#F4EFE6] cursor-pointer"
+                      className="px-3 py-1.5 rounded-full bg-[var(--a-surface-2)] hover:bg-[var(--a-surface-2)] text-admin-meta text-[var(--a-text)] cursor-pointer"
                     >
                       {copiedId === asset.id ? "Copied ✓" : "Copy"}
                     </button>
@@ -265,7 +265,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                         e.stopPropagation();
                         await onDeleteAsset(asset.id);
                       }}
-                      className="p-2 rounded-full text-red-400 hover:bg-red-500/15 cursor-pointer"
+                      className="p-2 rounded-full text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -286,7 +286,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
       >
         {selectedAsset && (
           <div className="space-y-6">
-            <div className="w-full aspect-video rounded-[1.25rem] bg-[#07080C] border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
+            <div className="w-full aspect-video rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] overflow-hidden flex items-center justify-center shadow-inner">
               {selectedAsset.type === "video" ? (
                 <video
                   src={selectedAsset.url}
@@ -306,20 +306,20 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
 
             <div className="space-y-4">
               <div>
-                <p className="text-admin-meta text-[#F4EFE6]/50">File Name</p>
-                <p className="text-admin-h3 text-[#F4EFE6] font-semibold mt-0.5">
+                <p className="text-admin-meta text-[var(--a-text-3)]">File Name</p>
+                <p className="text-admin-h3 text-[var(--a-text)] font-semibold mt-0.5">
                   {selectedAsset.name}
                 </p>
               </div>
 
               <div>
-                <p className="text-admin-meta text-[#F4EFE6]/50">Direct CDN Link</p>
+                <p className="text-admin-meta text-[var(--a-text-3)]">Direct CDN Link</p>
                 <div className="flex items-center gap-2 mt-1">
                   <input
                     type="text"
                     readOnly
                     value={selectedAsset.url}
-                    className="w-full h-11 rounded-xl bg-[#181B24] border border-white/10 px-3 text-admin-meta font-mono text-xs text-[#F4EFE6]"
+                    className="w-full h-11 rounded-xl bg-[var(--a-surface-2)] border border-[var(--a-line)] px-3 text-admin-meta font-mono text-xs text-[var(--a-text)]"
                   />
                   <Button
                     size="sm"
@@ -332,19 +332,19 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
               </div>
 
               <div>
-                <p className="text-admin-meta text-[#F4EFE6]/50">Type</p>
+                <p className="text-admin-meta text-[var(--a-text-3)]">Type</p>
                 <Chip
                   status={selectedAsset.type === "video" ? "draft" : "new"}
                   label={(selectedAsset.type || "image").toUpperCase()}
                 />
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              <div className="pt-4 border-t border-[var(--a-line)] flex items-center justify-between">
                 <a
                   href={selectedAsset.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-admin-meta text-[#FF6A1F] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-admin-meta text-[var(--a-accent)] hover:underline"
                 >
                   <span>Open raw link</span>
                   <ExternalLink className="w-3.5 h-3.5" />

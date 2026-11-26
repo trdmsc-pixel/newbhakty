@@ -35,14 +35,14 @@ export const SelectableCardGroup: React.FC<SelectableCardGroupProps> = ({
             onClick={() => onSelect(item.id)}
             className={`w-full text-left rounded-[1.25rem] p-4 sm:p-5 transition-all duration-200 cursor-pointer select-none relative ${
               isSelected
-                ? "bg-gradient-to-br from-[#FF6A1F] to-[#E8332A] text-white shadow-[0_16px_36px_rgba(255,106,31,0.35)] -translate-y-2 border border-white/25"
-                : "bg-[#181B24] border border-white/[0.08] text-[#F4EFE6] hover:bg-[#20242F] hover:border-white/[0.18]"
+                ? "bg-gradient-to-br from-[var(--a-accent)] to-[var(--a-blue)] text-white shadow-[0_16px_36px_rgba(255,106,31,0.35)] -translate-y-2 border border-white/25"
+                : "bg-[var(--a-surface-2)] border border-[var(--a-line)] text-[var(--a-text)] hover:bg-[var(--a-surface-3)] hover:border-[var(--a-line-strong)]"
             }`}
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <span
                 className={`text-admin-meta font-mono uppercase tracking-wider text-[11px] ${
-                  isSelected ? "text-white/80" : "text-[#F4EFE6]/55"
+                  isSelected ? "text-white/80" : "text-[var(--a-text-3)]"
                 }`}
               >
                 {item.caption}
@@ -52,7 +52,7 @@ export const SelectableCardGroup: React.FC<SelectableCardGroupProps> = ({
                   className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                     isSelected
                       ? "bg-white/20 text-white"
-                      : "bg-[#FF6A1F]/15 text-[#FFC93C] border border-[#FF6A1F]/30"
+                      : "bg-[var(--a-accent-soft)] text-[var(--a-accent)] border border-[var(--a-accent)]/30"
                   }`}
                 >
                   {item.badge}
@@ -62,7 +62,7 @@ export const SelectableCardGroup: React.FC<SelectableCardGroupProps> = ({
 
             <h4
               className={`text-admin-h3 font-semibold tracking-tight ${
-                isSelected ? "text-white" : "text-[#F4EFE6]"
+                isSelected ? "text-white" : "text-[var(--a-text)]"
               }`}
             >
               {item.title}
@@ -71,7 +71,7 @@ export const SelectableCardGroup: React.FC<SelectableCardGroupProps> = ({
             {item.count !== undefined && (
               <div
                 className={`text-admin-h2 font-display mt-2 font-bold ${
-                  isSelected ? "text-white" : "text-[#F4EFE6]/90"
+                  isSelected ? "text-white" : "text-[var(--a-text)]"
                 }`}
               >
                 {item.count}

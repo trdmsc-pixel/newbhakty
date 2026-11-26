@@ -16,16 +16,16 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-6 sm:p-8 flex flex-col justify-between relative space-y-6 ${className}`}
+      className={`rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-6 sm:p-8 flex flex-col justify-between relative space-y-6 ${className}`}
     >
       {columns && columns.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-white/[0.08] pb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-[var(--a-line)] pb-6">
           {columns.map((col, idx) => (
             <div key={idx} className="min-w-0">
-              <p className="text-admin-meta text-[#F4EFE6]/50 font-medium mb-1 truncate">
+              <p className="text-admin-meta text-[var(--a-text-3)] font-medium mb-1 truncate">
                 {col.label}
               </p>
-              <div className="text-admin-h2 text-[#F4EFE6] font-semibold truncate tracking-tight">
+              <div className="text-admin-h2 text-[var(--a-text)] font-semibold truncate tracking-tight">
                 {col.value}
               </div>
             </div>

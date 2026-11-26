@@ -18,7 +18,7 @@ export const InversePanel: React.FC<InversePanelProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.75rem] bg-[#F4EFE6] text-[#07080C] border border-black/[0.08] p-6 sm:p-8 relative shadow-sm ${className}`}
+      className={`rounded-[1.75rem] bg-[var(--a-inverse)] text-[var(--a-inverse-text)] border border-black/[0.08] p-6 sm:p-8 relative shadow-sm ${className}`}
       {...props}
     >
       {(eyebrow || title || actions) && (
@@ -29,12 +29,12 @@ export const InversePanel: React.FC<InversePanelProps> = ({
         >
           <div className="min-w-0">
             {eyebrow && (
-              <p className="text-admin-eyebrow text-[#07080C]/60 tracking-widest mb-1.5 font-mono">
+              <p className="text-admin-eyebrow text-[var(--a-inverse-text)]/60 tracking-widest mb-1.5 font-mono">
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 className="text-admin-h2 text-[#07080C] tracking-tight">
+              <h2 className="text-admin-h2 text-[var(--a-inverse-text)] tracking-tight">
                 {title}
               </h2>
             )}

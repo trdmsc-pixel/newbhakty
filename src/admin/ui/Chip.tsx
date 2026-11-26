@@ -41,14 +41,14 @@ export const Chip: React.FC<ChipProps> = ({
   }
 
   const statusClasses = {
-    new: "bg-[#FF6A1F]/15 text-[#FFC93C] border border-[#FF6A1F]/30",
-    replied: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-    archived: "bg-white/[0.06] text-[#F4EFE6]/55 border border-white/[0.08]",
+    new: "bg-[var(--a-accent-soft)] text-[var(--a-accent)] border border-[var(--a-accent)]/30",
+    replied: "bg-[var(--a-ok-bg)] text-[var(--a-ok-text)] border border-emerald-500/30",
+    archived: "bg-[var(--a-surface-2)] text-[var(--a-text-3)] border border-[var(--a-line)]",
     draft: "bg-sky-500/15 text-sky-400 border border-sky-500/30",
-    live: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30",
-    warning: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
-    danger: "bg-red-500/15 text-red-300 border border-red-500/30",
-    inverse: "bg-white text-[#07080C] border border-black/10 shadow-sm",
+    live: "bg-[var(--a-ok-bg)] text-[var(--a-ok-text)] border border-emerald-500/30",
+    warning: "bg-[var(--a-warn-bg)] text-[var(--a-warn-text)] border border-amber-500/30",
+    danger: "bg-[var(--a-danger-bg)] text-[var(--a-danger-text)] border border-red-500/30",
+    inverse: "bg-white text-[var(--a-inverse-text)] border border-black/10 shadow-sm",
   }[status];
 
   return (
@@ -61,7 +61,7 @@ export const Chip: React.FC<ChipProps> = ({
             status === "live" || status === "replied"
               ? "bg-emerald-400 animate-pulse"
               : status === "new"
-              ? "bg-[#FFC93C] animate-pulse"
+              ? "bg-[var(--a-yellow-card)] animate-pulse"
               : "bg-current"
           }`}
         />

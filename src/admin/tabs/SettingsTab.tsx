@@ -267,10 +267,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       label="Navbar Logo Size / Height"
                       help="Use slider to resize the logo and make it larger or smaller (Default: 34px)"
                     >
-                      <div className="space-y-3 p-4 rounded-[1.25rem] bg-[#181B24] border border-white/[0.08]">
+                      <div className="space-y-3 p-4 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)]">
                         <div className="flex items-center justify-between">
-                          <span className="text-[#F4EFE6]/70 text-admin-meta">Logo Height:</span>
-                          <span className="font-mono font-bold text-[#FF6A1F] bg-[#FF6A1F]/10 border border-[#FF6A1F]/30 px-3 py-1 rounded-full text-admin-meta">
+                          <span className="text-[var(--a-text-2)] text-admin-meta">Logo Height:</span>
+                          <span className="font-mono font-bold text-[var(--a-accent)] bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 px-3 py-1 rounded-full text-admin-meta">
                             {editSettings.navbar_logo_height || "34"} px
                           </span>
                         </div>
@@ -281,7 +281,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           step="2"
                           value={parseInt(editSettings.navbar_logo_height || "34", 10)}
                           onChange={(e) => onSettingChange("navbar_logo_height", e.target.value)}
-                          className="w-full accent-[#FF6A1F] h-2 bg-white/10 rounded-lg cursor-pointer"
+                          className="w-full accent-[#FF6A1F] h-2 bg-[var(--a-surface-2)] rounded-lg cursor-pointer"
                         />
                         <div className="flex items-center justify-between gap-2 pt-1">
                           {[
@@ -296,8 +296,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               onClick={() => onSettingChange("navbar_logo_height", preset.val)}
                               className={`flex-1 py-1.5 rounded-full text-admin-eyebrow font-mono transition-all cursor-pointer border ${
                                 (editSettings.navbar_logo_height || "34") === preset.val
-                                  ? "bg-[#FF6A1F]/20 border-[#FF6A1F] text-[#F4EFE6] font-bold"
-                                  : "bg-white/[0.03] border-white/10 text-[#F4EFE6]/60 hover:text-white hover:border-white/20"
+                                  ? "bg-[var(--a-accent-soft)] border-[var(--a-accent)] text-[var(--a-text)] font-bold"
+                                  : "bg-[var(--a-surface-2)] border-[var(--a-line)] text-[var(--a-text-2)] hover:text-[var(--a-text)] hover:border-[var(--a-line-strong)]"
                               }`}
                             >
                               {preset.label}
@@ -339,10 +339,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       label="Footer Logo Size / Height"
                       help="Use slider to resize the giant signature logo above the footer (Default: 110px)"
                     >
-                      <div className="space-y-3 p-4 rounded-[1.25rem] bg-[#181B24] border border-white/[0.08]">
+                      <div className="space-y-3 p-4 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)]">
                         <div className="flex items-center justify-between">
-                          <span className="text-[#F4EFE6]/70 text-admin-meta">Logo Height:</span>
-                          <span className="font-mono font-bold text-[#FF6A1F] bg-[#FF6A1F]/10 border border-[#FF6A1F]/30 px-3 py-1 rounded-full text-admin-meta">
+                          <span className="text-[var(--a-text-2)] text-admin-meta">Logo Height:</span>
+                          <span className="font-mono font-bold text-[var(--a-accent)] bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 px-3 py-1 rounded-full text-admin-meta">
                             {editSettings.footer_logo_height || "110"} px
                           </span>
                         </div>
@@ -353,7 +353,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           step="5"
                           value={parseInt(editSettings.footer_logo_height || "110", 10)}
                           onChange={(e) => onSettingChange("footer_logo_height", e.target.value)}
-                          className="w-full accent-[#FF6A1F] h-2 bg-white/10 rounded-lg cursor-pointer"
+                          className="w-full accent-[#FF6A1F] h-2 bg-[var(--a-surface-2)] rounded-lg cursor-pointer"
                         />
                         <div className="flex items-center justify-between gap-2 pt-1">
                           {[
@@ -368,8 +368,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               onClick={() => onSettingChange("footer_logo_height", preset.val)}
                               className={`flex-1 py-1.5 rounded-full text-admin-eyebrow font-mono transition-all cursor-pointer border ${
                                 (editSettings.footer_logo_height || "110") === preset.val
-                                  ? "bg-[#FF6A1F]/20 border-[#FF6A1F] text-[#F4EFE6] font-bold"
-                                  : "bg-white/[0.03] border-white/10 text-[#F4EFE6]/60 hover:text-white hover:border-white/20"
+                                  ? "bg-[var(--a-accent-soft)] border-[var(--a-accent)] text-[var(--a-text)] font-bold"
+                                  : "bg-[var(--a-surface-2)] border-[var(--a-line)] text-[var(--a-text-2)] hover:text-[var(--a-text)] hover:border-[var(--a-line-strong)]"
                               }`}
                             >
                               {preset.label}
@@ -737,7 +737,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           summaries={[
             {
               label: "Local draft",
-              value: <span className="text-[#FFC93C]">Unsaved changes</span>,
+              value: <span className="text-[var(--a-accent)]">Unsaved changes</span>,
             },
             {
               label: "Sync target",

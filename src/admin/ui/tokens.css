@@ -1,155 +1,261 @@
 /* ==========================================================================
-   THE CHANTING STUDIO — ADMIN DESIGN TOKENS
-   Imported solely by the Admin Panel (/admin) workspace.
+   THE CHANTING STUDIO — ADMIN DESIGN TOKENS (Studio OS Visual Language)
+   Light mode default + Dark mode (.tcs-admin-dark).
+   Scoped solely to the Admin Panel (/admin) workspace.
    ========================================================================== */
 
-:root {
-  /* Surface hierarchy */
-  --a-bg: #07080C;
-  --a-surface-1: #11131A;
-  --a-surface-2: #181B24;
-  --a-surface-3: #20242F;
-
-  /* Line dividers & borders */
-  --a-line: rgba(244, 239, 230, 0.08);
-  --a-line-strong: rgba(244, 239, 230, 0.16);
-
-  /* Text opacity hierarchy */
-  --a-text: #F4EFE6;
-  --a-text-2: rgba(244, 239, 230, 0.64);
-  --a-text-3: rgba(244, 239, 230, 0.42);
-
-  /* Inverse panel (contrasting light off-white master lists & pill nav) */
-  --a-inverse: #F4EFE6;
-  --a-inverse-text: #07080C;
-  --a-inverse-line: rgba(7, 8, 12, 0.08);
-
-  /* Accents */
-  --a-accent: #FF6A1F;
-  --a-accent-grad: linear-gradient(135deg, #FF6A1F 0%, #E8332A 100%);
-
-  /* Spectrum tones */
-  --a-gold: #FFC93C;
-  --a-crimson: #E8332A;
-  --a-magenta: #C2187A;
-  --a-blue: #1F4BFF;
-  --a-cyan: #2EC5FF;
-
-  /* Status */
-  --a-success: #34D399;
-  --a-warning: #FFC93C;
-  --a-danger: #E8332A;
-
-  /* Accessibility focus */
-  --a-focus: 0 0 0 3px rgba(255, 106, 31, 0.45);
-}
-
-/* 3.1 Responsive Scale */
 .tcs-admin {
-  font-size: clamp(16px, 0.35vw + 11px, 19px);
-  background-color: var(--a-bg);
+  /* Studio OS Canvas & Surfaces (Light Default) */
+  --a-bg: #EEF0F4;
+  --a-canvas-gradient: linear-gradient(135deg, #DCE7FB 0%, #F3F6FC 45%, #E6EEFB 100%);
+  --a-surface-1: #FFFFFF;
+  --a-surface-2: #F5F6F8;
+  --a-surface-3: #ECEEF2;
+
+  /* Hairlines & Borders */
+  --a-line: #ECEEF2;
+  --a-line-strong: #D7DCE5;
+
+  /* Text Hierarchy */
+  --a-text: #0F1115;
+  --a-text-2: #5F6672;
+  --a-text-3: #646B78;
+
+  /* Inverse / Selected Pill */
+  --a-inverse: #0E0E10;
+  --a-inverse-text: #FFFFFF;
+  --a-inverse-line: rgba(255, 255, 255, 0.14);
+
+  /* Studio OS Accents */
+  --a-accent: #5B3FE4;
+  --a-accent-soft: #EEEBFD;
+  --a-accent-grad: linear-gradient(135deg, #5B3FE4 0%, #2563EB 100%);
+  --a-blue: #2563EB;
+  --a-green: #1F7A52;
+  --a-amber: #F59E0B;
+  --a-yellow-card: #F6CB45;
+  --a-gold: #F59E0B;
+  --a-crimson: #E5484D;
+  --a-magenta: #7C3AED;
+  --a-cyan: #0EA5E9;
+
+  /* Semantic Status Tints */
+  --a-success: #1F7A52;
+  --a-warning: #C26A00;
+  --a-danger: #B42318;
+  --a-ok-bg: #E7F7EE;
+  --a-ok-text: #17663F;
+  --a-warn-bg: #FFF3E0;
+  --a-warn-text: #9A4A00;
+  --a-danger-bg: #FDECEC;
+  --a-danger-text: #B42318;
+
+  /* Depth & Motion */
+  --a-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px rgba(16, 24, 40, 0.06);
+  --a-shadow-floating: 0 12px 36px -8px rgba(16, 24, 40, 0.16), 0 2px 6px rgba(16, 24, 40, 0.06);
+  --a-focus: 0 0 0 2px #2563EB;
+  --a-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-size: 16px;
+  background: var(--a-canvas-gradient);
   color: var(--a-text);
-  font-family: var(--font-sans, "Manrope", sans-serif);
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
   width: 100%;
+}
+
+.tcs-admin.tcs-admin-dark {
+  --a-bg: #0B0B0D;
+  --a-canvas-gradient: #0B0B0D;
+  --a-surface-1: #151518;
+  --a-surface-2: #1C1C20;
+  --a-surface-3: #26262C;
+
+  --a-line: #26262B;
+  --a-line-strong: #35353E;
+
+  --a-text: #EDEDEF;
+  --a-text-2: #A1A1AA;
+  --a-text-3: #8E8E98;
+
+  --a-inverse: #FFFFFF;
+  --a-inverse-text: #0E0E10;
+  --a-inverse-line: rgba(14, 14, 16, 0.14);
+
+  --a-accent: #7C66F0;
+  --a-accent-soft: #272235;
+  --a-accent-grad: linear-gradient(135deg, #7C66F0 0%, #4D82FF 100%);
+  --a-blue: #4D82FF;
+  --a-green: #4CC38A;
+  --a-amber: #FBBF24;
+  --a-yellow-card: #E6B93A;
+  --a-gold: #FBBF24;
+  --a-crimson: #F2555A;
+
+  --a-success: #4CC38A;
+  --a-warning: #FBBF24;
+  --a-danger: #F2555A;
+  --a-ok-bg: rgba(76, 195, 138, 0.16);
+  --a-ok-text: #6EE7B7;
+  --a-warn-bg: rgba(251, 191, 36, 0.16);
+  --a-warn-text: #FCD34D;
+  --a-danger-bg: rgba(242, 85, 90, 0.18);
+  --a-danger-text: #FCA5A5;
+
+  --a-shadow: none;
+  --a-shadow-floating: 0 18px 50px -12px rgba(0, 0, 0, 0.7);
+  --a-focus: 0 0 0 2px #4D82FF;
 }
 
 .tcs-admin * {
   box-sizing: border-box;
 }
 
-/* Centered Content Container */
 .tcs-admin-container {
-  max-width: 1680px;
+  max-width: 1440px;
   margin-inline: auto;
-  padding-inline: clamp(1.25rem, 3vw, 3rem);
   width: 100%;
 }
 
-/* 3.2 Typography Tokens */
-.text-admin-display {
-  font-family: var(--font-display, "Archivo", sans-serif);
-  font-size: 3.5rem;
-  line-height: 1.0;
+/* Typography Scale — Outfit (display/headings/numerals) + Plus Jakarta Sans (UI) */
+.tcs-admin .text-admin-display {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  font-size: 2.5rem;
+  line-height: 1.05;
   letter-spacing: -0.025em;
-  font-weight: 500;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.text-admin-h1-metric {
-  font-family: var(--font-display, "Archivo", sans-serif);
-  font-size: 2.75rem;
-  line-height: 1.0;
+.tcs-admin .text-admin-h1-metric {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
-.text-admin-h2 {
-  font-family: var(--font-display, "Archivo", sans-serif);
-  font-size: 1.75rem;
+.tcs-admin .text-admin-h2 {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  font-size: 1.5rem;
   line-height: 1.2;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   font-weight: 600;
 }
 
-.text-admin-h3 {
-  font-family: var(--font-display, "Archivo", sans-serif);
-  font-size: 1.25rem;
+.tcs-admin .text-admin-h3 {
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  font-size: 1.125rem;
   line-height: 1.3;
   font-weight: 600;
 }
 
-.text-admin-body-lg {
-  font-family: var(--font-sans, "Manrope", sans-serif);
-  font-size: 1.125rem;
+.tcs-admin .text-admin-body-lg {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
   line-height: 1.55;
   font-weight: 500;
 }
 
-.text-admin-body {
-  font-family: var(--font-sans, "Manrope", sans-serif);
-  font-size: 1rem;
+.tcs-admin .text-admin-body {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.9375rem;
   line-height: 1.55;
   font-weight: 400;
 }
 
-.text-admin-label {
-  font-family: var(--font-sans, "Manrope", sans-serif);
-  font-size: 0.9375rem;
+.tcs-admin .text-admin-label {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.875rem;
   line-height: 1.3;
   font-weight: 600;
 }
 
-.text-admin-meta {
-  font-family: var(--font-sans, "Manrope", sans-serif);
-  font-size: 0.875rem;
+.tcs-admin .text-admin-meta {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.8125rem;
   line-height: 1.4;
   font-weight: 500;
 }
 
-.text-admin-eyebrow {
-  font-family: var(--font-mono, "JetBrains Mono", monospace);
-  font-size: 0.75rem;
+.tcs-admin .text-admin-eyebrow {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.6875rem;
   line-height: 1.2;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Interactive elements default focus rings */
+/* Studio OS Surface Helpers */
+.tcs-admin .admin-panel-shell {
+  background: var(--a-surface-1);
+  border: 1px solid var(--a-line);
+  border-radius: 32px;
+  box-shadow: var(--a-shadow);
+}
+
+.tcs-admin .admin-card-surface {
+  background: var(--a-surface-1);
+  border: 1px solid var(--a-line);
+  border-radius: 24px;
+  box-shadow: var(--a-shadow);
+}
+
+.tcs-admin .admin-stripe-bar {
+  background-color: var(--a-green);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.22) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
 .tcs-admin button:focus-visible,
 .tcs-admin a:focus-visible,
 .tcs-admin input:focus-visible,
 .tcs-admin select:focus-visible,
 .tcs-admin textarea:focus-visible {
-  outline: none;
-  box-shadow: var(--a-focus) !important;
+  outline: 2px solid var(--a-blue);
+  outline-offset: 2px;
 }
 
-/* Floating shadow elevation */
 .shadow-admin-floating {
-  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.65);
+  box-shadow: var(--a-shadow-floating);
 }
 
 .shadow-admin-glow {
-  box-shadow: 0 0 24px rgba(255, 106, 31, 0.35);
+  box-shadow: 0 6px 20px -6px rgba(91, 63, 228, 0.4);
+}
+
+/* Subtle scrollbars matching Studio OS */
+.tcs-admin ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.tcs-admin ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tcs-admin ::-webkit-scrollbar-thumb {
+  background: var(--a-line-strong);
+  border-radius: 999px;
+}
+
+/* Prevent iOS zoom on phone form fields */
+@media (max-width: 767px) {
+  .tcs-admin input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .tcs-admin textarea,
+  .tcs-admin select {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcs-admin * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

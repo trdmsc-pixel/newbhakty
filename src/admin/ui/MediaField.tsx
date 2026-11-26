@@ -60,14 +60,14 @@ export const MediaField: React.FC<MediaFieldProps> = ({
 
   return (
     <div
-      className={`rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-150 hover:border-white/[0.18] ${className}`}
+      className={`rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-150 hover:border-[var(--a-line-strong)] ${className}`}
     >
       {/* Thumbnail + Name details */}
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
         <div
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="w-[5rem] h-[2.8rem] rounded-[12px] bg-[#07080C] border border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative shadow-inner"
+          className="w-[5rem] h-[2.8rem] rounded-[12px] bg-[var(--a-surface-2)] border border-[var(--a-line)] overflow-hidden shrink-0 flex items-center justify-center relative shadow-inner"
         >
           {cleanUrl ? (
             isVideo ? (
@@ -88,7 +88,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
               />
             )
           ) : (
-            <div className="text-[#F4EFE6]/30">
+            <div className="text-[var(--a-text-3)]">
               {isVideo ? <Film className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
             </div>
           )}
@@ -96,13 +96,13 @@ export const MediaField: React.FC<MediaFieldProps> = ({
 
         <div className="min-w-0 flex-1">
           {label && (
-            <p className="text-admin-meta text-[#F4EFE6]/50 font-medium mb-0.5 truncate">
+            <p className="text-admin-meta text-[var(--a-text-3)] font-medium mb-0.5 truncate">
               {label}
             </p>
           )}
           <div className="flex items-center gap-2">
             <Tooltip content={cleanUrl || "Empty"}>
-              <span className="text-admin-body font-mono text-sm text-[#F4EFE6] font-medium truncate block max-w-[280px] sm:max-w-[360px]">
+              <span className="text-admin-body font-mono text-sm text-[var(--a-text)] font-medium truncate block max-w-[280px] sm:max-w-[360px]">
                 {fileName}
               </span>
             </Tooltip>
@@ -112,10 +112,10 @@ export const MediaField: React.FC<MediaFieldProps> = ({
                 type="button"
                 onClick={handleCopy}
                 aria-label="Copy URL"
-                className="p-1 rounded-full text-[#F4EFE6]/55 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                className="p-1 rounded-full text-[var(--a-text-3)] hover:text-[var(--a-text)] hover:bg-[var(--a-surface-2)] transition-colors cursor-pointer shrink-0"
               >
                 {copied ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-[var(--a-ok-text)]" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
@@ -132,7 +132,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
             size="sm"
             variant="secondary"
             onClick={onOpenLibrary}
-            icon={<FolderOpen className="w-3.5 h-3.5 text-[#FFC93C]" />}
+            icon={<FolderOpen className="w-3.5 h-3.5 text-[var(--a-accent)]" />}
           >
             Library
           </Button>
@@ -143,7 +143,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
             size="sm"
             variant="secondary"
             onClick={onUpload}
-            icon={<Upload className="w-3.5 h-3.5 text-[#FF6A1F]" />}
+            icon={<Upload className="w-3.5 h-3.5 text-[var(--a-accent)]" />}
           >
             Upload
           </Button>
@@ -154,7 +154,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
             type="button"
             onClick={() => onChange("")}
             aria-label="Clear media"
-            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-red-500/20 text-[#F4EFE6]/70 hover:text-red-300 border border-white/[0.08] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-full bg-[var(--a-surface-2)] hover:bg-[var(--a-danger-bg)] text-[var(--a-text-2)] hover:text-[var(--a-danger-text)] border border-[var(--a-line)] flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

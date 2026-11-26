@@ -32,7 +32,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   return (
     <div
       className={`h-[0.5rem] w-full rounded-full overflow-hidden relative ${
-        inverse ? "bg-black/[0.08]" : "bg-[#181B24]"
+        inverse ? "bg-black/[0.08]" : "bg-[var(--a-surface-2)]"
       } ${className}`}
     >
       <div

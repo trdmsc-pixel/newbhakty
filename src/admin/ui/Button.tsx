@@ -23,22 +23,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const sizeClasses = {
-      sm: "h-[2.5rem] px-4 text-admin-meta",
-      md: "h-[3rem] px-6 text-admin-label",
-      lg: "h-[3.5rem] px-8 text-admin-body-lg font-semibold",
+      sm: "h-9 px-4 text-admin-meta",
+      md: "h-11 px-5 text-admin-label",
+      lg: "h-12 px-7 text-admin-body-lg font-semibold",
     }[size];
 
     const variantClasses = {
       primary:
-        "bg-[#F4EFE6] text-[#07080C] font-semibold hover:bg-white hover:shadow-[0_0_24px_rgba(255,106,31,0.35)] active:scale-[0.99]",
+        "bg-[var(--a-accent)] text-white font-semibold hover:brightness-105 hover:-translate-y-[1px] active:scale-[0.98]",
       accent:
-        "bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white font-semibold shadow-md hover:brightness-110 active:scale-[0.99]",
+        "bg-[var(--a-blue)] text-white font-semibold hover:brightness-105 hover:-translate-y-[1px] active:scale-[0.98]",
       secondary:
-        "bg-transparent border border-white/20 text-[#F4EFE6] font-medium hover:bg-[#181B24] hover:border-white/30 active:scale-[0.99]",
+        "bg-[var(--a-surface-1)] border border-[var(--a-line-strong)] text-[var(--a-text)] font-medium hover:bg-[var(--a-surface-2)] active:scale-[0.98]",
       ghost:
-        "bg-transparent text-[#F4EFE6]/75 hover:bg-[#181B24] hover:text-[#F4EFE6]",
+        "bg-transparent text-[var(--a-text-2)] hover:bg-[var(--a-surface-2)] hover:text-[var(--a-text)]",
       danger:
-        "bg-red-500/15 border border-red-500/30 text-red-300 font-semibold hover:bg-red-500/25 active:scale-[0.99]",
+        "bg-[var(--a-danger-bg)] border border-transparent text-[var(--a-danger-text)] font-semibold hover:opacity-90 active:scale-[0.98]",
     }[variant];
 
     return (
@@ -46,7 +46,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         type="button"
         disabled={disabled || loading}
-        className={`inline-flex items-center justify-center gap-2.5 rounded-full font-sans transition-all duration-150 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed select-none ${sizeClasses} ${variantClasses} ${className}`}
+        className={`inline-flex items-center justify-center gap-2 rounded-full transition-all duration-150 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed select-none ${sizeClasses} ${variantClasses} ${className}`}
         {...props}
       >
         {loading ? (

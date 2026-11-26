@@ -31,11 +31,11 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     }[size];
 
     const variantClasses = {
-      surface: "bg-[#181B24] border border-white/[0.08] text-[#F4EFE6] hover:bg-[#20242F] hover:border-white/[0.18]",
-      ghost: "bg-transparent border border-transparent text-[#F4EFE6]/70 hover:bg-[#181B24] hover:text-white",
-      inverse: "bg-[#F4EFE6] border border-black/10 text-[#07080C] hover:bg-white",
-      danger: "bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300",
-      accent: "bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 text-[#FF6A1F] hover:bg-[#FF6A1F]/25 hover:text-[#FFC93C]",
+      surface: "bg-[var(--a-surface-2)] border border-[var(--a-line)] text-[var(--a-text)] hover:bg-[var(--a-surface-3)] hover:border-[var(--a-line-strong)]",
+      ghost: "bg-transparent border border-transparent text-[var(--a-text-2)] hover:bg-[var(--a-surface-2)] hover:text-[var(--a-text)]",
+      inverse: "bg-[var(--a-inverse)] border border-black/10 text-[var(--a-inverse-text)] hover:bg-white",
+      danger: "bg-red-500/10 border border-red-500/20 text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] hover:text-[var(--a-danger-text)]",
+      accent: "bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 text-[var(--a-accent)] hover:bg-[var(--a-accent)]/25 hover:text-[var(--a-accent)]",
     }[variant];
 
     const tooltipContent = shortcut ? `${label} (${shortcut})` : label;
@@ -53,7 +53,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           {children}
 
           {badge !== undefined && badge !== false && (
-            <span className="absolute -top-1 -right-1 min-w-[1.25rem] h-[1.25rem] px-1 rounded-full bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white text-[11px] font-mono font-bold flex items-center justify-center shadow-md animate-in zoom-in-50">
+            <span className="absolute -top-1 -right-1 min-w-[1.25rem] h-[1.25rem] px-1 rounded-full bg-gradient-to-r from-[var(--a-accent)] to-[var(--a-blue)] text-white text-[11px] font-mono font-bold flex items-center justify-center shadow-md animate-in zoom-in-50">
               {typeof badge === "number" || typeof badge === "string" ? badge : ""}
             </span>
           )}

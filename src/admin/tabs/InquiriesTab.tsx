@@ -151,7 +151,7 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
           >
             <div className="space-y-2 max-h-[780px] overflow-y-auto pr-1">
               {filteredInquiries.length === 0 ? (
-                <div className="py-16 text-center text-[#07080C]/55 font-medium">
+                <div className="py-16 text-center text-[var(--a-inverse-text)]/55 font-medium">
                   No inquiries match your criteria.
                 </div>
               ) : (
@@ -247,23 +247,23 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
               </div>
 
               {/* Project Brief Section */}
-              <div className="rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] p-6 space-y-3">
-                <p className="text-admin-meta text-[#FF6A1F] font-mono tracking-widest uppercase text-xs font-semibold">
+              <div className="rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] p-6 space-y-3">
+                <p className="text-admin-meta text-[var(--a-accent)] font-mono tracking-widest uppercase text-xs font-semibold">
                   PROJECT BRIEF & VISION STATEMENT
                 </p>
-                <div className="text-admin-body text-[#F4EFE6] leading-relaxed whitespace-pre-wrap">
+                <div className="text-admin-body text-[var(--a-text)] leading-relaxed whitespace-pre-wrap">
                   {selectedInquiry.project_brief ||
                     "No additional brief text provided by the client."}
                 </div>
               </div>
 
               {/* Status Change Selector */}
-              <div className="rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <p className="text-admin-label font-semibold text-[#F4EFE6]">
+                  <p className="text-admin-label font-semibold text-[var(--a-text)]">
                     Inquiry Engagement Status
                   </p>
-                  <p className="text-admin-meta text-[#F4EFE6]/50 mt-0.5">
+                  <p className="text-admin-meta text-[var(--a-text-3)] mt-0.5">
                     Update pipeline state to track replies and executive outreach
                   </p>
                 </div>
@@ -277,8 +277,8 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
                       className={`px-4 py-2 rounded-full text-admin-meta font-semibold cursor-pointer transition-all ${
                         (selectedInquiry.status || "New").toLowerCase() ===
                         st.toLowerCase()
-                          ? "bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white shadow-md"
-                          : "bg-white/[0.06] hover:bg-white/10 text-[#F4EFE6]/70 hover:text-white"
+                          ? "bg-gradient-to-r from-[var(--a-accent)] to-[var(--a-blue)] text-white shadow-md"
+                          : "bg-[var(--a-surface-2)] hover:bg-[var(--a-surface-2)] text-[var(--a-text-2)] hover:text-[var(--a-text)]"
                       }`}
                     >
                       {st}
@@ -321,7 +321,7 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
                       onClick={handleCopyEmail}
                     >
                       {copied ? (
-                        <Check className="w-5 h-5 text-emerald-400" />
+                        <Check className="w-5 h-5 text-[var(--a-ok-text)]" />
                       ) : (
                         <Copy className="w-5 h-5" />
                       )}
@@ -339,7 +339,7 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
                       href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(
                         "The Chanting Studio — Project Inquiry Brief"
                       )}`}
-                      className="inline-flex items-center gap-2 h-[3rem] px-6 rounded-full bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white text-admin-label font-semibold shadow-md hover:brightness-110 transition-all"
+                      className="inline-flex items-center gap-2 h-[3rem] px-6 rounded-full bg-gradient-to-r from-[var(--a-accent)] to-[var(--a-blue)] text-white text-admin-label font-semibold shadow-md hover:brightness-110 transition-all"
                     >
                       <Mail className="w-4 h-4" />
                       <span>Reply by email</span>
@@ -349,7 +349,7 @@ export const InquiriesTab: React.FC<InquiriesTabProps> = ({
               />
             </DetailPanel>
           ) : (
-            <div className="rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-12 text-center text-[#F4EFE6]/50">
+            <div className="rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-12 text-center text-[var(--a-text-3)]">
               No inquiry selected. Select an item from the inbox.
             </div>
           )}

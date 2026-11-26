@@ -1,9 +1,26 @@
 import React, { useState } from "react";
-import { Wordmark } from "../../components/brand/Wordmark";
-import { TopPillNav } from "./TopPillNav";
-import { IconRail } from "./IconRail";
 import { CommandPalette, CommandItem } from "../ui/CommandPalette";
-import { ChevronDown, FileText, Film, Inbox, FolderOpen, Menu, X, Sparkles } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  ClipboardList,
+  Compass,
+  ExternalLink,
+  FileText,
+  Film,
+  FolderOpen,
+  Inbox,
+  LogOut,
+  Menu,
+  MessageSquareQuote,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Sparkles,
+  Sun,
+  X,
+} from "lucide-react";
 
 export interface AdminShellProps {
   activeTab: string;
@@ -11,33 +28,37 @@ export interface AdminShellProps {
   unreadInquiries?: number;
   userEmail?: string;
   onLogout: () => void;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
   commandItems: CommandItem[];
   children: React.ReactNode;
 }
 
 export const MAIN_WEBSITE_TABS = [
-  { id: "settings", label: "Hero & Copy" },
-  { id: "brand_logos", label: "Brand Logos" },
-  { id: "portfolio", label: "Selected Work" },
-  { id: "testimonials", label: "Testimonials" },
-  { id: "intake_form", label: "Inquiry Form" },
-  { id: "navigation", label: "Navigation" },
+  { id: "settings", label: "Hero & Copy", icon: FileText },
+  { id: "brand_logos", label: "Brand Logos", icon: Building2 },
+  { id: "portfolio", label: "Selected Work", icon: Film },
+  { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote },
+  { id: "intake_form", label: "Inquiry Form", icon: ClipboardList },
+  { id: "navigation", label: "Navigation", icon: Compass },
 ];
 
 export const AdminShell: React.FC<AdminShellProps> = ({
   activeTab,
   onTabChange,
   unreadInquiries = 0,
-  userEmail,
+  userEmail = "studio@thechantingstudio.in",
   onLogout,
+  darkMode,
+  onToggleDarkMode,
   commandItems,
   children,
 }) => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [dropdownPillOpen, setDropdownPillOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ⌘K global shortcut
+  // ⌘K / Ctrl+K global shortcut
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -49,233 +70,458 @@ export const AdminShell: React.FC<AdminShellProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const activeTabMeta =
-    MAIN_WEBSITE_TABS.find((t) => t.id === activeTab) || {
-      id: activeTab,
-      label:
-        activeTab === "submissions"
-          ? "Inquiries"
-          : activeTab === "assets"
-          ? "Media Assets"
-          : activeTab === "analytics"
-          ? "Analytics"
-          : "Studio Workspace",
-    };
+  const channelItems = [
+    { id: "submissions", label: "Inquiries", icon: Inbox, badge: unreadInquiries },
+    { id: "assets", label: "Media Assets", icon: FolderOpen, badge: 0 },
+    { id: "analytics", label: "Analytics", icon: BarChart3, badge: 0 },
+  ];
+
+  const handleSelect = (id: string) => {
+    onTabChange(id);
+    setMobileMenuOpen(false);
+  };
 
   return (
-    <div className="tcs-admin min-h-screen flex flex-col bg-[#07080C] text-[#F4EFE6] select-none">
-      {/* 4.1 Sticky Header (5.5rem, full width, 85% + blur) */}
-      <header className="sticky top-0 z-40 w-full h-[5.5rem] bg-[#07080C]/85 backdrop-blur-xl border-b border-white/[0.08] flex items-center">
-        <div className="w-full px-4 sm:px-8 lg:px-10 flex items-center justify-between gap-4">
-          {/* Left: Brand Wordmark (20px cap height) + Studio CMS */}
-          <div className="flex items-center gap-3.5 shrink-0">
+    <div className={`tcs-admin ${darkMode ? "tcs-admin-dark" : ""} p-0 md:p-4 lg:p-5`}>
+      {/* Main 32px Rounded Studio OS Panel */}
+      <div className="admin-panel-shell max-w-[1440px] mx-auto min-h-screen md:min-h-[calc(100vh-40px)] flex overflow-hidden">
+        {/* Desktop / Tablet Collapsible Left Sidebar */}
+        <aside
+          className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 ${
+            sidebarCollapsed ? "w-[76px]" : "w-[252px]"
+          }`}
+          style={{ borderColor: "var(--a-line)", background: "var(--a-surface-1)" }}
+        >
+          <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Brand Header + Collapse */}
+            <div className="flex items-center justify-between gap-2">
+              {!sidebarCollapsed && (
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-[13px] shrink-0"
+                    style={{ background: "var(--a-inverse)", color: "var(--a-inverse-text)" }}
+                  >
+                    CS
+                  </div>
+                  <div className="min-w-0">
+                    <p
+                      className="text-[16px] font-bold tracking-[-0.02em] truncate"
+                      style={{ fontFamily: '"Outfit", sans-serif', color: "var(--a-text)" }}
+                    >
+                      Studio CMS
+                    </p>
+                    <p className="text-[11px] truncate" style={{ color: "var(--a-text-3)" }}>
+                      The Chanting Studio
+                    </p>
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 hover:opacity-80 cursor-pointer"
+                style={{ background: "var(--a-surface-2)", color: "var(--a-text-2)" }}
+                aria-label="Toggle sidebar"
+              >
+                {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* WEBSITE Section */}
+            <div className="space-y-1">
+              {!sidebarCollapsed && (
+                <p
+                  className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--a-text-3)" }}
+                >
+                  Website
+                </p>
+              )}
+              {MAIN_WEBSITE_TABS.map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSelect(item.id)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className="w-full flex items-center gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors cursor-pointer"
+                    style={{
+                      background: active ? "var(--a-blue)" : "transparent",
+                      color: active ? "#FFFFFF" : "var(--a-text-2)",
+                    }}
+                  >
+                    <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* CHANNELS Section */}
+            <div className="space-y-1">
+              {!sidebarCollapsed && (
+                <p
+                  className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--a-text-3)" }}
+                >
+                  Channels
+                </p>
+              )}
+              {channelItems.map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSelect(item.id)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className="w-full flex items-center justify-between gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors cursor-pointer"
+                    style={{
+                      background: active ? "var(--a-blue)" : "transparent",
+                      color: active ? "#FFFFFF" : "var(--a-text-2)",
+                    }}
+                  >
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+                      {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                    </span>
+                    {!sidebarCollapsed && item.badge > 0 && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                        style={{
+                          background: active ? "rgba(255,255,255,0.22)" : "var(--a-danger-bg)",
+                          color: active ? "#FFFFFF" : "var(--a-danger-text)",
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sidebar Bottom: Live Site, Light/Dark Toggle, Sign Out */}
+          <div className="p-4 border-t space-y-2" style={{ borderColor: "var(--a-line)" }}>
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center group transition-opacity hover:opacity-90"
+              title={sidebarCollapsed ? "Live site" : undefined}
+              className="w-full flex items-center gap-2.5 px-3 h-9 rounded-full text-[13px] font-medium hover:opacity-80 transition-opacity"
+              style={{ color: "var(--a-text-2)" }}
             >
-              <Wordmark capHeight={20} ringAnimation="spin-slow" />
+              <ExternalLink className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+              {!sidebarCollapsed && <span>Live site</span>}
             </a>
 
-            <div className="h-5 w-px bg-white/10 hidden sm:block shrink-0" />
-
-            <span className="text-admin-meta text-[#F4EFE6]/50 font-mono hidden sm:inline-block">
-              Studio CMS
-            </span>
-          </div>
-
-          {/* Center: Top Pill Nav (≥1280px) */}
-          <div className="hidden xl:flex items-center justify-center flex-1">
-            <TopPillNav
-              tabs={MAIN_WEBSITE_TABS}
-              activeTab={activeTab}
-              onTabChange={onTabChange}
-              onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-            />
-          </div>
-
-          {/* Center collapse (<1280px & ≥768px): Dropdown Pill */}
-          <div className="hidden md:flex xl:hidden relative">
-            <button
-              type="button"
-              onClick={() => setDropdownPillOpen((prev) => !prev)}
-              className="h-[3rem] px-5 rounded-full bg-[#F4EFE6] text-[#07080C] font-semibold text-admin-label flex items-center gap-2.5 shadow-md cursor-pointer"
-            >
-              <span>{activeTabMeta.label}</span>
-              <ChevronDown className="w-4 h-4 text-[#07080C]/70" />
-            </button>
-
-            {dropdownPillOpen && (
-              <div className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-50 w-56 rounded-[1.25rem] bg-[#181B24] border border-white/[0.16] shadow-admin-floating p-2 animate-in fade-in zoom-in-95">
-                {MAIN_WEBSITE_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => {
-                      onTabChange(t.id);
-                      setDropdownPillOpen(false);
-                    }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-admin-label font-medium transition-colors cursor-pointer ${
-                      activeTab === t.id
-                        ? "bg-[#FF6A1F]/20 text-[#FF6A1F] font-semibold"
-                        : "text-[#F4EFE6]/75 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              {/* Two-icon Sun / Moon pill matching Studio OS */}
+              <div
+                className="inline-flex items-center p-1 rounded-full"
+                style={{ background: "var(--a-surface-2)" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => darkMode && onToggleDarkMode()}
+                  className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                  style={{
+                    background: !darkMode ? "var(--a-surface-1)" : "transparent",
+                    color: !darkMode ? "var(--a-text)" : "var(--a-text-3)",
+                  }}
+                  aria-label="Light mode"
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => !darkMode && onToggleDarkMode()}
+                  className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                  style={{
+                    background: darkMode ? "var(--a-surface-1)" : "transparent",
+                    color: darkMode ? "var(--a-text)" : "var(--a-text-3)",
+                  }}
+                  aria-label="Dark mode"
+                >
+                  <Moon className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
-          </div>
 
-          {/* Right: Icon Rail (≥768px) */}
-          <div className="hidden md:flex items-center">
-            <IconRail
-              activeTab={activeTab}
-              onTabChange={onTabChange}
-              unreadInquiries={unreadInquiries}
-              userEmail={userEmail}
-              onLogout={onLogout}
-            />
+              {!sidebarCollapsed && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  title={`Sign out (${userEmail})`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:opacity-80 cursor-pointer"
+                  style={{ background: "var(--a-danger-bg)", color: "var(--a-danger-text)" }}
+                  aria-label="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
+        </aside>
 
-          {/* Mobile menu hamburger (<768px) */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              aria-label="Toggle menu"
-              className="w-11 h-11 rounded-full bg-[#181B24] border border-white/[0.08] text-[#F4EFE6] flex items-center justify-center cursor-pointer"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
+        {/* Main Right Content Column */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Top Bar */}
+          <header
+            className="h-16 md:h-[72px] px-4 md:px-7 border-b flex items-center justify-between gap-3 shrink-0"
+            style={{ borderColor: "var(--a-line)", background: "var(--a-surface-1)" }}
+          >
+            <div className="flex items-center gap-2.5 flex-1 max-w-md">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden w-10 h-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer"
+                style={{ background: "var(--a-surface-2)", color: "var(--a-text)" }}
+                aria-label="Open menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              {/* Search / Command Palette Pill */}
+              <button
+                type="button"
+                onClick={() => setCommandPaletteOpen(true)}
+                className="flex items-center gap-2.5 px-4 h-10 rounded-full flex-1 text-left cursor-pointer transition-opacity hover:opacity-90"
+                style={{ background: "var(--a-surface-2)", color: "var(--a-text-3)" }}
+              >
+                <Search className="w-4 h-4 shrink-0" />
+                <span className="text-[13px] truncate flex-1">Search sections or actions…</span>
+                <kbd
+                  className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded"
+                  style={{ background: "var(--a-surface-1)", color: "var(--a-text-3)" }}
+                >
+                  ⌘K
+                </kbd>
+              </button>
+            </div>
+
+            {/* Right Controls */}
+            <div className="flex items-center gap-2.5">
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 h-9 rounded-full text-[13px] font-semibold text-white transition-transform hover:-translate-y-[1px]"
+                style={{ background: "var(--a-blue)" }}
+              >
+                <span>Live site</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+
+              <div
+                className="hidden sm:flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border"
+                style={{ borderColor: "var(--a-line)" }}
+              >
+                <div
+                  className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center"
+                  style={{ background: "var(--a-accent)" }}
+                >
+                  SS
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[12px] font-semibold" style={{ color: "var(--a-text)" }}>
+                    Shyam Sharma
+                  </p>
+                  <p className="text-[10px] truncate max-w-[130px]" style={{ color: "var(--a-text-3)" }}>
+                    {userEmail}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Main Scroll Area */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-7 pb-24 md:pb-10">
+            <div className="tcs-admin-container">{children}</div>
+          </main>
         </div>
-      </header>
+      </div>
 
-      {/* Mobile Drawer Sheet (<768px) */}
+      {/* Mobile Slide-Out Drawer (<768px) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 top-[5.5rem] z-50 bg-[#07080C]/95 backdrop-blur-2xl p-6 flex flex-col justify-between overflow-y-auto md:hidden animate-in fade-in">
-          <div className="space-y-6">
-            <div>
-              <p className="text-admin-eyebrow text-[#FF6A1F] font-mono tracking-widest mb-3">
-                WEBSITE SECTIONS
-              </p>
-              <div className="grid grid-cols-1 gap-2">
-                {MAIN_WEBSITE_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => {
-                      onTabChange(t.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-2xl text-admin-body font-semibold transition-colors cursor-pointer ${
-                      activeTab === t.id
-                        ? "bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white"
-                        : "bg-[#181B24] text-[#F4EFE6]/80 hover:bg-[#20242F]"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-admin-eyebrow text-[#FF6A1F] font-mono tracking-widest mb-3">
-                STUDIO CHANNELS
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "submissions", label: "Inquiries", badge: unreadInquiries },
-                  { id: "assets", label: "Assets" },
-                  { id: "analytics", label: "Analytics" },
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      onTabChange(c.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`p-3.5 rounded-2xl text-admin-body text-left border cursor-pointer ${
-                      activeTab === c.id
-                        ? "bg-[#FF6A1F]/20 border-[#FF6A1F]/40 text-[#FFC93C] font-semibold"
-                        : "bg-[#181B24] border-white/[0.08] text-[#F4EFE6]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{c.label}</span>
-                      {Boolean(c.badge && c.badge > 0) && (
-                        <span className="w-5 h-5 rounded-full bg-[#FF6A1F] text-white text-[10px] font-bold flex items-center justify-center">
-                          {c.badge}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-white/10 flex items-center justify-between">
-            <span className="text-admin-meta text-[#F4EFE6]/50 font-mono text-xs truncate">
-              {userEmail}
-            </span>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="px-4 py-2 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-admin-label font-semibold cursor-pointer"
+        <div className="md:hidden fixed inset-0 z-[70]">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <nav
+            role="dialog"
+            aria-modal="true"
+            aria-label="Admin menu"
+            className="absolute left-0 top-0 bottom-0 w-[84vw] max-w-[320px] flex flex-col shadow-2xl"
+            style={{ background: "var(--a-surface-1)" }}
+          >
+            <div
+              className="flex items-center justify-between px-5 h-16 border-b shrink-0"
+              style={{ borderColor: "var(--a-line)" }}
             >
-              Sign out
-            </button>
-          </div>
+              <div>
+                <p
+                  className="text-[17px] font-bold"
+                  style={{ fontFamily: '"Outfit", sans-serif', color: "var(--a-text)" }}
+                >
+                  Studio CMS
+                </p>
+                <p className="text-[11px] truncate" style={{ color: "var(--a-text-3)" }}>
+                  {userEmail}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "var(--a-surface-2)", color: "var(--a-text-2)" }}
+                aria-label="Close menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+              <div>
+                <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--a-text-3)" }}>
+                  Website
+                </p>
+                <div className="space-y-0.5">
+                  {MAIN_WEBSITE_TABS.map((t) => {
+                    const Icon = t.icon;
+                    const active = activeTab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSelect(t.id)}
+                        className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium"
+                        style={{
+                          background: active ? "var(--a-blue)" : "transparent",
+                          color: active ? "#FFFFFF" : "var(--a-text)",
+                        }}
+                      >
+                        <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--a-text-3)" }}>
+                  Channels
+                </p>
+                <div className="space-y-0.5">
+                  {channelItems.map((c) => {
+                    const Icon = c.icon;
+                    const active = activeTab === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelect(c.id)}
+                        className="w-full flex items-center justify-between gap-2 px-3 h-12 rounded-[14px] text-[15px] font-medium"
+                        style={{
+                          background: active ? "var(--a-blue)" : "transparent",
+                          color: active ? "#FFFFFF" : "var(--a-text)",
+                        }}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                          {c.label}
+                        </span>
+                        {c.badge > 0 && (
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                            style={{ background: "var(--a-danger-bg)", color: "var(--a-danger-text)" }}
+                          >
+                            {c.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t space-y-0.5" style={{ borderColor: "var(--a-line)" }}>
+                <button
+                  type="button"
+                  onClick={onToggleDarkMode}
+                  className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium"
+                  style={{ color: "var(--a-text)" }}
+                >
+                  {darkMode ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+                  {darkMode ? "Light mode" : "Dark mode"}
+                </button>
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium"
+                  style={{ color: "var(--a-text)" }}
+                >
+                  <ExternalLink className="w-[18px] h-[18px]" /> Open live site
+                </a>
+              </div>
+            </div>
+
+            <div className="p-3 border-t shrink-0" style={{ borderColor: "var(--a-line)" }}>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-[14px] text-[15px] font-semibold"
+                style={{ background: "var(--a-danger-bg)", color: "var(--a-danger-text)" }}
+              >
+                <LogOut className="w-4 h-4" /> Sign out
+              </button>
+            </div>
+          </nav>
         </div>
       )}
 
-      {/* Main Container */}
-      <main className="flex-1 w-full pb-28 md:pb-20">
-        <div className="tcs-admin-container">{children}</div>
-      </main>
-
-      {/* Mobile Bottom Tab Bar (<768px, 5.25rem tall) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 h-[5.25rem] bg-[#07080C]/90 backdrop-blur-2xl border-t border-white/[0.08] flex items-center justify-around px-2 md:hidden">
+      {/* Mobile Frosted Bottom Tab Bar (<768px) */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 h-[72px] border-t flex items-center justify-around px-2 md:hidden backdrop-blur-xl"
+        style={{
+          background: darkMode ? "rgba(21,21,24,0.92)" : "rgba(255,255,255,0.92)",
+          borderColor: "var(--a-line)",
+        }}
+      >
         {[
           { id: "settings", label: "Copy", icon: <FileText className="w-5 h-5" /> },
           { id: "portfolio", label: "Work", icon: <Film className="w-5 h-5" /> },
-          {
-            id: "submissions",
-            label: "Inquiries",
-            icon: <Inbox className="w-5 h-5" />,
-            badge: unreadInquiries,
-          },
+          { id: "submissions", label: "Inquiries", icon: <Inbox className="w-5 h-5" />, badge: unreadInquiries },
           { id: "assets", label: "Assets", icon: <FolderOpen className="w-5 h-5" /> },
           { id: "analytics", label: "Analytics", icon: <Sparkles className="w-5 h-5" /> },
         ].map((btn) => {
           const isActive = activeTab === btn.id;
-
           return (
             <button
               key={btn.id}
               type="button"
-              onClick={() => onTabChange(btn.id)}
-              className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-2xl transition-colors cursor-pointer relative ${
-                isActive ? "text-[#FF6A1F]" : "text-[#F4EFE6]/50 hover:text-white"
-              }`}
+              onClick={() => handleSelect(btn.id)}
+              className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-2xl relative cursor-pointer"
+              style={{ color: isActive ? "var(--a-accent)" : "var(--a-text-3)" }}
             >
               <div className="relative">
                 {btn.icon}
                 {Boolean(btn.badge && btn.badge > 0) && (
-                  <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white text-[9px] font-mono font-bold flex items-center justify-center">
+                  <span
+                    className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center"
+                    style={{ background: "var(--a-crimson)" }}
+                  >
                     {btn.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-sans font-semibold">
-                {btn.label}
-              </span>
+              <span className="text-[11px] font-semibold">{btn.label}</span>
             </button>
           );
         })}

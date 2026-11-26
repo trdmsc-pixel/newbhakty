@@ -27,26 +27,26 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] p-5 flex flex-col justify-between transition-all duration-150 hover:border-white/[0.18] ${className}`}
+      className={`rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] p-5 flex flex-col justify-between transition-all duration-150 hover:border-[var(--a-line-strong)] ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <p className="text-admin-meta text-[#F4EFE6]/65 font-medium truncate">
+          <p className="text-admin-meta text-[var(--a-text-2)] font-medium truncate">
             {label}
           </p>
           {delta && (
             <span
               className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold ${
                 delta.positive
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                  : "bg-red-500/15 text-red-400 border border-red-500/25"
+                  ? "bg-[var(--a-ok-bg)] text-[var(--a-ok-text)] border border-emerald-500/25"
+                  : "bg-[var(--a-danger-bg)] text-[var(--a-danger-text)] border border-red-500/25"
               }`}
             >
               {delta.text}
             </span>
           )}
         </div>
-        <div className="text-admin-h1-metric text-[#F4EFE6] tracking-tight mb-4">
+        <div className="text-admin-h1-metric text-[var(--a-text)] tracking-tight mb-4">
           {value}
         </div>
       </div>
@@ -59,7 +59,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           {avatars && avatars.length > 0 && (
             <div className="flex items-center justify-between pt-1">
               <AvatarStack items={avatars} />
-              <span className="text-admin-meta text-[#F4EFE6]/45 font-mono text-[11px]">
+              <span className="text-admin-meta text-[var(--a-text-3)] font-mono text-[11px]">
                 {progress ? `${Math.round(progress.value)}%` : ""}
               </span>
             </div>

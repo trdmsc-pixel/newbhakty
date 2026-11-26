@@ -26,15 +26,15 @@ export const StickyActionBar: React.FC<StickyActionBarProps> = ({
           : "w-full"
       } ${className}`}
     >
-      <div className="rounded-[24px] bg-[#181B24] border border-white/[0.14] p-4 sm:px-6 sm:py-4 shadow-admin-floating flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl">
+      <div className="rounded-[24px] bg-[var(--a-surface-2)] border border-[var(--a-line-strong)] p-4 sm:px-6 sm:py-4 shadow-admin-floating flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl">
         {summaries && summaries.length > 0 ? (
-          <div className="flex items-center gap-6 divide-x divide-white/[0.08] overflow-x-auto scrollbar-none py-1">
+          <div className="flex items-center gap-6 divide-x divide-[var(--a-line)] overflow-x-auto scrollbar-none py-1">
             {summaries.map((item, idx) => (
               <div key={idx} className={`${idx > 0 ? "pl-6" : ""} shrink-0 min-w-0`}>
-                <p className="text-admin-meta text-[#F4EFE6]/50 font-medium truncate">
+                <p className="text-admin-meta text-[var(--a-text-3)] font-medium truncate">
                   {item.label}
                 </p>
-                <div className="text-admin-h3 text-[#F4EFE6] font-semibold truncate mt-0.5">
+                <div className="text-admin-h3 text-[var(--a-text)] font-semibold truncate mt-0.5">
                   {item.value}
                 </div>
               </div>

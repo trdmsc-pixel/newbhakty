@@ -36,7 +36,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {visible && (
         <div
           role="tooltip"
-          className={`absolute ${sideClasses} z-[120] pointer-events-none px-3 py-1.5 rounded-xl bg-[#F4EFE6] text-[#07080C] text-admin-meta font-semibold shadow-lg whitespace-nowrap transition-all duration-150 animate-in fade-in`}
+          className={`absolute ${sideClasses} z-[120] pointer-events-none px-3 py-1.5 rounded-xl bg-[var(--a-inverse)] text-[var(--a-inverse-text)] text-admin-meta font-semibold shadow-lg whitespace-nowrap transition-all duration-150 animate-in fade-in`}
         >
           {content}
         </div>

@@ -31,7 +31,7 @@ export const Field: React.FC<FieldProps> = ({
             {label && (
               <label
                 htmlFor={htmlFor}
-                className="text-admin-label text-[#F4EFE6]/90 font-semibold select-none"
+                className="text-admin-label text-[var(--a-text)] font-semibold select-none"
               >
                 {label}
               </label>
@@ -40,7 +40,7 @@ export const Field: React.FC<FieldProps> = ({
               <button
                 type="button"
                 onClick={onWarningClick}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[var(--a-warn-bg)] text-[var(--a-warn-text)] border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer"
                 title="Click to highlight field text"
               >
                 <span>⚠️ {warning}</span>
@@ -52,8 +52,8 @@ export const Field: React.FC<FieldProps> = ({
             <span
               className={`text-admin-meta font-mono text-[12px] ${
                 counter.current > counter.max
-                  ? "text-red-400 font-bold"
-                  : "text-[#F4EFE6]/45"
+                  ? "text-[var(--a-danger-text)] font-bold"
+                  : "text-[var(--a-text-3)]"
               }`}
             >
               {counter.current} / {counter.max}
@@ -65,9 +65,9 @@ export const Field: React.FC<FieldProps> = ({
       <div>{children}</div>
 
       {error ? (
-        <p className="text-admin-meta text-red-400 font-medium">{error}</p>
+        <p className="text-admin-meta text-[var(--a-danger-text)] font-medium">{error}</p>
       ) : help ? (
-        <p className="text-admin-meta text-[#F4EFE6]/45">{help}</p>
+        <p className="text-admin-meta text-[var(--a-text-3)]">{help}</p>
       ) : null}
     </div>
   );

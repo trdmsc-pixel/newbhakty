@@ -92,7 +92,7 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-1 text-[#FFC93C]">
+                  <div className="flex items-center gap-1 text-[var(--a-accent)]">
                     {Array.from({ length: t.rating || 5 }).map((_, idx) => (
                       <Star key={idx} className="w-4 h-4 fill-current" />
                     ))}
@@ -107,14 +107,14 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
                   />
                 </div>
 
-                <blockquote className="text-admin-body-lg text-[#F4EFE6] leading-relaxed italic">
+                <blockquote className="text-admin-body-lg text-[var(--a-text)] leading-relaxed italic">
                   "{t.quote}"
                 </blockquote>
               </div>
 
-              <div className="flex items-center justify-between gap-4 pt-4 border-t border-white/[0.08]">
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-[var(--a-line)]">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-[#20242F] border border-white/10 shrink-0 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-[var(--a-surface-3)] border border-[var(--a-line)] shrink-0 flex items-center justify-center">
                     {t.avatar_url ? (
                       <img
                         src={t.avatar_url}
@@ -123,14 +123,14 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <User className="w-6 h-6 text-[#F4EFE6]/40" />
+                      <User className="w-6 h-6 text-[var(--a-text-3)]" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-admin-label font-semibold text-[#F4EFE6] truncate">
+                    <p className="text-admin-label font-semibold text-[var(--a-text)] truncate">
                       {t.client_name}
                     </p>
-                    <p className="text-admin-meta text-[#F4EFE6]/55 truncate">
+                    <p className="text-admin-meta text-[var(--a-text-3)] truncate">
                       {t.company || "Executive Partner"}
                     </p>
                   </div>
@@ -141,7 +141,7 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
                     type="button"
                     onClick={() => handleOpenEdit(t)}
                     aria-label="Edit testimonial"
-                    className="p-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.15] text-[#F4EFE6] transition-colors cursor-pointer"
+                    className="p-2.5 rounded-full bg-[var(--a-surface-2)] hover:bg-[var(--a-surface-3)] text-[var(--a-text)] transition-colors cursor-pointer"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -150,7 +150,7 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
                     type="button"
                     onClick={() => onDeleteTestimonial(t.id)}
                     aria-label="Delete testimonial"
-                    className="p-2.5 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-full bg-red-500/10 hover:bg-[var(--a-danger-bg)] text-[var(--a-danger-text)] transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

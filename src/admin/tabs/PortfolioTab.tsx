@@ -126,7 +126,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
             <Button
               variant="secondary"
               onClick={() => setTabDrawerOpen(true)}
-              icon={<Layers className="w-4 h-4 text-[#FF6A1F]" />}
+              icon={<Layers className="w-4 h-4 text-[var(--a-accent)]" />}
             >
               Manage tabs ({portfolioTabs.length})
             </Button>
@@ -160,7 +160,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
           >
             <div className="space-y-2 max-h-[780px] overflow-y-auto pr-1">
               {filteredWorks.length === 0 ? (
-                <div className="py-12 text-center text-[#07080C]/55">
+                <div className="py-12 text-center text-[var(--a-inverse-text)]/55">
                   No works configured in this tab.
                 </div>
               ) : (
@@ -221,7 +221,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
               ]}
             >
               {/* 16:9 Video / Poster Preview Frame */}
-              <div className="w-full aspect-video rounded-[1.25rem] bg-[#07080C] border border-white/10 overflow-hidden relative shadow-inner flex items-center justify-center">
+              <div className="w-full aspect-video rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] overflow-hidden relative shadow-inner flex items-center justify-center">
                 {editFilm.videoUrl ? (
                   <video
                     src={editFilm.videoUrl}
@@ -238,7 +238,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="text-center text-[#F4EFE6]/40 p-6">
+                  <div className="text-center text-[var(--a-text-3)] p-6">
                     <Film className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p className="text-admin-meta">No media URL assigned yet</p>
                   </div>
@@ -390,7 +390,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
               />
             </DetailPanel>
           ) : (
-            <div className="rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-12 text-center text-[#F4EFE6]/50">
+            <div className="rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-12 text-center text-[var(--a-text-3)]">
               No film selected. Click an item on the left or add a new film.
             </div>
           )}
@@ -418,7 +418,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
             {portfolioTabs.map((tab) => (
               <div
                 key={tab.id}
-                className="p-4 rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] flex items-center justify-between gap-3"
+                className="p-4 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] flex items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
                   <TextInput
@@ -455,14 +455,14 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
               await onAddTab("video");
               setAddTabModalOpen(false);
             }}
-            className="flex flex-col items-center gap-3 p-6 rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] hover:border-[#FF6A1F] text-center transition-all cursor-pointer group"
+            className="flex flex-col items-center gap-3 p-6 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] hover:border-[var(--a-accent)] text-center transition-all cursor-pointer group"
           >
-            <Video className="w-8 h-8 text-[#FF6A1F] group-hover:scale-110 transition-transform" />
+            <Video className="w-8 h-8 text-[var(--a-accent)] group-hover:scale-110 transition-transform" />
             <div>
-              <span className="block text-admin-label text-[#F4EFE6] font-semibold">
+              <span className="block text-admin-label text-[var(--a-text)] font-semibold">
                 Video Cinema
               </span>
-              <span className="block text-admin-meta text-[#F4EFE6]/50 mt-1">
+              <span className="block text-admin-meta text-[var(--a-text-3)] mt-1">
                 Accordion fluid player
               </span>
             </div>
@@ -474,14 +474,14 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
               await onAddTab("image");
               setAddTabModalOpen(false);
             }}
-            className="flex flex-col items-center gap-3 p-6 rounded-[1.25rem] bg-[#181B24] border border-white/[0.08] hover:border-[#FF6A1F] text-center transition-all cursor-pointer group"
+            className="flex flex-col items-center gap-3 p-6 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] hover:border-[var(--a-accent)] text-center transition-all cursor-pointer group"
           >
-            <ImageIcon className="w-8 h-8 text-[#FFC93C] group-hover:scale-110 transition-transform" />
+            <ImageIcon className="w-8 h-8 text-[var(--a-accent)] group-hover:scale-110 transition-transform" />
             <div>
-              <span className="block text-admin-label text-[#F4EFE6] font-semibold">
+              <span className="block text-admin-label text-[var(--a-text)] font-semibold">
                 Static Visuals
               </span>
-              <span className="block text-admin-meta text-[#F4EFE6]/50 mt-1">
+              <span className="block text-admin-meta text-[var(--a-text-3)] mt-1">
                 Visual artwork grid
               </span>
             </div>

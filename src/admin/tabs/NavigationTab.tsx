@@ -80,15 +80,15 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
       />
 
       {/* Live Mini-Preview of Navbar at top */}
-      <div className="rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-6 sm:p-8 space-y-4">
-        <div className="flex items-center justify-between gap-2 border-b border-white/[0.08] pb-4">
-          <span className="text-admin-eyebrow text-[#FF6A1F] font-mono">
+      <div className="rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-6 sm:p-8 space-y-4">
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--a-line)] pb-4">
+          <span className="text-admin-eyebrow text-[var(--a-accent)] font-mono">
             LIVE NAVBAR SIMULATION
           </span>
           <Chip status="live" dot label="Realtime" />
         </div>
 
-        <div className="w-full h-16 rounded-full bg-[#07080C] border border-white/10 px-6 flex items-center justify-between shadow-inner overflow-hidden">
+        <div className="w-full h-16 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] px-6 flex items-center justify-between shadow-inner overflow-hidden">
           <Wordmark capHeight={14} ringAnimation="spin-slow" />
 
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-none py-1">
@@ -97,14 +97,14 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
               .map((item) => (
                 <span
                   key={item.id}
-                  className="text-admin-meta font-mono uppercase tracking-wider text-[#F4EFE6]/75 whitespace-nowrap"
+                  className="text-admin-meta font-mono uppercase tracking-wider text-[var(--a-text-2)] whitespace-nowrap"
                 >
                   {item.label}
                 </span>
               ))}
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 text-admin-meta font-mono text-xs text-white">
+          <div className="px-3.5 py-1.5 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line-strong)] text-admin-meta font-mono text-xs text-white">
             Inquire
           </div>
         </div>
@@ -128,7 +128,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
                     disabled={idx === 0}
                     onClick={() => handleMove(idx, "up")}
                     aria-label="Move up"
-                    className="p-1 rounded-full text-[#F4EFE6]/50 hover:text-white disabled:opacity-20 cursor-pointer"
+                    className="p-1 rounded-full text-[var(--a-text-3)] hover:text-[var(--a-text)] disabled:opacity-20 cursor-pointer"
                   >
                     <ArrowUp className="w-4 h-4" />
                   </button>
@@ -137,7 +137,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
                     disabled={idx === navItems.length - 1}
                     onClick={() => handleMove(idx, "down")}
                     aria-label="Move down"
-                    className="p-1 rounded-full text-[#F4EFE6]/50 hover:text-white disabled:opacity-20 cursor-pointer"
+                    className="p-1 rounded-full text-[var(--a-text-3)] hover:text-[var(--a-text)] disabled:opacity-20 cursor-pointer"
                   >
                     <ArrowDown className="w-4 h-4" />
                   </button>
@@ -145,7 +145,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-3">
-                    <span className="text-admin-body-lg font-semibold text-[#F4EFE6] truncate">
+                    <span className="text-admin-body-lg font-semibold text-[var(--a-text)] truncate">
                       {item.label}
                     </span>
                     <Chip status="draft" label={item.href} />
@@ -153,7 +153,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-white/10">
+              <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--a-line)]">
                 <Toggle
                   checked={item.is_visible}
                   onChange={(checked) =>
@@ -166,7 +166,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
                   type="button"
                   onClick={() => onDeleteItem(item.id)}
                   aria-label="Delete link"
-                  className="p-2 rounded-full text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                  className="p-2 rounded-full text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

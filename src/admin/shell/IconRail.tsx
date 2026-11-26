@@ -76,17 +76,17 @@ export const IconRail: React.FC<IconRailProps> = ({
 
 
 
-      <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block shrink-0" />
+      <div className="h-6 w-px bg-[var(--a-surface-2)] mx-1 hidden sm:block shrink-0" />
 
       {/* Live site ↗ pill button */}
       <a
         href="/"
         target="_blank"
         rel="noopener noreferrer"
-        className="hidden sm:inline-flex items-center gap-2 h-[2.75rem] px-4 rounded-full bg-[#181B24] border border-white/[0.08] hover:bg-[#20242F] text-[#F4EFE6] text-admin-label font-medium transition-colors"
+        className="hidden sm:inline-flex items-center gap-2 h-[2.75rem] px-4 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] hover:bg-[var(--a-surface-3)] text-[var(--a-text)] text-admin-label font-medium transition-colors"
       >
         <span>Live site</span>
-        <ExternalLink className="w-3.5 h-3.5 text-[#FF6A1F]" />
+        <ExternalLink className="w-3.5 h-3.5 text-[var(--a-accent)]" />
       </a>
 
       {/* Avatar / Logout menu */}
@@ -96,16 +96,16 @@ export const IconRail: React.FC<IconRailProps> = ({
           onClick={() => setUserMenuOpen((prev) => !prev)}
           title="Account profile & sign out"
           aria-label="User account menu"
-          className="w-[2.75rem] h-[2.75rem] rounded-full bg-gradient-to-br from-[#FF6A1F]/20 to-[#E8332A]/20 border border-[#FF6A1F]/30 text-[#FFC93C] flex items-center justify-center font-mono font-bold text-xs hover:border-[#FF6A1F] transition-all cursor-pointer shadow-sm"
+          className="w-[2.75rem] h-[2.75rem] rounded-full bg-gradient-to-br from-[var(--a-accent-soft)] to-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 text-[var(--a-accent)] flex items-center justify-center font-mono font-bold text-xs hover:border-[var(--a-accent)] transition-all cursor-pointer shadow-sm"
         >
           <User className="w-5 h-5" />
         </button>
 
         {userMenuOpen && (
-          <div className="absolute right-0 top-[calc(100%+8px)] z-[140] w-64 rounded-[1.25rem] bg-[#181B24] border border-white/[0.16] shadow-admin-floating p-2 animate-in fade-in zoom-in-95">
-            <div className="px-4 py-3 border-b border-white/[0.08]">
-              <p className="text-admin-meta text-[#F4EFE6]/50 font-medium">Signed in as</p>
-              <p className="text-admin-body text-xs font-mono text-[#F4EFE6] truncate mt-0.5">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-[140] w-64 rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line-strong)] shadow-admin-floating p-2 animate-in fade-in zoom-in-95">
+            <div className="px-4 py-3 border-b border-[var(--a-line)]">
+              <p className="text-admin-meta text-[var(--a-text-3)] font-medium">Signed in as</p>
+              <p className="text-admin-body text-xs font-mono text-[var(--a-text)] truncate mt-0.5">
                 {userEmail}
               </p>
             </div>
@@ -117,7 +117,7 @@ export const IconRail: React.FC<IconRailProps> = ({
                   setUserMenuOpen(false);
                   onLogout();
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-admin-label font-medium text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-admin-label font-medium text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Sign Out</span>

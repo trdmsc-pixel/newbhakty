@@ -132,6 +132,17 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
 
   const toast = useToast();
 
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("tcs_admin_dark") === "true"; } catch { return false; }
+  });
+  const toggleDarkMode = () => {
+    setDarkMode((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("tcs_admin_dark", String(next)); } catch {}
+      return next;
+    });
+  };
+
   // Authentication State
   const [email, setEmail] = useState(() => localStorage.getItem("tcs_admin_email") || "studio@thechantingstudio.in");
   const [password, setPassword] = useState("");
@@ -791,23 +802,23 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
   // 1. Unauthenticated Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="tcs-admin min-h-screen flex items-center justify-center p-6 bg-[#07080C] text-[#F4EFE6] select-none relative overflow-hidden">
+      <div className="tcs-admin min-h-screen flex items-center justify-center p-6 bg-[var(--a-surface-2)] text-[var(--a-text)] select-none relative overflow-hidden">
         {/* Subtle Ambient Backlight Glow */}
-        <div className="absolute w-[500px] h-[500px] bg-[#FF6A1F]/10 rounded-full filter blur-[140px] pointer-events-none" />
+        <div className="absolute w-[500px] h-[500px] bg-[var(--a-accent-soft)] rounded-full filter blur-[140px] pointer-events-none" />
 
-        <div className="w-full max-w-md rounded-[1.75rem] bg-[#11131A] border border-white/[0.12] p-8 sm:p-10 shadow-admin-floating relative z-10 space-y-8">
+        <div className="w-full max-w-md rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-8 sm:p-10 shadow-admin-floating relative z-10 space-y-8">
           <div className="text-center space-y-4">
             <div className="flex justify-center">
               <Wordmark capHeight={20} ringAnimation="spin-slow" />
             </div>
             <div>
-              <p className="text-admin-eyebrow text-[#FF6A1F] font-mono tracking-widest">
+              <p className="text-admin-eyebrow text-[var(--a-accent)] font-mono tracking-widest">
                 STUDIO ADMINISTRATOR
               </p>
-              <h2 className="text-admin-h2 text-[#F4EFE6] font-semibold tracking-tight mt-1">
+              <h2 className="text-admin-h2 text-[var(--a-text)] font-semibold tracking-tight mt-1">
                 Command Access
               </h2>
-              <p className="text-admin-meta text-[#F4EFE6]/55 mt-1">
+              <p className="text-admin-meta text-[var(--a-text-3)] mt-1">
                 Enter your administrative credentials to manage live production channels
               </p>
             </div>
@@ -835,8 +846,8 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
             </Field>
 
             {authError && (
-              <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-admin-meta flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+              <div className="p-3.5 rounded-xl bg-[var(--a-danger-bg)] border border-red-500/30 text-[var(--a-danger-text)] text-admin-meta flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-[var(--a-danger-text)]" />
                 <span>{authError}</span>
               </div>
             )}
@@ -857,7 +868,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
               <button
                 type="button"
                 onClick={onNavigateHome}
-                className="text-admin-meta text-[#F4EFE6]/50 hover:text-white transition-colors cursor-pointer"
+                className="text-admin-meta text-[var(--a-text-3)] hover:text-[var(--a-text)] transition-colors cursor-pointer"
               >
                 ← Return to Live Website
               </button>
@@ -876,6 +887,8 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       unreadInquiries={submissions.filter((s) => !s.status || s.status.toLowerCase() === "new" || s.status.toLowerCase() === "pending").length}
       userEmail={email}
       onLogout={handleLogout}
+      darkMode={darkMode}
+      onToggleDarkMode={toggleDarkMode}
       commandItems={commandItems}
     >
       {/* Hidden file input for uploads */}
@@ -1014,33 +1027,33 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       {/* Floating Upload Progress Modal */}
       <AnimatePresence>
         {uploadModal.active && (
-          <div className="fixed inset-0 z-[160] bg-[#07080C]/85 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[160] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.94, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.94, opacity: 0, y: 10 }}
-              className="rounded-[1.75rem] bg-[#11131A] border border-white/20 p-8 max-w-md w-full text-center shadow-admin-floating relative"
+              className="rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line-strong)] p-8 max-w-md w-full text-center shadow-admin-floating relative"
             >
-              <div className="w-16 h-16 rounded-full bg-[#FF6A1F]/15 border border-[#FF6A1F]/30 flex items-center justify-center mx-auto mb-4 text-[#FF6A1F]">
+              <div className="w-16 h-16 rounded-full bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 flex items-center justify-center mx-auto mb-4 text-[var(--a-accent)]">
                 <Upload className="w-8 h-8 animate-bounce" />
               </div>
 
-              <h3 className="text-admin-h3 text-[#F4EFE6] font-semibold truncate mb-1">
+              <h3 className="text-admin-h3 text-[var(--a-text)] font-semibold truncate mb-1">
                 {uploadModal.filename}
               </h3>
-              <p className="text-admin-meta font-mono text-xs text-[#F4EFE6]/50 mb-6">
+              <p className="text-admin-meta font-mono text-xs text-[var(--a-text-3)] mb-6">
                 {uploadModal.filesize}
               </p>
 
               {/* Progress Bar */}
-              <div className="w-full h-2 rounded-full bg-[#181B24] overflow-hidden mb-3">
+              <div className="w-full h-2 rounded-full bg-[var(--a-surface-2)] overflow-hidden mb-3">
                 <div
-                  className="h-full bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-[var(--a-accent)] to-[var(--a-blue)] transition-all duration-300"
                   style={{ width: `${uploadModal.percentage}%` }}
                 />
               </div>
 
-              <div className="flex justify-between items-center text-admin-meta font-mono text-xs text-[#F4EFE6]/60">
+              <div className="flex justify-between items-center text-admin-meta font-mono text-xs text-[var(--a-text-2)]">
                 <span>{uploadModal.statusText}</span>
                 <span className="font-bold text-white">{uploadModal.percentage}%</span>
               </div>

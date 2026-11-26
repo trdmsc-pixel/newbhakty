@@ -5,22 +5,18 @@ import { SelectableCardGroup } from "../ui/SelectableCardGroup";
 import { AvatarItem } from "../ui/AvatarStack";
 
 export interface OverviewBentoProps {
-  // Metric 1: Selected films
   totalFilms: number;
   filmsWithPosters: number;
   filmAvatars: AvatarItem[];
 
-  // Metric 2: Brand logos
   totalLogos: number;
   activeLogos: number;
   logoAvatars: AvatarItem[];
 
-  // Metric 3: Inquiries
   totalInquiries: number;
   repliedInquiries: number;
   inquiryAvatars: AvatarItem[];
 
-  // Right panel: channels
   totalAssets: number;
   analyticsVisitors: number;
   mostActiveChannel?: "submissions" | "assets" | "analytics";
@@ -70,20 +66,23 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
   ];
 
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-12 gap-5 mb-10 ${className}`}>
+    <div className={`grid grid-cols-1 lg:grid-cols-12 gap-5 mb-8 ${className}`}>
       {/* Left panel: Website at a glance (7 columns) */}
-      <div className="lg:col-span-7 rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-6 sm:p-8 flex flex-col justify-between">
-        <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="lg:col-span-7 admin-card-surface p-6 sm:p-7 flex flex-col justify-between">
+        <div className="flex items-center justify-between gap-4 mb-5">
           <div>
-            <p className="text-admin-eyebrow text-[#FF6A1F] font-mono tracking-widest mb-1">
-              SYSTEM OVERVIEW
+            <p className="text-admin-eyebrow mb-1" style={{ color: "var(--a-accent)" }}>
+              System Overview
             </p>
-            <h2 className="text-admin-h2 text-[#F4EFE6] font-semibold tracking-tight">
+            <h2 className="text-admin-h2" style={{ color: "var(--a-text)" }}>
               Website at a glance
             </h2>
           </div>
-          <span className="text-admin-meta text-[#F4EFE6]/50 font-mono text-xs hidden sm:inline-block">
-            Realtime database telemetry
+          <span
+            className="px-3 py-1 rounded-full text-[12px] font-medium hidden sm:inline-block"
+            style={{ background: "var(--a-surface-2)", color: "var(--a-text-2)" }}
+          >
+            Live CMS telemetry
           </span>
         </div>
 
@@ -91,44 +90,35 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
           <MetricCard
             label="Selected films"
             value={totalFilms}
-            progress={{
-              value: filmsRatio,
-              tone: "ember-gold",
-            }}
+            progress={{ value: filmsRatio, tone: "ember-gold" }}
             avatars={filmAvatars}
           />
 
           <MetricCard
             label="Brand logos"
             value={totalLogos}
-            progress={{
-              value: logosRatio,
-              tone: "spectrum",
-            }}
+            progress={{ value: logosRatio, tone: "spectrum" }}
             avatars={logoAvatars}
           />
 
           <MetricCard
             label="Inquiries"
             value={totalInquiries}
-            progress={{
-              value: inquiriesRatio,
-              tone: "blue-cyan",
-            }}
+            progress={{ value: inquiriesRatio, tone: "blue-cyan" }}
             avatars={inquiryAvatars}
           />
         </div>
       </div>
 
       {/* Right panel: Studio channels (5 columns) */}
-      <div className="lg:col-span-5 rounded-[1.75rem] bg-[#11131A] border border-white/[0.08] p-6 sm:p-8 flex flex-col justify-between">
+      <div className="lg:col-span-5 admin-card-surface p-6 sm:p-7 flex flex-col justify-between">
         <div>
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <p className="text-admin-eyebrow text-[#FF6A1F] font-mono tracking-widest mb-1">
-                CONNECTED SERVICES
+              <p className="text-admin-eyebrow mb-1" style={{ color: "var(--a-accent)" }}>
+                Connected Services
               </p>
-              <h2 className="text-admin-h2 text-[#F4EFE6] font-semibold tracking-tight">
+              <h2 className="text-admin-h2" style={{ color: "var(--a-text)" }}>
                 Studio channels
               </h2>
             </div>
@@ -137,18 +127,21 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
               type="button"
               onClick={() => onSelectChannel("assets")}
               aria-label="View all media assets"
-              className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-[#F4EFE6] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-80 cursor-pointer"
+              style={{ background: "var(--a-surface-2)", color: "var(--a-text)" }}
             >
               <ArrowUpRight className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="text-admin-display text-4xl sm:text-5xl font-display font-medium text-[#F4EFE6] mb-6">
-            {totalAssets} <span className="text-admin-body text-base text-[#F4EFE6]/50">media assets</span>
+          <div className="text-admin-display mb-5" style={{ color: "var(--a-text)" }}>
+            {totalAssets}{" "}
+            <span className="text-admin-body text-sm font-medium" style={{ color: "var(--a-text-3)" }}>
+              media assets
+            </span>
           </div>
         </div>
 
-        {/* 3 stacked selectable cards */}
         <div className="space-y-4">
           <SelectableCardGroup
             items={channelCards}
@@ -156,15 +149,16 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
             onSelect={onSelectChannel}
           />
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end pt-1">
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#F4EFE6] hover:bg-white text-[#07080C] text-admin-label font-semibold transition-all shadow-sm hover:shadow-[0_0_24px_rgba(255,106,31,0.3)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-admin-label font-semibold transition-transform hover:-translate-y-[1px]"
+              style={{ background: "var(--a-inverse)", color: "var(--a-inverse-text)" }}
             >
               <span>Open live site</span>
-              <ExternalLink className="w-4 h-4 text-[#FF6A1F]" />
+              <ExternalLink className="w-4 h-4" />
             </a>
           </div>
         </div>

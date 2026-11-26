@@ -105,22 +105,22 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5"
                 >
                   <div className="flex items-start gap-4 min-w-0 flex-1">
-                    <span className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 font-mono text-xs font-bold text-[#F4EFE6]/60 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-8 h-8 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] font-mono text-xs font-bold text-[var(--a-text-2)] flex items-center justify-center shrink-0 mt-0.5">
                       {idx + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-admin-label font-semibold text-[#F4EFE6] truncate">
+                        <span className="text-admin-label font-semibold text-[var(--a-text)] truncate">
                           {f.label}
                         </span>
                         <Chip status="draft" label={f.field_type.toUpperCase()} />
                         {f.is_required && (
-                          <span className="text-admin-meta text-[#FF6A1F] text-xs font-mono font-bold">
+                          <span className="text-admin-meta text-[var(--a-accent)] text-xs font-mono font-bold">
                             *Required
                           </span>
                         )}
                       </div>
-                      <p className="text-admin-meta text-[#F4EFE6]/45 truncate">
+                      <p className="text-admin-meta text-[var(--a-text-3)] truncate">
                         Placeholder: "{f.placeholder || "None"}"
                       </p>
                       {f.options && f.options.length > 0 && (
@@ -128,7 +128,7 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
                           {f.options.map((opt, oIdx) => (
                             <span
                               key={oIdx}
-                              className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-white/[0.06] text-[#F4EFE6]/70"
+                              className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-[var(--a-surface-2)] text-[var(--a-text-2)]"
                             >
                               {opt}
                             </span>
@@ -138,7 +138,7 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-white/10">
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--a-line)]">
                     <Toggle
                       checked={f.is_required}
                       onChange={(checked) =>
@@ -151,7 +151,7 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
                       type="button"
                       onClick={() => onDeleteField(f.id)}
                       aria-label="Delete field"
-                      className="p-2 rounded-full text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                      className="p-2 rounded-full text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -164,18 +164,18 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
 
         {/* Right Column: Live Form Interactive Preview (5 cols) */}
         <div className="lg:col-span-5">
-          <div className="rounded-[1.75rem] bg-[#07080C] border-2 border-white/20 p-6 sm:p-8 shadow-admin-floating space-y-6">
-            <div className="border-b border-white/10 pb-4">
+          <div className="rounded-[1.75rem] bg-[var(--a-surface-2)] border-2 border-[var(--a-line-strong)] p-6 sm:p-8 shadow-admin-floating space-y-6">
+            <div className="border-b border-[var(--a-line)] pb-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-admin-eyebrow text-[#FF6A1F] font-mono">
+                <span className="text-admin-eyebrow text-[var(--a-accent)] font-mono">
                   LIVE WEBSITE PREVIEW
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>
-              <h3 className="text-admin-h2 text-[#F4EFE6] font-semibold tracking-tight mt-1">
+              <h3 className="text-admin-h2 text-[var(--a-text)] font-semibold tracking-tight mt-1">
                 Initiate a Project Inquiry
               </h3>
-              <p className="text-admin-meta text-[#F4EFE6]/60 mt-1">
+              <p className="text-admin-meta text-[var(--a-text-2)] mt-1">
                 Direct executive brief with the studio director
               </p>
             </div>
@@ -183,21 +183,21 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
             <div className="space-y-4">
               {fields.map((f) => (
                 <div key={f.id} className="space-y-1.5">
-                  <label className="block text-admin-label text-[#F4EFE6]/80 font-medium">
+                  <label className="block text-admin-label text-[var(--a-text-2)] font-medium">
                     {f.label}{" "}
-                    {f.is_required && <span className="text-[#FF6A1F]">*</span>}
+                    {f.is_required && <span className="text-[var(--a-accent)]">*</span>}
                   </label>
                   {f.field_type === "textarea" ? (
-                    <div className="h-20 rounded-2xl bg-[#181B24] border border-white/10 p-3 text-admin-meta text-[#F4EFE6]/40">
+                    <div className="h-20 rounded-2xl bg-[var(--a-surface-2)] border border-[var(--a-line)] p-3 text-admin-meta text-[var(--a-text-3)]">
                       {f.placeholder || "Enter brief details..."}
                     </div>
                   ) : f.field_type === "budget" || f.field_type === "select" ? (
-                    <div className="h-12 rounded-full bg-[#181B24] border border-white/10 px-4 flex items-center justify-between text-admin-meta text-[#F4EFE6]/40">
+                    <div className="h-12 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] px-4 flex items-center justify-between text-admin-meta text-[var(--a-text-3)]">
                       <span>{f.placeholder || "Select option..."}</span>
                       <span>▾</span>
                     </div>
                   ) : (
-                    <div className="h-12 rounded-full bg-[#181B24] border border-white/10 px-4 flex items-center text-admin-meta text-[#F4EFE6]/40">
+                    <div className="h-12 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] px-4 flex items-center text-admin-meta text-[var(--a-text-3)]">
                       {f.placeholder || "Enter value..."}
                     </div>
                   )}
@@ -205,7 +205,7 @@ export const IntakeFormTab: React.FC<IntakeFormTabProps> = ({
               ))}
 
               <div className="pt-2">
-                <div className="w-full h-12 rounded-full bg-gradient-to-r from-[#FF6A1F] to-[#E8332A] text-white font-semibold flex items-center justify-center gap-2 shadow-md">
+                <div className="w-full h-12 rounded-full bg-gradient-to-r from-[var(--a-accent)] to-[var(--a-blue)] text-white font-semibold flex items-center justify-center gap-2 shadow-md">
                   <span>Send Project Inquiry</span>
                   <Send className="w-4 h-4" />
                 </div>

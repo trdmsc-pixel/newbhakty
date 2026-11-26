@@ -104,16 +104,16 @@ export const BrandLogosTab: React.FC<BrandLogosTabProps> = ({
           <button
             type="button"
             onClick={() => setAddModalOpen(true)}
-            className="rounded-[1.25rem] border-2 border-dashed border-white/15 hover:border-[#FF6A1F]/60 bg-[#181B24]/40 hover:bg-[#181B24] p-6 flex flex-col items-center justify-center gap-3 text-center transition-all cursor-pointer min-h-[160px] group"
+            className="rounded-[1.25rem] border-2 border-dashed border-[var(--a-line-strong)] hover:border-[var(--a-accent)]/60 bg-[var(--a-surface-2)]/40 hover:bg-[var(--a-surface-2)] p-6 flex flex-col items-center justify-center gap-3 text-center transition-all cursor-pointer min-h-[160px] group"
           >
-            <div className="w-12 h-12 rounded-full bg-white/[0.06] group-hover:bg-[#FF6A1F]/20 text-[#F4EFE6] group-hover:text-[#FF6A1F] flex items-center justify-center transition-colors">
+            <div className="w-12 h-12 rounded-full bg-[var(--a-surface-2)] group-hover:bg-[var(--a-accent-soft)] text-[var(--a-text)] group-hover:text-[var(--a-accent)] flex items-center justify-center transition-colors">
               <Plus className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-admin-label text-[#F4EFE6] font-semibold">
+              <p className="text-admin-label text-[var(--a-text)] font-semibold">
                 Add partner logo
               </p>
-              <p className="text-admin-meta text-[#F4EFE6]/50 mt-0.5">
+              <p className="text-admin-meta text-[var(--a-text-3)] mt-0.5">
                 PNG or SVG with transparent background
               </p>
             </div>
@@ -128,7 +128,7 @@ export const BrandLogosTab: React.FC<BrandLogosTabProps> = ({
               >
                 <div>
                   {/* Off-white Chip container for logo display */}
-                  <div className="w-full h-24 rounded-2xl bg-[#F4EFE6] flex items-center justify-center p-3 mb-4 shadow-sm overflow-hidden">
+                  <div className="w-full h-24 rounded-2xl bg-[var(--a-inverse)] flex items-center justify-center p-3 mb-4 shadow-sm overflow-hidden">
                     {logo.logo_url ? (
                       <img
                         src={logo.logo_url}
@@ -137,18 +137,18 @@ export const BrandLogosTab: React.FC<BrandLogosTabProps> = ({
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <ImageIcon className="w-8 h-8 text-[#07080C]/40" />
+                      <ImageIcon className="w-8 h-8 text-[var(--a-inverse-text)]/40" />
                     )}
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-admin-body-lg text-[#F4EFE6] font-semibold truncate">
+                    <p className="text-admin-body-lg text-[var(--a-text)] font-semibold truncate">
                       {logo.name}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.08]">
+                <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--a-line)]">
                   <Toggle
                     checked={logo.is_active}
                     onChange={(checked) =>
@@ -161,7 +161,7 @@ export const BrandLogosTab: React.FC<BrandLogosTabProps> = ({
                     type="button"
                     onClick={() => onDeleteLogo(logo.id)}
                     aria-label={`Delete ${logo.name}`}
-                    className="p-2 rounded-full text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                    className="p-2 rounded-full text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

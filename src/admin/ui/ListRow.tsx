@@ -34,8 +34,8 @@ export const ListRow: React.FC<ListRowProps> = ({
       onClick={onClick}
       className={`w-full h-[4.5rem] px-5 rounded-full flex items-center justify-between gap-4 text-left transition-all duration-150 cursor-pointer select-none relative ${
         isSelected
-          ? "bg-[#07080C] text-[#F4EFE6] shadow-md border border-black/20"
-          : "bg-transparent text-[#07080C] hover:bg-black/[0.04] border border-transparent"
+          ? "bg-[var(--a-surface-2)] text-[var(--a-text)] shadow-md border border-black/20"
+          : "bg-transparent text-[var(--a-inverse-text)] hover:bg-black/[0.04] border border-transparent"
       } ${className}`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -47,7 +47,7 @@ export const ListRow: React.FC<ListRowProps> = ({
         <div className="min-w-0 flex-1">
           <p
             className={`text-admin-body-lg font-semibold truncate ${
-              isSelected ? "text-[#F4EFE6]" : "text-[#07080C]"
+              isSelected ? "text-[var(--a-text)]" : "text-[var(--a-inverse-text)]"
             }`}
           >
             {primary}
@@ -55,7 +55,7 @@ export const ListRow: React.FC<ListRowProps> = ({
           {secondary && (
             <p
               className={`text-admin-meta truncate mt-0.5 ${
-                isSelected ? "text-[#F4EFE6]/60" : "text-[#07080C]/55"
+                isSelected ? "text-[var(--a-text-2)]" : "text-[var(--a-inverse-text)]/55"
               }`}
             >
               {secondary}
@@ -74,7 +74,7 @@ export const ListRow: React.FC<ListRowProps> = ({
         {value && (
           <span
             className={`text-admin-label font-mono font-semibold ${
-              isSelected ? "text-[#FFC93C]" : "text-[#07080C]/85"
+              isSelected ? "text-[var(--a-accent)]" : "text-[var(--a-inverse-text)]/85"
             }`}
           >
             {value}

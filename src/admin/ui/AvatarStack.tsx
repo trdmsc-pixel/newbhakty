@@ -30,7 +30,7 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({
         <div
           key={item.id || idx}
           title={item.name}
-          className={`w-[2rem] h-[2rem] rounded-full overflow-hidden ring-2 ${ringColor} bg-[#181B24] flex items-center justify-center shrink-0 text-white text-[10px] font-mono font-bold shadow-sm`}
+          className={`w-[2rem] h-[2rem] rounded-full overflow-hidden ring-2 ${ringColor} bg-[var(--a-surface-2)] flex items-center justify-center shrink-0 text-white text-[10px] font-mono font-bold shadow-sm`}
         >
           {item.src ? (
             <img
@@ -56,7 +56,7 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({
       ))}
       {remaining > 0 && (
         <div
-          className={`w-[2rem] h-[2rem] rounded-full ring-2 ${ringColor} bg-[#20242F] text-[#F4EFE6]/80 text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-sm`}
+          className={`w-[2rem] h-[2rem] rounded-full ring-2 ${ringColor} bg-[var(--a-surface-3)] text-[var(--a-text-2)] text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-sm`}
         >
           +{remaining}
         </div>
