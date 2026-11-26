@@ -57,6 +57,15 @@ interface PortalGate {
   revision_round: number;
   revisions_included: number;
   client_comment: string | null;
+  due_date?: string | null;
+}
+interface PortalTask {
+  id: string;
+  project_id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  completed_at: string | null;
 }
 interface PortalDeliverable {
   id: string;
@@ -99,7 +108,16 @@ const money = (amount: number, currency: string) => {
     return `${currency} ${amount}`;
   }
 };
-const milestoneDate = (p: PortalProject) => p.promised_date || p.forecast_date || p.hard_deadline;
+/** Expected delivery: the studio's planned date, moved later only when approvals/revisions pushed it. */
+const milestoneDate = (p: PortalProject) => {
+  const planned = p.promised_date || p.hard_deadline;
+  if (planned && p.forecast_date) return p.forecast_date > planned ? p.forecast_date : planned;
+  return planned || p.forecast_date;
+};
+const plannedMoved = (p: PortalProject) => {
+  const planned = p.promised_date;
+  return Boolean(planned && p.forecast_date && p.forecast_date > planned);
+};
 
 type PortalFilter = "all" | "in_progress" | "awaiting" | "delivered" | "closed" | "proposal" | "paused";
 const FILTERS: Array<{ id: PortalFilter; label: string }> = [
@@ -511,7 +529,7 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
       {gates.map((g, i) => {
         const done = g.status === "approved" || g.status === "skipped";
         const current = ["in_work", "waiting_on_client", "revising"].includes(g.status);
-        const date = done || current ? fmtDate(g.approved_at || g.sent_for_approval_at || g.started_at) : null;
+        const date = done ? fmtDate(g.approved_at || g.started_at) : g.due_date ? `due ${fmtDate(g.due_date)}` : current ? fmtDate(g.sent_for_approval_at || g.started_at) : null;
         const label =
           g.status === "approved" ? "Approved" : g.status === "skipped" ? "Skipped" : g.status === "waiting_on_client" ? "Awaiting your review" : g.status === "revising" ? "Revising" : g.status === "in_work" ? "In progress" : "Upcoming";
         return (
@@ -1005,9 +1023,10 @@ const ProjectView: React.FC<{
   gates: PortalGate[];
   deliverables: PortalDeliverable[];
   invoices: PortalInvoice[];
+  tasks?: PortalTask[];
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, onBack, onChanged }) => {
+}> = ({ project, gates, deliverables, invoices, tasks = [], onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
@@ -1039,6 +1058,11 @@ const ProjectView: React.FC<{
           {!done && milestoneDate(project) && (
             <p className="text-[13px] sos-tabular" style={{ color: "var(--sos-text-2)" }}>
               Expected delivery <strong>{fmtDate(milestoneDate(project))}</strong>
+            </p>
+          )}
+          {!done && plannedMoved(project) && (
+            <p className="text-[12px] sos-tabular max-w-[260px] md:text-right" style={{ color: "var(--sos-text-3)" }}>
+              Planned for {fmtDate(project.promised_date)} — updated as reviews and revisions came in
             </p>
           )}
         </div>
@@ -1079,6 +1103,30 @@ const ProjectView: React.FC<{
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         <div className="lg:col-span-2">
           <Stepper gates={gates} />
+          {tasks.length > 0 && (
+            <div className="sos-card p-5 md:p-6">
+              <h2 className="sos-display text-[18px] font-semibold mb-3" style={{ color: "var(--sos-text-1)" }}>
+                Milestones & to-dos
+              </h2>
+              <div className="space-y-1.5">
+                {[...tasks]
+                  .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") || (a.due_date || "9999").localeCompare(b.due_date || "9999"))
+                  .map((t) => (
+                    <div key={t.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)", opacity: t.status === "done" ? 0.6 : 1 }}>
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: t.status === "done" ? "var(--sos-green)" : "var(--sos-surface)", color: "#fff", border: t.status === "done" ? "none" : "1.5px solid var(--sos-border)" }}>
+                        {t.status === "done" && <Check className="w-3 h-3" />}
+                      </span>
+                      <span className="flex-1 min-w-0 text-[14px]" style={{ color: "var(--sos-text-1)", textDecoration: t.status === "done" ? "line-through" : undefined }}>
+                        {t.title}
+                      </span>
+                      <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>
+                        {t.status === "done" ? `done ${fmtDate(t.completed_at)}` : t.due_date ? `due ${fmtDate(t.due_date)}` : ""}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="lg:col-span-3 space-y-5">
           <div className="sos-card p-5 md:p-6">
@@ -1186,6 +1234,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [projects, setProjects] = useState<PortalProject[]>([]);
   const [gates, setGates] = useState<PortalGate[]>([]);
   const [deliverables, setDeliverables] = useState<PortalDeliverable[]>([]);
+  const [portalTasks, setPortalTasks] = useState<PortalTask[]>([]);
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [loading, setLoading] = useState(false);
@@ -1225,6 +1274,8 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
         supabase.from("portal_deliverables").select("*"),
         supabase.from("portal_invoices").select("*").order("sent_at", { ascending: false, nullsFirst: false }),
       ]);
+      const t = await supabase.from("portal_tasks").select("*");
+      setPortalTasks(t.error ? [] : ((t.data || []) as PortalTask[]));
       setProjects((p.data || []) as PortalProject[]);
       setGates((g.data || []) as PortalGate[]);
       setDeliverables((d.data || []) as PortalDeliverable[]);
@@ -1353,6 +1404,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               gates={gates.filter((g) => g.project_id === project.id)}
               deliverables={deliverables.filter((d) => d.project_id === project.id)}
               invoices={invoices.filter((i) => i.project_id === project.id)}
+              tasks={portalTasks.filter((t) => t.project_id === project.id)}
               onBack={() => setSelected(null)}
               onChanged={load}
             />

@@ -32,7 +32,7 @@ export async function recomputeProjectForecast(projectId: string) {
   const p = state.projects.find((x) => x.id === projectId);
   if (!p) return null;
   const cl = state.clients.find((c) => c.id === p.client_id);
-  const computed = computeProjectForecast(p, state.gates, cl, state.settings, state.holidays, new Date());
+  const computed = computeProjectForecast(p, state.gates, cl, state.settings, state.holidays, new Date(), state.projects);
   if (computed.forecast_date !== p.forecast_date || computed.health !== p.health) {
     await sb.from("studio_projects").update({ forecast_date: computed.forecast_date, health: computed.health }).eq("id", p.id);
   }

@@ -291,6 +291,7 @@ function mapGates(rows: any[]): StudioGate[] {
     revisions_included: Number(r.revisions_included ?? 2),
     client_comment: r.client_comment || undefined,
     portal_visible: r.portal_visible !== false,
+    due_date: r.due_date ? String(r.due_date).slice(0, 10) : undefined,
   }));
 }
 
@@ -480,7 +481,8 @@ export function registerStudioOSRoutes(app: Express) {
           cl,
           state.settings,
           state.holidays,
-          now
+          now,
+          state.projects
         );
 
         if (computed.forecast_date !== p.forecast_date || computed.health !== p.health) {

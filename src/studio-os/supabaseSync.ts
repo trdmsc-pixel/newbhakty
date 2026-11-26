@@ -301,6 +301,7 @@ function toGateRow(g: StudioGate) {
     revisions_included: g.revisions_included ?? 2,
     client_comment: g.client_comment ?? null,
     portal_visible: Boolean(g.portal_visible),
+    due_date: g.due_date || null,
   };
 }
 
@@ -323,6 +324,7 @@ function fromGateRow(row: any): StudioGate {
     revisions_included: Number(row.revisions_included ?? 2),
     client_comment: row.client_comment || undefined,
     portal_visible: row.portal_visible !== false,
+    due_date: row.due_date ? String(row.due_date).slice(0, 10) : undefined,
   };
 }
 

@@ -130,6 +130,8 @@ export interface StudioGate {
   revisions_included: number;
   client_comment?: string;
   portal_visible: boolean;
+  /** Manually planned end date for this stage (YYYY-MM-DD). Shown in the client portal. */
+  due_date?: string;
 }
 
 export type HolidayRegion = "IN" | "US" | "AR" | "GLOBAL";

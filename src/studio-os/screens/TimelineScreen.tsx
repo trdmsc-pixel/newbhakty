@@ -259,7 +259,8 @@ export const TimelineScreen: React.FC = () => {
                   client,
                   settings,
                   holidays,
-                  today
+                  today,
+                  projects
                 );
                 const forecastDt = parseISO(liveForecast.forecast_date);
                 const deadlineDt = project.hard_deadline ? parseISO(project.hard_deadline) : null;

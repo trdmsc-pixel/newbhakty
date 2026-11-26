@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
 import { Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
@@ -270,7 +271,7 @@ export const ProjectDetailScreen: React.FC = () => {
                     Production Gate Rail (G0 → G10)
                   </h2>
                   <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-                    ◆ marks client approval gates. Adjusting any gate&apos;s estimate days recomputes the live forecast instantly.
+                    ◆ marks client approval gates. Set each stage&apos;s due date — the timeline shifts automatically when the client takes longer to approve.
                   </p>
                 </div>
                 <span className="sos-num text-[14px] font-semibold px-3 py-1 rounded-full bg-[#E7F7EE] text-[#17663F]">
@@ -329,11 +330,34 @@ export const ProjectDetailScreen: React.FC = () => {
                           <span className="sos-tabular">
                             Rev {g.revision_round} of {g.revisions_included} included
                           </span>
+                          {(() => {
+                            const st = forecast?.stages.find((x) => x.gate_id === g.id);
+                            if (!st) return null;
+                            if (st.done) return st.client_wait_days != null ? <span className="sos-tabular">client took {st.client_wait_days}d</span> : null;
+                            const moved = st.planned_end && st.projected_end !== st.planned_end;
+                            return (
+                              <span className="sos-tabular" style={{ color: moved ? "#9A4A00" : undefined }} title={st.planned_is_manual ? "Manual date" : "From estimates"}>
+                                {st.planned_end ? `plan ${format(parseISO(st.planned_end), "d MMM")}` : ""}
+                                {moved ? ` → now ${format(parseISO(st.projected_end), "d MMM")}` : ""}
+                                {g.status === "waiting_on_client" && st.client_wait_days != null ? ` · waiting ${st.client_wait_days}d` : ""}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <label className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--sos-text-2)" }} title="Planned end date for this stage (shown in the client portal)">
+                        Due
+                        <input
+                          type="date"
+                          value={g.due_date || ""}
+                          onChange={(e) => updateGate(g.id, { due_date: e.target.value || undefined })}
+                          className="h-8 px-2 rounded-[10px] border text-[12px] sos-tabular"
+                          style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+                        />
+                      </label>
                       <label className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--sos-text-2)" }}>
                         Est.
                         <input
@@ -602,32 +626,10 @@ export const ProjectDetailScreen: React.FC = () => {
 
         {/* Right Rail: Forecast + Next Milestone + Recent Activity */}
         <aside className="lg:col-span-4 space-y-5">
-          {forecast && (
-            <div className="sos-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--sos-text-3)" }}>
-                  Live Forecast
-                </span>
-                <HealthPill health={forecast.health} />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <Calendar className="w-5 h-5" style={{ color: "var(--sos-primary)" }} />
-                <span className="sos-num text-[28px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                  {format(parseISO(forecast.forecast_date), "d MMM yyyy")}
-                </span>
-              </div>
-              <p
-                className="text-[12px] p-3 rounded-[14px] sos-tabular"
-                style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
-              >
-                <Sparkles className="w-3.5 h-3.5 inline mr-1.5" style={{ color: "var(--sos-primary)" }} />
-                {forecast.explanation}
-              </p>
-              {nextGate && (
-                <div className="pt-2 border-t text-[13px]" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}>
-                  Next milestone: <strong style={{ color: "var(--sos-text-1)" }}>{nextGate.code} {nextGate.name}</strong>
-                </div>
-              )}
+          {forecast && <DeliveryTimelineCard project={project} forecast={forecast} />}
+          {nextGate && (
+            <div className="sos-card px-5 py-3.5 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+              Next milestone: <strong style={{ color: "var(--sos-text-1)" }}>{nextGate.code} {nextGate.name}</strong>
             </div>
           )}
 

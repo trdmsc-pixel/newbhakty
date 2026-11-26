@@ -447,6 +447,42 @@ export function registerAiMediaRoutes(app: Express) {
     }
   });
 
+  // Timeline read (fast tier): the numbers come from code; the AI only interprets them.
+  app.post("/api/studio-os/ai/timeline", async (req, res) => {
+    const sb = await ownerGuard(req, res);
+    if (!sb) return;
+    const parsed = z.object({ project_id: z.string().uuid(), timeline: z.record(z.string(), z.any()) }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: "Invalid request." });
+    if (limited("timeline:owner", 40, 3600_000)) return res.status(429).json({ error: "Try again in a bit." });
+    const { data: p } = await sb.from("studio_projects").select("id, code, title, client_id, status, type").eq("id", parsed.data.project_id).maybeSingle();
+    if (!p) return res.status(404).json({ error: "Project not found." });
+    const { data: c } = p.client_id ? await sb.from("studio_clients").select("name, organisation").eq("id", p.client_id).maybeSingle() : { data: null };
+    try {
+      const { text, model } = await ask({
+        tier: "fast",
+        json: true,
+        maxTokens: 700,
+        temperature: 0.3,
+        system: `${STUDIO}\nYou advise the studio owner on a project's delivery timeline. The dates and delay numbers are already computed — never recalculate or invent dates; interpret them.`,
+        parts: [
+          {
+            text: `Project ${p.code} "${p.title}" (${p.type}, ${p.status}) for ${c?.organisation || c?.name || "the client"}. Today ${istDay()}.
+TIMELINE (computed): ${JSON.stringify(parsed.data.timeline).slice(0, 6000)}
+
+Return JSON: {"note":"2–3 sentences for the owner: what is driving the date (client approvals vs studio), how serious it is, and the single best next action (e.g. nudge the client on X, move the planned date, add buffer to the remaining approval stages)","client_message":"if the client's approvals are delaying delivery or a reminder would help: a short, warm, professional message to the client (no blame, mention which approval is pending and the revised expected date if it moved); else empty"}`,
+          },
+        ],
+      });
+      const j = parseJsonLoose<any>(text) || {};
+      const out = { note: String(j.note || "").trim(), client_message: String(j.client_message || "").trim(), model };
+      if (!out.note) return res.status(502).json({ error: "No answer came back — try again." });
+      await store(sb, { kind: "timeline", project_id: p.id, result: out, model });
+      return res.json(out);
+    } catch (err) {
+      return errorOut(res, err);
+    }
+  });
+
   // ---------------- Client portal ----------------
   app.post("/api/portal/ai/voice-note", async (req, res) => {
     const token = extractBearerToken(req);

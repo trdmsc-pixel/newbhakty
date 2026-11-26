@@ -99,6 +99,7 @@ const TOOLS = [
         stage_name: str("Stage name or code, e.g. 'Script', 'Storyboard', 'Final delivery'"),
         stage_status: str("New stage status", { enum: GATE_STATUSES }),
         complete_earlier_stages: { type: "boolean", description: "Mark all stages before stage_name as approved" },
+        stage_due_date: str("Planned end date for stage_name, YYYY-MM-DD (shown to the client)"),
       },
     },
   },
@@ -139,7 +140,7 @@ const TOOLS = [
 async function overview(sb: SupabaseClient, ctx: StudioCtx) {
   const [{ data: projects }, { data: gates }, { data: tasks }, { data: clients }] = await Promise.all([
     sb.from("studio_projects").select("id, code, title, client_id, type, status, health, priority, hard_deadline, promised_date, forecast_date, closed_at").is("archived_at", null),
-    sb.from("studio_gates").select("project_id, code, name, status, order_index").is("archived_at", null).order("order_index"),
+    sb.from("studio_gates").select("project_id, code, name, status, order_index, due_date").is("archived_at", null).order("order_index"),
     sb.from("studio_tasks").select("project_id, status").is("archived_at", null).neq("status", "done"),
     sb.from("studio_clients").select("id, notes").is("archived_at", null),
   ]);
@@ -158,7 +159,7 @@ async function overview(sb: SupabaseClient, ctx: StudioCtx) {
       hard_deadline: p.hard_deadline,
       promised_date: p.promised_date,
       forecast_date: p.forecast_date,
-      stages: (gates || []).filter((g: any) => g.project_id === p.id).map((g: any) => `${g.name} [${g.status}]`),
+      stages: (gates || []).filter((g: any) => g.project_id === p.id).map((g: any) => `${g.name} [${g.status}]${g.due_date ? ` due ${g.due_date}` : ""}`),
       open_tasks: (tasks || []).filter((t: any) => t.project_id === p.id).length,
     })),
   };
@@ -255,6 +256,10 @@ async function callTool(sb: SupabaseClient, name: string, a: any): Promise<unkno
             await sb.from("studio_gates").update({ status: "approved", approved_at: g.approved_at || now, started_at: g.started_at || now }).eq("id", g.id);
           }
           changes.push("earlier stages approved");
+        }
+        if (isDate(a.stage_due_date)) {
+          await sb.from("studio_gates").update({ due_date: a.stage_due_date }).eq("id", gate.id);
+          changes.push(`${gate.name} due ${a.stage_due_date}`);
         }
         if (a.stage_status && GATE_STATUSES.includes(a.stage_status)) {
           const gp: Record<string, any> = { status: a.stage_status };

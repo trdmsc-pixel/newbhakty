@@ -404,10 +404,27 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const now = new Date();
     for (const p of state.projects) {
       const client = state.clients.find((c) => c.id === p.client_id);
-      map.set(p.id, computeProjectForecast(p, state.gates, client, state.settings, state.holidays, now));
+      map.set(p.id, computeProjectForecast(p, state.gates, client, state.settings, state.holidays, now, state.projects));
     }
     return map;
   }, [state.projects, state.gates, state.clients, state.settings, state.holidays]);
+
+  // Persist the projected delivery date + health so the client portal shows the same timeline.
+  const persistedForecast = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (supabaseSyncStatus !== "synced" || !viewer.isOwner) return;
+    const t = window.setTimeout(() => {
+      for (const p of state.projects) {
+        const f = forecastMap.get(p.id);
+        if (!f) continue;
+        const sig = `${f.forecast_date}|${f.health}`;
+        if (`${p.forecast_date}|${p.health}` === sig || persistedForecast.current.get(p.id) === sig) continue;
+        persistedForecast.current.set(p.id, sig);
+        syncUpdateProject(p.id, { forecast_date: f.forecast_date, health: f.health }).catch(() => {});
+      }
+    }, 2500);
+    return () => window.clearTimeout(t);
+  }, [forecastMap, state.projects, supabaseSyncStatus, viewer.isOwner]);
 
   const projectsWithForecast = useMemo(() => {
     return state.projects.map((p) => {

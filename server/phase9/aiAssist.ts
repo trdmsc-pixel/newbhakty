@@ -45,7 +45,7 @@ async function portalContext(token: string) {
   if (!(me as any)?.ok) return null;
   const [p, g, d, i, info] = await Promise.all([
     sb.from("portal_projects").select("id, title, type, status, hard_deadline, promised_date, forecast_date, health, current_stage, closed_at, updated_at"),
-    sb.from("portal_gates").select("project_id, order_index, name, status, needs_client_approval, sent_for_approval_at, approved_at, revision_round, revisions_included").order("order_index"),
+    sb.from("portal_gates").select("project_id, order_index, name, status, needs_client_approval, sent_for_approval_at, approved_at, revision_round, revisions_included, due_date").order("order_index"),
     sb.from("portal_deliverables").select("project_id, title, version, created_at, is_final"),
     sb.from("portal_invoices").select("project_id, invoice_no, amount, currency, status, due_at"),
     sb.rpc("portal_studio_info"),
@@ -54,13 +54,14 @@ async function portalContext(token: string) {
     title: x.title,
     type: x.type,
     status: x.closed_at ? "completed & closed" : x.status,
-    expected_delivery: x.promised_date || x.forecast_date || x.hard_deadline,
+    planned_delivery: x.promised_date || x.hard_deadline,
+    expected_delivery: x.promised_date && x.forecast_date && x.forecast_date > x.promised_date ? x.forecast_date : x.promised_date || x.forecast_date || x.hard_deadline,
     schedule_health: x.health,
     current_stage: x.current_stage,
     closed_on: x.closed_at,
     stages: (g.data || [])
       .filter((s: any) => s.project_id === x.id)
-      .map((s: any) => ({ name: s.name, status: s.status, needs_your_approval: s.needs_client_approval, sent_for_approval: s.sent_for_approval_at, approved: s.approved_at, revision: `${s.revision_round}/${s.revisions_included} included` })),
+      .map((s: any) => ({ name: s.name, status: s.status, due: s.due_date, needs_your_approval: s.needs_client_approval, sent_for_approval: s.sent_for_approval_at, approved: s.approved_at, revision: `${s.revision_round}/${s.revisions_included} included` })),
     files: (d.data || []).filter((f: any) => f.project_id === x.id).map((f: any) => ({ title: f.title, version: f.version, shared: f.created_at, final: f.is_final })),
     invoices: (i.data || []).filter((v: any) => v.project_id === x.id).map((v: any) => ({ number: v.invoice_no, amount: `${v.amount} ${v.currency}`, status: v.status, due: v.due_at })),
   }));

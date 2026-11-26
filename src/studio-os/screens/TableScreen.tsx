@@ -4,7 +4,7 @@ import { ViewSwitcher } from "../components/ViewSwitcher";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { ActivePill, SwipeRow } from "../motion";
 import { format, parseISO } from "date-fns";
-import { Check, Clock, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, Clock, Eye, EyeOff, Plus, Search, Trash2, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { PriorityBadge, TaskStatusChip } from "../components/StatusChip";
 import { AssigneePicker } from "../components/Team";
@@ -155,6 +155,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                 <th className="py-3.5 px-3">Status</th>
                 <th className="py-3.5 px-3">Assignee</th>
                 <th className="py-3.5 px-3">Due</th>
+                <th className="py-3.5 px-3" title="Show this task and its due date in the client portal">Client</th>
                 <th className="py-3.5 px-3">Priority</th>
                 <th className="py-3.5 px-3">Project / Gate</th>
                 <th className="py-3.5 pr-5 pl-3 text-right">Est.</th>
@@ -194,7 +195,26 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                       <AssigneePicker value={task.assignee_member_id} onChange={(id) => updateTask(task.id, { assignee_member_id: id })} size={28} />
                     </td>
                     <td className="py-3.5 px-3 text-[13px] sos-tabular whitespace-nowrap" style={{ color: "var(--sos-text-2)" }}>
-                      {task.due_date ? format(parseISO(task.due_date), "d MMM") : "—"}
+                      <input
+                        type="date"
+                        value={task.due_date ? task.due_date.slice(0, 10) : ""}
+                        onChange={(e) => updateTask(task.id, { due_date: e.target.value || undefined, do_date: e.target.value || undefined })}
+                        className="h-8 px-2 rounded-[10px] border text-[12px] sos-tabular bg-transparent"
+                        style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+                        aria-label={`Due date for ${task.key}`}
+                      />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <button
+                        type="button"
+                        onClick={() => updateTask(task.id, { portal_visible: !task.portal_visible })}
+                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                        style={task.portal_visible ? { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" } : { color: "var(--sos-text-3)" }}
+                        title={task.portal_visible ? "Visible to the client (title, status, due date) — click to hide" : "Hidden from the client — click to show in the portal"}
+                        aria-pressed={task.portal_visible}
+                      >
+                        {task.portal_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </button>
                     </td>
                     <td className="py-3.5 px-3">
                       <PriorityBadge priority={task.priority} />
@@ -246,7 +266,19 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
               </p>
               <div className="flex items-center justify-between text-[12px]" style={{ color: "var(--sos-text-3)" }}>
                 <PriorityBadge priority={task.priority} />
-                <span className="sos-tabular">{task.due_date ? format(parseISO(task.due_date), "d MMM") : "No due date"}</span>
+                <span className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => updateTask(task.id, { portal_visible: !task.portal_visible })} className="w-7 h-7 rounded-full flex items-center justify-center" style={task.portal_visible ? { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" } : { color: "var(--sos-text-3)" }} aria-label={task.portal_visible ? "Hide from client" : "Show to client"}>
+                    {task.portal_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  </button>
+                  <input
+                    type="date"
+                    value={task.due_date ? task.due_date.slice(0, 10) : ""}
+                    onChange={(e) => updateTask(task.id, { due_date: e.target.value || undefined, do_date: e.target.value || undefined })}
+                    className="h-8 px-2 rounded-[10px] border text-[13px] sos-tabular bg-transparent"
+                    style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+                    aria-label={`Due date for ${task.key}`}
+                  />
+                </span>
               </div>
             </SwipeRow>
           );
