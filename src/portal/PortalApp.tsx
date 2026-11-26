@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StudioLogo } from "../brand/StudioLogo";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft,
@@ -118,11 +119,9 @@ const Pill: React.FC<{ bg: string; text: string; children: React.ReactNode }> = 
 
 const Brand: React.FC<{ onSignOut?: () => void; who?: string }> = ({ onSignOut, who }) => (
   <header className="flex items-center justify-between gap-3 py-5">
-    <div>
-      <p className="sos-display text-[19px] font-bold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
-        The Chanting Studio
-      </p>
-      <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
+    <div className="min-w-0">
+      <StudioLogo surface="light" height={24} />
+      <p className="text-[12px] mt-1" style={{ color: "var(--sos-text-3)" }}>
         Client portal
       </p>
     </div>

@@ -8,13 +8,13 @@ import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } f
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
 import { MediaUploadContext } from "./ui/MediaField";
+import { StudioLogo } from "../brand/StudioLogo";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { VideoBlock, PortfolioTab as PortfolioTabType } from "../types";
 
 // Shell & UI
 import { AdminShell } from "./shell/AdminShell";
 import { CommandItem } from "./ui/CommandPalette";
-import { Wordmark } from "../components/brand/Wordmark";
 import { Button } from "./ui/Button";
 import { TextInput } from "./ui/TextInput";
 import { Field } from "./ui/Field";
@@ -813,7 +813,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
         <div className="w-full max-w-md rounded-[1.75rem] bg-[var(--a-surface-1)] border border-[var(--a-line)] p-8 sm:p-10 shadow-admin-floating relative z-10 space-y-8">
           <div className="text-center space-y-4">
             <div className="flex justify-center">
-              <Wordmark capHeight={20} ringAnimation="spin-slow" />
+              <StudioLogo surface="light" height={30} />
             </div>
             <div>
               <p className="text-admin-eyebrow text-[var(--a-accent)] font-mono tracking-widest">

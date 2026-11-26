@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { StudioLogo } from "../../brand/StudioLogo";
 import { CommandPalette, CommandItem } from "../ui/CommandPalette";
 import {
   BarChart3,
@@ -96,24 +97,11 @@ export const AdminShell: React.FC<AdminShellProps> = ({
             {/* Brand Header + Collapse */}
             <div className="flex items-center justify-between gap-2">
               {!sidebarCollapsed && (
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-[13px] shrink-0"
-                    style={{ background: "var(--a-inverse)", color: "var(--a-inverse-text)" }}
-                  >
-                    CS
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className="text-[16px] font-bold tracking-[-0.02em] truncate"
-                      style={{ fontFamily: '"Outfit", sans-serif', color: "var(--a-text)" }}
-                    >
-                      Studio CMS
-                    </p>
-                    <p className="text-[11px] truncate" style={{ color: "var(--a-text-3)" }}>
-                      The Chanting Studio
-                    </p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <StudioLogo surface={darkMode ? "dark" : "light"} height={22} />
+                  <p className="text-[11px] mt-1 truncate" style={{ color: "var(--a-text-3)" }}>
+                    Studio CMS
+                  </p>
                 </div>
               )}
               <button
@@ -363,15 +351,10 @@ export const AdminShell: React.FC<AdminShellProps> = ({
               className="flex items-center justify-between px-5 h-16 border-b shrink-0"
               style={{ borderColor: "var(--a-line)" }}
             >
-              <div>
-                <p
-                  className="text-[17px] font-bold"
-                  style={{ fontFamily: '"Outfit", sans-serif', color: "var(--a-text)" }}
-                >
-                  Studio CMS
-                </p>
-                <p className="text-[11px] truncate" style={{ color: "var(--a-text-3)" }}>
-                  {userEmail}
+              <div className="min-w-0">
+                <StudioLogo surface={darkMode ? "dark" : "light"} height={20} />
+                <p className="text-[11px] mt-1 truncate" style={{ color: "var(--a-text-3)" }}>
+                  Studio CMS · {userEmail}
                 </p>
               </div>
               <button

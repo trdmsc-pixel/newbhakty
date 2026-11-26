@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { StudioLogo } from "../brand/StudioLogo";
 import {
   ArrowLeft,
   Bell,
@@ -267,13 +268,11 @@ const StudioOSShell: React.FC<{
           <div className="p-4 space-y-6 overflow-y-auto">
             {/* Brand + Collapse */}
             <div className="flex items-center justify-between gap-2">
-              {!sidebarCollapsed && (
-                <div className="min-w-0">
-                  <p className="sos-display text-[17px] font-bold tracking-[-0.02em] truncate" style={{ color: "var(--sos-text-1)" }}>
+              {sidebarCollapsed ? null : (
+                <div className="min-w-0 flex-1">
+                  <StudioLogo surface={darkMode ? "dark" : "light"} height={22} />
+                  <p className="text-[11px] mt-1 truncate" style={{ color: "var(--sos-text-3)" }}>
                     Studio OS
-                  </p>
-                  <p className="text-[11px] truncate" style={{ color: "var(--sos-text-3)" }}>
-                    The Chanting Studio
                   </p>
                 </div>
               )}
@@ -710,8 +709,8 @@ const StudioOSShell: React.FC<{
             >
               <div className="flex items-center justify-between px-5 h-16 border-b shrink-0" style={{ borderColor: "var(--sos-border)" }}>
                 <div className="min-w-0">
-                  <p className="sos-display text-[17px] font-bold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Studio OS</p>
-                  <p className="text-[11px] truncate" style={{ color: "var(--sos-text-3)" }}>{userEmail || "The Chanting Studio"}</p>
+                  <StudioLogo surface={darkMode ? "dark" : "light"} height={20} />
+                  <p className="text-[11px] mt-1 truncate" style={{ color: "var(--sos-text-3)" }}>Studio OS · {userEmail || "The Chanting Studio"}</p>
                 </div>
                 <button type="button" onClick={() => setMobileMenuOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }} aria-label="Close menu">
                   <X className="w-4 h-4" />
@@ -953,6 +952,7 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
           </div>
 
           <div>
+            <StudioLogo surface="light" height={26} className="mb-4" />
             <h1 className="sos-display text-[28px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
               Studio OS
             </h1>
