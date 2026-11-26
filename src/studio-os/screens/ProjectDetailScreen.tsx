@@ -14,7 +14,65 @@ import { ProjectMoneyTab } from "../components/Money";
 import { supabase } from "../../lib/supabase";
 import { ProjectDeliverablesTab, SendForApprovalModal } from "../components/ProjectDeliverables";
 import { computeGenerationEstimate } from "../forecastEngine";
-import { GateStatus, GenerationBlockStatus } from "../types";
+import { GateStatus, GenerationBlockStatus, type StudioGate, type StudioTask } from "../types";
+
+const REV_STATUS: Array<{ id: "todo" | "in_progress" | "done"; label: string; bg: string; fg: string }> = [
+  { id: "todo", label: "To do", bg: "var(--sos-surface-2)", fg: "var(--sos-text-2)" },
+  { id: "in_progress", label: "In progress", bg: "#E8F0FF", fg: "#1D4FD8" },
+  { id: "done", label: "Addressed", bg: "#E7F7EE", fg: "#17663F" },
+];
+
+/** The client's change requests for one stage, as a live checklist. The client sees every status change. */
+const RevisionChecklist: React.FC<{ gate: StudioGate; tasks: StudioTask[]; onStatus: (id: string, st: "todo" | "in_progress" | "done") => void }> = ({ gate, tasks, onStatus }) => {
+  const [showAll, setShowAll] = React.useState(false);
+  if (!tasks.length) return null;
+  const round = (t: StudioTask) => Number(String(t.source_ref || "").match(/:r(\d+)$/)?.[1] || 1);
+  const maxRound = Math.max(...tasks.map(round));
+  const list = (showAll ? tasks : tasks.filter((t) => round(t) === maxRound)).slice().sort((a, b) => round(b) - round(a) || a.created_at.localeCompare(b.created_at));
+  const current = tasks.filter((t) => round(t) === maxRound);
+  const done = current.filter((t) => t.status === "done").length;
+  const approved = gate.status === "approved";
+  return (
+    <div className="ml-4 sm:ml-10 -mt-1 mb-1 p-3 rounded-[16px] border-l-2 space-y-1.5" style={{ background: "var(--sos-surface-2)", borderColor: approved ? "var(--sos-green)" : done === current.length ? "var(--sos-green)" : "#F59E0B" }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+          Client changes · round {maxRound}
+        </p>
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full sos-tabular" style={approved || done === current.length ? { background: "#E7F7EE", color: "#17663F" } : { background: "#FFF3E0", color: "#9A4A00" }}>
+          {approved ? "Approved by client" : `${done}/${current.length} addressed`}
+        </span>
+        <div className="sos-bar h-1.5 flex-1 min-w-[60px] max-w-[160px]">
+          <span className={done === current.length ? "done" : ""} style={{ width: `${current.length ? Math.round((done / current.length) * 100) : 0}%` }} />
+        </div>
+        {tasks.length > current.length && (
+          <button type="button" onClick={() => setShowAll((v) => !v)} className="text-[11px] font-semibold ml-auto" style={{ color: "var(--sos-primary)" }}>
+            {showAll ? "Latest round only" : "All rounds"}
+          </button>
+        )}
+      </div>
+      {list.map((t) => {
+        const st = REV_STATUS.find((x) => x.id === (t.status === "done" ? "done" : ["in_progress", "in_review", "revising"].includes(t.status) ? "in_progress" : "todo"))!;
+        const title = t.title.replace(/^.*? R\d+:\s*/, "");
+        return (
+          <div key={t.id} className="flex flex-wrap sm:flex-nowrap items-center gap-2 px-2.5 py-2 rounded-[12px]" style={{ background: "var(--sos-surface)" }}>
+            <span className="flex-1 min-w-[160px] text-[13px]" style={{ color: "var(--sos-text-1)", textDecoration: st.id === "done" ? "line-through" : undefined, opacity: st.id === "done" ? 0.7 : 1 }}>
+              {showAll && <span className="text-[10px] font-bold mr-1.5" style={{ color: "var(--sos-text-3)" }}>R{round(t)}</span>}
+              {title}
+            </span>
+            <div className="inline-flex p-0.5 rounded-full shrink-0" style={{ background: "var(--sos-surface-2)" }}>
+              {REV_STATUS.map((o) => (
+                <button key={o.id} type="button" onClick={() => onStatus(t.id, o.id)} className="h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors" style={st.id === o.id ? { background: o.bg === "var(--sos-surface-2)" ? "var(--sos-surface)" : o.bg, color: o.fg, boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--sos-text-3)" }}>
+                  {o.id === "done" ? "✓ Addressed" : o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-[10.5px]" style={{ color: "var(--sos-text-3)" }}>The client sees each status live and gets a notification when you mark a change addressed.</p>
+    </div>
+  );
+};
 
 export const ProjectDetailScreen: React.FC = () => {
   const {
@@ -302,6 +360,7 @@ export const ProjectDetailScreen: React.FC = () => {
               {/* Gate Rows */}
               <div className="space-y-2.5">
                 {projectGates.map((g) => (
+                  <React.Fragment key={g.id}>
                   <div
                     key={g.id}
                     className="sos-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -433,6 +492,8 @@ export const ProjectDetailScreen: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  <RevisionChecklist gate={g} tasks={tasks.filter((t) => t.gate_id === g.id && t.source === "portal" && !t.archived_at)} onStatus={(id, st) => updateTask(id, { status: st, ...(st === "done" ? { completed_at: new Date().toISOString(), is_in_now: false } : { completed_at: undefined }) })} />
+                  </React.Fragment>
                 ))}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NotificationBell, NotificationToast, usePortalNotifications, type PortalNotification } from "./PortalNotifications";
 import { SegToggle } from "../review/SegToggle";
 import { StudioLogo } from "../brand/StudioLogo";
 import { format, parseISO } from "date-fns";
@@ -60,6 +61,16 @@ interface PortalGate {
   revisions_included: number;
   client_comment: string | null;
   due_date?: string | null;
+}
+interface PortalRevision {
+  id: string;
+  project_id: string;
+  gate_id: string | null;
+  title: string;
+  round: number;
+  status: string;
+  completed_at: string | null;
+  created_at: string;
 }
 interface PortalTask {
   id: string;
@@ -177,7 +188,7 @@ const Pill: React.FC<{ bg: string; text: string; children: React.ReactNode }> = 
   </span>
 );
 
-const Brand: React.FC<{ onSignOut?: () => void; who?: string }> = ({ onSignOut, who }) => (
+const Brand: React.FC<{ onSignOut?: () => void; who?: string; extra?: React.ReactNode }> = ({ onSignOut, who, extra }) => (
   <header className="flex items-center justify-between gap-3 py-5">
     <div className="min-w-0">
       <StudioLogo surface="light" height={24} />
@@ -192,6 +203,7 @@ const Brand: React.FC<{ onSignOut?: () => void; who?: string }> = ({ onSignOut, 
             {who}
           </span>
         )}
+        {extra}
         <button
           type="button"
           onClick={onSignOut}
@@ -454,6 +466,76 @@ function portalBadge(project: PortalProject, gates: PortalGate[]): { label: stri
   if (project.status === "parked") return { label: "Paused", bg: "#9A4A00", fg: "#FFFFFF" };
   return { label: "In progress", bg: "rgba(15,17,21,0.72)", fg: "#FFFFFF" };
 }
+
+/** The client's own change requests, grouped by stage and round, with a live status for each. */
+const RevisionTracker: React.FC<{ gates: PortalGate[]; revisions: PortalRevision[] }> = ({ gates, revisions }) => {
+  const [showOld, setShowOld] = useState(false);
+  if (!revisions.length) return null;
+  const groups = new Map<string, PortalRevision[]>();
+  for (const r of revisions) {
+    const k = `${r.gate_id || "general"}|${r.round}`;
+    (groups.get(k) || groups.set(k, []).get(k)!).push(r);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => (b[1][0].created_at > a[1][0].created_at ? 1 : -1));
+  const latestPerGate = new Set<string>();
+  const visible = ordered.filter(([k]) => {
+    const gate = k.split("|")[0];
+    if (latestPerGate.has(gate)) return showOld;
+    latestPerGate.add(gate);
+    return true;
+  });
+  const statusOf = (r: PortalRevision, approved: boolean) =>
+    approved ? { label: "Approved", bg: "#E7F7EE", fg: "#17663F", icon: "✓" } : r.status === "done" ? { label: "Addressed", bg: "#E7F7EE", fg: "#17663F", icon: "✓" } : ["in_progress", "in_review", "revising"].includes(r.status) ? { label: "In progress", bg: "#E8F0FF", fg: "#1D4FD8", icon: "●" } : { label: "Received", bg: "var(--sos-surface-2)", fg: "var(--sos-text-2)", icon: "○" };
+  return (
+    <div className="sos-card sos-aurora sos-aurora-glow overflow-hidden p-5 md:p-6 space-y-4">
+      <span className="sos-orb" style={{ width: 200, height: 200, top: -90, right: -60, background: "radial-gradient(circle, rgba(124,92,255,0.3), transparent 70%)" }} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Your requested changes</h2>
+          <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Each note you sent, and where it stands with the studio — updated live.</p>
+        </div>
+        {ordered.length > visible.length || showOld ? (
+          <button type="button" onClick={() => setShowOld((v) => !v)} className="text-[12px] font-semibold" style={{ color: "var(--sos-primary)" }}>
+            {showOld ? "Latest rounds only" : "Show earlier rounds"}
+          </button>
+        ) : null}
+      </div>
+      {visible.map(([k, list]) => {
+        const gate = gates.find((g) => g.id === k.split("|")[0]);
+        const approved = gate?.status === "approved";
+        const done = list.filter((r) => approved || r.status === "done").length;
+        const pct = Math.round((done / list.length) * 100);
+        return (
+          <div key={k} className="space-y-2">
+            <div className="flex items-center gap-3">
+              <p className="text-[13px] font-semibold shrink-0" style={{ color: "var(--sos-text-1)" }}>
+                {gate?.name || "General"} <span style={{ color: "var(--sos-text-3)" }}>· round {list[0].round}</span>
+              </p>
+              <div className="sos-bar h-1.5 flex-1">
+                <span className={pct === 100 ? "done" : ""} style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-[12px] font-semibold sos-tabular shrink-0" style={{ color: pct === 100 ? "#17663F" : "var(--sos-text-2)" }}>
+                {approved ? "Approved" : `${done}/${list.length} addressed`}
+              </span>
+            </div>
+            <ul className="space-y-1.5 sos-rows">
+              {list.map((r, i) => {
+                const st = statusOf(r, approved);
+                return (
+                  <li key={r.id} className="flex items-start gap-3 px-3.5 py-2.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)", ["--i" as any]: i }}>
+                    <span className="w-5 h-5 mt-0.5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: st.bg === "var(--sos-surface-2)" ? "var(--sos-surface)" : st.bg, color: st.fg }}>{st.icon}</span>
+                    <span className="flex-1 min-w-0 text-[14px] leading-snug" style={{ color: "var(--sos-text-1)" }}>{r.title}</span>
+                    <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ background: st.bg === "var(--sos-surface-2)" ? "var(--sos-surface)" : st.bg, color: st.fg }}>{st.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 /** Delivery date, highlighted, with a plain-language note on how reviews affect it. */
 const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; done: boolean }> = ({ project, gates, done }) => {
@@ -1076,10 +1158,11 @@ const ProjectView: React.FC<{
   deliverables: PortalDeliverable[];
   invoices: PortalInvoice[];
   tasks?: PortalTask[];
+  revisions?: PortalRevision[];
   viewerName?: string;
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, tasks = [], viewerName, onBack, onChanged }) => {
+}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], viewerName, onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
@@ -1155,6 +1238,8 @@ const ProjectView: React.FC<{
           {flash}
         </div>
       )}
+
+      <RevisionTracker gates={gates} revisions={revisions} />
 
       {awaiting.map((g) => (
         <ApprovalCard
@@ -1304,6 +1389,8 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [gates, setGates] = useState<PortalGate[]>([]);
   const [deliverables, setDeliverables] = useState<PortalDeliverable[]>([]);
   const [portalTasks, setPortalTasks] = useState<PortalTask[]>([]);
+  const [revisions, setRevisions] = useState<PortalRevision[]>([]);
+  const [toast, setToast] = useState<PortalNotification | null>(null);
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [loading, setLoading] = useState(false);
@@ -1358,8 +1445,9 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
         supabase.from("portal_deliverables").select("*"),
         supabase.from("portal_invoices").select("*").order("sent_at", { ascending: false, nullsFirst: false }),
       ]);
-      const t = await supabase.from("portal_tasks").select("*");
+      const [t, rv] = await Promise.all([supabase.from("portal_tasks").select("*"), supabase.from("portal_revisions").select("*").order("created_at")]);
       setPortalTasks(t.error ? [] : ((t.data || []) as PortalTask[]));
+      setRevisions(rv.error ? [] : ((rv.data || []) as PortalRevision[]));
       setProjects((p.data || []) as PortalProject[]);
       setGates((g.data || []) as PortalGate[]);
       setDeliverables((d.data || []) as PortalDeliverable[]);
@@ -1367,6 +1455,20 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
     }
     setLoading(false);
   }, []);
+  // New notification → chime (inside the hook), toast, and refresh the project data.
+  const notif = usePortalNotifications(Boolean(contact?.ok), (n) => {
+    setToast(n);
+    load();
+  });
+  const closeToast = useCallback(() => setToast(null), []);
+  const openNotification = (n: PortalNotification) => {
+    notif.markRead();
+    if (n.kind === "message") setTab("messages");
+    else if (n.project_id) {
+      setTab("projects");
+      setSelected(n.project_id);
+    }
+  };
 
   useEffect(() => {
     if (!signedIn) return;
@@ -1448,7 +1550,21 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
         </div>
       ) : (
         <div className="max-w-6xl mx-auto px-4 md:px-6">
-          <Brand onSignOut={signOut} who={contact?.organisation} />
+          <Brand
+            onSignOut={signOut}
+            who={contact?.organisation}
+            extra={
+              contact?.ok ? (
+                <NotificationBell
+                  items={notif.items}
+                  unread={notif.unread}
+                  onOpenChange={(o) => o && notif.markRead()}
+                  onSelect={openNotification}
+                />
+              ) : null
+            }
+          />
+          <NotificationToast n={toast} onClose={closeToast} onOpen={openNotification} />
           <PortalNav
             tab={tab}
             onTab={(t) => {
@@ -1489,6 +1605,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               deliverables={deliverables.filter((d) => d.project_id === project.id)}
               invoices={invoices.filter((i) => i.project_id === project.id)}
               tasks={portalTasks.filter((t) => t.project_id === project.id)}
+              revisions={revisions.filter((r) => r.project_id === project.id)}
               viewerName={contact?.name}
               onBack={() => setSelected(null)}
               onChanged={load}

@@ -629,6 +629,14 @@ export function registerStudioOSRoutes(app: Express) {
         today: new Date(),
       });
 
+      // Fallback: email any client notifications still waiting.
+      try {
+        const { flushPortalEmails } = await import("./phase9/portalNotify.js");
+        await flushPortalEmails(sb, "https://www.thechantingstudio.in");
+      } catch {
+        /* best-effort */
+      }
+
       // The one AI daily brief (cached in studio_ai_insights; shown on Today).
       let aiText = "";
       try {

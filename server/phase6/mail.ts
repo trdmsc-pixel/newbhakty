@@ -62,7 +62,7 @@ export async function gmailFor(sb: SupabaseClient, acct: Account): Promise<Gmail
 }
 
 const canModify = (a: Account) => !a.granted_scopes || /gmail\.modify|mail\.google\.com/.test(a.granted_scopes);
-const canSend = (a: Account) => !a.granted_scopes || /gmail\.send|mail\.google\.com/.test(a.granted_scopes);
+export const canSend = (a: Account) => !a.granted_scopes || /gmail\.send|mail\.google\.com/.test(a.granted_scopes);
 
 export function header(msg: any, name: string): string {
   return (msg?.payload?.headers || []).find((h: any) => String(h.name).toLowerCase() === name.toLowerCase())?.value || "";
@@ -108,7 +108,7 @@ const textToHtml = (s: string) =>
 const encodeHeader = (s: string) => (/^[\x20-\x7E]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s, "utf8").toString("base64")}?=`);
 const cleanAddr = (s: string) => s.replace(/[\r\n]/g, "").trim();
 
-function buildMime(opts: {
+export function buildMime(opts: {
   from: string;
   to: string[];
   cc: string[];

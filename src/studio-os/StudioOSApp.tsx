@@ -106,6 +106,19 @@ const StudioOSShell: React.FC<{
     if (!isOwner) return;
     // Load mail once in the background and keep it fresh (every 10 min), so the Mail tab opens instantly.
     import("./screens/MailScreen").then((m) => m.prefetchMail()).catch(() => {});
+    // Email major client notifications (ready for review, new version, final files) right after they happen.
+    let flushTimer: number | null = null;
+    const flush = () => {
+      if (flushTimer) window.clearTimeout(flushTimer);
+      flushTimer = window.setTimeout(() => studioApi("/api/studio-os/portal-notify/flush", { method: "POST", body: {} }).catch(() => {}), 2500);
+    };
+    flush();
+    const notifyCh = supabase
+      ?.channel("studio-portal-notify")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "studio_portal_notifications" }, (p: any) => {
+        if (p?.new?.email_status === "pending") flush();
+      })
+      .subscribe();
     let alive = true;
     const tick = () =>
       studioApi<{ unread_important: number }>("/api/studio-os/mail/counts")
@@ -116,6 +129,8 @@ const StudioOSShell: React.FC<{
     return () => {
       alive = false;
       clearInterval(t);
+      if (flushTimer) window.clearTimeout(flushTimer);
+      if (notifyCh) supabase?.removeChannel(notifyCh);
     };
   }, [isOwner]);
 
