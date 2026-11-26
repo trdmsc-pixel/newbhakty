@@ -1,6 +1,22 @@
 import React, { useState } from "react";
 import { useReducedMotion } from "motion/react";
-import { useSiteData } from "../context/SiteDataContext";
+import { useSiteData, type BrandLogo } from "../context/SiteDataContext";
+import { logoFilter, useLogoTone } from "../lib/logoTone";
+
+/** One marquee logo: dark logos are shown as a white version so they stay visible on the dark site. */
+const MarqueeLogo: React.FC<{ brand: BrandLogo; size: "static" | "track" }> = ({ brand, size }) => {
+  const tone = useLogoTone(brand.display_mode === "original" ? null : brand.url);
+  const lighten = logoFilter(brand.display_mode, tone);
+  return (
+    <img
+      src={brand.url}
+      alt={brand.name}
+      draggable="false"
+      style={{ filter: lighten || (brand.display_mode === "original" ? undefined : "grayscale(1) brightness(1.5) contrast(1.25)") }}
+      className={`max-h-7 md:max-h-8 max-w-full object-contain select-none transition-all duration-300 ${size === "static" ? "opacity-60 hover:opacity-100" : ""}`}
+    />
+  );
+};
 
 export default function BrandMarquee() {
   const { siteSettings, brandLogos = [] } = useSiteData();
@@ -10,6 +26,7 @@ export default function BrandMarquee() {
   // Filter out placeholder or unpopulated brand entries
   const validLogos = brandLogos.filter(
     (logo) =>
+      logo.is_visible !== false &&
       logo.url &&
       logo.name &&
       logo.name.trim() !== "" &&
@@ -61,11 +78,7 @@ export default function BrandMarquee() {
               <div key={idx} className="flex-shrink-0">
                 {brand.url ? (
                   <div className="h-10 md:h-12 w-28 md:w-36 flex items-center justify-center px-2">
-                    <img
-                      src={brand.url}
-                      alt={brand.name}
-                      className="max-h-7 md:max-h-8 max-w-full object-contain filter grayscale brightness-150 contrast-125 mix-blend-screen select-none opacity-60 hover:opacity-100 transition-opacity"
-                    />
+                    <MarqueeLogo brand={brand} size="static" />
                   </div>
                 ) : (
                   <span className="font-display font-medium text-sm uppercase tracking-wider text-[var(--tcs-offwhite)]/55">
@@ -92,12 +105,7 @@ export default function BrandMarquee() {
                   >
                     {brand.url ? (
                       <div className="h-10 md:h-12 w-28 md:w-36 flex items-center justify-center px-2">
-                        <img
-                          src={brand.url}
-                          alt={brand.name}
-                          draggable="false"
-                          className="max-h-7 md:max-h-8 max-w-full object-contain filter grayscale brightness-150 contrast-125 mix-blend-screen select-none transition-all duration-300"
-                        />
+                        <MarqueeLogo brand={brand} size="track" />
                       </div>
                     ) : (
                       <span className="font-display font-medium text-sm md:text-base uppercase tracking-widest text-[var(--tcs-offwhite)] whitespace-nowrap px-4">

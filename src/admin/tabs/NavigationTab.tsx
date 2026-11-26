@@ -37,7 +37,7 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
 
     await onAddItem({
       label: newLabel.trim(),
-      href: newHref.trim(),
+      target_url: newHref.trim(),
       is_visible: true,
       order_index: navItems.length + 1,
     });
@@ -88,23 +88,23 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
           <Chip status="live" dot label="Realtime" />
         </div>
 
-        <div className="w-full h-16 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line)] px-6 flex items-center justify-between shadow-inner overflow-hidden">
+        <div className="w-full h-16 rounded-full bg-[#0B0B0D] border border-white/10 px-6 flex items-center justify-between gap-4 shadow-inner overflow-hidden">
           <Wordmark capHeight={14} ringAnimation="spin-slow" />
 
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-none py-1">
             {navItems
-              .filter((n) => n.is_visible)
+              .filter((n) => n.is_visible !== false)
               .map((item) => (
                 <span
                   key={item.id}
-                  className="text-admin-meta font-mono uppercase tracking-wider text-[var(--a-text-2)] whitespace-nowrap"
+                  className="text-admin-meta font-mono uppercase tracking-wider text-white/75 whitespace-nowrap"
                 >
                   {item.label}
                 </span>
               ))}
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-full bg-[var(--a-surface-2)] border border-[var(--a-line-strong)] text-admin-meta font-mono text-xs text-white">
+          <div className="shrink-0 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-admin-meta font-mono text-xs text-white">
             Inquire
           </div>
         </div>
@@ -148,18 +148,18 @@ export const NavigationTab: React.FC<NavigationTabProps> = ({
                     <span className="text-admin-body-lg font-semibold text-[var(--a-text)] truncate">
                       {item.label}
                     </span>
-                    <Chip status="draft" label={item.href} />
+                    <Chip status="draft" label={item.target_url} />
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--a-line)]">
                 <Toggle
-                  checked={item.is_visible}
+                  checked={item.is_visible !== false}
                   onChange={(checked) =>
                     onUpdateItem(item.id, { is_visible: checked })
                   }
-                  label={item.is_visible ? "Visible" : "Hidden"}
+                  label={item.is_visible !== false ? "Visible" : "Hidden"}
                 />
 
                 <button

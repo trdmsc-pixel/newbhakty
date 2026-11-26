@@ -35,12 +35,12 @@ export const TopPillNav: React.FC<TopPillNavProps> = ({
         onClick={onOpenCommandPalette}
         title="Open Command Palette (⌘K)"
         aria-label="Open Command Palette"
-        className="w-[2.5rem] h-[2.5rem] rounded-full bg-black/[0.08] hover:bg-black/[0.16] text-[var(--a-inverse-text)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+        className="w-[2.5rem] h-[2.5rem] rounded-full bg-[color:var(--a-inverse-line)] hover:opacity-80 text-[var(--a-inverse-text)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
       >
         <LayoutGrid className="w-4 h-4" />
       </button>
 
-      <div className="h-4 w-px bg-black/15 mx-0.5 shrink-0" />
+      <div className="h-4 w-px bg-[color:var(--a-inverse-line)] mx-0.5 shrink-0" />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">

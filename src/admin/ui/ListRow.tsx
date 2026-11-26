@@ -34,13 +34,13 @@ export const ListRow: React.FC<ListRowProps> = ({
       onClick={onClick}
       className={`w-full h-[4.5rem] px-5 rounded-full flex items-center justify-between gap-4 text-left transition-all duration-150 cursor-pointer select-none relative ${
         isSelected
-          ? "bg-[var(--a-surface-2)] text-[var(--a-text)] shadow-md border border-black/20"
-          : "bg-transparent text-[var(--a-inverse-text)] hover:bg-black/[0.04] border border-transparent"
+          ? "bg-[var(--a-surface-1)] text-[var(--a-text)] shadow-md border border-[var(--a-line-strong)]"
+          : "bg-transparent text-[var(--a-inverse-text)] hover:bg-[color:var(--a-inverse-line)] border border-transparent"
       } ${className}`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
         {avatar && (
-          <div className="w-[2.75rem] h-[2.75rem] rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-black/10">
+          <div className="w-[2.75rem] h-[2.75rem] rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-[color:var(--a-inverse-line)]">
             {avatar}
           </div>
         )}
@@ -64,10 +64,10 @@ export const ListRow: React.FC<ListRowProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3 min-w-0 max-w-[45%] justify-end">
         {badge && (
           <Chip
-            status={isSelected ? "inverse" : badge.status || "draft"}
+            status={isSelected ? "inverse" : badge.status && badge.status !== "draft" ? badge.status : "onInverse"}
             label={badge.label}
           />
         )}

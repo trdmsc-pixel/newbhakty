@@ -26,7 +26,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
           <button
             type="button"
             onClick={onClear}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--a-surface-2)] hover:bg-[var(--a-surface-3)] text-white flex items-center justify-center text-xs cursor-pointer transition-all"
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--a-surface-2)] hover:bg-[var(--a-surface-3)] text-[var(--a-text-2)] flex items-center justify-center text-xs cursor-pointer transition-all"
           >
             ×
           </button>

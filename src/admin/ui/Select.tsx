@@ -155,7 +155,7 @@ export const Select: React.FC<SelectProps> = ({
             <img
               src={selected.previewUrl}
               alt=""
-              className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0 mix-blend-screen"
+              className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0"
               referrerPolicy="no-referrer"
             />
           )}
@@ -248,7 +248,7 @@ export const Select: React.FC<SelectProps> = ({
                               <img
                                 src={opt.previewUrl}
                                 alt=""
-                                className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0 mix-blend-screen"
+                                className="w-7 h-7 rounded-lg object-contain bg-[var(--a-surface-2)] border border-[var(--a-line)] p-0.5 shrink-0"
                                 referrerPolicy="no-referrer"
                               />
                             )}

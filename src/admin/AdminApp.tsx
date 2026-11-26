@@ -555,6 +555,8 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       url: logoUrl,
       display_order: brandLogos.length + 1,
       page: "ai",
+      is_visible: true,
+      display_mode: "auto",
     };
     const updated = [...brandLogos, newLogo];
     await updateBrandLogos(updated);
@@ -622,6 +624,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       label: item.label || "New Link",
       target_url: (item as any).href || item.target_url || "#",
       display_order: navigationMenu.length + 1,
+      is_visible: true,
       ...item,
     };
     const updated = [...navigationMenu, newItem];
@@ -930,11 +933,11 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
                 src: w.imageUrl,
               }))}
               totalLogos={brandLogos.length}
-              activeLogos={brandLogos.filter((l) => l.is_active).length}
+              activeLogos={brandLogos.filter((l) => l.is_visible !== false).length}
               logoAvatars={brandLogos.slice(0, 5).map((l) => ({
                 id: l.id,
                 name: l.name,
-                src: l.logo_url,
+                src: l.url,
               }))}
               totalInquiries={submissions.length}
               repliedInquiries={submissions.filter((s) => s.status?.toLowerCase() === "replied").length}

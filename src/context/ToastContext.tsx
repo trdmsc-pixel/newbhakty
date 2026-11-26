@@ -64,13 +64,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getBorderColor = (type: ToastType) => {
     switch (type) {
       case "success":
-        return "border-emerald-500/20 bg-emerald-500/5";
+        return "border-emerald-500/40";
       case "error":
-        return "border-red-500/20 bg-red-500/5";
+        return "border-red-500/40";
       case "info":
-        return "border-sky-500/20 bg-sky-500/5";
+        return "border-sky-500/40";
       case "warning":
-        return "border-amber-500/20 bg-amber-500/5";
+        return "border-amber-500/40";
     }
   };
 
@@ -88,7 +88,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-              className={`p-4 rounded-xl border backdrop-blur-md shadow-2xl flex items-start gap-3 pointer-events-auto overflow-hidden relative ${getBorderColor(
+              className={`p-4 rounded-xl border bg-[#141416]/95 backdrop-blur-md shadow-2xl flex items-start gap-3 pointer-events-auto overflow-hidden relative ${getBorderColor(
                 t.type
               )}`}
             >

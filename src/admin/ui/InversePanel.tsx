@@ -18,13 +18,13 @@ export const InversePanel: React.FC<InversePanelProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[1.75rem] bg-[var(--a-inverse)] text-[var(--a-inverse-text)] border border-black/[0.08] p-6 sm:p-8 relative shadow-sm ${className}`}
+      className={`rounded-[1.75rem] bg-[var(--a-inverse)] text-[var(--a-inverse-text)] border border-[color:var(--a-inverse-line)] p-6 sm:p-8 relative shadow-sm ${className}`}
       {...props}
     >
       {(eyebrow || title || actions) && (
         <div
           className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 ${
-            headerBorder ? "border-b border-black/[0.08] pb-5" : ""
+            headerBorder ? "border-b border-[color:var(--a-inverse-line)] pb-5" : ""
           }`}
         >
           <div className="min-w-0">

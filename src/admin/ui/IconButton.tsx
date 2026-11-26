@@ -33,7 +33,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const variantClasses = {
       surface: "bg-[var(--a-surface-2)] border border-[var(--a-line)] text-[var(--a-text)] hover:bg-[var(--a-surface-3)] hover:border-[var(--a-line-strong)]",
       ghost: "bg-transparent border border-transparent text-[var(--a-text-2)] hover:bg-[var(--a-surface-2)] hover:text-[var(--a-text)]",
-      inverse: "bg-[var(--a-inverse)] border border-black/10 text-[var(--a-inverse-text)] hover:bg-white",
+      inverse: "bg-[var(--a-inverse)] border border-[color:var(--a-inverse-line)] text-[var(--a-inverse-text)] hover:opacity-85",
       danger: "bg-red-500/10 border border-red-500/20 text-[var(--a-danger-text)] hover:bg-[var(--a-danger-bg)] hover:text-[var(--a-danger-text)]",
       accent: "bg-[var(--a-accent-soft)] border border-[var(--a-accent)]/30 text-[var(--a-accent)] hover:bg-[var(--a-accent)]/25 hover:text-[var(--a-accent)]",
     }[variant];

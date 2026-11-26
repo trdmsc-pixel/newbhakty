@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ navigate }: NavbarProps) {
-  const { siteSettings } = useSiteData();
+  const { siteSettings, navigationMenu } = useSiteData();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("top");
@@ -72,12 +72,31 @@ export default function Navbar({ navigate }: NavbarProps) {
     }
   };
 
-  const navLinks = [
+  // Menu links come from the admin (Navigation Menu); these are the fallback.
+  const DEFAULT_LINKS = [
     { label: "Reel", target: "#reel" },
     { label: "Work", target: "#work" },
     { label: "Studio", target: "#studio" },
     { label: "Contact", target: "#contact" },
   ];
+  const fromAdmin = (navigationMenu || [])
+    .filter((n) => n.is_visible !== false && n.label?.trim() && n.target_url?.trim())
+    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+    .map((n) => {
+      const t = n.target_url.trim();
+      // "work" → "#work"; keep full URLs and /paths as they are.
+      const target = /^(https?:|mailto:|tel:|\/|#)/i.test(t) ? t : `#${t}`;
+      return { label: n.label.trim(), target };
+    });
+  const navLinks = fromAdmin.length ? fromAdmin : DEFAULT_LINKS;
+
+  /** Anchors scroll; site paths use the router; external links open normally. */
+  const followLink = (target: string) => {
+    if (target.startsWith("#")) return scrollTo(target);
+    setMobileOpen(false);
+    if (target.startsWith("/")) return navigate ? navigate(target) : (window.location.href = target);
+    window.open(target, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -126,7 +145,7 @@ export default function Navbar({ navigate }: NavbarProps) {
                     href={link.target}
                     onClick={(e) => {
                       e.preventDefault();
-                      scrollTo(link.target);
+                      followLink(link.target);
                     }}
                     className={`font-mono text-xs uppercase tracking-[0.14em] transition-colors relative py-1 ${
                       isActive
@@ -220,7 +239,7 @@ export default function Navbar({ navigate }: NavbarProps) {
                   href={link.target}
                   onClick={(e) => {
                     e.preventDefault();
-                    scrollTo(link.target);
+                    followLink(link.target);
                   }}
                   initial={{ opacity: 0, x: -16 }}
                   animate={{ opacity: 1, x: 0 }}

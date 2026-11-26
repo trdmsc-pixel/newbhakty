@@ -13,6 +13,8 @@ export interface NavigationMenuItem {
   label: string;
   target_url: string;
   display_order: number;
+  /** Shown on the website (defaults to true). */
+  is_visible?: boolean;
 }
 
 export interface SiteSettings {
@@ -33,6 +35,10 @@ export interface BrandLogo {
   name: string;
   display_order: number;
   page?: string;
+  /** Shown in the website marquee (defaults to true). */
+  is_visible?: boolean;
+  /** auto = lighten automatically when the logo is dark; light = always white; original = untouched. */
+  display_mode?: "auto" | "original" | "light";
 }
 
 export interface Testimonial {
@@ -301,6 +307,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               name: l.name || "",
               display_order: l.display_order || 0,
               page: l.page || "ai",
+              is_visible: l.is_visible !== false,
+              display_mode: (["auto", "original", "light"].includes(l.display_mode) ? l.display_mode : "auto") as BrandLogo["display_mode"],
             })));
           }
         } catch (tableErr) {
@@ -507,7 +515,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const payload: any = {
             label: item.label,
             target_url: item.target_url,
-            display_order: item.display_order
+            display_order: item.display_order,
+            is_visible: item.is_visible !== false,
           };
           let saveErr;
           if (isValidUUID(item.id)) {
@@ -834,6 +843,8 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             name: l.name || "",
             page: "ai",
             display_order: i + 1,
+            is_visible: l.is_visible !== false,
+            display_mode: l.display_mode || "auto",
           };
           let saveErr;
           if (isValidUUID(l.id)) {

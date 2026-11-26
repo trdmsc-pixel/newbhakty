@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from "react";
 import { Upload, FolderOpen, Copy, Check, X, Film, Image as ImageIcon, Link2, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
-import { Tooltip } from "./Tooltip";
 import { Button } from "./Button";
 import { uploadToCloudinary, MEDIA_UPLOAD_LIMIT_MB } from "../../lib/cloudinary";
 
@@ -106,9 +105,9 @@ export const MediaField: React.FC<MediaFieldProps> = ({
 
   return (
     <div className={`rounded-[1.25rem] bg-[var(--a-surface-2)] border border-[var(--a-line)] p-3 sm:p-4 space-y-3 transition-all duration-150 hover:border-[var(--a-line-strong)] ${className}`}>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3">
         {/* Thumbnail + Name details */}
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+        <div className="flex items-center gap-3.5 min-w-0 w-full overflow-hidden">
           <div
             onMouseEnter={() => videoRef.current?.play().catch(() => {})}
             onMouseLeave={() => {
@@ -134,12 +133,13 @@ export const MediaField: React.FC<MediaFieldProps> = ({
 
           <div className="min-w-0 flex-1">
             {label && <p className="text-admin-meta text-[var(--a-text-3)] font-medium mb-0.5 truncate">{label}</p>}
-            <div className="flex items-center gap-2">
-              <Tooltip content={cleanUrl || "Empty"}>
-                <span className="text-admin-body font-mono text-sm text-[var(--a-text)] font-medium truncate block max-w-[280px] sm:max-w-[360px]">
-                  {busy ? progress || "Uploading…" : fileName}
-                </span>
-              </Tooltip>
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                title={cleanUrl || "Empty"}
+                className="text-admin-body font-mono text-sm text-[var(--a-text)] font-medium truncate block min-w-0 flex-1"
+              >
+                {busy ? progress || "Uploading…" : fileName}
+              </span>
               {cleanUrl && !busy && (
                 <button
                   type="button"
@@ -155,7 +155,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-auto">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {onOpenLibrary && (
             <Button size="sm" variant="secondary" onClick={onOpenLibrary} icon={<FolderOpen className="w-3.5 h-3.5 text-[var(--a-accent)]" />}>
               Library

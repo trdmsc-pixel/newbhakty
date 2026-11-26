@@ -8,7 +8,8 @@ export type StatusPillType =
   | "live"
   | "warning"
   | "danger"
-  | "inverse";
+  | "inverse"
+  | "onInverse";
 
 export interface ChipProps {
   status?: StatusPillType;
@@ -44,16 +45,19 @@ export const Chip: React.FC<ChipProps> = ({
     new: "bg-[var(--a-accent-soft)] text-[var(--a-accent)] border border-[var(--a-accent)]/30",
     replied: "bg-[var(--a-ok-bg)] text-[var(--a-ok-text)] border border-emerald-500/30",
     archived: "bg-[var(--a-surface-2)] text-[var(--a-text-3)] border border-[var(--a-line)]",
-    draft: "bg-sky-500/15 text-sky-400 border border-sky-500/30",
+    draft: "bg-[var(--a-info-bg)] text-[var(--a-info-text)] border border-sky-500/30",
     live: "bg-[var(--a-ok-bg)] text-[var(--a-ok-text)] border border-emerald-500/30",
     warning: "bg-[var(--a-warn-bg)] text-[var(--a-warn-text)] border border-amber-500/30",
     danger: "bg-[var(--a-danger-bg)] text-[var(--a-danger-text)] border border-red-500/30",
-    inverse: "bg-white text-[var(--a-inverse-text)] border border-black/10 shadow-sm",
+    inverse: "bg-[var(--a-inverse)] text-[var(--a-inverse-text)] border border-transparent shadow-sm",
+    // Chips sitting directly on an inverse (dark-in-light-mode) panel
+    onInverse: "bg-[color:var(--a-inverse-line)] text-[var(--a-inverse-text)] border border-[color:var(--a-inverse-line)]",
   }[status];
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 h-[2.25rem] px-3.5 rounded-full text-[13px] font-sans font-semibold shrink-0 select-none ${statusClasses} ${className}`}
+      className={`inline-flex items-center gap-1.5 h-[2.25rem] px-3.5 rounded-full text-[13px] font-sans font-semibold shrink-0 select-none max-w-full min-w-0 ${statusClasses} ${className}`}
+      title={typeof content === "string" ? content : undefined}
     >
       {dot && (
         <span
@@ -66,7 +70,7 @@ export const Chip: React.FC<ChipProps> = ({
           }`}
         />
       )}
-      <span>{content}</span>
+      <span className="truncate">{content}</span>
     </span>
   );
 };
