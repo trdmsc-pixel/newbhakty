@@ -30,6 +30,25 @@ function AppContent() {
   const [triggerReelPlay, setTriggerReelPlay] = useState(false);
   const isFirstRender = useRef(true);
 
+  // Admin-editable meta description. index.html's static tag stays the
+  // crawler default; restore it whenever the setting is cleared.
+  const staticMetaDescription = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let tag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (staticMetaDescription.current === null) {
+      staticMetaDescription.current = tag?.getAttribute("content") ?? "";
+    }
+    const custom = siteSettings.meta_description?.trim();
+    if (!tag) {
+      if (!custom) return;
+      tag = document.createElement("meta");
+      tag.name = "description";
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute("content", custom || staticMetaDescription.current);
+  }, [siteSettings.meta_description]);
+
   // Initialize Lenis Smooth Scrolling on desktop public homepage only (never hijack wheel on /admin or /client)
   useEffect(() => {
     if (typeof window === "undefined") return;

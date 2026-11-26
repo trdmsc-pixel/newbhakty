@@ -75,10 +75,10 @@ export const StudioSection: React.FC = () => {
         <div className="mb-28">
           <div className="max-w-3xl mb-14">
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-              {siteSettings.studio_make_eyebrow || "WHAT WE MAKE"}
+              {siteSettings.capabilities_subtitle || siteSettings.studio_make_eyebrow || "WHAT WE MAKE"}
             </p>
             <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
-              {siteSettings.studio_make_title || "One studio. Every kind of frame."}
+              {siteSettings.capabilities_title || siteSettings.studio_make_title || "One studio. Every kind of frame."}
             </h2>
           </div>
 
@@ -155,10 +155,10 @@ export const StudioSection: React.FC = () => {
         <div>
           <div className="max-w-3xl mb-14">
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-              {siteSettings.studio_work_eyebrow || "HOW WE WORK"}
+              {siteSettings.process_subtitle || siteSettings.studio_work_eyebrow || "HOW WE WORK"}
             </p>
             <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
-              {siteSettings.studio_work_title || "Directorial precision from brief to master."}
+              {siteSettings.process_title || siteSettings.studio_work_title || "Directorial precision from brief to master."}
             </h2>
           </div>
 

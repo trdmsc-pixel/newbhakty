@@ -152,7 +152,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 </a>
               </li>
               <li className="text-[var(--tcs-dim)] uppercase tracking-wider">
-                Delhi, India → Worldwide
+                {siteSettings.studio_location || "Delhi, India → Worldwide"}
               </li>
             </ul>
           </div>
@@ -264,7 +264,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 className="h-6 w-auto object-contain mix-blend-screen brightness-125"
               />
             )}
-            <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
+            <p>{siteSettings.copyright_text || "© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio"}</p>
           </div>
 
           <div className="flex items-center gap-6">

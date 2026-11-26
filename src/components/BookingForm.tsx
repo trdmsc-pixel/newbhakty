@@ -200,10 +200,10 @@ export default function BookingForm() {
                 START A PROJECT
               </p>
               <h2 className="tcs-h2 text-[var(--tcs-offwhite)] mb-4">
-                Tell us what you're making.
+                {siteSettings.booking_title || "Tell us what you're making."}
               </h2>
               <p className="font-sans text-[var(--tcs-muted)] text-base leading-relaxed mb-10 max-w-md">
-                We read every brief and reply personally.
+                {siteSettings.booking_subtitle || "We read every brief and reply personally."}
               </p>
 
               {/* Direct Contacts */}
@@ -239,7 +239,7 @@ export default function BookingForm() {
                     STUDIO BASE
                   </p>
                   <p className="font-mono text-sm text-[var(--tcs-muted)]">
-                    Delhi, India → Worldwide
+                    {siteSettings.studio_location || "Delhi, India → Worldwide"}
                   </p>
                 </div>
               </div>

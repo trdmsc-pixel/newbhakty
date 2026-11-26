@@ -509,7 +509,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 id="03"
                 number="03"
                 title="Selected Work Section (#work)"
-                summary="Title, curation intro, and portfolio gallery metadata"
+                summary="Eyebrow and headline of the work section"
                 isOpen={openSections.includes("03")}
                 onToggle={() => toggleSection("03")}
               >
@@ -518,27 +518,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <TextInput
                       value={editSettings.work_title || ""}
                       onChange={(e) => onSettingChange("work_title", e.target.value)}
-                      placeholder="Selected Work"
+                      placeholder="Brands, worlds and everything between."
                     />
                   </Field>
 
-                  <Field label="Work Section Subtitle">
+                  <Field label="Work Section Eyebrow">
                     <TextInput
                       value={editSettings.work_subtitle || ""}
                       onChange={(e) => onSettingChange("work_subtitle", e.target.value)}
-                      placeholder="Brand Films · AI Commercials · Trailers"
+                      placeholder="SELECTED WORK"
                     />
                   </Field>
-
-                  <div className="md:col-span-2">
-                    <Field label="Curation Overview Statement">
-                      <TextArea
-                        value={editSettings.work_intro || ""}
-                        onChange={(e) => onSettingChange("work_intro", e.target.value)}
-                        placeholder="Every film synthesized at The Chanting Studio is built at 4K UHD master resolution..."
-                      />
-                    </Field>
-                  </div>
                 </div>
               </SectionAccordion>
             </div>
@@ -548,41 +538,41 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               <SectionAccordion
                 id="04"
                 number="04"
-                title="Capabilities & Process (#capabilities, #process)"
-                summary="Production studio disciplines, pipeline phases, and editorial copy"
+                title="Studio: What We Make & How We Work (#studio)"
+                summary="Headlines and eyebrows of the studio section"
                 isOpen={openSections.includes("04")}
                 onToggle={() => toggleSection("04")}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Capabilities Title">
+                  <Field label="“What We Make” Headline">
                     <TextInput
                       value={editSettings.capabilities_title || ""}
                       onChange={(e) => onSettingChange("capabilities_title", e.target.value)}
-                      placeholder="Capabilities & Disciplines"
+                      placeholder="One studio. Every kind of frame."
                     />
                   </Field>
 
-                  <Field label="Capabilities Subtitle">
+                  <Field label="“What We Make” Eyebrow">
                     <TextInput
                       value={editSettings.capabilities_subtitle || ""}
                       onChange={(e) => onSettingChange("capabilities_subtitle", e.target.value)}
-                      placeholder="From prompt orchestration to post-grade"
+                      placeholder="WHAT WE MAKE"
                     />
                   </Field>
 
-                  <Field label="Process Title">
+                  <Field label="“How We Work” Headline">
                     <TextInput
                       value={editSettings.process_title || ""}
                       onChange={(e) => onSettingChange("process_title", e.target.value)}
-                      placeholder="Studio Production Process"
+                      placeholder="Directorial precision from brief to master."
                     />
                   </Field>
 
-                  <Field label="Process Subtitle">
+                  <Field label="“How We Work” Eyebrow">
                     <TextInput
                       value={editSettings.process_subtitle || ""}
                       onChange={(e) => onSettingChange("process_subtitle", e.target.value)}
-                      placeholder="Four-stage synthetic pipeline"
+                      placeholder="HOW WE WORK"
                     />
                   </Field>
                 </div>
@@ -595,7 +585,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 id="05"
                 number="05"
                 title="Booking & Inquiry Form (#contact)"
-                summary="Inquiry headline, qualification parameters, and conversion copy"
+                summary="Headline and intro line of the contact section"
                 isOpen={openSections.includes("05")}
                 onToggle={() => toggleSection("05")}
               >
@@ -604,7 +594,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <TextInput
                       value={editSettings.booking_title || ""}
                       onChange={(e) => onSettingChange("booking_title", e.target.value)}
-                      placeholder="Initiate a Project Inquiry"
+                      placeholder="Tell us what you're making."
                     />
                   </Field>
 
@@ -619,7 +609,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <TextInput
                       value={editSettings.booking_subtitle || ""}
                       onChange={(e) => onSettingChange("booking_subtitle", e.target.value)}
-                      placeholder="Direct executive briefing with the studio director"
+                      placeholder="We read every brief and reply personally."
                     />
                   </Field>
                 </div>
@@ -694,16 +684,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 id="07"
                 number="07"
                 title="Global Footer, Legal & SEO"
-                summary="Copyright, meta description, studio location, and legal links"
+                summary="Copyright, meta description and studio location"
                 isOpen={openSections.includes("07")}
                 onToggle={() => toggleSection("07")}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Studio Location">
+                  <Field label="Studio Location (contact section & footer)">
                     <TextInput
                       value={editSettings.studio_location || ""}
                       onChange={(e) => onSettingChange("studio_location", e.target.value)}
-                      placeholder="New Delhi, India"
+                      placeholder="Delhi, India → Worldwide"
                     />
                   </Field>
 
@@ -711,7 +701,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <TextInput
                       value={editSettings.copyright_text || ""}
                       onChange={(e) => onSettingChange("copyright_text", e.target.value)}
-                      placeholder="© 2026 THE CHANTING STUDIO. ALL RIGHTS RESERVED."
+                      placeholder="© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio"
                     />
                   </Field>
 
@@ -720,7 +710,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       <TextArea
                         value={editSettings.meta_description || ""}
                         onChange={(e) => onSettingChange("meta_description", e.target.value)}
-                        placeholder="The Chanting Studio is a premier AI-native cinematic production studio in Delhi..."
+                        placeholder="Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses. Delhi → Worldwide."
                       />
                     </Field>
                   </div>

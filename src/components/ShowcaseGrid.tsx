@@ -234,7 +234,7 @@ export default function ShowcaseGrid() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-dim)] mb-2">
-              {siteSettings.work_eyebrow || "SELECTED WORK"}
+              {siteSettings.work_subtitle || siteSettings.work_eyebrow || "SELECTED WORK"}
             </p>
             <h2 className="tcs-h2 text-[var(--tcs-offwhite)]">
               {siteSettings.work_title || "Brands, worlds and everything between."}
