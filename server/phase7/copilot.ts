@@ -15,6 +15,7 @@ import { applyItem, undoItem } from "../phase3/inboxEngine.js";
 import { recomputeProjectForecast } from "../phase4/routes.js";
 import { createDraftForCopilot, deleteDraftForCopilot } from "../phase6/mail.js";
 import { createGatesFromTemplate } from "../../src/studio-os/seedData.js";
+import { metaChat, metaConfigured, type ChatMessage, type ChatTool } from "../../lib/ai/providers/meta.js";
 
 const GEMINI = "https://generativelanguage.googleapis.com";
 const model = () => getEnv("COPILOT_MODEL") || "gemini-2.5-flash";
@@ -31,8 +32,8 @@ async function owner(req: Request, res: Response): Promise<SupabaseClient | null
     res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured." });
     return null;
   }
-  if (!key()) {
-    res.status(503).json({ error: "GEMINI_API_KEY not configured." });
+  if (!key() && !metaConfigured()) {
+    res.status(503).json({ error: "No AI model configured — set META_API_KEY (Meta Muse) in Vercel." });
     return null;
   }
   return sb;
@@ -682,6 +683,19 @@ const chatSchema = z.object({
   view: z.object({ route: z.string().max(40), project_code: z.string().max(8).optional() }).optional(),
 });
 
+/** Gemini-style declarations (UPPERCASE types) → OpenAI-style JSON Schema tools for Muse. */
+function toJsonSchema(node: any): any {
+  if (Array.isArray(node)) return node.map(toJsonSchema);
+  if (!node || typeof node !== "object") return node;
+  const out: any = {};
+  for (const [k, v] of Object.entries(node)) out[k] = k === "type" && typeof v === "string" ? v.toLowerCase() : toJsonSchema(v);
+  return out;
+}
+const OPENAI_TOOLS: ChatTool[] = DECLARATIONS.map((d) => ({
+  type: "function",
+  function: { name: d.name, description: d.description, parameters: toJsonSchema(d.parameters || { type: "OBJECT", properties: {} }) },
+}));
+
 export function registerCopilotRoutes(app: Express) {
   app.post("/api/studio-os/copilot/chat", async (req, res) => {
     const sb = await owner(req, res);
@@ -706,30 +720,61 @@ export function registerCopilotRoutes(app: Express) {
       contents.push({ role: "user", parts: lastParts });
 
       const viewNote = view ? `\nThe user is currently viewing: ${view.route}${view.project_code ? ` (project ${view.project_code})` : ""}.` : "";
-      const r = await fetch(`${GEMINI}/v1beta/models/${encodeURIComponent(model())}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key() },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: `${SYSTEM}${viewNote}\n\nWORKSPACE SNAPSHOT (JSON):\n${JSON.stringify(snapshot)}` }] },
-          contents,
-          tools: [{ functionDeclarations: DECLARATIONS }],
-          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
-        }),
-      });
-      const data: any = await r.json().catch(() => ({}));
-      if (!r.ok) return res.status(502).json({ error: `Gemini: ${data?.error?.message || r.status}` });
-
-      const parts: any[] = data?.candidates?.[0]?.content?.parts || [];
-      let text = parts.filter((p) => typeof p.text === "string").map((p) => p.text).join("").trim();
+      const systemText = `${SYSTEM}${viewNote}\n\nWORKSPACE SNAPSHOT (JSON):\n${JSON.stringify(snapshot)}`;
+      // Meta Muse handles text + images; PDFs/video/audio go to Gemini when it is configured.
+      const needsGemini = attachments.some((a) => a.kind === "file" || !a.mime.startsWith("image/"));
+      const useMeta = metaConfigured() && (!needsGemini || !key());
+      let text = "";
+      let calls: Array<{ name: string; args: unknown }> = [];
+      let finish = "";
+      if (useMeta) {
+        const msgs: ChatMessage[] = [
+          { role: "system", content: systemText },
+          ...history.slice(0, -1).map((m) => ({ role: m.role === "model" ? "assistant" : "user", content: m.text || "…" }) as ChatMessage),
+        ];
+        const imgs = attachments.filter((a) => a.kind === "inline" && a.mime.startsWith("image/")) as Array<{ mime: string; data: string; name: string }>;
+        const skipped = attachments.filter((a) => !(a.kind === "inline" && a.mime.startsWith("image/"))).map((a) => a.name);
+        const lastText = `${attachments.length ? `Attached (temporary, not saved): ${attachments.map((a) => a.name).join(", ")}${skipped.length ? ` — ${skipped.join(", ")} could not be read by this model` : ""}\n` : ""}${last.text || "Please analyse the attachment."}`;
+        msgs.push({
+          role: "user",
+          content: imgs.length ? [...imgs.map((i) => ({ type: "image_url" as const, image_url: { url: `data:${i.mime};base64,${i.data}` } })), { type: "text" as const, text: lastText }] : lastText,
+        });
+        try {
+          const out = await metaChat({ messages: msgs, tools: OPENAI_TOOLS, tool_choice: "auto", temperature: 0.4, max_tokens: 4096 });
+          text = out.text;
+          calls = out.toolCalls;
+          finish = out.finishReason || "";
+        } catch (err: any) {
+          if (!key()) return res.status(502).json({ error: `Meta Muse: ${err?.message || "request failed"}` });
+          // fall through to Gemini below
+        }
+      }
+      if (!useMeta || (!text && !calls.length && key())) {
+        const r = await fetch(`${GEMINI}/v1beta/models/${encodeURIComponent(model())}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key() },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemText }] },
+            contents,
+            tools: [{ functionDeclarations: DECLARATIONS }],
+            toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+            generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
+          }),
+        });
+        const data: any = await r.json().catch(() => ({}));
+        if (!r.ok) return res.status(502).json({ error: `Gemini: ${data?.error?.message || r.status}` });
+        const parts: any[] = data?.candidates?.[0]?.content?.parts || [];
+        text = parts.filter((p) => typeof p.text === "string").map((p) => p.text).join("").trim();
+        calls = parts.filter((p) => p.functionCall).map((p) => ({ name: p.functionCall.name, args: p.functionCall.args || {} }));
+        finish = data?.candidates?.[0]?.finishReason || "";
+      }
       const actions: any[] = [];
       const rejected: string[] = [];
-      for (const p of parts) {
-        if (!p.functionCall) continue;
-        const name = p.functionCall.name as ToolName;
+      for (const c of calls) {
+        const name = c.name as ToolName;
         const schema = schemas[name];
         if (!schema) continue;
-        const check = schema.safeParse(p.functionCall.args || {});
+        const check = schema.safeParse(c.args || {});
         if (!check.success) {
           rejected.push(name);
           continue;
@@ -738,7 +783,7 @@ export function registerCopilotRoutes(app: Express) {
         actions.push({ id: crypto.randomUUID(), tool: name, args: check.data, title: d.title, lines: d.lines });
       }
       if (!text && actions.length) text = "Here's what I'd change — review the plan and apply what you want.";
-      if (!text) text = data?.candidates?.[0]?.finishReason === "SAFETY" ? "I can't help with that one." : "I couldn't produce an answer — try rephrasing.";
+      if (!text) text = finish === "SAFETY" || finish === "content_filter" ? "I can't help with that one." : "I couldn't produce an answer — try rephrasing.";
       if (rejected.length) text += `\n\n(I skipped ${rejected.length} malformed proposal${rejected.length > 1 ? "s" : ""}.)`;
       res.json({ text, actions });
     } catch (err: any) {

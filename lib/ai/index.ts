@@ -12,6 +12,7 @@
  */
 import { createAnthropicProvider } from "./providers/anthropic.js";
 import { createGeminiProvider } from "./providers/gemini.js";
+import { createMetaProvider, metaConfigured } from "./providers/meta.js";
 import { cleanEmailBody, redactAmounts } from "./sanitize.js";
 import {
   extractionJsonSchema,
@@ -34,6 +35,8 @@ function env(key: string): string {
 
 export function aiStatus() {
   return {
+    meta: Boolean(env("META_API_KEY")),
+    metaModel: env("META_MODEL") || "muse-ember-1.0",
     claude: Boolean(env("ANTHROPIC_API_KEY")),
     gemini: Boolean(env("GEMINI_API_KEY")),
     claudeModel: env("ANTHROPIC_MODEL") || "claude-haiku-5-5",
@@ -41,14 +44,18 @@ export function aiStatus() {
   };
 }
 
-/** Use the preferred provider when its key is set; otherwise fall back to the other one. */
+/**
+ * Meta Muse is the studio's primary model whenever META_API_KEY is set;
+ * otherwise use the preferred provider, then the other one.
+ */
 export function resolveProvider(preferred: AIProviderName = "gemini"): AIProvider {
+  if (metaConfigured()) return createMetaProvider();
   const order: AIProviderName[] = preferred === "claude" ? ["claude", "gemini"] : ["gemini", "claude"];
   for (const name of order) {
     if (name === "claude" && env("ANTHROPIC_API_KEY")) return createAnthropicProvider(env("ANTHROPIC_API_KEY"));
     if (name === "gemini" && env("GEMINI_API_KEY")) return createGeminiProvider(env("GEMINI_API_KEY"));
   }
-  throw new AIUnavailableError("No AI provider configured. Set GEMINI_API_KEY or ANTHROPIC_API_KEY.");
+  throw new AIUnavailableError("No AI provider configured. Set META_API_KEY (Meta Muse), GEMINI_API_KEY or ANTHROPIC_API_KEY.");
 }
 
 function parseJsonLoose(raw: string): unknown {

@@ -564,3 +564,115 @@ export const useIsLarge = () => {
 };
 
 export const useMemoProjects = (projects: Array<{ id: string; title: string }>) => useMemo(() => projects.map((p) => ({ id: p.id, title: p.title })), [projects]);
+
+// ---- AI assistant (client's own data only; read-only) ----------------------------
+const ASK_STARTERS = ["What needs my approval?", "When will my project be delivered?", "Summarise all my projects", "Is the studio open now?"];
+
+export const PortalAssistant: React.FC = () => {
+  const reduce = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const [turns, setTurns] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => endRef.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" }), [turns, busy, reduce]);
+
+  const ask = async (q?: string) => {
+    const text = (q ?? input).trim();
+    if (!text || busy || !supabase) return;
+    const next = [...turns, { role: "user" as const, text }];
+    setTurns(next);
+    setInput("");
+    setBusy(true);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const r = await fetch("/api/portal/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messages: next.slice(-12) }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setTurns((t) => [...t, { role: "assistant", text: r.ok ? j.text : j.error || "The assistant is unavailable right now." }]);
+    } catch {
+      setTurns((t) => [...t, { role: "assistant", text: "The assistant is unavailable right now." }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <motion.button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        whileTap={reduce ? undefined : { scale: 0.95 }}
+        className="fixed z-40 right-4 bottom-4 md:right-6 md:bottom-6 h-12 px-5 rounded-full text-white text-[14px] font-semibold shadow-xl inline-flex items-center gap-2"
+        style={{ background: "var(--sos-primary)" }}
+        aria-expanded={open}
+        aria-label="Ask the studio assistant"
+      >
+        <span aria-hidden>✨</span> {open ? "Close" : "Ask"}
+      </motion.button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="dialog"
+            aria-label="Studio assistant"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: EASE }}
+            className="fixed z-40 right-3 left-3 md:left-auto bottom-20 md:right-6 md:bottom-24 md:w-[380px] max-h-[70vh] flex flex-col rounded-[24px] border shadow-2xl overflow-hidden"
+            style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
+          >
+            <div className="px-4 py-3 border-b" style={{ borderColor: "var(--sos-border)" }}>
+              <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>✨ Studio assistant</p>
+              <p className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>Answers from your project data only. It can't change anything — use Messages to reach the team.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 text-[14px]">
+              {turns.length === 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {ASK_STARTERS.map((s) => (
+                    <button key={s} type="button" onClick={() => ask(s)} className="px-3 py-2 rounded-full border text-[13px] text-left" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {turns.map((t, i) => (
+                <div key={i} className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[88%] px-3.5 py-2.5 rounded-[16px] whitespace-pre-wrap break-words ${t.role === "user" ? "text-white rounded-br-[6px]" : "rounded-bl-[6px]"}`}
+                    style={t.role === "user" ? { background: "var(--sos-primary)" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}
+                  >
+                    {t.text}
+                  </div>
+                </div>
+              ))}
+              {busy && (
+                <p className="text-[13px] inline-flex items-center gap-2" style={{ color: "var(--sos-text-3)" }}>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Looking at your projects…
+                </p>
+              )}
+              <div ref={endRef} />
+            </div>
+            <div className="p-3 border-t flex gap-2" style={{ borderColor: "var(--sos-border)" }}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && ask()}
+                placeholder="Ask about your projects…"
+                aria-label="Ask a question"
+                className="flex-1 min-w-0 h-11 px-4 rounded-full border text-[14px]"
+                style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+              />
+              <button type="button" disabled={busy || !input.trim()} onClick={() => ask()} className="w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-40 shrink-0" style={{ background: "var(--sos-primary)" }} aria-label="Send">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};

@@ -8,6 +8,8 @@ import { studioApi } from "../api";
 import { SignaturesEditor } from "./SignaturesEditor";
 
 interface AIStatus {
+  meta?: boolean;
+  metaModel?: string;
   claude: boolean;
   gemini: boolean;
   claudeModel: string;
@@ -179,6 +181,14 @@ export const AutomationSettings: React.FC = () => {
       {/* AI provider */}
       <section className="sos-card p-6 space-y-4">
         {sectionTitle(<Bot className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />, "AI provider", "Used to read emails and messages. Cheapest fast model of each provider; amounts from confidential projects are never sent.")}
+        {status?.meta && (
+          <div className="flex items-start gap-3 p-3.5 rounded-[16px]" style={{ background: "#E7F7EE" }}>
+            <Bot className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#17663F" }} />
+            <p className="text-[13px]" style={{ color: "#17663F" }}>
+              <strong>Meta Muse is active</strong> ({status.metaModel}) — it powers Copilot, email reading, reply drafts, the client portal assistant and admin writing help. The choice below is only the fallback if Muse is unavailable.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
             {(["gemini", "claude"] as const).map((p) => (

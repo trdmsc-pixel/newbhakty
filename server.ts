@@ -9,6 +9,7 @@ import { registerMailRoutes } from "./server/phase6/mail.js";
 import { registerCopilotRoutes } from "./server/phase7/copilot.js";
 import { registerClientRoutes } from "./server/phase8/clients.js";
 import { registerMediaRoutes, registerMediaUploadRoutes, uploadSiteMedia } from "./server/media.js";
+import { registerAiAssistRoutes } from "./server/phase9/aiAssist.js";
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -240,6 +241,7 @@ app.use((req, res, next) => {
   registerClientRoutes(app);
   registerMediaRoutes(app);
   registerMediaUploadRoutes(app);
+  registerAiAssistRoutes(app);
 
   // Serve static UI assets or run Vite middleware
 async function startServer() {

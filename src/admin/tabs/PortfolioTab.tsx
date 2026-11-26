@@ -270,7 +270,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
               {/* Editable Fields */}
               <div className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Film Title">
+                  <Field label="Film Title" ai={{ field: "Portfolio film title", value: editFilm.title || "", onApply: (t) => handleFieldChange("title", t), context: `Category: ${editFilm.category || ""} · ${editFilm.description || ""}`, maxChars: 48 }}>
                     <TextInput
                       value={editFilm.title || ""}
                       onChange={(e) => handleFieldChange("title", e.target.value)}
@@ -344,7 +344,7 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                   />
                 </Field>
 
-                <Field label="Editorial Narrative / Logline">
+                <Field label="Editorial Narrative / Logline" ai={{ field: "Portfolio film logline / description", value: editFilm.description || "", onApply: (t) => handleFieldChange("description", t), context: `Film: ${editFilm.title || ""} · Category: ${editFilm.category || ""} · Client/creator: ${editFilm.creator || ""}`, maxChars: 320 }}>
                   <TextArea
                     value={editFilm.description || ""}
                     onChange={(e) => handleFieldChange("description", e.target.value)}

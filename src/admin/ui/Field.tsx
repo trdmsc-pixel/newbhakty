@@ -1,4 +1,5 @@
 import React from "react";
+import { AIWriteButton, type AIWriteConfig } from "./AIWrite";
 
 export interface FieldProps {
   label?: string;
@@ -9,6 +10,8 @@ export interface FieldProps {
   warning?: string;
   onWarningClick?: () => void;
   className?: string;
+  /** Adds a "Write with AI" button next to the label. */
+  ai?: AIWriteConfig;
   children: React.ReactNode;
 }
 
@@ -21,11 +24,12 @@ export const Field: React.FC<FieldProps> = ({
   warning,
   onWarningClick,
   className = "",
+  ai,
   children,
 }) => {
   return (
     <div className={`space-y-2 ${className}`}>
-      {(label || counter || warning) && (
+      {(label || counter || warning || ai) && (
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {label && (
@@ -48,6 +52,8 @@ export const Field: React.FC<FieldProps> = ({
             )}
           </div>
 
+          <div className="flex items-center gap-2 shrink-0">
+          {ai && <AIWriteButton {...ai} field={ai.field || label || "text"} />}
           {counter && (
             <span
               className={`text-admin-meta font-mono text-[12px] ${
@@ -59,6 +65,7 @@ export const Field: React.FC<FieldProps> = ({
               {counter.current} / {counter.max}
             </span>
           )}
+          </div>
         </div>
       )}
 

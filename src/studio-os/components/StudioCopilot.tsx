@@ -422,7 +422,7 @@ export const StudioCopilot: React.FC = () => {
               </span>
               <div className="flex-1 min-w-0 leading-tight">
                 <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Studio Copilot</p>
-                <p className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>Gemini · sees your live workspace · changes need your OK</p>
+                <p className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>Meta Muse · sees your live workspace · changes need your OK</p>
               </div>
               <button type="button" onClick={newChat} className="sos-pill-btn h-9 px-3 text-[12px] font-medium border inline-flex items-center gap-1" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}>
                 <Plus className="w-3.5 h-3.5" /> New chat

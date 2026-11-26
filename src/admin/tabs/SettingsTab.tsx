@@ -387,37 +387,39 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 id="01"
                 number="01"
                 title="Hero Section (#top)"
-                summary={editSettings.hero_headline || "Main editorial cinema headline"}
+                summary={editSettings.hero_title || "Main editorial cinema headline"}
                 isOpen={openSections.includes("01")}
                 onToggle={() => toggleSection("01")}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Field
                     label="Editorial Title"
+                    ai={{ field: "Homepage hero headline (two short lines, cinematic)", value: editSettings.hero_title || "", onApply: (t) => onSettingChange("hero_title", t), maxChars: 60 }}
                     counter={{
-                      current: (editSettings.hero_headline || "").length,
+                      current: (editSettings.hero_title || "").length,
                       max: 60,
                     }}
                     warning={
-                      hasOldWording(editSettings.hero_headline)
+                      hasOldWording(editSettings.hero_title)
                         ? "Contains old wording"
                         : undefined
                     }
                   >
                     <TextInput
-                      value={editSettings.hero_headline || ""}
-                      onChange={(e) => onSettingChange("hero_headline", e.target.value)}
+                      value={editSettings.hero_title || ""}
+                      onChange={(e) => onSettingChange("hero_title", e.target.value)}
                       placeholder="The Next Epoch of Cinema, Synthesized."
                     />
                   </Field>
 
                   <Field
                     label="Editorial Eyebrow / Supertitle"
+                    ai={{ field: "Small uppercase eyebrow above the hero headline", value: editSettings.hero_eyebrow || "", onApply: (t) => onSettingChange("hero_eyebrow", t), maxChars: 60 }}
                     help="Small tracked category pill above headline"
                   >
                     <TextInput
-                      value={editSettings.hero_supertitle || ""}
-                      onChange={(e) => onSettingChange("hero_supertitle", e.target.value)}
+                      value={editSettings.hero_eyebrow || ""}
+                      onChange={(e) => onSettingChange("hero_eyebrow", e.target.value)}
                       placeholder="AI COMMERCIAL PRODUCTION · DELHI & WORLDWIDE"
                     />
                   </Field>
@@ -425,19 +427,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <div className="md:col-span-2">
                     <Field
                       label="Hero Description & Positioning Statement"
+                    ai={{ field: "Hero positioning statement under the headline", value: editSettings.hero_description || "", onApply: (t) => onSettingChange("hero_description", t), maxChars: 220 }}
                       counter={{
-                        current: (editSettings.hero_subheadline || "").length,
+                        current: (editSettings.hero_description || "").length,
                         max: 180,
                       }}
                       warning={
-                        hasOldWording(editSettings.hero_subheadline)
+                        hasOldWording(editSettings.hero_description)
                           ? "Contains old wording"
                           : undefined
                       }
                     >
                       <TextArea
-                        value={editSettings.hero_subheadline || ""}
-                        onChange={(e) => onSettingChange("hero_subheadline", e.target.value)}
+                        value={editSettings.hero_description || ""}
+                        onChange={(e) => onSettingChange("hero_description", e.target.value)}
                         placeholder="Film-grade commercials, brand films, and visual world-building for visionary agencies..."
                       />
                     </Field>
@@ -511,7 +514,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 onToggle={() => toggleSection("03")}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Work Section Title">
+                  <Field label="Work Section Title" ai={{ field: "Title of the Selected Work section", value: editSettings.work_title || "", onApply: (t) => onSettingChange("work_title", t), maxChars: 40 }}>
                     <TextInput
                       value={editSettings.work_title || ""}
                       onChange={(e) => onSettingChange("work_title", e.target.value)}
@@ -713,7 +716,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </Field>
 
                   <div className="md:col-span-2">
-                    <Field label="Global Meta Description (SEO)">
+                    <Field label="Global Meta Description (SEO)" ai={{ field: "SEO meta description for the homepage", value: editSettings.meta_description || "", onApply: (t) => onSettingChange("meta_description", t), maxChars: 155 }}>
                       <TextArea
                         value={editSettings.meta_description || ""}
                         onChange={(e) => onSettingChange("meta_description", e.target.value)}

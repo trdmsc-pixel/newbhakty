@@ -191,7 +191,7 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
               />
             </Field>
 
-            <Field label="Endorsement Quote">
+            <Field label="Endorsement Quote" ai={{ field: "Client testimonial quote (polish grammar and flow only — keep the client's meaning and claims)", value: editingItem.quote || "", onApply: (t) => setEditingItem((prev) => ({ ...prev, quote: t })), context: `${editingItem.client_name || ""}, ${editingItem.company || ""}`, maxChars: 280 }}>
               <TextArea
                 value={editingItem.quote || ""}
                 onChange={(e) =>

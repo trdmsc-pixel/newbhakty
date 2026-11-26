@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./portalSupabase";
-import { AccountTab, CalendarTab, MessagesTab, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
+import { AccountTab, CalendarTab, MessagesTab, PortalAssistant, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
 import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
 import { ProjectThumb, thumbCandidates, downloadHref, isStreamOnly } from "../review/ProjectThumb";
@@ -583,6 +583,7 @@ const ApprovalCard: React.FC<{
     setActiveNote(id);
   };
   const [busy, setBusy] = useState(false);
+  const [polishing, setPolishing] = useState(false);
   const [error, setError] = useState("");
   const nextRound = gate.revision_round + 1;
   const included = gate.revisions_included;
@@ -735,6 +736,36 @@ const ApprovalCard: React.FC<{
             className="w-full px-4 py-3 rounded-[14px] border text-[14px] resize-none"
             style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
           />
+          {comment.trim().length > 8 && (
+            <button
+              type="button"
+              disabled={polishing}
+              onClick={async () => {
+                setPolishing(true);
+                setError("");
+                try {
+                  const token = (await supabase!.auth.getSession()).data.session?.access_token;
+                  const r = await fetch("/api/portal/ai/polish", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ text: comment, stage: gate.name }),
+                  });
+                  const j = await r.json().catch(() => ({}));
+                  if (!r.ok) throw new Error(j.error || "Couldn't tidy the notes.");
+                  setComment((j.points as string[]).map((p, i) => `${i + 1}. ${p}`).join("\n"));
+                } catch (e: any) {
+                  setError(e?.message || "Couldn't tidy the notes.");
+                } finally {
+                  setPolishing(false);
+                }
+              }}
+              className="text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
+              style={{ color: "var(--sos-primary)" }}
+              title="AI rewrites your notes as clear, numbered change requests — you can edit before sending"
+            >
+              {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <span aria-hidden>✨</span>} Tidy my notes into clear points
+            </button>
+          )}
           <div className="space-y-2">
             {notes.map((n) => (
               <div key={n.id} className="flex items-center gap-2">
@@ -1347,6 +1378,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
             )}
           </div>
           <Footer />
+          <PortalAssistant />
         </div>
       )}
     </div>
