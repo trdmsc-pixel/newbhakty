@@ -14,7 +14,7 @@ import { useStudioOS } from "../StudioOSContext";
 import { generateBriefSummary } from "../forecastEngine";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { TeamLoadCard } from "../components/Team";
-import { useClientPulse } from "../components/ClientPulse";
+import { CLIENT_FOCUS_KEY, useClientPulse } from "../components/ClientPulse";
 import { BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
 import type { StudioTask } from "../types";
 
@@ -72,6 +72,7 @@ export const TodayScreen: React.FC = () => {
     stopTimer,
     pushToast,
     updateTask,
+    setRoute,
   } = useStudioOS();
   const { updates, unread, markRead, markAllRead, soundOn, setSoundOn } = useClientPulse();
   const [now, setNow] = useState(() => new Date());
@@ -298,6 +299,8 @@ export const TodayScreen: React.FC = () => {
                 {unreadUpdates.map((u) => {
                   const proj = projectFromUpdate(u.title);
                   const approved = u.kind === "portal_approval";
+                  const isMessage = u.kind === "portal_message";
+                  const clientId = u.url?.match(/[?&]client=([0-9a-f-]{36})/)?.[1];
                   return (
                     <motion.div
                       key={u.id}
@@ -306,9 +309,9 @@ export const TodayScreen: React.FC = () => {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                       className="flex items-start gap-3 p-3.5 rounded-[16px]"
-                      style={{ background: approved ? "#E7F7EE" : "#FFF6F5" }}
+                      style={{ background: approved ? "#E7F7EE" : isMessage ? "var(--sos-violet-soft)" : "#FFF6F5" }}
                     >
-                      <span className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: approved ? "var(--sos-green)" : "#B42318" }}>
+                      <span className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: approved ? "var(--sos-green)" : isMessage ? "var(--sos-primary)" : "#B42318" }}>
                         {approved ? <Check className="w-4 h-4" /> : <MessageSquare className="w-3.5 h-3.5" />}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -325,7 +328,25 @@ export const TodayScreen: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
-                        {proj && (
+                        {isMessage && clientId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              markRead(u.id);
+                              try {
+                                sessionStorage.setItem(CLIENT_FOCUS_KEY, clientId);
+                              } catch {
+                                /* ignore */
+                              }
+                              setRoute("clients");
+                            }}
+                            className="sos-pill-btn h-8 px-3 text-[12px] font-semibold text-white"
+                            style={{ background: "var(--sos-primary)" }}
+                          >
+                            Reply
+                          </button>
+                        )}
+                        {proj && !isMessage && (
                           <button
                             type="button"
                             onClick={() => {

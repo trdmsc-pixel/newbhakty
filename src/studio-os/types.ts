@@ -53,6 +53,10 @@ export interface StudioSettings {
   default_approval_latency_days: number;
   work_hours_per_day: number;
   studio_closes_at: string; // HH:mm
+  /** Studio opening time (IST, HH:mm) shown in the client portal. */
+  studio_opens_at?: string;
+  /** ISO weekdays the studio works (1 = Mon … 7 = Sun). */
+  work_days?: number[];
   wip_limit: number;
   takes_per_keeper: number;
   block_seconds: number;

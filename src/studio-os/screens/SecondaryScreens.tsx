@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { studioApi } from "../api";
 import { AutomationSettings } from "../components/AutomationSettings";
-import { ClientFormModal, ContactFormModal, CredentialsModal, PortalLoginModal, type PortalLogin } from "../components/ClientManager";
 import { DataExport, MoneySettings, TeamSettings } from "../components/OwnerSettings";
 import {
   Bell,
@@ -36,227 +35,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-export const ClientsScreen: React.FC = () => {
-  const { clients, projects, openProject, pushToast, reloadFromCloud, supabaseSyncStatus } = useStudioOS();
-  const [inviting, setInviting] = useState<string | null>(null);
-  const [clientForm, setClientForm] = useState<{ client: StudioClient | null } | null>(null);
-  const [contactForm, setContactForm] = useState<{ clientId: string; contact: ClientContact | null } | null>(null);
-  const [loginFor, setLoginFor] = useState<ClientContact | null>(null);
-  const [creds, setCreds] = useState<{ login: PortalLogin; name: string } | null>(null);
-  const live = supabaseSyncStatus === "synced";
-
-  const emailLink = async (ct: ClientContact) => {
-    if (!ct.email) return pushToast("Add an email to this contact first", "warn");
-    setInviting(ct.id);
-    try {
-      const res = await studioApi<{ email: string }>("/api/studio-os/portal/invite", { body: { contact_id: ct.id, email: ct.email } });
-      pushToast(`Sign-in link emailed to ${res.email}`, "success");
-      reloadFromCloud();
-    } catch (err: any) {
-      pushToast(err?.message || "Could not send the link", "warn");
-    } finally {
-      setInviting(null);
-    }
-  };
-
-  const revoke = async (ct: ClientContact) => {
-    if (!window.confirm(`Turn off portal access for ${ct.name}? Their login stops showing any projects.`)) return;
-    try {
-      await studioApi("/api/studio-os/portal/revoke", { body: { contact_id: ct.id } });
-      pushToast("Portal access turned off", "success");
-      reloadFromCloud();
-    } catch (err: any) {
-      pushToast(err?.message || "Couldn't revoke", "warn");
-    }
-  };
-
-  const removeContact = async (ct: ClientContact) => {
-    if (!window.confirm(`Remove ${ct.name} from this client?`)) return;
-    try {
-      await studioApi(`/api/studio-os/contacts/${ct.id}`, { method: "DELETE" });
-      pushToast("Contact removed", "success");
-      reloadFromCloud();
-    } catch (err: any) {
-      pushToast(err?.message || "Couldn't remove", "warn");
-    }
-  };
-
-  const archiveClient = async (c: StudioClient) => {
-    if (!window.confirm(`Archive ${c.name}? Their portal logins stop working.`)) return;
-    try {
-      await studioApi(`/api/studio-os/clients/${c.id}`, { method: "DELETE" });
-      pushToast("Client archived", "success");
-      reloadFromCloud();
-    } catch (err: any) {
-      pushToast(err?.message || "Couldn't archive", "warn");
-    }
-  };
-
-  const copyPortalLink = () => {
-    navigator.clipboard?.writeText(`${window.location.origin}/portal`);
-    pushToast("Portal link copied", "info");
-  };
-
-  const smallBtn = "shrink-0 inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold disabled:opacity-50";
-  const softStyle = { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="sos-display text-[32px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-            Clients
-          </h1>
-          <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-            Contacts, portal logins, approval latency and productions per client.
-          </p>
-          <button type="button" onClick={copyPortalLink} className="mt-2 text-[12px] font-medium" style={{ color: "var(--sos-primary)" }}>
-            Copy client portal link
-          </button>
-        </div>
-        {live && (
-          <button type="button" onClick={() => setClientForm({ client: null })} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white" style={{ background: "var(--sos-primary)" }}>
-            <Plus className="w-4 h-4" /> New client
-          </button>
-        )}
-      </div>
-      {!live && (
-        <p className="text-[13px] px-4 py-3 rounded-[14px]" style={{ background: "#FFF1E6", color: "#9A3412" }}>
-          Sign in with cloud sync on to add clients and manage portal logins.
-        </p>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {clients.map((c) => {
-          const clientProjects = projects.filter((p) => p.client_id === c.id);
-          return (
-            <div key={c.id} className="sos-card p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-bold shrink-0" style={{ background: c.color }}>
-                    {c.name.slice(0, 2).toUpperCase()}
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="sos-display text-[17px] font-semibold flex items-center gap-1.5 truncate" style={{ color: "var(--sos-text-1)" }}>
-                      {c.name}
-                      {c.is_confidential && <Lock className="w-3.5 h-3.5 text-[#5B3FE4]" />}
-                    </h3>
-                    <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                      <Globe className="w-3 h-3 inline mr-1" />
-                      {c.timezone} · {c.currency}
-                    </p>
-                  </div>
-                </div>
-                {live && (
-                  <div className="flex gap-1 shrink-0">
-                    <button type="button" onClick={() => setClientForm({ client: c })} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-2)" }} aria-label={`Edit ${c.name}`}>
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    {clientProjects.length === 0 && (
-                      <button type="button" onClick={() => archiveClient(c)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-3)" }} aria-label={`Archive ${c.name}`}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="sos-tile p-3 flex items-center justify-between text-[12px]">
-                <span style={{ color: "var(--sos-text-2)" }}>Avg approval latency</span>
-                <span className="font-semibold sos-tabular" style={{ color: "var(--sos-text-1)" }}>
-                  {c.avg_approval_latency_days} working days
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {c.contacts.map((ct) => (
-                  <div key={ct.id} className="rounded-[14px] p-2.5 space-y-1.5" style={{ background: "var(--sos-surface-2)" }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <button type="button" disabled={!live} onClick={() => setContactForm({ clientId: c.id, contact: ct })} className="text-left min-w-0">
-                        <p className="text-[13px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>
-                          {ct.name} {ct.role ? <span className="font-normal" style={{ color: "var(--sos-text-3)" }}>· {ct.role}</span> : null}
-                        </p>
-                        <p className="text-[12px] truncate" style={{ color: ct.email ? "var(--sos-text-2)" : "var(--sos-text-3)" }}>
-                          {ct.email || "No email"}{ct.phone ? ` · ${ct.phone}` : ""}
-                        </p>
-                      </button>
-                      {ct.is_portal_user && ct.portal_login_id ? (
-                        <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#E7F7EE", color: "#17663F" }} title={ct.portal_last_login_at ? `Last signed in ${new Date(ct.portal_last_login_at).toLocaleString()}` : "Not signed in yet"}>
-                          {ct.portal_login_id}
-                        </span>
-                      ) : ct.is_portal_user ? (
-                        <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#E7F7EE", color: "#17663F" }}>Portal ✓</span>
-                      ) : null}
-                    </div>
-                    {live && (
-                      <div className="flex flex-wrap gap-1.5">
-                        <button type="button" onClick={() => setLoginFor(ct)} className={smallBtn} style={softStyle}>
-                          <KeyRound className="w-3 h-3" /> {ct.portal_login_id && ct.is_portal_user ? "Reset password" : "Create portal login"}
-                        </button>
-                        {ct.email && (
-                          <button type="button" disabled={inviting === ct.id} onClick={() => emailLink(ct)} className={smallBtn} style={softStyle}>
-                            <Send className="w-3 h-3" /> Email sign-in link
-                          </button>
-                        )}
-                        {ct.is_portal_user && (
-                          <button type="button" onClick={() => revoke(ct)} className={smallBtn} style={softStyle}>
-                            Turn off portal
-                          </button>
-                        )}
-                        <button type="button" onClick={() => removeContact(ct)} className={smallBtn} style={{ color: "var(--sos-text-3)" }} aria-label={`Remove ${ct.name}`}>
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {live && (
-                  <button type="button" onClick={() => setContactForm({ clientId: c.id, contact: null })} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: "var(--sos-primary)" }}>
-                    <Plus className="w-3.5 h-3.5" /> Add contact
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 pt-2 border-t" style={{ borderColor: "var(--sos-border)" }}>
-                {clientProjects.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => openProject(p.id)}
-                    className="px-2.5 py-1 rounded-full text-[12px] font-semibold"
-                    style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}
-                  >
-                    {p.emoji} {p.code}
-                  </button>
-                ))}
-                {clientProjects.length === 0 && <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>No projects yet</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {clientForm && (
-        <ClientFormModal
-          open
-          client={clientForm.client}
-          onClose={() => setClientForm(null)}
-          onCreated={(login, name) => login && setCreds({ login, name })}
-        />
-      )}
-      {contactForm && (
-        <ContactFormModal
-          open
-          clientId={contactForm.clientId}
-          contact={contactForm.contact}
-          onClose={() => setContactForm(null)}
-          onLogin={(login, name) => setCreds({ login, name })}
-        />
-      )}
-      {loginFor && <PortalLoginModal open contact={loginFor} onClose={() => setLoginFor(null)} onDone={(login, name) => setCreds({ login, name })} />}
-      {creds && <CredentialsModal login={creds.login} name={creds.name} onClose={() => setCreds(null)} />}
-    </div>
-  );
-};
+export { ClientsScreen } from "./ClientsScreen";
 
 export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA?: boolean }> = ({
   onInstallPWA,
@@ -281,6 +60,8 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
   const [latency, setLatency] = useState(String(settings.default_approval_latency_days));
   const [hours, setHours] = useState(String(settings.work_hours_per_day));
   const [closesAt, setClosesAt] = useState(settings.studio_closes_at);
+  const [opensAt, setOpensAt] = useState(settings.studio_opens_at || "10:00");
+  const [workDays, setWorkDays] = useState<number[]>(settings.work_days || [1, 2, 3, 4, 5, 6]);
   const [wipLimit, setWipLimit] = useState(String(settings.wip_limit));
   const [takesPerKeeper, setTakesPerKeeper] = useState(String(settings.takes_per_keeper));
 
@@ -298,6 +79,8 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
     setLatency(String(settings.default_approval_latency_days));
     setHours(String(settings.work_hours_per_day));
     setClosesAt(settings.studio_closes_at);
+    setOpensAt(settings.studio_opens_at || "10:00");
+    setWorkDays(settings.work_days || [1, 2, 3, 4, 5, 6]);
     setWipLimit(String(settings.wip_limit));
     setTakesPerKeeper(String(settings.takes_per_keeper));
   }, [settings]);
@@ -319,6 +102,8 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
       default_approval_latency_days: Math.max(0, parseInt(latency, 10) || 2),
       work_hours_per_day: Math.max(1, parseFloat(hours) || 7),
       studio_closes_at: closesAt,
+      studio_opens_at: opensAt,
+      work_days: workDays.length ? [...workDays].sort() : [1, 2, 3, 4, 5, 6],
       wip_limit: Math.min(5, Math.max(1, parseInt(wipLimit, 10) || 3)),
       takes_per_keeper: Math.max(1, parseFloat(takesPerKeeper) || 3),
     });
@@ -499,6 +284,40 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
               className="w-full h-11 px-3.5 rounded-[14px] border sos-tabular"
               style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
             />
+          </div>
+          <div>
+            <label className="block text-[12px] font-semibold mb-1" style={{ color: "var(--sos-text-2)" }}>
+              Studio Opens At (IST)
+            </label>
+            <input
+              type="time"
+              value={opensAt}
+              onChange={(e) => setOpensAt(e.target.value)}
+              className="w-full h-11 px-3.5 rounded-[14px] border sos-tabular"
+              style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <span className="block text-[12px] font-semibold mb-1" style={{ color: "var(--sos-text-2)" }}>
+              Working days (shown to clients in the portal)
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => {
+                const on = workDays.includes(i + 1);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setWorkDays((w) => (on ? w.filter((x) => x !== i + 1) : [...w, i + 1]))}
+                    className="h-9 px-3 rounded-full text-[12px] font-semibold border"
+                    style={on ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { borderColor: "var(--sos-border)", color: "var(--sos-text-3)" }}
+                  >
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <label className="block text-[12px] font-semibold mb-1" style={{ color: "var(--sos-text-2)" }}>

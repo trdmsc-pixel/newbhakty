@@ -16,6 +16,7 @@ export interface ClientUpdate {
   kind: string;
   title: string;
   body: string | null;
+  url?: string | null;
   created_at: string;
   read_at: string | null;
 }
@@ -33,6 +34,8 @@ const PulseContext = createContext<PulseValue>({ updates: [], unread: 0, markRea
 export const useClientPulse = () => useContext(PulseContext);
 
 const SOUND_KEY = "sos_client_chime";
+/** sessionStorage key: client to open in the Clients directory (deep link from an update). */
+export const CLIENT_FOCUS_KEY = "sos_clients_focus";
 
 /** Soft two-note chime (no audio file needed). */
 function chime() {
@@ -93,7 +96,7 @@ export const ClientPulseProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const since = new Date(Date.now() - 14 * 86400000).toISOString();
     const { data } = await supabase
       .from("studio_notifications")
-      .select("id, kind, title, body, created_at, read_at")
+      .select("id, kind, title, body, url, created_at, read_at")
       .like("kind", "portal_%")
       .gte("created_at", since)
       .order("created_at", { ascending: false })

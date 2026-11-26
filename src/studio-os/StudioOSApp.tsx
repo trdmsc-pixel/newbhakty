@@ -23,6 +23,9 @@ import {
   CalendarCheck2,
   Loader2,
   Mail,
+  RotateCcw,
+  Menu,
+  X,
 } from "lucide-react";
 import { StudioOSProvider, useStudioOS } from "./StudioOSContext";
 import { TodayScreen } from "./screens/TodayScreen";
@@ -84,6 +87,7 @@ const StudioOSShell: React.FC<{
     setNewProjectOpen,
     toasts,
     pushToast,
+    undoLast,
     openQuickAdd,
     viewer,
     isOwner,
@@ -142,6 +146,9 @@ const StudioOSShell: React.FC<{
   }, []);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Close the mobile menu whenever the route changes.
+  useEffect(() => setMobileMenuOpen(false), [route, selectedProjectId]);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const gPrefixRef = useRef<number>(0);
@@ -190,6 +197,11 @@ const StudioOSShell: React.FC<{
         return;
       }
       if (inInput) return;
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        undoLast();
+        return;
+      }
 
       const key = e.key.toLowerCase();
       if (key === "n") {
@@ -216,7 +228,7 @@ const StudioOSShell: React.FC<{
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [setQuickAddOpen, setRoute]);
+  }, [setQuickAddOpen, setRoute, undoLast]);
 
   type NavItem = { id: StudioRoute; label: string; icon: React.ReactNode; badge?: string; urgent?: boolean; group: string; matches?: StudioRoute[] };
   const navItems: NavItem[] = [
@@ -440,6 +452,17 @@ const StudioOSShell: React.FC<{
             className="h-16 md:h-[72px] px-4 md:px-7 border-b flex items-center justify-between gap-3 shrink-0"
             style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}
           >
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden relative w-10 h-10 -ml-1 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}
+              aria-label="Open menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu className="w-5 h-5" />
+              {(clientUnread > 0 || pendingCount > 0) && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" aria-hidden />}
+            </button>
             {/* Search Pill */}
             <div
               className="flex items-center gap-2 px-4 h-10 rounded-full flex-1 max-w-md"
@@ -656,6 +679,100 @@ const StudioOSShell: React.FC<{
         </button>
       </nav>
 
+      {/* Mobile slide-out menu */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            key="mobile-menu"
+            className="md:hidden fixed inset-0 z-[70]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setMobileMenuOpen(false)} />
+            <motion.nav
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              className="absolute left-0 top-0 bottom-0 w-[84vw] max-w-[320px] flex flex-col shadow-2xl"
+              style={{ background: "var(--sos-surface)", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 34, stiffness: 360, mass: 0.9 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={{ left: 0.4, right: 0 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -70) setMobileMenuOpen(false);
+              }}
+            >
+              <div className="flex items-center justify-between px-5 h-16 border-b shrink-0" style={{ borderColor: "var(--sos-border)" }}>
+                <div className="min-w-0">
+                  <p className="sos-display text-[17px] font-bold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Studio OS</p>
+                  <p className="text-[11px] truncate" style={{ color: "var(--sos-text-3)" }}>{userEmail || "The Chanting Studio"}</p>
+                </div>
+                <button type="button" onClick={() => setMobileMenuOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }} aria-label="Close menu">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+                {navGroups.map(({ group, items }) => (
+                  <div key={group}>
+                    <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>{group}</p>
+                    <div className="space-y-0.5">
+                      {items.map((item, i) => {
+                        const active = item.matches ? item.matches.includes(route) : route === item.id;
+                        return (
+                          <motion.button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setRoute(item.id)}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.03 * i, duration: 0.2, ease: EASE }}
+                            className="w-full flex items-center justify-between gap-2 px-3 h-12 rounded-[14px] text-[15px] font-medium"
+                            style={{ background: active ? "var(--sos-ink)" : "transparent", color: active ? "var(--sos-ink-text)" : "var(--sos-text-1)" }}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <span className="flex items-center gap-3">{item.icon}{item.label}</span>
+                            {item.badge && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${item.urgent ? "sos-pulse-badge" : ""}`}
+                                style={item.urgent ? { background: "#B42318", color: "#FFFFFF" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="space-y-0.5 pt-1 border-t" style={{ borderColor: "var(--sos-border)" }}>
+                  <button type="button" onClick={() => setRoute("settings")} className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium mt-2" style={{ background: route === "settings" ? "var(--sos-ink)" : "transparent", color: route === "settings" ? "var(--sos-ink-text)" : "var(--sos-text-1)" }}>
+                    <Settings className="w-[18px] h-[18px]" strokeWidth={1.75} /> Settings
+                  </button>
+                  <button type="button" onClick={toggleDarkMode} className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium" style={{ color: "var(--sos-text-1)" }}>
+                    {darkMode ? <Sun className="w-[18px] h-[18px]" strokeWidth={1.75} /> : <Moon className="w-[18px] h-[18px]" strokeWidth={1.75} />} {darkMode ? "Light mode" : "Dark mode"}
+                  </button>
+                  <button type="button" onClick={onNavigateHome} className="w-full flex items-center gap-3 px-3 h-12 rounded-[14px] text-[15px] font-medium" style={{ color: "var(--sos-text-1)" }}>
+                    <ArrowLeft className="w-[18px] h-[18px]" strokeWidth={1.75} /> Back to website
+                  </button>
+                </div>
+              </div>
+              <div className="p-3 border-t shrink-0" style={{ borderColor: "var(--sos-border)" }}>
+                <button type="button" onClick={onLogout} className="w-full flex items-center justify-center gap-2 h-12 rounded-[14px] text-[15px] font-semibold" style={{ background: "var(--sos-surface-2)", color: "#B42318" }}>
+                  <LogOut className="w-4 h-4" /> Sign out
+                </button>
+              </div>
+            </motion.nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modals & Evening Shutdown Ritual */}
       <QuickAddModal />
       <WhatsAppImportModal />
@@ -675,10 +792,21 @@ const StudioOSShell: React.FC<{
               animate={{ opacity: 1, y: 0, x: 0 }}
               exit={{ opacity: 0, x: 16, transition: { duration: 0.16 } }}
               transition={{ duration: 0.22, ease: EASE }}
-              className="px-4 py-2.5 rounded-full text-[13px] font-medium shadow-lg"
+              className={`px-4 py-2.5 rounded-full text-[13px] font-medium shadow-lg flex items-center gap-3 ${t.action ? "pointer-events-auto" : ""}`}
               style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}
             >
-              {t.message}
+              <span>{t.message}</span>
+              {t.action && (
+                <button
+                  type="button"
+                  onClick={t.action.onClick}
+                  className="-my-1 -mr-1.5 px-3 h-7 rounded-full text-[12px] font-bold inline-flex items-center gap-1"
+                  style={{ background: "rgba(255,255,255,0.16)", color: "#FFFFFF" }}
+                  title="Undo (⌘/Ctrl+Z)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> {t.action.label}
+                </button>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>

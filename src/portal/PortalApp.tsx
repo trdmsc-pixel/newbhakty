@@ -15,6 +15,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./portalSupabase";
+import { AccountTab, CalendarTab, MessagesTab, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
+import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
 import "../studio-os/studio-os.css";
 
@@ -916,6 +918,11 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<PortalTab>(() => (new URLSearchParams(window.location.search).get("tab") as PortalTab) || "projects");
+  const isLarge = useIsLarge();
+  const studioInfo = useStudioInfo();
+  const portalReady = signedIn && Boolean(contact?.ok) && !contact?.must_set_password;
+  const { messages, unread, reload: reloadMessages } = usePortalMessages(portalReady);
 
   useEffect(() => {
     document.title = "Client portal — The Chanting Studio";
@@ -961,15 +968,16 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   }, [signedIn, load]);
 
   useEffect(() => {
-    const url = selected ? `/portal?project=${selected}` : "/portal";
+    const url = tab !== "projects" ? `/portal?tab=${tab}` : selected ? `/portal?project=${selected}` : "/portal";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState({}, "", url);
-  }, [selected]);
+  }, [selected, tab]);
 
   const signOut = async () => {
     await supabase?.auth.signOut().catch(() => {});
     setSignedIn(false);
     setContact(null);
     setSelected(null);
+    setTab("projects");
   };
 
   const awaitingByProject = useMemo(() => {
@@ -1006,8 +1014,37 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           </div>
         </div>
       ) : (
-        <div className="max-w-5xl mx-auto px-4 md:px-6">
+        <div className="max-w-6xl mx-auto px-4 md:px-6">
           <Brand onSignOut={signOut} who={contact?.organisation} />
+          <PortalNav
+            tab={tab}
+            onTab={(t) => {
+              setTab(t);
+              if (t !== "projects") setSelected(null);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            unread={unread}
+            awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
+          />
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 mt-4 items-start">
+            <div className="min-w-0 space-y-4">
+              {!isLarge && <StudioClock info={studioInfo} compact onOpenCalendar={() => setTab("calendar")} />}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {tab === "calendar" ? (
+                    <CalendarTab info={studioInfo} />
+                  ) : tab === "messages" ? (
+                    <MessagesTab messages={messages} reload={reloadMessages} projects={projects.map((p) => ({ id: p.id, title: p.title }))} info={studioInfo} />
+                  ) : tab === "account" ? (
+                    <AccountTab name={contact?.name} organisation={contact?.organisation} loginId={contact?.login_id} onSignOut={signOut} />
+                  ) : (
+                    <>
           {loading && !projects.length ? (
             <div className="py-20 flex justify-center">
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--sos-primary)" }} />
@@ -1044,6 +1081,31 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               )}
             </div>
           )}
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            {isLarge && (
+              <aside className="sticky top-20 space-y-4">
+                <StudioClock info={studioInfo} onOpenCalendar={() => setTab("calendar")} />
+                <button
+                  type="button"
+                  onClick={() => setTab("messages")}
+                  className="w-full sos-card p-4 flex items-center gap-3 text-left"
+                >
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>
+                    <MessageSquare className="w-4 h-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Message the studio</span>
+                    <span className="block text-[12px]" style={{ color: "var(--sos-text-3)" }}>{unread ? `${unread} new repl${unread > 1 ? "ies" : "y"}` : "Questions, ideas, anything"}</span>
+                  </span>
+                  {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#B42318] text-white text-[10px] font-bold flex items-center justify-center">{unread}</span>}
+                </button>
+              </aside>
+            )}
+          </div>
           <Footer />
         </div>
       )}

@@ -76,10 +76,15 @@ interface PersistedState {
   timeEntries: StudioTimeEntry[];
 }
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 interface StudioToast {
   id: string;
   message: string;
   tone?: "success" | "info" | "warn";
+  action?: ToastAction;
 }
 
 interface StudioOSContextValue {
@@ -159,7 +164,10 @@ interface StudioOSContextValue {
   // Helpers
   getProjectForecast: (projectId: string) => ProjectForecastResult | null;
   toasts: StudioToast[];
-  pushToast: (message: string, tone?: "success" | "info" | "warn") => void;
+  pushToast: (message: string, tone?: "success" | "info" | "warn", action?: ToastAction) => void;
+  dismissToast: (id: string) => void;
+  /** Undo the most recent undoable action (also bound to ⌘/Ctrl+Z). */
+  undoLast: () => void;
 }
 
 const StudioOSContext = createContext<StudioOSContextValue | null>(null);
@@ -277,12 +285,30 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     taskId?: string;
   } | null>(null);
 
-  const pushToast = useCallback((message: string, tone: "success" | "info" | "warn" = "success") => {
+  const lastUndoRef = useRef<{ run: () => void; at: number } | null>(null);
+  const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+  const pushToast = useCallback((message: string, tone: "success" | "info" | "warn" = "success", action?: ToastAction) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [...prev.slice(-2), { id, message, tone }]);
+    const wrapped = action
+      ? {
+          label: action.label,
+          onClick: () => {
+            setToasts((prev) => prev.filter((t) => t.id !== id));
+            action.onClick();
+          },
+        }
+      : undefined;
+    setToasts((prev) => [...prev.slice(-2), { id, message, tone, action: wrapped }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
+    }, action ? 6500 : 3200);
+  }, []);
+  const undoLast = useCallback(() => {
+    const last = lastUndoRef.current;
+    // Keep undo scoped to recent actions so ⌘Z never reverts something long forgotten.
+    if (!last || Date.now() - last.at > 5 * 60_000) return;
+    lastUndoRef.current = null;
+    last.run();
   }, []);
 
   const commitState = useCallback((next: PersistedState) => {
@@ -601,7 +627,14 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
 
       if (willBeDone) {
-        pushToast(`Nice. ${remainingInNow} left in Now.`, "success");
+        const prev = { status: target.status, is_in_now: target.is_in_now };
+        const restore = () => {
+          if (lastUndoRef.current?.run === restore) lastUndoRef.current = null;
+          updateTask(taskId, prev);
+          pushToast(`Restored ${target.key}`, "info");
+        };
+        lastUndoRef.current = { run: restore, at: Date.now() };
+        pushToast(`Done · ${target.key}${target.is_in_now ? ` — ${remainingInNow} left in Now` : ""}`, "success", { label: "Undo", onClick: restore });
       }
     },
     [updateTask, pushToast]
@@ -1111,6 +1144,8 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     resetDemoData,
     getProjectForecast,
     toasts,
+    dismissToast,
+    undoLast,
     pushToast,
   };
 

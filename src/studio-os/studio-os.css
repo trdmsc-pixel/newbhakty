@@ -272,3 +272,16 @@
   .studio-os-root .sos-pill-btn:hover:not(:disabled),
   .studio-os-root .sos-pill-btn:active:not(:disabled) { transform: none; }
 }
+
+/* iOS zooms into any focused field under 16px and then stays zoomed.
+   Keep form text at 16px on phones so focusing never zooms (pinch-zoom still works). */
+@media (max-width: 767px) {
+  .studio-os-root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .studio-os-root textarea,
+  .studio-os-root select {
+    font-size: 16px !important;
+  }
+}
+
+.studio-os-root .no-scrollbar { scrollbar-width: none; }
+.studio-os-root .no-scrollbar::-webkit-scrollbar { display: none; }
