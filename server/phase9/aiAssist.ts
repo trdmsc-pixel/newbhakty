@@ -55,7 +55,7 @@ async function portalContext(token: string) {
     type: x.type,
     status: x.closed_at ? "completed & closed" : x.status,
     planned_delivery: x.promised_date || x.hard_deadline || null,
-    delivery_may_move_if_reviews_slow: Boolean(x.promised_date && x.forecast_date && x.forecast_date > x.promised_date),
+    delivery_may_move_if_reviews_slow: Boolean(x.promised_date) && (x.health === "late" || x.health === "at_risk"),
     schedule_health: x.health,
     current_stage: x.current_stage,
     closed_on: x.closed_at,

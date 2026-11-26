@@ -112,10 +112,8 @@ const money = (amount: number, currency: string) => {
 };
 /** Delivery date shown to clients: only the studio's planned date (the internal projection stays private). */
 const milestoneDate = (p: PortalProject) => p.promised_date || p.hard_deadline || null;
-const plannedMoved = (p: PortalProject) => {
-  const planned = p.promised_date;
-  return Boolean(planned && p.forecast_date && p.forecast_date > planned);
-};
+/** True when the studio's internal forecast suggests the planned date could slip (no date is revealed). */
+const plannedMoved = (p: PortalProject) => Boolean(p.promised_date) && (p.health === "late" || p.health === "at_risk");
 
 type PortalFilter = "all" | "in_progress" | "awaiting" | "delivered" | "closed" | "proposal" | "paused";
 const FILTERS: Array<{ id: PortalFilter; label: string }> = [
