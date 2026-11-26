@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SheetModal } from "../motion";
 import { Calendar, Clock, Folder, Loader2, Mic, Sparkles, Tag, Upload, UserCheck, Wand2, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { parseQuickAdd } from "../nlParser";
@@ -134,7 +135,6 @@ export const QuickAddModal: React.FC = () => {
 
   const parsed = useMemo(() => parseQuickAdd(input, projects, gates), [input, projects, gates]);
 
-  if (!quickAddOpen) return null;
 
   const matchedProject =
     projects.find((p) => p.id === parsed.projectId) ||
@@ -169,15 +169,13 @@ export const QuickAddModal: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 md:p-4"
-      onClick={() => setQuickAddOpen(false)}
+    <SheetModal
+      open={quickAddOpen}
+      onClose={() => setQuickAddOpen(false)}
+      label="Quick add"
+      panelClassName="w-full md:max-w-2xl rounded-t-[28px] max-h-[92vh] overflow-y-auto md:rounded-[28px] p-5 md:p-6 shadow-2xl border"
+      panelStyle={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
     >
-      <div
-        className="w-full md:max-w-2xl rounded-t-[28px] max-h-[92vh] overflow-y-auto md:rounded-[28px] p-5 md:p-6 shadow-2xl border"
-        style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span
@@ -403,7 +401,6 @@ export const QuickAddModal: React.FC = () => {
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </SheetModal>
   );
 };

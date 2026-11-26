@@ -64,6 +64,7 @@ export interface GmailAccount {
   last_error: string | null;
   messages_processed: number;
   is_active: boolean;
+  granted_scopes?: string | null;
 }
 
 interface InboxContextValue {

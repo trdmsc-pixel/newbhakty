@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SheetModal } from "../motion";
 import { addDays, format } from "date-fns";
 import { Calendar, Copy, Check, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -44,7 +45,6 @@ export const NewProjectModal: React.FC = () => {
     };
   }, [template, selectedClient, settings]);
 
-  if (!newProjectOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,15 +79,13 @@ export const NewProjectModal: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 md:p-4"
-      onClick={() => setNewProjectOpen(false)}
+    <SheetModal
+      open={newProjectOpen}
+      onClose={() => setNewProjectOpen(false)}
+      label="New project"
+      panelClassName="w-full md:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-[28px] md:rounded-[28px] p-5 md:p-6 shadow-2xl border"
+      panelStyle={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
     >
-      <div
-        className="w-full md:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-[28px] md:rounded-[28px] p-5 md:p-6 shadow-2xl border"
-        style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="sos-display text-[22px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
             New Project
@@ -286,7 +284,6 @@ export const NewProjectModal: React.FC = () => {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SheetModal>
   );
 };

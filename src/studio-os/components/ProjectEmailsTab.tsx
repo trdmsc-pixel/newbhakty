@@ -1,13 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
-import { ExternalLink, FilePen, Mail, MailCheck } from "lucide-react";
+import { AnimatePresence } from "motion/react";
+import { ExternalLink, FilePen, Mail, MailCheck, PenSquare } from "lucide-react";
+import { ComposeModal } from "./ComposeModal";
 import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
 import { EmailThread, gmailDraftUrl, gmailThreadUrl } from "../InboxContext";
 
 export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId }) => {
-  const { supabaseSyncStatus } = useStudioOS();
+  const { supabaseSyncStatus, projects, clients, isOwner } = useStudioOS();
   const [threads, setThreads] = useState<EmailThread[] | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const project = projects.find((p) => p.id === projectId);
+  const client = clients.find((c) => c.id === project?.client_id);
+  const contactEmail = client?.contacts.find((c) => c.email)?.email || "";
+  const composeBar = isOwner ? (
+    <div className="flex justify-end">
+      <button type="button" onClick={() => setComposeOpen(true)} className="sos-pill-btn h-10 px-4 text-[13px] font-semibold text-white inline-flex items-center gap-1.5" style={{ background: "var(--sos-primary)" }}>
+        <PenSquare className="w-4 h-4" /> Compose
+      </button>
+      <AnimatePresence>
+        {composeOpen && (
+          <ComposeModal
+            onClose={() => setComposeOpen(false)}
+            initial={{ to: contactEmail, subject: project ? `${project.title} — ` : "", projectId }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  ) : null;
 
   useEffect(() => {
     let active = true;
@@ -34,6 +55,8 @@ export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId })
 
   if (!threads.length) {
     return (
+      <div className="space-y-3">
+      {composeBar}
       <div className="sos-card p-8 text-center space-y-2">
         <Mail className="w-5 h-5 mx-auto" style={{ color: "var(--sos-text-3)" }} />
         <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
@@ -43,10 +66,13 @@ export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId })
           Connect Gmail in Settings — threads are matched by the client’s email domain and the project code or title.
         </p>
       </div>
+      </div>
     );
   }
 
   return (
+    <div className="space-y-3">
+    {composeBar}
     <div className="sos-card p-2 md:p-3 space-y-1">
       {threads.map((t) => {
         const owed = t.needs_reply && t.last_from === "client";
@@ -103,6 +129,7 @@ export const ProjectEmailsTab: React.FC<{ projectId: string }> = ({ projectId })
           </div>
         );
       })}
+    </div>
     </div>
   );
 };

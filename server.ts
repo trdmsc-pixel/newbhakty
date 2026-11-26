@@ -5,6 +5,7 @@ import { registerStudioOSRoutes } from "./server/studioOsRoutes.js";
 import { registerPhase3Routes } from "./server/phase3/routes.js";
 import { registerPhase4Routes } from "./server/phase4/routes.js";
 import { registerPhase5Routes } from "./server/phase5/routes.js";
+import { registerMailRoutes } from "./server/phase6/mail.js";
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -266,6 +267,7 @@ app.use((req, res, next) => {
   registerPhase3Routes(app);
   registerPhase4Routes(app);
   registerPhase5Routes(app);
+  registerMailRoutes(app);
 
   // Serve static UI assets or run Vite middleware
 async function startServer() {

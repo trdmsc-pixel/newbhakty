@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ActivePill, BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
 import { TeamLoadCard } from "../components/Team";
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO } from "date-fns";
 import {
@@ -48,6 +50,7 @@ export const TodayScreen: React.FC = () => {
     resetTimer,
     stopTimer,
     pushToast,
+    updateTask,
   } = useStudioOS();
 
   const today = useMemo(() => new Date(), []);
@@ -413,7 +416,7 @@ export const TodayScreen: React.FC = () => {
       </section>
 
       {/* Bento Grid — 12 columns on desktop, single column on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sos-stagger">
         {/* 1. NOW (Max 3 tasks, WIP limit enforced) — 7 cols */}
         <section className="sos-card p-5 md:p-6 lg:col-span-7 flex flex-col justify-between">
           <div>
@@ -466,23 +469,29 @@ export const TodayScreen: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                <AnimatePresence initial={false}>
                 {nowTasks.map((task) => {
                   const proj = projects.find((p) => p.id === task.project_id);
                   const isActiveTimer = activeTimerTaskId === task.id && timerRunning;
                   return (
-                    <div
+                    <motion.div
                       key={task.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.22, ease: EASE } }}
+                      transition={{ duration: 0.2, ease: EASE }}
+                      style={{ overflow: "hidden" }}
+                    >
+                    <SwipeRow
+                      onDone={() => toggleTaskDone(task.id)}
+                      onSnooze={() => {
+                        updateTask(task.id, { is_in_now: false, status: "backlog" });
+                        pushToast(`Snoozed ${task.key} to Backlog`, "info");
+                      }}
                       className="sos-tile p-4 flex items-center gap-3.5 transition-all hover:brightness-[0.99]"
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggleTaskDone(task.id)}
-                        aria-label={`Complete ${task.title}`}
-                        className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:border-[#1F7A52] hover:bg-[#E7F7EE]"
-                        style={{ borderColor: "var(--sos-text-3)" }}
-                      >
-                        <Check className="w-3.5 h-3.5 opacity-0 hover:opacity-100 text-[#17663F]" strokeWidth={2.5} />
-                      </button>
+                      <CompleteCheck label={`Complete ${task.title}`} onComplete={() => toggleTaskDone(task.id)} />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -520,9 +529,11 @@ export const TodayScreen: React.FC = () => {
                         {isActiveTimer ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                         {isActiveTimer ? "Focus" : "Start"}
                       </button>
-                    </div>
+                    </SwipeRow>
+                    </motion.div>
                   );
                 })}
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -599,7 +610,7 @@ export const TodayScreen: React.FC = () => {
                     className="sos-num text-[42px] md:text-[52px] font-semibold tracking-[-0.03em] leading-none"
                     style={{ color: "var(--sos-text-1)" }}
                   >
-                    {seg.val}
+                    <TickDigits value={String(seg.val)} />
                   </span>
                   <span className="sos-display text-[18px] font-medium ml-0.5" style={{ color: "var(--sos-text-3)" }}>
                     {seg.unit}
@@ -626,11 +637,13 @@ export const TodayScreen: React.FC = () => {
             <button
               type="button"
               onClick={toggleTimer}
-              className="sos-pill-btn w-14 h-14 flex items-center justify-center text-white shadow-md"
-              style={{ background: "var(--sos-green)" }}
+              className="relative w-14 h-14"
               aria-label={timerRunning ? "Pause timer" : "Start timer"}
             >
-              {timerRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+              <BreathingRing active={timerRunning} />
+              <span className="sos-pill-btn w-14 h-14 flex items-center justify-center text-white shadow-md" style={{ background: "var(--sos-green)" }}>
+                {timerRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+              </span>
             </button>
             <button
               type="button"
@@ -749,14 +762,15 @@ export const TodayScreen: React.FC = () => {
                   key={d.toISOString()}
                   type="button"
                   onClick={() => setSelectedDay(d)}
-                  className="py-2.5 rounded-[18px] flex flex-col items-center justify-center transition-colors"
+                  className="relative py-2.5 min-h-[44px] rounded-[18px] flex flex-col items-center justify-center transition-colors duration-200"
                   style={{
-                    background: selected ? "var(--sos-ink)" : "transparent",
                     color: selected ? "var(--sos-ink-text)" : "var(--sos-text-2)",
                   }}
+                  aria-pressed={selected}
                 >
-                  <span className="text-[11px] font-medium opacity-75">{format(d, "EEE")}</span>
-                  <span className="sos-num text-[17px] font-semibold mt-0.5">{format(d, "d")}</span>
+                  {selected && <ActivePill layoutId="sos-date-pill" style={{ background: "var(--sos-ink)", borderRadius: 18 }} />}
+                  <span className="relative z-[1] text-[11px] font-medium opacity-75">{format(d, "EEE")}</span>
+                  <span className="relative z-[1] sos-num text-[17px] font-semibold mt-0.5">{format(d, "d")}</span>
                   {isToday && !selected && (
                     <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: "var(--sos-blue)" }} />
                   )}

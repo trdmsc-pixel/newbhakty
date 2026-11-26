@@ -22,6 +22,7 @@ import {
   Wallet,
   CalendarCheck2,
   Loader2,
+  Mail,
 } from "lucide-react";
 import { StudioOSProvider, useStudioOS } from "./StudioOSContext";
 import { TodayScreen } from "./screens/TodayScreen";
@@ -38,12 +39,16 @@ import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
 import { RealtimeBridge } from "./components/RealtimeBridge";
 const InboxScreen = lazy(() => import("./screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
+const MailScreen = lazy(() => import("./screens/MailScreen").then((m) => ({ default: m.MailScreen })));
 const MoneyScreen = lazy(() => import("./screens/MoneyScreen").then((m) => ({ default: m.MoneyScreen })));
 import { InboxProvider, useInbox } from "./InboxContext";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { EveningShutdownModal, StudioClosedOverlay } from "./components/EveningShutdownModal";
 import { StackedAvatars } from "./components/StatusChip";
 import { StudioRoute } from "./types";
+import { AnimatePresence, motion } from "motion/react";
+import { ActivePill, EASE, ScreenTransition, usePointerGlow } from "./motion";
+import { studioApi } from "./api";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import "./studio-os.css";
 
@@ -87,6 +92,23 @@ const StudioOSShell: React.FC<{
   const meInitials = me?.initials || meName.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const roleLabel = { owner: "Founder", producer: "Producer", artist: "Artist", editor: "Editor", music: "Music" }[viewer.role] || "Team";
   const { pendingCount } = useInbox();
+  usePointerGlow();
+  // Unread + important mail count for the sidebar pill (owner only, calm polling).
+  const [mailCount, setMailCount] = useState(0);
+  useEffect(() => {
+    if (!isOwner) return;
+    let alive = true;
+    const tick = () =>
+      studioApi<{ unread_important: number }>("/api/studio-os/mail/counts")
+        .then((r) => alive && setMailCount(r.unread_important || 0))
+        .catch(() => {});
+    tick();
+    const t = setInterval(tick, 180_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [isOwner]);
 
   // Android share target (/studio-os?share=1&title=&text=&url=) and Gmail OAuth return (?gmail=status)
   useEffect(() => {
@@ -103,14 +125,12 @@ const StudioOSShell: React.FC<{
     }
     const gmail = params.get("gmail");
     if (gmail) {
-      const messages: Record<string, string> = {
-        connected: "Gmail connected — first sync within 15 minutes.",
-        denied: "Google sign-in was cancelled.",
-        expired: "Sign-in link expired — please try again.",
-        no_refresh_token: "Google didn't return a refresh token — remove Studio OS access in your Google account and reconnect.",
-        bad_scope: "Unexpected Google permissions — connection refused.",
-      };
-      pushToast(messages[gmail] || "Gmail connection failed — please retry.", gmail === "connected" ? "success" : "warn");
+      try {
+        sessionStorage.setItem("sos_gmail_result", JSON.stringify({ status: gmail, detail: params.get("detail") || "" }));
+      } catch {
+        /* ignore */
+      }
+      pushToast(gmail === "connected" ? "Gmail connected" : "Gmail connection didn't finish — details in Settings", gmail === "connected" ? "success" : "warn");
       setRoute("settings");
       touched = true;
     }
@@ -199,6 +219,7 @@ const StudioOSShell: React.FC<{
     { id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
+    { id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
     { id: "projects", label: "Projects", icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "board", label: "Board", icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { id: "timeline", label: "Timeline", icon: <CalendarRange className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
@@ -208,7 +229,7 @@ const StudioOSShell: React.FC<{
     { id: "money", label: "Money", icon: <Wallet className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
   ];
 
-  const OWNER_ONLY: StudioRoute[] = ["inbox", "money", "weekly_review", "clients"];
+  const OWNER_ONLY: StudioRoute[] = ["inbox", "mail", "money", "weekly_review", "clients"];
   const visibleNav = isOwner ? navItems : navItems.filter((n) => !OWNER_ONLY.includes(n.id));
   const pinnedProjects = projects.filter((p) => p.pinned);
 
@@ -262,19 +283,20 @@ const StudioOSShell: React.FC<{
                     type="button"
                     onClick={() => setRoute(item.id)}
                     title={sidebarCollapsed ? item.label : undefined}
-                    className="w-full flex items-center justify-between gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors"
+                    className="relative w-full flex items-center justify-between gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors duration-200"
                     style={{
-                      background: active ? "var(--sos-ink)" : "transparent",
                       color: active ? "var(--sos-ink-text)" : "var(--sos-text-2)",
                     }}
+                    aria-current={active ? "page" : undefined}
                   >
-                    <span className="flex items-center gap-2.5 min-w-0">
+                    {active && <ActivePill layoutId="sos-sidebar-pill" style={{ background: "var(--sos-ink)" }} />}
+                    <span className="relative z-[1] flex items-center gap-2.5 min-w-0">
                       {item.icon}
                       {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                     </span>
                     {!sidebarCollapsed && item.badge && (
                       <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                        className="relative z-[1] px-2 py-0.5 rounded-full text-[10px] font-semibold"
                         style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
                       >
                         {item.badge}
@@ -500,6 +522,7 @@ const StudioOSShell: React.FC<{
                 </div>
               }
             >
+            <ScreenTransition id={route === "project_detail" ? `project-${selectedProjectId}` : route}>
             {route === "today" && <TodayScreen />}
             {route === "board" && <BoardScreen />}
             {route === "timeline" && <TimelineScreen />}
@@ -514,6 +537,8 @@ const StudioOSShell: React.FC<{
             )}
             {route === "inbox" && (isOwner ? <InboxScreen /> : <TodayScreen />)}
             {route === "money" && (isOwner ? <MoneyScreen /> : <TodayScreen />)}
+            {route === "mail" && (isOwner ? <MailScreen /> : <TodayScreen />)}
+            </ScreenTransition>
             </Suspense>
           </main>
         </div>
@@ -595,15 +620,23 @@ const StudioOSShell: React.FC<{
 
       {/* Calm Toasts */}
       <div className="fixed bottom-20 md:bottom-6 right-5 z-50 space-y-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="px-4 py-2.5 rounded-full text-[13px] font-medium shadow-lg"
-            style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}
-          >
-            {t.message}
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              layout
+              role="status"
+              initial={{ opacity: 0, y: 14, x: 10 }}
+              animate={{ opacity: 1, y: 0, x: 0 }}
+              exit={{ opacity: 0, x: 16, transition: { duration: 0.16 } }}
+              transition={{ duration: 0.22, ease: EASE }}
+              className="px-4 py-2.5 rounded-full text-[13px] font-medium shadow-lg"
+              style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}
+            >
+              {t.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

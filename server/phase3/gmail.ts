@@ -1,8 +1,11 @@
 import crypto from "crypto";
 import type { Request } from "express";
 
+// modify = read + labels (read/unread, important, archive); send + compose for
+// replies the owner explicitly sends from Studio OS. Nothing is ever auto-sent.
 export const GMAIL_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.modify",
+  "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/gmail.compose",
 ];
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -82,7 +85,7 @@ export async function exchangeCode(req: Request, code: string): Promise<{ refres
     }),
   });
   const data: any = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error_description || data?.error || `Token exchange failed (${res.status})`);
+  if (!res.ok) throw new Error(`${data?.error || res.status}: ${data?.error_description || "token exchange failed"}`);
   return data;
 }
 
@@ -161,6 +164,45 @@ export class GmailClient {
 
   getThreadMeta(id: string): Promise<any> {
     return this.get(`/threads/${id}`, { format: "metadata", metadataHeaders: ["From", "To", "Subject", "Date", "Message-ID"] });
+  }
+
+  listThreads(q: string, max = 25, pageToken?: string): Promise<{ threads?: Array<{ id: string; snippet: string }>; nextPageToken?: string; resultSizeEstimate?: number }> {
+    return this.get("/threads", { q, maxResults: String(max), pageToken });
+  }
+
+  getThread(id: string): Promise<any> {
+    return this.get(`/threads/${id}`, { format: "full" });
+  }
+
+  getThreadSummary(id: string): Promise<any> {
+    return this.get(`/threads/${id}`, { format: "metadata", metadataHeaders: ["From", "To", "Subject", "Date"] });
+  }
+
+  private async post(path: string, body: unknown): Promise<any> {
+    const res = await fetch(`${API}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err: any = new Error(data?.error?.message || `Gmail HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  modifyThread(id: string, addLabelIds: string[], removeLabelIds: string[]) {
+    return this.post(`/threads/${id}/modify`, { addLabelIds, removeLabelIds });
+  }
+
+  sendRaw(raw: string, threadId?: string) {
+    return this.post(`/messages/send`, { raw, ...(threadId ? { threadId } : {}) });
+  }
+
+  draftRaw(raw: string, threadId?: string) {
+    return this.post(`/drafts`, { message: { raw, ...(threadId ? { threadId } : {}) } });
   }
 
   async createDraft(opts: { threadId: string; from: string; to: string; subject: string; inReplyTo?: string; body: string }): Promise<{ id: string; messageId: string }> {

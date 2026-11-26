@@ -144,3 +144,108 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Motion & interactivity (calm, 150–240ms ease-out)
+   ========================================================================== */
+.studio-os-root {
+  --sos-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sos-glow-light: rgba(255, 255, 255, 0.28);
+  --sos-card-spot: rgba(91, 63, 228, 0.06);
+  --sos-card-edge: rgba(91, 63, 228, 0.22);
+}
+.studio-os-root.studio-os-dark {
+  --sos-glow-light: rgba(255, 255, 255, 0.16);
+  --sos-card-spot: rgba(124, 102, 240, 0.08);
+  --sos-card-edge: rgba(164, 148, 247, 0.55);
+}
+
+/* Cursor-following sheen on pill buttons (position set by usePointerGlow). */
+.studio-os-root .sos-pill-btn:not(.absolute):not(.fixed) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.studio-os-root .sos-pill-btn {
+  transition: transform 150ms var(--sos-ease), box-shadow 200ms var(--sos-ease), filter 200ms var(--sos-ease), border-color 200ms var(--sos-ease);
+}
+.studio-os-root .sos-pill-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), var(--sos-glow-light), transparent 65%);
+  transition: opacity 200ms var(--sos-ease);
+  z-index: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .studio-os-root .sos-pill-btn:hover:not(:disabled)::after { opacity: 1; }
+  .studio-os-root .sos-pill-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px -8px rgba(91, 63, 228, 0.45);
+    filter: saturate(1.08) brightness(1.04);
+  }
+  .studio-os-root .sos-pill-btn.border:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--sos-primary) 35%, var(--sos-border));
+    box-shadow: 0 6px 16px -10px rgba(16, 24, 40, 0.25);
+    filter: none;
+  }
+}
+.studio-os-root .sos-pill-btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* Card spotlight: soft cool tint (light) / luminous hairline (dark). */
+.studio-os-root .sos-card { position: relative; }
+.studio-os-root .sos-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), var(--sos-card-spot), transparent 60%);
+  transition: opacity 240ms var(--sos-ease);
+}
+.studio-os-root.studio-os-dark .sos-card::before {
+  padding: 1px;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), var(--sos-card-edge), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+@media (hover: hover) and (pointer: fine) {
+  .studio-os-root .sos-card:hover::before { opacity: 1; }
+}
+
+/* Staggered mount for bento / poster grids (30ms stagger, y 8 → 0). */
+@keyframes sos-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.studio-os-root .sos-stagger > * { animation: sos-rise 220ms var(--sos-ease) both; }
+.studio-os-root .sos-stagger > *:nth-child(2) { animation-delay: 30ms; }
+.studio-os-root .sos-stagger > *:nth-child(3) { animation-delay: 60ms; }
+.studio-os-root .sos-stagger > *:nth-child(4) { animation-delay: 90ms; }
+.studio-os-root .sos-stagger > *:nth-child(5) { animation-delay: 120ms; }
+.studio-os-root .sos-stagger > *:nth-child(6) { animation-delay: 150ms; }
+.studio-os-root .sos-stagger > *:nth-child(7) { animation-delay: 180ms; }
+.studio-os-root .sos-stagger > *:nth-child(8) { animation-delay: 210ms; }
+.studio-os-root .sos-stagger > *:nth-child(n + 9) { animation-delay: 240ms; }
+
+/* Kanban drop target pulse */
+@keyframes sos-drop-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(91, 63, 228, 0.0); }
+  50% { box-shadow: 0 0 0 6px rgba(91, 63, 228, 0.12); }
+}
+.studio-os-root .sos-drop-active { animation: sos-drop-pulse 1.2s var(--sos-ease) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-os-root .sos-stagger > *,
+  .studio-os-root .sos-drop-active { animation: none !important; }
+  .studio-os-root .sos-pill-btn,
+  .studio-os-root .sos-card::before,
+  .studio-os-root .sos-pill-btn::after { transition: none !important; }
+  .studio-os-root .sos-pill-btn:hover:not(:disabled),
+  .studio-os-root .sos-pill-btn:active:not(:disabled) { transform: none; }
+}

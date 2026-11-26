@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { motion } from "motion/react";
+import { ActivePill, EASE } from "../motion";
 import {
   DndContext,
   DragEndEvent,
@@ -40,6 +42,7 @@ const DraggableTaskCard: React.FC<{
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0) rotate(2deg)` : undefined,
     opacity: isDragging ? 0.45 : 1,
+    boxShadow: isDragging ? "0 18px 40px -16px rgba(16,24,40,0.35)" : undefined,
     background: "var(--sos-surface)",
     borderColor: "var(--sos-border)",
   };
@@ -57,6 +60,7 @@ const DraggableTaskCard: React.FC<{
   const doneCount = task.checklist.filter((c) => c.done).length;
 
   return (
+    <motion.div layout="position" layoutId={`board-card-${task.id}`} transition={{ duration: 0.22, ease: EASE }}>
     <div
       ref={setNodeRef}
       style={style}
@@ -111,6 +115,7 @@ const DraggableTaskCard: React.FC<{
         </div>
       </div>
     </div>
+    </motion.div>
   );
 };
 
@@ -128,7 +133,7 @@ const DroppableColumn: React.FC<{
   return (
     <div
       ref={setNodeRef}
-      className="min-w-[290px] w-[290px] md:w-[310px] shrink-0 rounded-[24px] p-3.5 flex flex-col gap-3 transition-colors"
+      className={`min-w-[290px] w-[290px] md:w-[310px] shrink-0 rounded-[24px] p-3.5 flex flex-col gap-3 transition-colors duration-200 ${isOver ? "sos-drop-active" : ""}`}
       style={{
         background: isOver ? "var(--sos-violet-soft)" : "var(--sos-surface-2)",
         border: isOver ? "1.5px dashed var(--sos-primary)" : "1.5px solid transparent",
@@ -264,24 +269,26 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
               <button
                 type="button"
                 onClick={() => setGroupBy("status")}
-                className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors"
+                className="relative px-3.5 py-1.5 min-h-[36px] rounded-full text-[12px] font-semibold transition-colors duration-200"
                 style={{
-                  background: groupBy === "status" ? "var(--sos-surface)" : "transparent",
                   color: groupBy === "status" ? "var(--sos-text-1)" : "var(--sos-text-2)",
                 }}
+                aria-pressed={groupBy === "status"}
               >
-                By Status
+                {groupBy === "status" && <ActivePill layoutId="sos-board-group" style={{ background: "var(--sos-surface)" }} />}
+                <span className="relative z-[1]">By Status</span>
               </button>
               <button
                 type="button"
                 onClick={() => setGroupBy("gate")}
-                className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors"
+                className="relative px-3.5 py-1.5 min-h-[36px] rounded-full text-[12px] font-semibold transition-colors duration-200"
                 style={{
-                  background: groupBy === "gate" ? "var(--sos-surface)" : "transparent",
                   color: groupBy === "gate" ? "var(--sos-text-1)" : "var(--sos-text-2)",
                 }}
+                aria-pressed={groupBy === "gate"}
               >
-                Projects by Gate
+                {groupBy === "gate" && <ActivePill layoutId="sos-board-group" style={{ background: "var(--sos-surface)" }} />}
+                <span className="relative z-[1]">Projects by Gate</span>
               </button>
             </div>
           </div>

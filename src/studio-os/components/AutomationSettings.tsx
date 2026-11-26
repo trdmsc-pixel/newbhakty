@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
 import { GmailAccount } from "../InboxContext";
 import { studioApi } from "../api";
+import { SignaturesEditor } from "./SignaturesEditor";
 
 interface AIStatus {
   claude: boolean;
@@ -53,7 +54,46 @@ export const AutomationSettings: React.FC = () => {
   const [tokens, setTokens] = useState<IngestToken[]>([]);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [gmailResult, setGmailResult] = useState<{ status: string; detail: string } | null>(() => {
+    try {
+      const raw = sessionStorage.getItem("sos_gmail_result");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [diag, setDiag] = useState<{ ok: boolean; checks: Array<{ check: string; ok: boolean; detail: string }> } | null>(null);
   const cloud = supabaseSyncStatus === "synced" && supabase;
+
+  const runDiagnose = async () => {
+    setBusy("diag");
+    try {
+      setDiag(await studioApi("/api/studio-os/gmail/diagnose"));
+    } catch (err: any) {
+      pushToast(err?.message || "Check failed", "warn");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const explain = (r: { status: string; detail: string }) => {
+    const d = r.detail || "";
+    if (r.status === "connected") return `Connected ${d}. First sync runs within 15 minutes.`;
+    if (r.status === "token_exchange") {
+      if (/invalid_client/.test(d)) return "Google rejected the client secret/ID (invalid_client). Create a new client secret in Google Cloud → Clients, paste it into Vercel as GOOGLE_CLIENT_SECRET, redeploy, then connect again.";
+      if (/redirect_uri_mismatch/.test(d)) return "The redirect URI isn't registered. Run “Check Google setup” and add the URI it shows to Authorised redirect URIs.";
+      return `Google refused the sign-in code: ${d}`;
+    }
+    if (r.status === "gmail_api") {
+      if (/has not been used|disabled|accessNotConfigured/i.test(d)) return "The Gmail API isn't enabled in your Google Cloud project. Open APIs & Services → Library → Gmail API → Enable, wait a minute, then connect again.";
+      return `Signed in, but the Gmail API call failed: ${d}`;
+    }
+    if (r.status === "no_refresh_token") return "Google didn't return a long-term token. Remove “Studio OS” at myaccount.google.com → Security → Third-party access, then connect again.";
+    if (r.status === "denied") return `Google sign-in was cancelled or blocked (${d || "access_denied"}). If the app is Internal, only @thechantingstudio.in accounts can connect.`;
+    if (r.status === "expired") return "The sign-in link expired (10 minutes). Please try again.";
+    if (r.status === "save_failed") return `Connected to Google but saving failed: ${d}`;
+    return `Connection failed (${r.status}) ${d}`;
+  };
 
   const load = useCallback(async () => {
     if (!cloud || !supabase) return;
@@ -61,7 +101,7 @@ export const AutomationSettings: React.FC = () => {
     const [{ data: acc }, { data: tok }] = await Promise.all([
       supabase
         .from("studio_gmail_accounts")
-        .select("id, email, label, is_personal, connected_at, needs_reconnect, last_sync_at, last_error, messages_processed, is_active")
+        .select("id, email, label, is_personal, connected_at, needs_reconnect, last_sync_at, last_error, messages_processed, is_active, granted_scopes")
         .is("archived_at", null)
         .order("email"),
       supabase.from("studio_ingest_tokens").select("id, label, token_hint, last_used_at, created_at").is("revoked_at", null).order("created_at", { ascending: false }),
@@ -118,8 +158,11 @@ export const AutomationSettings: React.FC = () => {
     load();
   };
 
+  const missingNewScopes = (a: GmailAccount) => Boolean(a.granted_scopes) && !/gmail\.modify/.test(a.granted_scopes || "");
   const needsReconnect = (a: GmailAccount) =>
-    a.needs_reconnect || (a.is_personal && a.connected_at ? differenceInDays(new Date(), parseISO(a.connected_at)) >= 7 : false);
+    a.needs_reconnect ||
+    !a.granted_scopes ||
+    missingNewScopes(a) || (a.is_personal && a.connected_at ? differenceInDays(new Date(), parseISO(a.connected_at)) >= 7 : false);
 
   const ingestUrl = typeof window !== "undefined" ? `${window.location.origin}/api/ingest` : "/api/ingest";
 
@@ -166,7 +209,7 @@ export const AutomationSettings: React.FC = () => {
       {/* Gmail */}
       <section className="sos-card p-6 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          {sectionTitle(<Mail className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />, "Gmail accounts", "Read-only + drafts. Studio OS never sends email. Synced every 15 minutes.")}
+          {sectionTitle(<Mail className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />, "Gmail accounts", "Read, label and send — only when you press Send. Synced every 15 minutes.")}
           <button
             type="button"
             disabled={busy === "connect" || status?.google === false}
@@ -177,6 +220,57 @@ export const AutomationSettings: React.FC = () => {
             {busy === "connect" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Connect account
           </button>
         </div>
+        {gmailResult && (
+          <div
+            className="p-3.5 rounded-[14px] text-[13px] flex items-start justify-between gap-3"
+            style={gmailResult.status === "connected" ? { background: "#E7F7EE", color: "#17663F" } : { background: "#FFF1E6", color: "#9A3412" }}
+            role="status"
+          >
+            <span>{explain(gmailResult)}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setGmailResult(null);
+                try {
+                  sessionStorage.removeItem("sos_gmail_result");
+                } catch {
+                  /* ignore */
+                }
+              }}
+              className="shrink-0 text-[12px] font-semibold underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy === "diag"}
+            onClick={runDiagnose}
+            className="min-h-[44px] px-4 rounded-full text-[12px] font-semibold border inline-flex items-center gap-1.5 disabled:opacity-50"
+            style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
+          >
+            {busy === "diag" && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Check Google setup
+          </button>
+          {diag && (
+            <span className="text-[12px] font-semibold" style={{ color: diag.ok ? "#17663F" : "#9A3412" }}>
+              {diag.ok ? "Google setup looks right" : "Something needs fixing ↓"}
+            </span>
+          )}
+        </div>
+        {diag && (
+          <ul className="space-y-1 text-[12px]">
+            {diag.checks.map((c) => (
+              <li key={c.check} className="flex gap-2">
+                <span style={{ color: c.ok ? "#17663F" : "#9A3412" }}>{c.ok ? "✓" : "✕"}</span>
+                <span style={{ color: "var(--sos-text-2)" }}>
+                  <strong style={{ color: "var(--sos-text-1)" }}>{c.check}:</strong> <span className="break-all">{c.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         {status?.google === false && (
           <p className="text-[12px] px-3 py-2 rounded-[12px]" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>
             Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Vercel to enable Gmail.
@@ -201,7 +295,13 @@ export const AutomationSettings: React.FC = () => {
                   onClick={() => connectGmail(a.email)}
                   className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold"
                   style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)", border: "1px solid var(--sos-border)" }}
-                  title={a.is_personal ? "Personal Gmail tokens expire every 7 days while the Google app is in testing mode." : "Google asked to re-authorise this account."}
+                  title={
+                    !a.granted_scopes || missingNewScopes(a)
+                      ? "Reconnect once to grant the new Mail permissions (read/label, send)."
+                      : a.is_personal
+                      ? "Personal Gmail tokens expire every 7 days while the Google app is in testing mode."
+                      : "Google asked to re-authorise this account."
+                  }
                 >
                   <RefreshCw className="w-3 h-3" /> Reconnect
                 </button>
@@ -239,6 +339,7 @@ export const AutomationSettings: React.FC = () => {
             </p>
           )}
         </div>
+        {accounts.length > 0 && <SignaturesEditor />}
       </section>
 
       {/* Ingest tokens & Shortcuts */}

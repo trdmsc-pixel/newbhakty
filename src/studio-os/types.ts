@@ -264,6 +264,7 @@ export type StudioRoute =
   | "today"
   | "overview"
   | "inbox"
+  | "mail"
   | "projects"
   | "board"
   | "timeline"

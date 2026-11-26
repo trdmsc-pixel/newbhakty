@@ -65,7 +65,7 @@ export const ProjectsScreen: React.FC = () => {
       </div>
 
       {/* Poster Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sos-stagger">
         {filtered.map((p) => {
           const client = clients.find((c) => c.id === p.client_id);
           const pGates = gates.filter((g) => g.project_id === p.id);

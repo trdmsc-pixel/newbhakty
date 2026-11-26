@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
 import { Calendar, Check, Diamond, Film, Lock, Minus, Plus, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -173,13 +174,15 @@ export const ProjectDetailScreen: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className="px-4 py-2 rounded-full text-[13px] font-semibold transition-colors"
+              className="relative px-4 py-2 min-h-[40px] rounded-full text-[13px] font-semibold transition-colors duration-200"
               style={{
-                background: tab === t.id ? "var(--sos-ink)" : "var(--sos-surface-2)",
+                background: "var(--sos-surface-2)",
                 color: tab === t.id ? "var(--sos-ink-text)" : "var(--sos-text-2)",
               }}
+              aria-pressed={tab === t.id}
             >
-              {t.label}
+              {tab === t.id && <ActivePill layoutId="sos-project-tab" style={{ background: "var(--sos-ink)" }} />}
+              <span className="relative z-[1]">{t.label}</span>
             </button>
           ))}
         </div>

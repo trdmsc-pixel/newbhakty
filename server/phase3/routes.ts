@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { aiStatus, extract as aiExtract, split as aiSplit, AIUnavailableError, type AIImageInput } from "../../lib/ai/index.js";
 import { extractBearerToken, getEnv, getServiceSupabase, verifyCronOrOwnerAuth, verifyOwnerJwt } from "../studioOsRoutes.js";
-import { buildAuthUrl, exchangeCode, GmailClient, googleConfigured, signState, verifyState } from "./gmail.js";
+import { buildAuthUrl, exchangeCode, GMAIL_SCOPES, GmailClient, googleConfigured, redirectUri, signState, verifyState } from "./gmail.js";
 import { runGmailSync } from "./gmailSync.js";
 import { applyItem, createLead, persistCandidates, planActions, undoItem, AUTO_APPLY_THRESHOLD, type Candidate, type InboxSource } from "./inboxEngine.js";
 import { ctxHints, loadStudioCtx, matchClientByName, matchProject, type StudioCtx } from "./studioData.js";
@@ -196,36 +196,98 @@ export function registerPhase3Routes(app: Express) {
   });
 
   app.get("/api/studio-os/gmail/callback", async (req, res) => {
-    const back = (status: string) => res.redirect(302, `/studio-os?gmail=${encodeURIComponent(status)}`);
+    // Redirect back with a status and a short, non-secret reason so the UI can say what went wrong.
+    const back = (status: string, detail?: string) =>
+      res.redirect(
+        302,
+        `/studio-os?gmail=${encodeURIComponent(status)}${detail ? `&detail=${encodeURIComponent(detail.replace(/[^\w .:/@-]/g, "").slice(0, 160))}` : ""}`
+      );
+    if (req.query.error) return back("denied", String(req.query.error));
+    const state = verifyState(String(req.query.state || ""));
+    if (!state) return back("expired");
+
+    let tokens: Awaited<ReturnType<typeof exchangeCode>>;
     try {
-      if (req.query.error) return back("denied");
-      const state = verifyState(String(req.query.state || ""));
-      if (!state) return back("expired");
-      const tokens = await exchangeCode(req, String(req.query.code || ""));
-      const granted = String(tokens.scope || "");
-      if (granted.includes("gmail.send") || granted.includes("mail.google.com")) {
-        // Defensive: we never request send scopes.
-        return back("bad_scope");
-      }
-      if (!tokens.refresh_token) return back("no_refresh_token");
-      const profile = await new GmailClient(tokens.access_token).profile();
-      const email = profile.emailAddress.toLowerCase();
-      const sb = getServiceSupabase();
-      if (!sb) return back("server_config");
-      const { error } = await sb.rpc("studio_gmail_save_token", {
-        p_email: email,
-        p_token: tokens.refresh_token,
-        p_label: state.label || null,
-        p_is_personal: /@(gmail|googlemail)\.com$/.test(email),
-      });
-      if (error) return back("save_failed");
-      // Start incremental sync from "now" (no backfill of old history).
-      await sb.from("studio_gmail_accounts").update({ last_history_id: profile.historyId }).eq("email", email);
-      return back("connected");
+      tokens = await exchangeCode(req, String(req.query.code || ""));
     } catch (err: any) {
-      console.warn(`[gmail-oauth] callback failed: ${err?.message}`);
-      return back("error");
+      console.warn(`[gmail-oauth] token exchange failed: ${err?.message}`);
+      return back("token_exchange", err?.message || "token exchange failed");
     }
+    if (!tokens.refresh_token) return back("no_refresh_token");
+
+    let profile: { emailAddress: string; historyId: string };
+    try {
+      profile = await new GmailClient(tokens.access_token).profile();
+    } catch (err: any) {
+      console.warn(`[gmail-oauth] gmail profile failed: ${err?.message}`);
+      return back("gmail_api", err?.message || "Gmail API call failed");
+    }
+
+    const email = profile.emailAddress.toLowerCase();
+    const sb = getServiceSupabase();
+    if (!sb) return back("server_config", "SUPABASE_SERVICE_ROLE_KEY missing");
+    const { data: accountId, error } = await sb.rpc("studio_gmail_save_token", {
+      p_email: email,
+      p_token: tokens.refresh_token,
+      p_label: state.label || null,
+      p_is_personal: /@(gmail|googlemail)\.com$/.test(email),
+    });
+    if (error) {
+      console.warn(`[gmail-oauth] save failed: ${error.message}`);
+      return back("save_failed", error.message);
+    }
+    // Start incremental sync from "now" (no backfill of old history).
+    await sb
+      .from("studio_gmail_accounts")
+      .update({ last_history_id: profile.historyId, granted_scopes: String(tokens.scope || "") })
+      .eq("id", accountId);
+    const defaults: Record<string, string> = {
+      "shyam@thechantingstudio.in": "Shyam Sharma\nFounder, The Chanting Studio\nthechantingstudio.in",
+      "studio@thechantingstudio.in": "The Chanting Studio\nstudio@thechantingstudio.in · thechantingstudio.in",
+      "accounts@thechantingstudio.in": "Accounts · The Chanting Studio\naccounts@thechantingstudio.in · thechantingstudio.in",
+    };
+    await sb
+      .from("studio_gmail_accounts")
+      .update({ signature_text: defaults[email] || "Shyam Sharma\nThe Chanting Studio\nthechantingstudio.in" })
+      .eq("id", accountId)
+      .is("signature_text", null);
+    return back("connected", email);
+  });
+
+  // Owner-only self-check of the Google OAuth setup (no account is connected).
+  app.get("/api/studio-os/gmail/diagnose", async (req, res) => {
+    if (!(await requireOwner(req, res))) return;
+    const redirect = redirectUri(req);
+    const checks: Array<{ check: string; ok: boolean; detail: string }> = [];
+    const id = getEnv("GOOGLE_CLIENT_ID");
+    const secret = getEnv("GOOGLE_CLIENT_SECRET");
+    checks.push({ check: "GOOGLE_CLIENT_ID set", ok: Boolean(id), detail: id ? `${id.slice(0, 12)}…${id.slice(-28)}` : "missing" });
+    checks.push({ check: "GOOGLE_CLIENT_SECRET set", ok: Boolean(secret), detail: secret ? `${secret.length} characters, starts ${secret.slice(0, 7)}` : "missing" });
+    checks.push({ check: "Redirect URI used", ok: true, detail: redirect });
+    if (id && secret) {
+      // Exchanging a fake code tells us whether Google accepts the client + redirect URI.
+      const r = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ code: "diagnostic-invalid-code", client_id: id, client_secret: secret, redirect_uri: redirect, grant_type: "authorization_code" }),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      const err = String(j?.error || "");
+      const ok = err === "invalid_grant";
+      checks.push({
+        check: "Google accepts Client ID + secret + redirect URI",
+        ok,
+        detail: ok
+          ? "Yes (credentials valid)"
+          : err === "invalid_client"
+          ? "invalid_client — the client secret (or ID) is wrong. Create a new secret in Google Cloud → Clients and paste it into Vercel."
+          : err === "redirect_uri_mismatch"
+          ? `redirect_uri_mismatch — add ${redirect} to Authorised redirect URIs.`
+          : `${err} ${j?.error_description || ""}`.trim(),
+      });
+    }
+    checks.push({ check: "Requested scopes", ok: true, detail: GMAIL_SCOPES.map((s) => s.split("/").pop()).join(", ") });
+    res.json({ ok: checks.every((c) => c.ok), checks });
   });
 
   app.post("/api/studio-os/gmail/disconnect", async (req, res) => {

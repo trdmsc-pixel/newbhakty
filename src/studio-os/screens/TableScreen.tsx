@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { ActivePill, SwipeRow } from "../motion";
 import { format, parseISO } from "date-fns";
 import { Check, Clock, Plus, Search, Trash2, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -118,13 +119,14 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className="px-4 py-1.5 rounded-full text-[13px] font-semibold capitalize transition-colors"
+              className="relative px-4 py-1.5 min-h-[36px] rounded-full text-[13px] font-semibold capitalize transition-colors duration-200"
               style={{
-                background: tab === t ? "var(--sos-surface)" : "transparent",
                 color: tab === t ? "var(--sos-text-1)" : "var(--sos-text-2)",
               }}
+              aria-pressed={tab === t}
             >
-              {t}
+              {tab === t && <ActivePill layoutId="sos-table-tab" style={{ background: "var(--sos-surface)", boxShadow: "0 1px 2px rgba(16,24,40,0.08)" }} />}
+              <span className="relative z-[1]">{t}</span>
             </button>
           ))}
         </div>
@@ -237,7 +239,15 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
         {filtered.map((task) => {
           const proj = projects.find((p) => p.id === task.project_id);
           return (
-            <div key={task.id} className="sos-card p-4 space-y-2.5">
+            <SwipeRow
+              key={task.id}
+              onDone={() => updateTask(task.id, { status: "done", is_in_now: false })}
+              onSnooze={() => {
+                updateTask(task.id, { status: "backlog", is_in_now: false });
+                pushToast(`Snoozed ${task.key} to Backlog`, "info");
+              }}
+              className="sos-card p-4 space-y-2.5"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[12px] font-semibold" style={{ color: "var(--sos-text-3)" }}>
                   {proj?.emoji} {task.key}
@@ -251,7 +261,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                 <PriorityBadge priority={task.priority} />
                 <span className="sos-tabular">{task.due_date ? format(parseISO(task.due_date), "d MMM") : "No due date"}</span>
               </div>
-            </div>
+            </SwipeRow>
           );
         })}
       </div>
