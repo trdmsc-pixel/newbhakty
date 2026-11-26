@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { AnimatePresence, motion } from "motion/react";
 import { ActivePill, BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
 import { TeamLoadCard } from "../components/Team";
@@ -503,7 +504,11 @@ export const TodayScreen: React.FC = () => {
                           >
                             {proj?.emoji} {task.key}
                           </button>
-                          <TaskStatusChip status={task.status} compact />
+                          <TaskStatusSelect
+                            status={task.status}
+                            compact
+                            onChange={(next) => (next === "done" ? toggleTaskDone(task.id) : updateTask(task.id, { status: next }))}
+                          />
                           <span className="text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
                             ~{task.estimate_hours}h
                           </span>

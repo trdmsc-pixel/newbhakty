@@ -11,10 +11,12 @@ export type InboxAction =
   | "log_payment"
   | "new_lead"
   | "reply_owed"
-  | "update_deadline";
+  | "update_deadline"
+  | "update_task_status";
 
 export const AUTO_APPLY_THRESHOLD = 0.85;
-const NON_DESTRUCTIVE: InboxAction[] = ["create_task", "create_promise", "reply_owed", "log_payment"];
+// Status moves are reversible (Undo restores the previous status), so they can auto-apply.
+const NON_DESTRUCTIVE: InboxAction[] = ["create_task", "create_promise", "reply_owed", "log_payment", "update_task_status"];
 
 export interface Candidate {
   action: InboxAction;
@@ -400,6 +402,23 @@ export async function applyItem(sb: SupabaseClient, ctx: StudioCtx, item: any, e
       return { entityRef: `project:${projectId}`, undo: { op: "restore_deadline", project_id: projectId, prev: project?.hard_deadline || null } };
     }
 
+    case "update_task_status": {
+      const { data: task } = await sb.from("studio_tasks").select("id, key, title, status, completed_at, is_in_now").eq("id", payload.task_id).maybeSingle();
+      if (!task) throw new Error("Task no longer exists.");
+      const next = String(payload.status);
+      await sb
+        .from("studio_tasks")
+        .update({
+          status: next,
+          completed_at: next === "done" ? new Date().toISOString() : null,
+          ...(next === "done" ? { is_in_now: false } : {}),
+          ...(next !== "waiting_on_client" ? { waiting_on_name: null } : {}),
+        })
+        .eq("id", task.id);
+      await logActivity(sb, { entityType: "task", entityId: task.id, action: `${task.key} → ${next.replace(/_/g, " ")} (${payload.reason || "from email"})` });
+      return { entityRef: `task:${task.id}`, undo: { op: "restore_task", task_id: task.id, prev: { status: task.status, completed_at: task.completed_at, is_in_now: task.is_in_now } } };
+    }
+
     case "new_lead": {
       const res = await createLead(sb, ctx, {
         name: payload.name || item.sender || "New inquiry",
@@ -438,6 +457,9 @@ export async function undoItem(sb: SupabaseClient, item: any): Promise<void> {
       break;
     case "restore_deadline":
       await sb.from("studio_projects").update({ hard_deadline: u.prev }).eq("id", u.project_id);
+      break;
+    case "restore_task":
+      await sb.from("studio_tasks").update(u.prev).eq("id", u.task_id);
       break;
     case "archive_lead":
       if (u.task_id) await sb.from("studio_tasks").update({ archived_at: now }).eq("id", u.task_id);

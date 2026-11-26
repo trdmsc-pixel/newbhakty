@@ -59,6 +59,7 @@ export const extractionSchema = z.object({
     .nullable()
     .catch(null),
   needs_reply: z.boolean().catch(false),
+  delivered: z.boolean().catch(false).default(false),
   confidence: z.number().min(0).max(1).catch(0.5),
 });
 export type Extraction = z.infer<typeof extractionSchema>;
@@ -99,6 +100,7 @@ export const extractionJsonSchema = {
     "payment",
     "deadline_change",
     "needs_reply",
+    "delivered",
     "confidence",
   ],
   properties: {
@@ -141,6 +143,7 @@ export const extractionJsonSchema = {
       properties: { new_date: nullable(date), note: nullable(str) },
     }),
     needs_reply: { type: "boolean" },
+    delivered: { type: "boolean", description: "SENT BY the studio: true if this email delivers something (file, link, cut, quote, invoice)." },
     confidence: { type: "number" },
   },
 } as const;

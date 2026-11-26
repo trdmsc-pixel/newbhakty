@@ -30,6 +30,7 @@ import { BoardScreen } from "./screens/BoardScreen";
 const TimelineScreen = lazy(() => import("./screens/TimelineScreen").then((m) => ({ default: m.TimelineScreen })));
 import { TableScreen } from "./screens/TableScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
+import { PipelineScreen } from "./screens/PipelineScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 const OverviewScreen = lazy(() => import("./screens/OverviewScreen").then((m) => ({ default: m.OverviewScreen })));
 const WeeklyReviewScreen = lazy(() => import("./screens/WeeklyReviewScreen").then((m) => ({ default: m.WeeklyReviewScreen })));
@@ -215,22 +216,27 @@ const StudioOSShell: React.FC<{
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [setQuickAddOpen, setRoute]);
 
-  const navItems: Array<{ id: StudioRoute; label: string; icon: React.ReactNode; badge?: string }> = [
-    { id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
-    { id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
-    { id: "projects", label: "Projects", icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "board", label: "Board", icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "timeline", label: "Timeline", icon: <CalendarRange className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "table", label: "Table", icon: <Table2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "weekly_review", label: "Weekly Review", icon: <ClipboardCheck className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: "Sun" },
-    { id: "clients", label: "Clients", icon: <Users className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { id: "money", label: "Money", icon: <Wallet className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+  type NavItem = { id: StudioRoute; label: string; icon: React.ReactNode; badge?: string; group: string; matches?: StudioRoute[] };
+  const navItems: NavItem[] = [
+    // My work — tasks and messages
+    { group: "My work", id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "My work", id: "board", label: "Tasks", matches: ["board", "table"], icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "My work", id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
+    { group: "My work", id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
+    // Productions — projects and clients
+    { group: "Productions", id: "projects", label: "Projects", matches: ["projects", "pipeline", "timeline", "project_detail"], icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "Productions", id: "clients", label: "Clients", icon: <Users className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    // Studio — big picture
+    { group: "Studio", id: "overview", label: "Overview", icon: <LayoutDashboard className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "Studio", id: "weekly_review", label: "Weekly Review", icon: <ClipboardCheck className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: "Sun" },
+    { group: "Studio", id: "money", label: "Money", icon: <Wallet className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
   ];
 
   const OWNER_ONLY: StudioRoute[] = ["inbox", "mail", "money", "weekly_review", "clients"];
   const visibleNav = isOwner ? navItems : navItems.filter((n) => !OWNER_ONLY.includes(n.id));
+  const navGroups = ["My work", "Productions", "Studio"]
+    .map((g) => ({ group: g, items: visibleNav.filter((n) => n.group === g) }))
+    .filter((g) => g.items.length);
   const pinnedProjects = projects.filter((p) => p.pinned);
 
   return (
@@ -270,13 +276,15 @@ const StudioOSShell: React.FC<{
 
             {/* GENERAL nav */}
             <div className="space-y-1">
+              {navGroups.map(({ group, items }) => (
+              <div key={group} className="space-y-1 pb-2">
               {!sidebarCollapsed && (
-                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
-                  General
+                <p className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
+                  {group}
                 </p>
               )}
-              {visibleNav.map((item) => {
-                const active = route === item.id;
+              {items.map((item) => {
+                const active = item.matches ? item.matches.includes(route) && !(route === "project_detail" && pinnedProjects.some((p) => p.id === selectedProjectId)) : route === item.id;
                 return (
                   <button
                     key={item.id}
@@ -305,6 +313,8 @@ const StudioOSShell: React.FC<{
                   </button>
                 );
               })}
+              </div>
+              ))}
             </div>
 
             {/* MY WORKSPACE pinned projects */}
@@ -312,7 +322,7 @@ const StudioOSShell: React.FC<{
               <div className="flex items-center justify-between px-3 pb-1">
                 {!sidebarCollapsed && (
                   <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
-                    My Workspace
+                    Pinned projects
                   </p>
                 )}
                 <button
@@ -528,6 +538,7 @@ const StudioOSShell: React.FC<{
             {route === "timeline" && <TimelineScreen />}
             {route === "table" && <TableScreen />}
             {route === "projects" && <ProjectsScreen />}
+            {route === "pipeline" && <PipelineScreen />}
             {route === "project_detail" && <ProjectDetailScreen />}
             {route === "weekly_review" && <WeeklyReviewScreen />}
             {route === "clients" && <ClientsScreen />}
@@ -565,10 +576,10 @@ const StudioOSShell: React.FC<{
           type="button"
           onClick={() => setRoute("board")}
           className="flex flex-col items-center gap-0.5 text-[11px] font-medium"
-          style={{ color: route === "board" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
+          style={{ color: route === "board" || route === "table" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
           <Kanban className="w-5 h-5" />
-          Board
+          Tasks
         </button>
 
         {/* Big Violet Quick Add Button */}
@@ -603,7 +614,7 @@ const StudioOSShell: React.FC<{
           type="button"
           onClick={() => setRoute("projects")}
           className="flex flex-col items-center gap-0.5 text-[11px] font-medium"
-          style={{ color: route === "projects" || route === "project_detail" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
+          style={{ color: ["projects", "pipeline", "timeline", "project_detail"].includes(route) ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
           <FolderKanban className="w-5 h-5" />
           Projects

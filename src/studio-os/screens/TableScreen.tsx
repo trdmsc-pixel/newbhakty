@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { ViewSwitcher } from "../components/ViewSwitcher";
+import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { ActivePill, SwipeRow } from "../motion";
 import { format, parseISO } from "date-fns";
 import { Check, Clock, Plus, Search, Trash2, X } from "lucide-react";
@@ -10,7 +12,7 @@ import { TaskStatus } from "../types";
 const STATUS_CYCLE: TaskStatus[] = ["backlog", "todo", "in_progress", "waiting_on_client", "in_review", "done"];
 
 export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFilterId }) => {
-  const { tasks, projects, gates, updateTask, deleteTasks, setQuickAddOpen, openProject, setRoute, pushToast } = useStudioOS();
+  const { tasks, projects, gates, clients, updateTask, deleteTasks, setQuickAddOpen, openProject, setRoute, pushToast } = useStudioOS();
   const [tab, setTab] = useState<"all" | "done" | "backlog">("all");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -38,10 +40,17 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
     else setSelectedIds(filtered.map((t) => t.id));
   };
 
-  const cycleStatus = (id: string, current: TaskStatus) => {
-    const idx = STATUS_CYCLE.indexOf(current);
-    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
-    updateTask(id, { status: next });
+  const setStatus = (id: string, next: TaskStatus) => {
+    const task = tasks.find((x) => x.id === id);
+    if (!task) return;
+    const patch: Partial<typeof task> = { status: next };
+    if (next === "done") patch.is_in_now = false;
+    if (next === "waiting_on_client" && !task.waiting_on_name) {
+      const proj = projects.find((p) => p.id === task.project_id);
+      const client = clients.find((c) => c.id === proj?.client_id);
+      patch.waiting_on_name = client?.contacts[0]?.name || client?.name || "Client";
+    }
+    updateTask(id, patch);
   };
 
   const handleBulkMoveDone = () => {
@@ -67,38 +76,14 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="sos-display text-[32px] md:text-[36px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
-              All Tasks
+              Tasks
             </h1>
             <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-              Click any status pill to advance it inline, or select multiple rows for bulk actions.
+              Pick a status from each row's menu, or select rows for bulk actions.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
-              <button
-                type="button"
-                onClick={() => setRoute("board")}
-                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-                style={{ color: "var(--sos-text-2)" }}
-              >
-                Board
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoute("timeline")}
-                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-                style={{ color: "var(--sos-text-2)" }}
-              >
-                Timeline
-              </button>
-              <button
-                type="button"
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-white"
-                style={{ background: "var(--sos-blue)" }}
-              >
-                Table
-              </button>
-            </div>
+            <ViewSwitcher area="tasks" />
             <button
               type="button"
               onClick={() => setQuickAddOpen(true)}
@@ -201,7 +186,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                       </p>
                     </td>
                     <td className="py-3.5 px-3">
-                      <TaskStatusChip status={task.status} onClick={() => cycleStatus(task.id, task.status)} />
+                      <TaskStatusSelect status={task.status} onChange={(next) => setStatus(task.id, next)} />
                     </td>
                     <td className="py-3.5 px-3">
                       <AssigneePicker value={task.assignee_member_id} onChange={(id) => updateTask(task.id, { assignee_member_id: id })} size={28} />
@@ -252,7 +237,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                 <span className="text-[12px] font-semibold" style={{ color: "var(--sos-text-3)" }}>
                   {proj?.emoji} {task.key}
                 </span>
-                <TaskStatusChip status={task.status} compact onClick={() => cycleStatus(task.id, task.status)} />
+                <TaskStatusSelect status={task.status} compact onChange={(next) => setStatus(task.id, next)} />
               </div>
               <p className="text-[15px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
                 {task.title}

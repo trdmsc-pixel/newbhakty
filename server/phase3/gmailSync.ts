@@ -25,6 +25,10 @@ import {
 const PROMISE_HINT =
   /\b(by|before|until)\s+(tomorrow|tonight|today|eod|end of (the )?(day|week)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|\d{1,2}(st|nd|rd|th)?)\b|\b(i'?ll|i will|we'?ll|we will|will)\s+(send|share|get back|deliver|update|revert|upload|have|circulate|finish)\b|\btomorrow\b|\b(monday|tuesday|wednesday|thursday|friday)\b/i;
 
+// Sent mail that hands something over (file / link / cut / quote).
+const DELIVERY_HINT =
+  /\b(attached|attachment|please find|here (is|are)|here's|sharing|shared|link below|download|final (cut|file|version)|v\d+)\b|drive\.google|vimeo\.com|frame\.io|f\.io|wetransfer|dropbox/i;
+
 const MAX_MESSAGES_PER_ACCOUNT = 25;
 const MAX_REPLY_DRAFTS_PER_RUN = 5;
 const TIME_BUDGET_MS = 50_000;
@@ -198,7 +202,9 @@ async function processMessage(
 
   // Only spend AI on mail that matters: known clients, or any inbound mail on studio accounts.
   const cleaned = cleanEmailBody(m.body);
-  const worthAI = sent ? Boolean(clientId) && PROMISE_HINT.test(cleaned) : Boolean(clientId) || !account.is_personal;
+  const worthAI = sent
+    ? Boolean(clientId) && (PROMISE_HINT.test(cleaned) || DELIVERY_HINT.test(cleaned))
+    : Boolean(clientId) || !account.is_personal;
   if (!worthAI || !cleaned) {
     await upsertThread(sb, existing?.id, threadPatch);
     return { outcome: "thread_only", items: 0, autoApplied: 0 };
@@ -243,6 +249,11 @@ async function processMessage(
     lead: !clientId && !sent ? { name: m.from.name || m.from.email, email: m.from.email, brief: ex.summary } : null,
   });
   if (sent) candidates = candidates.filter((c) => c.action === "create_promise");
+
+  // Gmail → task status automation (each change is logged with Undo).
+  if (project && clientId) {
+    candidates.push(...(await statusCandidates(sb, { sent, projectId: project.id, account: account.email, threadId: m.threadId, contactName, clientName: match?.client.name || null, delivered: Boolean(ex.delivered), confidence: ex.confidence })));
+  }
   if (!candidates.length) return { outcome: "no_action", items: 0, autoApplied: 0 };
 
   const res = await persistCandidates(sb, ctx, candidates, {
@@ -376,4 +387,61 @@ async function replyOwedPass(
     await sb.from("studio_email_threads").update(threadPatch).eq("id", t.id);
   }
   return { created, drafts };
+}
+
+/**
+ * Rules for moving tasks automatically from email:
+ *  - client replies on a project → tasks "waiting on client" for that client go back to To do
+ *  - studio sends a delivery (AI: delivered=true) → the earliest open promise on that project is Done
+ */
+export async function statusCandidates(
+  sb: SupabaseClient,
+  o: { sent: boolean; projectId: string; account: string; threadId: string; contactName: string | null; clientName: string | null; delivered: boolean; confidence: number }
+) {
+  const out: Array<{ action: "update_task_status"; title: string; confidence: number; payload: Record<string, any> }> = [];
+  if (!o.sent) {
+    const { data: waiting } = await sb
+      .from("studio_tasks")
+      .select("id, key, title, waiting_on_name, source_ref")
+      .eq("project_id", o.projectId)
+      .eq("status", "waiting_on_client")
+      .is("archived_at", null)
+      .limit(20);
+    const list = waiting || [];
+    const names = [o.contactName, o.clientName].filter(Boolean).map((n) => String(n).toLowerCase());
+    let picked = list.filter(
+      (t: any) =>
+        String(t.source_ref || "").startsWith(`gmail:${o.account}:${o.threadId}`) ||
+        (t.waiting_on_name && names.some((n) => String(t.waiting_on_name).toLowerCase().includes(n.split(" ")[0])))
+    );
+    if (!picked.length && list.length === 1) picked = list;
+    for (const t of picked.slice(0, 3)) {
+      out.push({
+        action: "update_task_status",
+        title: `${t.key}: client replied → To do`,
+        confidence: 0.95,
+        payload: { task_id: t.id, status: "todo", reason: "client replied by email", project_id: o.projectId },
+      });
+    }
+  } else if (o.delivered) {
+    const { data: promises } = await sb
+      .from("studio_tasks")
+      .select("id, key, title, due_date")
+      .eq("project_id", o.projectId)
+      .eq("type", "promise")
+      .neq("status", "done")
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(1);
+    const t = promises?.[0];
+    if (t) {
+      out.push({
+        action: "update_task_status",
+        title: `${t.key}: delivered by email → Done`,
+        confidence: o.confidence,
+        payload: { task_id: t.id, status: "done", reason: "delivery email sent", project_id: o.projectId },
+      });
+    }
+  }
+  return out;
 }

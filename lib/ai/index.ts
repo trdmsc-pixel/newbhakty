@@ -106,6 +106,7 @@ Rules:
 - payment: status "received" only if the client says money was paid/transferred; "promised" if they say they will pay; "mentioned" for invoices/queries; null if not about money. Never include amounts.
 - deadline_change: only if a delivery date is explicitly moved; new_date in YYYY-MM-DD.
 - needs_reply: true if the sender is waiting on an answer from the studio.
+- delivered: only for messages SENT BY the studio — true if the email hands over something promised (a file, link, cut, quote, invoice); otherwise false.
 - client_match / project_match: pick from the known lists (use the project CODE) or null.
 - category "new_lead" for a new prospective client inquiry.
 - confidence: 0..1, how sure you are about the actions you proposed. Be conservative.

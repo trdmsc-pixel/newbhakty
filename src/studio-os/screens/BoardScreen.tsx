@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { ActivePill, EASE } from "../motion";
+import { EASE } from "../motion";
+import { ViewSwitcher } from "../components/ViewSwitcher";
+import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import {
   DndContext,
   DragEndEvent,
@@ -69,7 +71,7 @@ const DraggableTaskCard: React.FC<{
       className="p-4 rounded-[20px] border shadow-sm cursor-grab active:cursor-grabbing space-y-2.5 transition-shadow hover:shadow-md"
     >
       <div className="flex items-center justify-between gap-2">
-        <TaskStatusChip status={task.status} compact />
+        <TaskStatusSelect status={task.status} compact onChange={(next) => updateTask(task.id, { status: next, ...(next === "done" ? { is_in_now: false } : {}) })} />
         <button
           type="button"
           onClick={(e) => {
@@ -168,7 +170,6 @@ const DroppableColumn: React.FC<{
 
 export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFilterId }) => {
   const { tasks, projects, gates, clients, updateTask, setQuickAddOpen, openProject, setRoute } = useStudioOS();
-  const [groupBy, setGroupBy] = useState<"status" | "gate">("status");
   const [localSearch, setLocalSearch] = useState("");
   const [mobileColumn, setMobileColumn] = useState<TaskStatus>("in_progress");
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -231,66 +232,15 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="sos-display text-[32px] md:text-[36px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
-              Board
+              Tasks
             </h1>
             <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-              Drag cards across stages. Dropping into Waiting on Client logs who holds the ball.
+              Everything to do across projects. Drag between columns or pick a status from each card.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
-              <button
-                type="button"
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-white"
-                style={{ background: "var(--sos-blue)" }}
-              >
-                Board
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoute("timeline")}
-                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-                style={{ color: "var(--sos-text-2)" }}
-              >
-                Timeline
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoute("table")}
-                className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-                style={{ color: "var(--sos-text-2)" }}
-              >
-                Table
-              </button>
-            </div>
-
-            <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
-              <button
-                type="button"
-                onClick={() => setGroupBy("status")}
-                className="relative px-3.5 py-1.5 min-h-[36px] rounded-full text-[12px] font-semibold transition-colors duration-200"
-                style={{
-                  color: groupBy === "status" ? "var(--sos-text-1)" : "var(--sos-text-2)",
-                }}
-                aria-pressed={groupBy === "status"}
-              >
-                {groupBy === "status" && <ActivePill layoutId="sos-board-group" style={{ background: "var(--sos-surface)" }} />}
-                <span className="relative z-[1]">By Status</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGroupBy("gate")}
-                className="relative px-3.5 py-1.5 min-h-[36px] rounded-full text-[12px] font-semibold transition-colors duration-200"
-                style={{
-                  color: groupBy === "gate" ? "var(--sos-text-1)" : "var(--sos-text-2)",
-                }}
-                aria-pressed={groupBy === "gate"}
-              >
-                {groupBy === "gate" && <ActivePill layoutId="sos-board-group" style={{ background: "var(--sos-surface)" }} />}
-                <span className="relative z-[1]">Projects by Gate</span>
-              </button>
-            </div>
+            <ViewSwitcher area="tasks" />
           </div>
         </div>
       )}
@@ -321,62 +271,8 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
         </button>
       </div>
 
-      {/* Group by Gate: Project Poster Board */}
-      {groupBy === "gate" && !projectFilterId ? (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9"].map((gateCode) => {
-            const matchingProjects = projects.filter((p) => {
-              const pGates = gates.filter((g) => g.project_id === p.id);
-              const current = pGates.find((g) => g.status !== "approved" && g.status !== "skipped");
-              return current?.code === gateCode;
-            });
-            return (
-              <div
-                key={gateCode}
-                className="min-w-[260px] w-[260px] shrink-0 rounded-[24px] p-3.5 space-y-3"
-                style={{ background: "var(--sos-surface-2)" }}
-              >
-                <div className="flex items-center justify-between px-1">
-                  <span className="sos-display text-[15px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                    {gateCode}
-                  </span>
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[11px] font-semibold sos-tabular"
-                    style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}
-                  >
-                    {matchingProjects.length}
-                  </span>
-                </div>
-                {matchingProjects.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => openProject(p.id)}
-                    className="w-full text-left p-4 rounded-[20px] border space-y-2 hover:shadow-md transition-shadow"
-                    style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-bold" style={{ color: "var(--sos-text-2)" }}>
-                        {p.emoji} {p.code}
-                      </span>
-                      <HealthPill health={p.health} />
-                    </div>
-                    <p className="text-[15px] font-semibold leading-snug" style={{ color: "var(--sos-text-1)" }}>
-                      {p.title}
-                    </p>
-                    {p.forecast_date && (
-                      <p className="text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
-                        Forecast: {format(parseISO(p.forecast_date), "d MMM yyyy")}
-                      </p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <>
+      <>
+
           {/* Mobile column switcher chips */}
           <div className="flex md:hidden gap-1.5 overflow-x-auto pb-1">
             {BOARD_COLUMNS.map((col) => {
@@ -448,7 +344,7 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
             </DragOverlay>
           </DndContext>
         </>
-      )}
+
 
       {/* Waiting on Client Prompt Modal */}
       {waitingPrompt && (

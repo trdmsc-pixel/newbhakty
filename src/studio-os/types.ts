@@ -266,6 +266,7 @@ export type StudioRoute =
   | "inbox"
   | "mail"
   | "projects"
+  | "pipeline"
   | "board"
   | "timeline"
   | "table"

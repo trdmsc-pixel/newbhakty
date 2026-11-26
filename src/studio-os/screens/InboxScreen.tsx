@@ -32,6 +32,7 @@ const ACTION_META: Record<InboxItemAction, { label: string; bg: string; text: st
   approve_gate: { label: "Approve stage", bg: "#E7F7EE", text: "#17663F" },
   update_deadline: { label: "Move deadline", bg: "#FFF1E6", text: "#C2410C" },
   new_lead: { label: "New lead", bg: "#EEEBFD", text: "#5B3FE4" },
+  update_task_status: { label: "Task status", bg: "#E8F0FF", text: "#1D4FD8" },
   ignore: { label: "No action", bg: "#F1F2F4", text: "#5F6672" },
 };
 
@@ -99,7 +100,7 @@ const SuggestionCard: React.FC<{ item: InboxItem }> = ({ item }) => {
   const client = clients.find((c) => c.id === item.matched_client_id);
   const project = projects.find((p) => p.id === (item.payload?.project_id || item.matched_project_id));
   const action = (item.suggested_action || "ignore") as InboxItemAction;
-  const meta = ACTION_META[action];
+  const meta = ACTION_META[action] || ACTION_META.ignore;
 
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(item.payload?.title || item.title || "");
@@ -343,7 +344,7 @@ const AutoUpdateRow: React.FC<{ item: InboxItem }> = ({ item }) => {
   const { undo, busyIds } = useInbox();
   const client = clients.find((c) => c.id === item.matched_client_id);
   const project = projects.find((p) => p.id === (item.payload?.project_id || item.matched_project_id));
-  const meta = ACTION_META[(item.suggested_action || "ignore") as InboxItemAction];
+  const meta = ACTION_META[(item.suggested_action || "ignore") as InboxItemAction] || ACTION_META.ignore;
   const statusLabel = item.status === "auto_applied" ? "Auto" : item.status === "accepted" ? "Accepted" : "Undone";
 
   return (

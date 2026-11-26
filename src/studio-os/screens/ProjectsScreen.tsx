@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { ViewSwitcher } from "../components/ViewSwitcher";
 import { format, parseISO } from "date-fns";
 import { Lock, Plus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -29,14 +30,17 @@ export const ProjectsScreen: React.FC = () => {
           </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 self-start">
+        <ViewSwitcher area="projects" />
         <button
           type="button"
           onClick={() => setNewProjectOpen(true)}
-          className="sos-pill-btn inline-flex items-center gap-1.5 px-5 h-11 text-[14px] font-semibold text-white self-start"
+          className="sos-pill-btn inline-flex items-center gap-1.5 px-5 h-11 text-[14px] font-semibold text-white"
           style={{ background: "var(--sos-primary)" }}
         >
           <Plus className="w-4 h-4" /> New Project
         </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}

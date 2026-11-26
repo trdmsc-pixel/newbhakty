@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { ViewSwitcher } from "../components/ViewSwitcher";
 import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from "date-fns";
 import { Flag, Sparkles } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
@@ -133,32 +134,7 @@ export const TimelineScreen: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Board / Timeline / Table Segmented Pill */}
-          <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
-            <button
-              type="button"
-              onClick={() => setRoute("board")}
-              className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-              style={{ color: "var(--sos-text-2)" }}
-            >
-              Board
-            </button>
-            <button
-              type="button"
-              className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-white"
-              style={{ background: "var(--sos-blue)" }}
-            >
-              Timeline
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoute("table")}
-              className="px-4 py-1.5 rounded-full text-[13px] font-medium"
-              style={{ color: "var(--sos-text-2)" }}
-            >
-              Table
-            </button>
-          </div>
+          <ViewSwitcher area="projects" />
 
           {/* Week / Month / Quarter Zoom */}
           <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>

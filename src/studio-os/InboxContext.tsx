@@ -13,6 +13,7 @@ export type InboxItemAction =
   | "new_lead"
   | "reply_owed"
   | "update_deadline"
+  | "update_task_status"
   | "ignore";
 
 export interface InboxItem {
