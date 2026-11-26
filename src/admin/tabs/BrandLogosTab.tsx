@@ -193,7 +193,6 @@ export const BrandLogosTab: React.FC<BrandLogosTabProps> = ({
             <MediaField
               value={newUrl}
               onChange={setNewUrl}
-              onUpload={onOpenUpload}
               placeholder="Paste direct logo CDN link"
             />
           </Field>

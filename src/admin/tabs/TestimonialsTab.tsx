@@ -209,7 +209,6 @@ export const TestimonialsTab: React.FC<TestimonialsTabProps> = ({
                 onChange={(url) =>
                   setEditingItem((prev) => ({ ...prev, avatar_url: url }))
                 }
-                onUpload={onOpenUpload}
                 placeholder="Direct headshot image URL"
               />
             </Field>

@@ -81,7 +81,9 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
   }, [selectedWork?.id]);
 
   const handleFieldChange = (key: keyof VideoBlock, val: any) => {
-    setEditFilm((prev) => ({ ...prev, [key]: val }));
+    // The site's lightbox prefers highResVideoUrl, which isn't edited separately —
+    // keep it in step with the main video so a new upload/link shows everywhere.
+    setEditFilm((prev) => (key === "videoUrl" ? { ...prev, videoUrl: val, highResVideoUrl: val } : { ...prev, [key]: val }));
   };
 
   const handleSaveSelectedFilm = async () => {
@@ -329,7 +331,6 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     type="video"
                     value={editFilm.videoUrl || ""}
                     onChange={(val) => handleFieldChange("videoUrl", val)}
-                    onUpload={() => onOpenUpload(selectedWork.id)}
                     placeholder="Direct MP4 / WEBM video stream link"
                   />
                 </Field>
@@ -339,7 +340,6 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     type="image"
                     value={editFilm.imageUrl || ""}
                     onChange={(val) => handleFieldChange("imageUrl", val)}
-                    onUpload={() => onOpenUpload(selectedWork.id)}
                     placeholder="Poster image still link"
                   />
                 </Field>

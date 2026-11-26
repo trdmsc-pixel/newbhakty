@@ -250,7 +250,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       <MediaField
                         value={editSettings.navbar_logo_url || ""}
                         onChange={(val) => onSettingChange("navbar_logo_url", val)}
-                        onUpload={() => onOpenUpload("navbar_logo_url")}
                         placeholder="Default animated Studio Wordmark"
                       />
                     </Field>
@@ -319,7 +318,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           onSettingChange("footer_logo_url", val);
                           onSettingChange("logo_img_url", val);
                         }}
-                        onUpload={() => onOpenUpload("footer_logo_url")}
                         placeholder="Default giant THE CHANTING STUDIO signature"
                       />
                     </Field>
@@ -448,9 +446,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <Field label="Hero Background Loop Video">
                     <MediaField
                       type="video"
-                      value={editSettings.hero_video_bg_url || ""}
-                      onChange={(val) => onSettingChange("hero_video_bg_url", val)}
-                      onUpload={() => onOpenUpload("hero_video_bg_url")}
+                      value={editSettings.hero_loop_url || editSettings.hero_video_bg_url || ""}
+                      onChange={(val) => {
+                        // The homepage plays hero_loop_url first; keep both in step.
+                        onSettingChange("hero_loop_url", val);
+                        onSettingChange("hero_video_bg_url", val);
+                      }}
                       placeholder="Direct mp4 / webm CDN link"
                     />
                   </Field>
@@ -460,7 +461,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       type="image"
                       value={editSettings.hero_poster_url || ""}
                       onChange={(val) => onSettingChange("hero_poster_url", val)}
-                      onUpload={() => onOpenUpload("hero_poster_url")}
                       placeholder="Cover frame for instant loading"
                     />
                   </Field>
@@ -484,7 +484,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       type="video"
                       value={editSettings.showreel_video_url || ""}
                       onChange={(val) => onSettingChange("showreel_video_url", val)}
-                      onUpload={() => onOpenUpload("showreel_video_url")}
                       placeholder="4K showreel video file"
                     />
                   </Field>
@@ -494,7 +493,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       type="image"
                       value={editSettings.showreel_poster_url || ""}
                       onChange={(val) => onSettingChange("showreel_poster_url", val)}
-                      onUpload={() => onOpenUpload("showreel_poster_url")}
                       placeholder="High-resolution poster image"
                     />
                   </Field>

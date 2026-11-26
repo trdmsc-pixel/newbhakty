@@ -79,8 +79,9 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
               variant="accent"
               onClick={onTriggerUpload}
               icon={<Upload className="w-4 h-4" />}
+              title="Max 50 MB per file"
             >
-              Upload assets
+              Upload assets · max 50 MB
             </Button>
           </div>
         }

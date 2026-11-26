@@ -7,6 +7,7 @@ import { tabTransition } from "./ui/motion";
 import { useSiteData, NavigationMenuItem, MediaAsset, BrandLogo, Testimonial } from "../context/SiteDataContext";
 import { useToast } from "../context/ToastContext";
 import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/cloudinary";
+import { MediaUploadContext } from "./ui/MediaField";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { VideoBlock, PortfolioTab as PortfolioTabType } from "../types";
 
@@ -901,6 +902,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       />
 
       {/* Tab content wrapped in AnimatePresence with direction-aware sliding fades */}
+      <MediaUploadContext.Provider value={{ onUploaded: (name, url, kind) => addMediaAsset(name, url, kind) }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -1023,6 +1025,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
 
         </motion.div>
       </AnimatePresence>
+      </MediaUploadContext.Provider>
 
       {/* Floating Upload Progress Modal */}
       <AnimatePresence>
