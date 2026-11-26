@@ -15,9 +15,10 @@ import { applyItem, undoItem } from "../phase3/inboxEngine.js";
 import { recomputeProjectForecast } from "../phase4/routes.js";
 import { createDraftForCopilot, deleteDraftForCopilot } from "../phase6/mail.js";
 import { createGatesFromTemplate } from "../../src/studio-os/seedData.js";
+import { geminiGenerate } from "../../lib/ai/geminiClient.js";
 
 const GEMINI = "https://generativelanguage.googleapis.com";
-const model = () => getEnv("COPILOT_MODEL") || "gemini-2.5-flash";
+const model = () => getEnv("COPILOT_MODEL") || "gemini-3.8-flash";
 const key = () => getEnv("GEMINI_API_KEY");
 
 async function owner(req: Request, res: Response): Promise<SupabaseClient | null> {
@@ -706,19 +707,21 @@ export function registerCopilotRoutes(app: Express) {
       contents.push({ role: "user", parts: lastParts });
 
       const viewNote = view ? `\nThe user is currently viewing: ${view.route}${view.project_code ? ` (project ${view.project_code})` : ""}.` : "";
-      const r = await fetch(`${GEMINI}/v1beta/models/${encodeURIComponent(model())}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key() },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: `${SYSTEM}${viewNote}\n\nWORKSPACE SNAPSHOT (JSON):\n${JSON.stringify(snapshot)}` }] },
-          contents,
-          tools: [{ functionDeclarations: DECLARATIONS }],
-          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
-        }),
-      });
-      const data: any = await r.json().catch(() => ({}));
-      if (!r.ok) return res.status(502).json({ error: `Gemini: ${data?.error?.message || r.status}` });
+      let data: any;
+      try {
+        ({ data } = await geminiGenerate(
+          {
+            systemInstruction: { parts: [{ text: `${SYSTEM}${viewNote}\n\nWORKSPACE SNAPSHOT (JSON):\n${JSON.stringify(snapshot)}` }] },
+            contents,
+            tools: [{ functionDeclarations: DECLARATIONS }],
+            toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+            generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
+          },
+          { preferred: model(), tier: "smart" }
+        ));
+      } catch (err: any) {
+        return res.status(err?.status === 429 ? 429 : 502).json({ error: err?.message || "Gemini is unavailable right now." });
+      }
 
       const parts: any[] = data?.candidates?.[0]?.content?.parts || [];
       let text = parts.filter((p) => typeof p.text === "string").map((p) => p.text).join("").trim();
