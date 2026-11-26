@@ -1,4 +1,21 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { ProjectThumb, thumbCandidates, type DeliverableLike } from "../../review/ProjectThumb";
+import { resolveStudioReviewUrl } from "../components/ProjectDeliverables";
+import type { StudioGate, StudioProject } from "../types";
+
+/** Status shown on a project thumbnail. */
+export function projectStatusBadge(p: StudioProject, pGates: StudioGate[]): { label: string; bg: string; fg: string } {
+  if (p.closed_at) return { label: "✓ Completed & closed", bg: "#1F7A52", fg: "#FFFFFF" };
+  if (p.status === "paid") return { label: "✓ Delivered · Paid", bg: "#1F7A52", fg: "#FFFFFF" };
+  if (p.status === "delivered") return { label: "✓ Delivered", bg: "#1F7A52", fg: "#FFFFFF" };
+  if (p.status === "lost") return { label: "Lost", bg: "rgba(15,17,21,0.75)", fg: "#FFFFFF" };
+  if (p.status === "parked" || p.status === "on_hold") return { label: p.status === "parked" ? "Parked" : "On hold", bg: "#9A4A00", fg: "#FFFFFF" };
+  if (p.status === "lead" || p.status === "quoted") return { label: p.status === "lead" ? "Lead" : "Quoted", bg: "#2563EB", fg: "#FFFFFF" };
+  if (pGates.some((g) => g.status === "waiting_on_client")) return { label: "Awaiting client approval", bg: "#B45309", fg: "#FFFFFF" };
+  if (pGates.some((g) => g.status === "revising")) return { label: "Revising", bg: "#5B3FE4", fg: "#FFFFFF" };
+  return { label: "In production", bg: "rgba(15,17,21,0.75)", fg: "#FFFFFF" };
+}
 import { ViewSwitcher } from "../components/ViewSwitcher";
 import { format, parseISO } from "date-fns";
 import { Lock, Plus } from "lucide-react";
@@ -7,13 +24,27 @@ import { HealthPill } from "../components/StatusChip";
 
 export const ProjectsScreen: React.FC = () => {
   const { projects, clients, gates, tasks, openProject, setNewProjectOpen } = useStudioOS();
+  const { supabaseSyncStatus } = useStudioOS();
   const [filter, setFilter] = useState<"active" | "pipeline" | "delivered" | "all">("active");
+  const [deliverables, setDeliverables] = useState<Record<string, DeliverableLike[]>>({});
+  useEffect(() => {
+    if (supabaseSyncStatus !== "synced" || !supabase) return;
+    supabase
+      .from("studio_deliverables")
+      .select("project_id, url, is_final, download_url, created_at")
+      .is("archived_at", null)
+      .then(({ data }) => {
+        const map: Record<string, DeliverableLike[]> = {};
+        for (const d of (data || []) as Array<DeliverableLike & { project_id: string }>) (map[d.project_id] ||= []).push(d);
+        setDeliverables(map);
+      });
+  }, [supabaseSyncStatus]);
 
   const filtered = useMemo(() => {
     return projects.filter((p) => {
-      if (filter === "active") return p.status === "active" || p.status === "on_hold";
+      if (filter === "active") return (p.status === "active" || p.status === "on_hold") && !p.closed_at;
       if (filter === "pipeline") return p.status === "lead" || p.status === "quoted";
-      if (filter === "delivered") return p.status === "delivered" || p.status === "paid";
+      if (filter === "delivered") return p.status === "delivered" || p.status === "paid" || Boolean(p.closed_at);
       return true;
     });
   }, [projects, filter]);
@@ -77,14 +108,26 @@ export const ProjectsScreen: React.FC = () => {
           const pct = pGates.length ? Math.round((approved / pGates.length) * 100) : 0;
           const currentGate = pGates.find((g) => g.status !== "approved" && g.status !== "skipped");
           const openTaskCount = tasks.filter((t) => t.project_id === p.id && t.status !== "done").length;
+          const badge = projectStatusBadge(p, pGates);
 
           return (
             <button
               key={p.id}
               type="button"
               onClick={() => openProject(p.id)}
-              className="sos-card p-5 text-left flex flex-col justify-between gap-4 hover:-translate-y-0.5"
+              className="sos-card p-5 text-left flex flex-col justify-between gap-4 hover:-translate-y-0.5 overflow-hidden"
             >
+              <ProjectThumb
+                candidates={thumbCandidates(p.cover_image_url, deliverables[p.id] || [])}
+                resolveUrl={resolveStudioReviewUrl}
+                emoji={p.emoji}
+                className="-mx-5 -mt-5 h-36"
+                style={{ background: "var(--sos-surface-2)" }}
+              >
+                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm backdrop-blur-sm" style={{ background: badge.bg, color: badge.fg }}>
+                  {badge.label}
+                </span>
+              </ProjectThumb>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span

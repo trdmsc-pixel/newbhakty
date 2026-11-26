@@ -195,6 +195,8 @@ export interface StudioProject {
   health: ProjectHealth;
   current_gate_id?: string;
   cover_image_url?: string;
+  /** Set when the project is complete and closed (visible to the client). */
+  closed_at?: string;
   emoji: string;
   drive_folder_url?: string;
   review_link_url?: string;

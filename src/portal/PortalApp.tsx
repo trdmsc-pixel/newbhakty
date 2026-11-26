@@ -19,6 +19,7 @@ import { supabase, isSupabaseConfigured } from "./portalSupabase";
 import { AccountTab, CalendarTab, MessagesTab, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
 import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
+import { ProjectThumb, thumbCandidates, downloadHref, isStreamOnly } from "../review/ProjectThumb";
 import "../studio-os/studio-os.css";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ interface PortalProject {
   review_link_url: string | null;
   current_stage: string | null;
   updated_at: string;
+  closed_at: string | null;
 }
 interface PortalGate {
   id: string;
@@ -62,6 +64,8 @@ interface PortalDeliverable {
   url: string;
   version: string | null;
   created_at: string;
+  is_final: boolean;
+  download_url: string | null;
 }
 interface PortalInvoice {
   id: string;
@@ -384,25 +388,40 @@ const SetPassword: React.FC<{ loginId?: string; name?: string; onDone: () => voi
 // ---------------------------------------------------------------------------
 // Project list
 // ---------------------------------------------------------------------------
-const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: () => void }> = ({ project, awaiting, onOpen }) => {
+function portalBadge(project: PortalProject, gates: PortalGate[]): { label: string; bg: string; fg: string } {
+  if (project.closed_at) return { label: "✓ Completed & closed", bg: "#1F7A52", fg: "#FFFFFF" };
+  if (project.status === "delivered" || project.status === "paid") return { label: "✓ Delivered", bg: "#1F7A52", fg: "#FFFFFF" };
+  if (gates.some((g) => g.status === "waiting_on_client")) return { label: "Awaiting your approval", bg: "#FFFFFF", fg: "#9A4A00" };
+  if (gates.some((g) => g.status === "revising")) return { label: "Revising your notes", bg: "#5B3FE4", fg: "#FFFFFF" };
+  if (project.status === "on_hold") return { label: "On hold", bg: "#9A4A00", fg: "#FFFFFF" };
+  if (project.status === "quoted") return { label: "Proposal", bg: "#2563EB", fg: "#FFFFFF" };
+  return { label: "In progress", bg: "rgba(15,17,21,0.72)", fg: "#FFFFFF" };
+}
+
+const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void }> = ({ project, gates, deliverables, onOpen }) => {
   const h = HEALTH[project.health] || HEALTH.on_track;
   const date = fmtDate(milestoneDate(project));
-  const done = project.status === "delivered" || project.status === "paid";
+  const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
+  const badge = portalBadge(project, gates);
+  const hasFinal = deliverables.some((d) => d.is_final);
   return (
     <button type="button" onClick={onOpen} className="sos-card overflow-hidden text-left transition-transform hover:-translate-y-0.5">
-      <div
-        className="h-40 flex items-center justify-center text-[44px] relative"
-        style={{
-          background: project.cover_image_url ? `center / cover no-repeat url("${project.cover_image_url}")` : "var(--sos-violet-soft)",
-        }}
+      <ProjectThumb
+        candidates={thumbCandidates(project.cover_image_url, deliverables)}
+        resolveUrl={resolveReviewUrl}
+        emoji={project.emoji}
+        className="h-40"
+        style={{ background: "var(--sos-violet-soft)" }}
       >
-        {!project.cover_image_url && <span>{project.emoji || "🎬"}</span>}
-        {awaiting > 0 && (
-          <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold" style={{ background: "#FFFFFF", color: "#9A4A00" }}>
-            Awaiting your approval
+        <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm" style={{ background: badge.bg, color: badge.fg }}>
+          {badge.label}
+        </span>
+        {hasFinal && (
+          <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/95 text-[#17663F] shadow-sm">
+            <Download className="w-3 h-3" /> Final files ready
           </span>
         )}
-      </div>
+      </ProjectThumb>
       <div className="p-5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -413,10 +432,10 @@ const ProjectCard: React.FC<{ project: PortalProject; awaiting: number; onOpen: 
               {project.title}
             </h3>
           </div>
-          {done ? <Pill bg="#E7F7EE" text="#17663F">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+          {done ? <Pill bg="#E7F7EE" text="#17663F">{project.closed_at ? "Closed" : "Delivered"}</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
         </div>
         <div className="flex items-center justify-between text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-          <span className="truncate">{done ? "Complete" : project.current_stage || "Getting started"}</span>
+          <span className="truncate">{project.closed_at ? `Completed ${fmtDate(project.closed_at)}` : done ? "Complete" : project.current_stage || "Getting started"}</span>
           {date && !done && (
             <span className="sos-tabular shrink-0 inline-flex items-center gap-1" style={{ color: "var(--sos-text-3)" }}>
               <Clock className="w-3.5 h-3.5" /> {date}
@@ -748,6 +767,90 @@ const ApprovalCard: React.FC<{
   );
 };
 
+// ---------------------------------------------------------------------------
+// Final delivery (download the finished files)
+// ---------------------------------------------------------------------------
+const FinalDeliveryItem: React.FC<{ d: PortalDeliverable }> = ({ d }) => {
+  const [busy, setBusy] = useState(false);
+  const [watch, setWatch] = useState(false);
+  const source = d.download_url || d.url;
+  const streamOnly = !d.download_url && isStreamOnly(d.url);
+  const download = async () => {
+    setBusy(true);
+    const href = await downloadHref(source, resolveReviewUrl);
+    setBusy(false);
+    if (!href) return setWatch(true);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = d.title || "";
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-[16px]" style={{ background: "var(--sos-surface-2)" }}>
+        <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "#E7F7EE", color: "#17663F" }}>
+          <Check className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{d.title}</p>
+          <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
+            {[d.version, `Delivered ${fmtDate(d.created_at)}`].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setWatch((w) => !w)} className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-1.5" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}>
+            <Play className="w-4 h-4" /> {watch ? "Hide" : "Watch"}
+          </button>
+          {!streamOnly && (
+            <button type="button" disabled={busy} onClick={download} className="sos-pill-btn h-10 px-4 text-[13px] font-semibold text-white inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: "var(--sos-green)" }}>
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
+            </button>
+          )}
+        </div>
+      </div>
+      {streamOnly && (
+        <p className="text-[12px] px-1" style={{ color: "var(--sos-text-3)" }}>
+          This file is streamed — ask the studio if you need the master file to download.
+        </p>
+      )}
+      {watch && <ReviewMedia url={d.url} resolveUrl={resolveReviewUrl} />}
+    </div>
+  );
+};
+
+const FinalDelivery: React.FC<{ project: PortalProject; finals: PortalDeliverable[] }> = ({ project, finals }) => (
+  <div className="sos-card p-5 md:p-6 space-y-4" style={{ borderColor: "#BDE5CE" }}>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "#17663F" }}>
+          {project.closed_at ? "Project complete" : "Final delivery"}
+        </p>
+        <h2 className="sos-display text-[22px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+          Your final files
+        </h2>
+      </div>
+      {project.closed_at && (
+        <Pill bg="#E7F7EE" text="#17663F">Completed & closed · {fmtDate(project.closed_at)}</Pill>
+      )}
+    </div>
+    {finals.length ? (
+      <div className="space-y-3">
+        {finals.map((d) => (
+          <FinalDeliveryItem key={d.id} d={d} />
+        ))}
+      </div>
+    ) : (
+      <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
+        The studio is preparing your final files — they'll appear here to download.
+      </p>
+    )}
+  </div>
+);
+
 const ProjectView: React.FC<{
   project: PortalProject;
   gates: PortalGate[];
@@ -759,7 +862,7 @@ const ProjectView: React.FC<{
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
-  const done = project.status === "delivered" || project.status === "paid";
+  const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
   const awaiting = gates.filter((g) => g.status === "waiting_on_client");
   const previewFor = (gateId: string) =>
     [...deliverables].filter((d) => d.gate_id === gateId).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.url || project.review_link_url;
@@ -779,11 +882,11 @@ const ProjectView: React.FC<{
             {project.emoji} {project.title}
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "var(--sos-text-2)" }}>
-            {done ? "Delivered by the studio" : `Currently: ${project.current_stage || "getting started"}`}
+            {project.closed_at ? `Completed & closed on ${fmtDate(project.closed_at)} — thank you!` : done ? "Delivered by the studio" : `Currently: ${project.current_stage || "getting started"}`}
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-1.5">
-          {done ? <Pill bg="#E7F7EE" text="#17663F">Delivered</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+          {done ? <Pill bg="#E7F7EE" text="#17663F">{project.closed_at ? "Completed & closed" : "Delivered"}</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
           {!done && milestoneDate(project) && (
             <p className="text-[13px] sos-tabular" style={{ color: "var(--sos-text-2)" }}>
               Expected delivery <strong>{fmtDate(milestoneDate(project))}</strong>
@@ -791,6 +894,13 @@ const ProjectView: React.FC<{
           )}
         </div>
       </div>
+
+      {(project.closed_at || deliverables.some((d) => d.is_final)) && (
+        <FinalDelivery
+          project={project}
+          finals={[...deliverables].filter((d) => d.is_final).sort((a, b) => b.created_at.localeCompare(a.created_at))}
+        />
+      )}
 
       {flash && (
         <div className="p-4 rounded-[18px] text-[14px] font-medium" style={{ background: "#E7F7EE", color: "#17663F" }}>
@@ -1074,7 +1184,13 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {projects.map((p) => (
-                    <ProjectCard key={p.id} project={p} awaiting={awaitingByProject.get(p.id) || 0} onOpen={() => setSelected(p.id)} />
+                    <ProjectCard
+                      key={p.id}
+                      project={p}
+                      gates={gates.filter((g) => g.project_id === p.id)}
+                      deliverables={deliverables.filter((d) => d.project_id === p.id)}
+                      onOpen={() => setSelected(p.id)}
+                    />
                   ))}
                 </div>
               )}

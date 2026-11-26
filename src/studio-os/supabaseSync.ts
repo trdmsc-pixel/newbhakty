@@ -31,7 +31,7 @@ import { isUuid, newUuid } from "./uuid";
 export const DEFAULT_INVOICE_URL = "https://invoice-gen-blond.vercel.app/";
 // Every studio_projects column except fee_amount (column-locked for non-owners).
 const PROJECT_COLUMNS =
-  "id,code,title,client_id,type,status,currency,runtime_seconds,versions,aspect_ratios,hard_deadline,promised_date,forecast_date,health,current_gate_id,cover_image_url,emoji,drive_folder_url,review_link_url,is_confidential,portal_visible,is_public_showcase,priority,owner_member_id,pinned,last_client_touch_at,last_studio_touch_at,created_at,updated_at";
+  "id,code,title,client_id,type,status,currency,runtime_seconds,versions,aspect_ratios,hard_deadline,promised_date,forecast_date,health,current_gate_id,cover_image_url,emoji,drive_folder_url,review_link_url,is_confidential,portal_visible,is_public_showcase,priority,owner_member_id,pinned,last_client_touch_at,last_studio_touch_at,created_at,updated_at,closed_at";
 
 export interface StudioViewer {
   memberId: string | null;
@@ -231,6 +231,7 @@ function toProjectRow(p: StudioProject) {
     health: p.health || "on_track",
     current_gate_id: isUuid(p.current_gate_id) ? p.current_gate_id : null,
     cover_image_url: p.cover_image_url ?? null,
+    closed_at: p.closed_at ?? null,
     emoji: p.emoji || "🎬",
     drive_folder_url: p.drive_folder_url ?? null,
     review_link_url: p.review_link_url ?? null,
@@ -267,6 +268,7 @@ function fromProjectRow(row: any): StudioProject {
     health: row.health || "on_track",
     current_gate_id: row.current_gate_id || undefined,
     cover_image_url: row.cover_image_url || undefined,
+    closed_at: row.closed_at || undefined,
     emoji: row.emoji || "🎬",
     drive_folder_url: row.drive_folder_url || undefined,
     review_link_url: row.review_link_url || undefined,
@@ -819,6 +821,8 @@ export async function syncUpdateProject(projectId: string, patch: Partial<Studio
   if ("emoji" in patch) payload.emoji = patch.emoji;
   if ("drive_folder_url" in patch) payload.drive_folder_url = patch.drive_folder_url ?? null;
   if ("review_link_url" in patch) payload.review_link_url = patch.review_link_url ?? null;
+  if ("cover_image_url" in patch) payload.cover_image_url = patch.cover_image_url ?? null;
+  if ("closed_at" in patch) payload.closed_at = patch.closed_at ?? null;
   if ("is_confidential" in patch) payload.is_confidential = Boolean(patch.is_confidential);
   if ("portal_visible" in patch) payload.portal_visible = Boolean(patch.portal_visible);
   if ("priority" in patch) payload.priority = patch.priority;

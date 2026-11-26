@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Copy, Eye, EyeOff, Image as ImageIcon, Link2, Loader2, MessageSquare, Play, Plus, Send, Trash2, Upload, X } from "lucide-react";
+import { Award, Copy, Download, Eye, EyeOff, Image as ImageIcon, Link2, Loader2, MessageSquare, Play, Plus, Send, Trash2, Upload, X } from "lucide-react";
+import { thumbFor } from "../../review/ProjectThumb";
 import { ReviewMedia, type ReviewMediaHandle, fmtTime, parseMedia, parseNote } from "../../review/ReviewMedia";
 import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
@@ -15,6 +16,8 @@ export interface Deliverable {
   version: string | null;
   shared_with_client: boolean;
   created_at: string;
+  is_final?: boolean;
+  download_url?: string | null;
 }
 
 export function useProjectDeliverables(projectId: string) {
@@ -30,7 +33,7 @@ export function useProjectDeliverables(projectId: string) {
     }
     const { data } = await supabase
       .from("studio_deliverables")
-      .select("id, project_id, gate_id, title, url, version, shared_with_client, created_at")
+      .select("id, project_id, gate_id, title, url, version, shared_with_client, created_at, is_final, download_url")
       .eq("project_id", projectId)
       .is("archived_at", null)
       .order("created_at", { ascending: false });
@@ -131,7 +134,9 @@ export const portalLinkFor = (projectId: string) => `${window.location.origin}/p
 // Deliverables tab
 // ---------------------------------------------------------------------------
 export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: StudioGate[] }> = ({ project, gates }) => {
-  const { pushToast } = useStudioOS();
+  const { pushToast, updateProject } = useStudioOS();
+  const [isFinal, setIsFinal] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState("");
   const { items, loading, reload } = useProjectDeliverables(project.id);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -170,13 +175,36 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
       url: url.trim(),
       version: version.trim() || null,
       shared_with_client: shared,
+      is_final: isFinal,
+      download_url: downloadUrl.trim() || null,
     });
     setBusy(false);
     if (error) return pushToast(error.message, "warn");
     setTitle("");
     setUrl("");
+    setDownloadUrl("");
+    setIsFinal(false);
     pushToast(shared ? "Added & shared in the client portal" : "Added (internal only)", "success");
     reload();
+  };
+
+  const toggleFinal = async (d: Deliverable) => {
+    await supabase?.from("studio_deliverables").update({ is_final: !d.is_final, ...(d.is_final ? {} : { shared_with_client: true }) }).eq("id", d.id);
+    pushToast(d.is_final ? "No longer marked final" : "Marked as final delivery — visible in the client portal", "success");
+    reload();
+  };
+  const editDownload = async (d: Deliverable) => {
+    const next = window.prompt("Direct download link for the master file (Drive, Dropbox, WeTransfer…). Leave empty to remove.", d.download_url || "");
+    if (next === null) return;
+    await supabase?.from("studio_deliverables").update({ download_url: next.trim() || null }).eq("id", d.id);
+    reload();
+  };
+  const useAsCover = (d: Deliverable) => {
+    const t = thumbFor(d.url);
+    const cover = t?.kind === "img" && !d.url.startsWith("storage://") ? t.src : null;
+    if (!cover) return pushToast("This one can't be a cover — use a YouTube/Vimeo/Drive link or a public image.", "warn");
+    updateProject(project.id, { cover_image_url: cover });
+    pushToast("Project cover updated", "success");
   };
 
   const toggleShare = async (d: Deliverable) => {
@@ -231,10 +259,17 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
             </option>
           ))}
         </select>
-        <label className="md:col-span-4 inline-flex items-center gap-2 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="w-4 h-4 accent-[#5B3FE4]" />
-          Share with client in the portal
-        </label>
+        <input value={downloadUrl} onChange={(e) => setDownloadUrl(e.target.value)} placeholder="Optional: master-file download link (Drive / Dropbox / WeTransfer)" className="md:col-span-6 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
+        <div className="md:col-span-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <label className="inline-flex items-center gap-2 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+            <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="w-4 h-4 accent-[#5B3FE4]" />
+            Share with client in the portal
+          </label>
+          <label className="inline-flex items-center gap-2 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+            <input type="checkbox" checked={isFinal} onChange={(e) => { setIsFinal(e.target.checked); if (e.target.checked) setShared(true); }} className="w-4 h-4 accent-[#1F7A52]" />
+            Final delivery (client can download)
+          </label>
+        </div>
         <button type="submit" disabled={busy} className="md:col-span-2 sos-pill-btn h-10 text-[13px] font-semibold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ background: "var(--sos-primary)" }}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add deliverable
         </button>
@@ -250,10 +285,11 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
             const gate = gates.find((g) => g.id === d.gate_id);
             return (
               <div key={d.id} className="px-3.5 py-3 rounded-[14px] sos-tile">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 {parseMedia(d.url)?.kind === "image" ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : ["youtube", "vimeo"].includes(parseMedia(d.url)?.kind || "") ? <Play className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[55%] flex-1">
                   <button type="button" onClick={() => setOpenId(openId === d.id ? null : d.id)} className="text-[14px] font-semibold truncate block hover:underline text-left max-w-full" style={{ color: "var(--sos-text-1)" }} aria-expanded={openId === d.id}>
+                    {d.is_final && <span className="inline-flex items-center gap-1 mr-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" style={{ background: "#E7F7EE", color: "#17663F" }}><Award className="w-3 h-3" /> FINAL</span>}
                     {d.title} {d.version && <span className="text-[11px] font-semibold" style={{ color: "var(--sos-text-3)" }}>{d.version}</span>}
                     <span className="text-[11px] font-medium ml-1.5" style={{ color: "var(--sos-text-3)" }}>{KIND_LABEL[parseMedia(d.url)?.kind || "link"]} · {openId === d.id ? "Hide" : "Review"}</span>
                   </button>
@@ -261,6 +297,33 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
                     {[gate ? `${gate.code} ${gate.name}` : null, format(parseISO(d.created_at), "d MMM yyyy")].filter(Boolean).join(" · ")}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => toggleFinal(d)}
+                  className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold"
+                  style={d.is_final ? { background: "#1F7A52", color: "#FFFFFF" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)" }}
+                  title="The final delivery appears at the top of the client portal with a download button"
+                >
+                  <Award className="w-3 h-3" /> {d.is_final ? "Final" : "Mark final"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editDownload(d)}
+                  className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold"
+                  style={d.download_url ? { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" } : { background: "var(--sos-surface)", color: "var(--sos-text-3)" }}
+                  title={d.download_url || "Add a master-file download link"}
+                >
+                  <Download className="w-3 h-3" /> {d.download_url ? "Download link" : "Add download"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => useAsCover(d)}
+                  className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold"
+                  style={project.cover_image_url && thumbFor(d.url)?.src === project.cover_image_url ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)" } : { background: "var(--sos-surface)", color: "var(--sos-text-3)" }}
+                  title="Use this as the project thumbnail"
+                >
+                  <ImageIcon className="w-3 h-3" /> Cover
+                </button>
                 <button
                   type="button"
                   onClick={() => toggleShare(d)}

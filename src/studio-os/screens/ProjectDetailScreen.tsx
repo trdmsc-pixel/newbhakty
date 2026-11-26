@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
-import { Calendar, Check, Diamond, Film, Lock, Minus, Plus, Send, Sparkles, UserPlus } from "lucide-react";
+import { Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { GateStatusChip, HealthPill, StackedAvatars } from "../components/StatusChip";
 import { BoardScreen } from "./BoardScreen";
@@ -26,6 +26,8 @@ export const ProjectDetailScreen: React.FC = () => {
     settings,
     generationBlocks,
     updateGate,
+    updateProject,
+    updateTask,
     initGenerationBlocks,
     addGenerationBlock,
     updateGenerationBlock,
@@ -91,6 +93,32 @@ export const ProjectDetailScreen: React.FC = () => {
   };
 
   const sendGate = projectGates.find((g) => g.id === sendGateId);
+  const isClosed = Boolean(project.closed_at);
+  const openTaskList = tasks.filter((t) => t.project_id === project.id && t.status !== "done");
+  const openGateList = projectGates.filter((g) => g.status !== "approved" && g.status !== "skipped");
+
+  const closeProject = () => {
+    const lines = [
+      `Complete and close ${project.code} — ${project.title}?`,
+      "",
+      "• The client portal will show it as Completed & closed",
+      openGateList.length ? `• ${openGateList.length} remaining stage${openGateList.length > 1 ? "s" : ""} will be marked approved` : null,
+      openTaskList.length ? `• ${openTaskList.length} open task${openTaskList.length > 1 ? "s" : ""} will be marked done` : null,
+      "• Mark the final file(s) in Deliverables so the client can download them",
+    ].filter(Boolean);
+    if (!window.confirm(lines.join("\n"))) return;
+    const now = new Date().toISOString();
+    for (const g of openGateList) updateGate(g.id, { status: "approved", approved_at: g.approved_at || now });
+    for (const t of openTaskList) updateTask(t.id, { status: "done", is_in_now: false });
+    updateProject(project.id, { status: project.status === "paid" ? "paid" : "delivered", closed_at: now, health: "on_track" });
+    pushToast(`${project.code} completed & closed`, "success");
+    setTab("deliverables");
+  };
+  const reopenProject = () => {
+    if (!window.confirm(`Reopen ${project.code}? It will show as active again in the client portal.`)) return;
+    updateProject(project.id, { status: "active", closed_at: undefined });
+    pushToast(`${project.code} reopened`, "info");
+  };
 
   return (
     <div className="space-y-6">
@@ -113,7 +141,13 @@ export const ProjectDetailScreen: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <HealthPill health={project.health} />
+              {isClosed ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Completed & closed · {format(parseISO(project.closed_at!), "d MMM yyyy")}
+                </span>
+              ) : (
+                <HealthPill health={project.health} />
+              )}
               {project.is_confidential && (
                 <span
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold"
@@ -145,6 +179,16 @@ export const ProjectDetailScreen: React.FC = () => {
                 size={34}
               />
             </div>
+            {isOwner &&
+              (isClosed ? (
+                <button type="button" onClick={reopenProject} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold border" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}>
+                  <RotateCcw className="w-4 h-4" /> Reopen
+                </button>
+              ) : (
+                <button type="button" onClick={closeProject} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white" style={{ background: "var(--sos-green)" }}>
+                  <CheckCircle2 className="w-4 h-4" /> Complete & close
+                </button>
+              ))}
             <button
               type="button"
               onClick={() => (isOwner ? setAssignOpen(true) : pushToast("Only the studio owner can change the project team", "info"))}
