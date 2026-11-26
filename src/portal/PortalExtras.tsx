@@ -342,14 +342,23 @@ interface Msg {
   author_name: string | null;
   created_at: string;
   read_by_client_at: string | null;
+  read_by_studio_at?: string | null;
+  delivered_to_studio_at?: string | null;
+  delivered_to_client_at?: string | null;
 }
+
+import { Receipt } from "../review/Receipt";
+export { Receipt };
 
 export function usePortalMessages(enabled: boolean) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const load = useCallback(async () => {
     if (!supabase || !enabled) return;
     const { data } = await supabase.from("portal_messages").select("*").order("created_at", { ascending: true }).limit(300);
-    setMessages((data || []) as Msg[]);
+    const list = (data || []) as Msg[];
+    setMessages(list);
+    // Tell the studio its messages reached this client.
+    if (list.some((m) => m.from_studio && !m.delivered_to_client_at)) supabase.rpc("portal_mark_messages_delivered").then(() => {}, () => {});
   }, [enabled]);
   useEffect(() => {
     load();
@@ -421,9 +430,12 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
                     style={m.from_studio ? { background: "var(--sos-surface-2)", color: "var(--sos-text-1)" } : { background: "var(--sos-primary)" }}
                   >
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                    <p className={`text-[10px] mt-1 ${m.from_studio ? "" : "text-white/75"}`} style={m.from_studio ? { color: "var(--sos-text-3)" } : undefined}>
-                      {m.from_studio ? "The Chanting Studio" : "You"}
-                      {proj ? ` · ${proj.title}` : ""} · {new Date(m.created_at).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                    <p className={`text-[10px] mt-1 flex flex-wrap items-center gap-x-1.5 ${m.from_studio ? "" : "justify-end text-white/75"}`} style={m.from_studio ? { color: "var(--sos-text-3)" } : undefined}>
+                      <span>
+                        {m.from_studio ? "The Chanting Studio" : "You"}
+                        {proj ? ` · ${proj.title}` : ""} · {new Date(m.created_at).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      {!m.from_studio && <Receipt read={m.read_by_studio_at} delivered={m.delivered_to_studio_at} light />}
                     </p>
                   </div>
                 </motion.div>

@@ -298,7 +298,7 @@ export async function runDailyBrief(sb: SupabaseClient) {
     scope_alerts: (scope.data || []).map((s: any) => ({ project: code.get(s.project_id) || "", verdict: s.result?.verdict, over_rounds: s.result?.over_rounds })),
   };
   const { text, model } = await ask({
-    tier: "smart",
+    tier: "fast",
     json: true,
     maxTokens: 3000,
     temperature: 0.3,

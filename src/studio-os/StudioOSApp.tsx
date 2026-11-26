@@ -222,7 +222,7 @@ const StudioOSShell: React.FC<{
       }
       if (Date.now() - gPrefixRef.current < 900) {
         if (key === "t") setRoute("today");
-        else if (key === "b") setRoute("board");
+        else if (key === "b") setRoute("table");
         else if (key === "p") setRoute("projects");
         else if (key === "m") setRoute("mail");
         gPrefixRef.current = 0;
@@ -236,7 +236,7 @@ const StudioOSShell: React.FC<{
   const navItems: NavItem[] = [
     // My work — tasks and messages
     { group: "My work", id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: clientUnread > 0 ? String(clientUnread) : undefined, urgent: clientUnread > 0 },
-    { group: "My work", id: "board", label: "Tasks", matches: ["board", "table"], icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "My work", id: "table", label: "Tasks", matches: ["board", "table"], icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { group: "My work", id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
     // Productions — projects and clients
     { group: "Productions", id: "projects", label: "Projects", matches: ["projects", "pipeline", "timeline", "project_detail"], icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
@@ -631,7 +631,7 @@ const StudioOSShell: React.FC<{
         </button>
         <button
           type="button"
-          onClick={() => setRoute("board")}
+          onClick={() => setRoute("table")}
           className="flex flex-col items-center gap-0.5 text-[11px] font-medium"
           style={{ color: route === "board" || route === "table" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >

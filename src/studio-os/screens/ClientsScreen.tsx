@@ -4,6 +4,7 @@
  *    full client file with portal messages). Search and filters apply to all.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Receipt } from "../../review/Receipt";
 import { GmailScanButton } from "../components/GmailScanButton";
 import { AnimatePresence, motion } from "motion/react";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
@@ -45,6 +46,8 @@ interface PortalMessage {
   created_at: string;
   read_by_studio_at: string | null;
   read_by_client_at: string | null;
+  delivered_to_client_at?: string | null;
+  delivered_to_studio_at?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +162,8 @@ const ClientMessages: React.FC<{ client: StudioClient; messages: PortalMessage[]
     endRef.current?.scrollIntoView({ block: "nearest" });
     const unread = thread.filter((m) => !m.from_studio && !m.read_by_studio_at).map((m) => m.id);
     if (unread.length && supabase) {
-      supabase.from("studio_portal_messages").update({ read_by_studio_at: new Date().toISOString() }).in("id", unread).then(() => onSent());
+      const now = new Date().toISOString();
+      supabase.from("studio_portal_messages").update({ read_by_studio_at: now, delivered_to_studio_at: now }).in("id", unread).then(() => onSent());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id, thread.length]);
@@ -191,10 +195,12 @@ const ClientMessages: React.FC<{ client: StudioClient; messages: PortalMessage[]
                 style={m.from_studio ? { background: "var(--sos-primary)" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                <p className={`text-[10px] mt-1 ${m.from_studio ? "text-white/70" : ""}`} style={m.from_studio ? undefined : { color: "var(--sos-text-3)" }}>
-                  {m.from_studio ? "You" : m.author_name || "Client"}
-                  {proj ? ` · ${proj.code}` : ""} · {formatDistanceToNowStrict(parseISO(m.created_at), { addSuffix: true })}
-                  {m.from_studio && m.read_by_client_at ? " · Seen" : ""}
+                <p className={`text-[10px] mt-1 flex flex-wrap items-center gap-x-1.5 ${m.from_studio ? "justify-end text-white/70" : ""}`} style={m.from_studio ? undefined : { color: "var(--sos-text-3)" }}>
+                  <span>
+                    {m.from_studio ? "You" : m.author_name || "Client"}
+                    {proj ? ` · ${proj.code}` : ""} · {formatDistanceToNowStrict(parseISO(m.created_at), { addSuffix: true })}
+                  </span>
+                  {m.from_studio && <Receipt read={m.read_by_client_at} delivered={m.delivered_to_client_at} light />}
                 </p>
               </div>
             </div>
@@ -274,11 +280,15 @@ export const ClientsScreen: React.FC = () => {
     if (!supabase || !live) return;
     const { data } = await supabase
       .from("studio_portal_messages")
-      .select("id, client_id, project_id, body, from_studio, author_name, created_at, read_by_studio_at, read_by_client_at")
+      .select("id, client_id, project_id, body, from_studio, author_name, created_at, read_by_studio_at, read_by_client_at, delivered_to_client_at, delivered_to_studio_at")
       .is("archived_at", null)
       .order("created_at", { ascending: false })
       .limit(500);
-    setMessages((data || []) as PortalMessage[]);
+    const list = (data || []) as PortalMessage[];
+    setMessages(list);
+    // Client messages have reached the studio → "Delivered" on the client's side.
+    const undelivered = list.filter((m) => !m.from_studio && !m.delivered_to_studio_at).map((m) => m.id);
+    if (undelivered.length) supabase.from("studio_portal_messages").update({ delivered_to_studio_at: new Date().toISOString() }).in("id", undelivered).then(() => {});
   };
   useEffect(() => {
     loadMessages();

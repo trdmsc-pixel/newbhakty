@@ -3,6 +3,7 @@ import { StudioLogo } from "../brand/StudioLogo";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft,
+  ChevronRight,
   Check,
   Clock,
   Download,
@@ -465,6 +466,62 @@ function portalBadge(project: PortalProject, gates: PortalGate[]): { label: stri
   return { label: "In progress", bg: "rgba(15,17,21,0.72)", fg: "#FFFFFF" };
 }
 
+/** Delivery date, highlighted, with a plain-language note on how reviews affect it. */
+const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; done: boolean }> = ({ project, gates, done }) => {
+  const h = HEALTH[project.health] || HEALTH.on_track;
+  const date = done ? project.closed_at || null : milestoneDate(project);
+  const waiting = gates.find((g) => g.status === "waiting_on_client");
+  const waitDays = waiting?.sent_for_approval_at ? Math.max(0, Math.floor((Date.now() - new Date(waiting.sent_for_approval_at).getTime()) / 86_400_000)) : 0;
+  let note = "";
+  if (done) note = project.closed_at ? "Thank you — all final files are in Deliverables." : "Delivered by the studio.";
+  else if (waiting) note = waitDays >= 2 ? `${waiting.name} has been with you for ${waitDays} days. The delivery date moves about a day for each extra day of review — approving soon keeps it on track.` : `${waiting.name} is ready for your review. Quick feedback keeps the delivery date on track.`;
+  else if (plannedMoved(project)) note = `Originally planned for ${fmtDate(project.promised_date)}; moved as reviews and revisions took longer than planned.`;
+  else if (date) note = "On schedule. The date updates automatically as each stage is approved.";
+  else note = "The studio will confirm the delivery date shortly.";
+  const tone = done ? { bg: "#E7F7EE", fg: "#17663F" } : waiting && waitDays >= 2 ? { bg: "#FFF8EE", fg: "#9A4A00" } : { bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)" };
+  return (
+    <div className="p-5 md:p-6 flex flex-col justify-center gap-2 border-t md:border-t-0 md:border-l" style={{ background: tone.bg, borderColor: "var(--sos-border)" }}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: tone.fg }}>
+          {done ? (project.closed_at ? "Completed" : "Delivered") : "Expected delivery"}
+        </span>
+        {!done && <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+      </div>
+      <p className="sos-display text-[30px] font-semibold leading-none sos-tabular" style={{ color: "var(--sos-text-1)" }}>
+        {date ? format(parseISO(date), "d MMM") : "TBC"}
+      </p>
+      {date && <p className="text-[13px] font-medium" style={{ color: "var(--sos-text-2)" }}>{format(parseISO(date), "EEEE, yyyy")}</p>}
+      <p className="text-[12px] leading-snug" style={{ color: "var(--sos-text-2)" }}>{note}</p>
+    </div>
+  );
+};
+
+const ProjectRow: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void }> = ({ project, gates, deliverables, onOpen }) => {
+  const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
+  const badge = portalBadge(project, gates);
+  const progress = projectProgress(project, gates);
+  const date = done ? null : milestoneDate(project);
+  return (
+    <button type="button" onClick={onOpen} className="w-full text-left flex items-center gap-3 px-3.5 py-3 hover:bg-black/[0.02] transition-colors">
+      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="w-16 h-11 rounded-[10px] shrink-0" style={{ background: "var(--sos-violet-soft)" }} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="h-1.5 w-20 sm:w-28 rounded-full overflow-hidden shrink-0" style={{ background: "var(--sos-surface-2)" }}>
+            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: progress === 100 ? "var(--sos-green)" : "var(--sos-primary)" }} />
+          </div>
+          <span className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
+            {TYPE_LABEL[project.type] || "Project"} · {done ? (project.closed_at ? "Completed" : "Delivered") : project.current_stage || "Getting started"}
+          </span>
+        </div>
+      </div>
+      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0" style={{ background: badge.bg, color: badge.fg }}>{badge.label}</span>
+      <span className="text-[13px] font-semibold sos-tabular shrink-0 w-[70px] text-right" style={{ color: "var(--sos-text-1)" }}>{date ? fmtDate(date).replace(/ \d{4}$/, "") : "—"}</span>
+      <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
+    </button>
+  );
+};
+
 const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void }> = ({ project, gates, deliverables, onOpen }) => {
   const h = HEALTH[project.health] || HEALTH.on_track;
   const date = fmtDate(milestoneDate(project));
@@ -479,7 +536,7 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
         candidates={thumbCandidates(project.cover_image_url, deliverables)}
         resolveUrl={resolveReviewUrl}
         emoji={project.emoji}
-        className="h-40"
+        className="h-28"
         style={{ background: "var(--sos-violet-soft)" }}
       >
         <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm" style={{ background: badge.bg, color: badge.fg }}>
@@ -491,13 +548,13 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
           </span>
         )}
       </ProjectThumb>
-      <div className="p-5 space-y-3">
+      <div className="p-4 space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
               {TYPE_LABEL[project.type] || "Project"}
             </p>
-            <h3 className="sos-display text-[19px] font-semibold leading-tight line-clamp-2" style={{ color: "var(--sos-text-1)" }}>
+            <h3 className="sos-display text-[16px] font-semibold leading-tight line-clamp-2" style={{ color: "var(--sos-text-1)" }}>
               {project.title}
             </h3>
           </div>
@@ -1041,36 +1098,34 @@ const ProjectView: React.FC<{
         <ArrowLeft className="w-4 h-4" /> All projects
       </button>
 
-      <div className="sos-card p-5 md:p-6 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
-            {TYPE_LABEL[project.type] || "Project"}
-          </p>
-          <h1 className="sos-display text-[28px] md:text-[32px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
-            {project.emoji} {project.title}
-          </h1>
-          <p className="text-[13px] mt-1" style={{ color: "var(--sos-text-2)" }}>
-            {project.closed_at ? `Completed & closed on ${fmtDate(project.closed_at)} — thank you!` : done ? "Delivered by the studio" : `Currently: ${project.current_stage || "getting started"}`}
-          </p>
-        </div>
-        <div className="flex flex-col items-start md:items-end gap-1.5">
-          {done ? <Pill bg="#E7F7EE" text="#17663F">{project.closed_at ? "Completed & closed" : "Delivered"}</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
-          {!done && milestoneDate(project) && (
-            <p className="text-[13px] sos-tabular" style={{ color: "var(--sos-text-2)" }}>
-              Expected delivery <strong>{fmtDate(milestoneDate(project))}</strong>
-            </p>
-          )}
-          {!done && plannedMoved(project) && (
-            <p className="text-[12px] sos-tabular max-w-[260px] md:text-right" style={{ color: "var(--sos-text-3)" }}>
-              Planned for {fmtDate(project.promised_date)} — updated as reviews and revisions came in
-            </p>
-          )}
-        </div>
-        <div className="md:basis-full w-full">
-          <ProgressBar
-            value={projectProgress(project, gates)}
-            label={`${gates.filter((g) => g.status === "approved" || g.status === "skipped").length} of ${gates.length} stages complete`}
-          />
+      <div className="sos-card overflow-hidden">
+        <div className="grid md:grid-cols-[1fr_300px]">
+          <div className="p-5 md:p-6 space-y-4 min-w-0">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
+                {TYPE_LABEL[project.type] || "Project"}
+              </p>
+              <h1 className="sos-display text-[24px] md:text-[28px] font-semibold tracking-[-0.02em] leading-tight" style={{ color: "var(--sos-text-1)" }}>
+                {project.emoji} {project.title}
+              </h1>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-semibold" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: done ? "var(--sos-green)" : "var(--sos-primary)" }} />
+                {project.closed_at ? "Completed & closed" : done ? "Delivered" : project.current_stage || "Getting started"}
+              </span>
+              {awaiting.length > 0 && (
+                <span className="inline-flex items-center h-8 px-3 rounded-full text-[12px] font-semibold" style={{ background: "#FFF3E0", color: "#9A4A00" }}>
+                  Your review needed
+                </span>
+              )}
+            </div>
+            <ProgressBar
+              value={projectProgress(project, gates)}
+              label={`${gates.filter((g) => g.status === "approved" || g.status === "skipped").length} of ${gates.length} stages complete`}
+            />
+          </div>
+          <DeliveryPanel project={project} gates={gates} done={done} />
         </div>
       </div>
 
@@ -1242,6 +1297,21 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [listFilter, setListFilter] = useState<PortalFilter>("all");
   const [listQuery, setListQuery] = useState("");
   const [listSort, setListSort] = useState<"recent" | "due" | "name">("recent");
+  const [listMode, setListModeState] = useState<"list" | "cards">(() => {
+    try {
+      return (localStorage.getItem("portal-list-mode") as "list" | "cards") || "list";
+    } catch {
+      return "list";
+    }
+  });
+  const setListMode = (m: "list" | "cards") => {
+    setListModeState(m);
+    try {
+      localStorage.setItem("portal-list-mode", m);
+    } catch {
+      /* ignore */
+    }
+  };
   const isLarge = useIsLarge();
   const studioInfo = useStudioInfo();
   const portalReady = signedIn && Boolean(contact?.ok) && !contact?.must_set_password;
@@ -1452,6 +1522,13 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                       <option value="due">Delivery date</option>
                       <option value="name">Name</option>
                     </select>
+                    <div className="inline-flex p-1 rounded-full border h-11 items-center shrink-0" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }} role="tablist" aria-label="View">
+                      {(["list", "cards"] as const).map((m) => (
+                        <button key={m} type="button" role="tab" aria-selected={listMode === m} onClick={() => setListMode(m)} className="h-8 px-3.5 rounded-full text-[13px] font-semibold capitalize" style={listMode === m ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)" } : { color: "var(--sos-text-2)" }}>
+                          {m}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1464,8 +1541,14 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   No projects match.{" "}
                   <button type="button" onClick={() => { setListFilter("all"); setListQuery(""); }} style={{ color: "var(--sos-primary)" }}>Show all</button>
                 </div>
+              ) : listMode === "list" ? (
+                <div className="sos-card overflow-hidden divide-y" style={{ borderColor: "var(--sos-border)" }}>
+                  {visibleProjects.map((p) => (
+                    <ProjectRow key={p.id} project={p} gates={gates.filter((g) => g.project_id === p.id)} deliverables={deliverables.filter((d) => d.project_id === p.id)} onOpen={() => setSelected(p.id)} />
+                  ))}
+                </div>
               ) : (
-                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {visibleProjects.map((p) => (
                     <ProjectCard
                       key={p.id}

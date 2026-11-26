@@ -5,8 +5,8 @@ import { ActivePill } from "../motion";
 
 const VIEWS: Record<"tasks" | "projects", Array<{ route: StudioRoute; label: string }>> = {
   tasks: [
-    { route: "board", label: "Board" },
     { route: "table", label: "List" },
+    { route: "board", label: "Board" },
   ],
   projects: [
     { route: "projects", label: "Cards" },
