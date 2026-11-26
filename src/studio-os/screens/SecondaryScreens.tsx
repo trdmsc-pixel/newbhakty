@@ -61,7 +61,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
   const [hours, setHours] = useState(String(settings.work_hours_per_day));
   const [closesAt, setClosesAt] = useState(settings.studio_closes_at);
   const [opensAt, setOpensAt] = useState(settings.studio_opens_at || "10:30");
-  const [workDays, setWorkDays] = useState<number[]>(settings.work_days || [1, 2, 3, 4, 5, 6]);
+  const [workDays, setWorkDays] = useState<number[]>(settings.work_days || [1, 2, 3, 4, 5]);
   const [wipLimit, setWipLimit] = useState(String(settings.wip_limit));
   const [takesPerKeeper, setTakesPerKeeper] = useState(String(settings.takes_per_keeper));
 
@@ -80,7 +80,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
     setHours(String(settings.work_hours_per_day));
     setClosesAt(settings.studio_closes_at);
     setOpensAt(settings.studio_opens_at || "10:30");
-    setWorkDays(settings.work_days || [1, 2, 3, 4, 5, 6]);
+    setWorkDays(settings.work_days || [1, 2, 3, 4, 5]);
     setWipLimit(String(settings.wip_limit));
     setTakesPerKeeper(String(settings.takes_per_keeper));
   }, [settings]);
@@ -103,7 +103,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
       work_hours_per_day: Math.max(1, parseFloat(hours) || 7),
       studio_closes_at: closesAt,
       studio_opens_at: opensAt,
-      work_days: workDays.length ? [...workDays].sort() : [1, 2, 3, 4, 5, 6],
+      work_days: workDays.length ? [...workDays].sort() : [1, 2, 3, 4, 5],
       wip_limit: Math.min(5, Math.max(1, parseInt(wipLimit, 10) || 3)),
       takes_per_keeper: Math.max(1, parseFloat(takesPerKeeper) || 3),
     });

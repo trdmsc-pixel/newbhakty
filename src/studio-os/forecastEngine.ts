@@ -143,7 +143,7 @@ export function computeProjectForecast(
     const k = h.holiday_date.slice(0, 10);
     if (!holidayByDate.has(k)) holidayByDate.set(k, `${h.name} (${h.region})`);
   }
-  const workDays = new Set(settings.work_days && settings.work_days.length ? settings.work_days : [1, 2, 3, 4, 5, 6]);
+  const workDays = new Set(settings.work_days && settings.work_days.length ? settings.work_days : [1, 2, 3, 4, 5]);
   const matchedHolidays = new Set<string>();
   /** Add working days (skips non-working weekdays and holidays). */
   const addWork = (from: Date, n: number) => {
