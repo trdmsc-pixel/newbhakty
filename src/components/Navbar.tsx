@@ -145,11 +145,11 @@ export default function Navbar({ navigate }: NavbarProps) {
               {/* Direct Portal Access */}
               <button
                 type="button"
-                onClick={() => (navigate ? navigate("/client") : (window.location.pathname = "/client"))}
+                onClick={() => (navigate ? navigate("/portal") : (window.location.pathname = "/portal"))}
                 className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--tcs-offwhite)]/60 hover:text-[var(--tcs-offwhite)] transition-colors cursor-pointer"
                 title="Client Portal Access"
               >
-                Client Access
+                Client Portal
               </button>
 
               <button
@@ -236,11 +236,11 @@ export default function Navbar({ navigate }: NavbarProps) {
                   type="button"
                   onClick={() => {
                     setMobileOpen(false);
-                    navigate ? navigate("/client") : (window.location.pathname = "/client");
+                    navigate ? navigate("/portal") : (window.location.pathname = "/portal");
                   }}
                   className="text-left font-mono text-xs uppercase tracking-widest text-[var(--tcs-offwhite)]/80 hover:text-white py-1.5 flex items-center gap-2 cursor-pointer"
                 >
-                  <span>🌐</span> Client Access Panel
+                  <span>🌐</span> Client Portal
                 </button>
                 <button
                   type="button"

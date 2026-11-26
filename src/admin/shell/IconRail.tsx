@@ -3,9 +3,6 @@ import {
   Inbox,
   FolderOpen,
   BarChart3,
-  Users,
-  MessageSquare,
-  Sliders,
   ExternalLink,
   LogOut,
   User,
@@ -17,8 +14,6 @@ export interface IconRailProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   unreadInquiries?: number;
-  unreadChats?: number;
-  unreadFeedback?: number;
   userEmail?: string;
   onLogout: () => void;
   className?: string;
@@ -28,8 +23,6 @@ export const IconRail: React.FC<IconRailProps> = ({
   activeTab,
   onTabChange,
   unreadInquiries = 0,
-  unreadChats = 0,
-  unreadFeedback = 0,
   userEmail = "studio@thechantingstudio.in",
   onLogout,
   className = "",
@@ -80,33 +73,8 @@ export const IconRail: React.FC<IconRailProps> = ({
         <BarChart3 className="w-5 h-5" />
       </IconButton>
 
-      <IconButton
-        label="Client Access & Review Studio"
-        shortcut="⌘4"
-        badge={unreadFeedback > 0 ? unreadFeedback : undefined}
-        variant={activeTab === "client_access" ? "accent" : "surface"}
-        onClick={() => onTabChange("client_access")}
-      >
-        <Users className="w-5 h-5" />
-      </IconButton>
 
-      <IconButton
-        label="Live Support Chats"
-        shortcut="⌘5"
-        badge={unreadChats > 0 ? unreadChats : undefined}
-        variant={activeTab === "live_chats" ? "accent" : "surface"}
-        onClick={() => onTabChange("live_chats")}
-      >
-        <MessageSquare className="w-5 h-5" />
-      </IconButton>
 
-      <IconButton
-        label="Concierge & Chat Config"
-        variant={activeTab === "chat_settings" ? "accent" : "surface"}
-        onClick={() => onTabChange("chat_settings")}
-      >
-        <Sliders className="w-5 h-5" />
-      </IconButton>
 
       <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block shrink-0" />
 

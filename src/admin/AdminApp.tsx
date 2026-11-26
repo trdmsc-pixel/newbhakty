@@ -29,9 +29,6 @@ import { NavigationTab } from "./tabs/NavigationTab";
 import { InquiriesTab, SubmissionItem } from "./tabs/InquiriesTab";
 import { AssetsTab } from "./tabs/AssetsTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
-import { ClientAccessTab, ClientUser, ClientDeliverable, ClientTask } from "./tabs/ClientAccessTab";
-import { LiveChatsTab, ChatSession, ChatMessage } from "./tabs/LiveChatsTab";
-import { ChatSettingsTab } from "./tabs/ChatSettingsTab";
 
 import {
   Lock,
@@ -110,9 +107,6 @@ const TAB_ORDER = [
   "submissions",
   "assets",
   "analytics",
-  "client_access",
-  "live_chats",
-  "chat_settings",
 ];
 
 export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => void }) {
@@ -651,282 +645,6 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
     return true;
   };
 
-  // Client Access State
-  const [clientUsers, setClientUsers] = useState<ClientUser[]>([]);
-  const [selectedClient, setSelectedClient] = useState<ClientUser | null>(null);
-  const [clientDeliverables, setClientDeliverables] = useState<ClientDeliverable[]>([]);
-  const [clientTasks, setClientTasks] = useState<ClientTask[]>([]);
-
-  const fetchClientUsers = async () => {
-    if (!supabase) return;
-    try {
-      const { data } = await supabase
-        .from("client_users")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (data) setClientUsers(data);
-    } catch (err) {
-      console.warn("Client users fetch error:", err);
-    }
-  };
-
-  const fetchClientDetails = async (clientId: string) => {
-    if (!supabase) return;
-    try {
-      const [delRes, taskRes] = await Promise.all([
-        supabase.from("client_deliverables").select("*").eq("client_id", clientId),
-        supabase.from("client_tasks").select("*").eq("client_id", clientId),
-      ]);
-      if (delRes.data) setClientDeliverables(delRes.data);
-      if (taskRes.data) setClientTasks(taskRes.data);
-    } catch (err) {
-      console.warn("Client details fetch error:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchClientUsers();
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (selectedClient?.client_id) {
-      fetchClientDetails(selectedClient.client_id);
-    }
-  }, [selectedClient?.client_id]);
-
-  const handleCreateClientAccount = async (clientData: any) => {
-    const generatedId = `CL-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const newAccount: ClientUser = {
-      id: `usr_${Date.now()}`,
-      client_id: generatedId,
-      name: clientData.name,
-      email: clientData.email,
-      company_name: clientData.company,
-      mobile_number: clientData.mobile,
-      designation: clientData.designation,
-      purpose: clientData.purpose,
-      created_at: new Date().toISOString(),
-    };
-
-    setClientUsers((prev) => [newAccount, ...prev]);
-    setSelectedClient(newAccount);
-
-    if (supabase) {
-      try {
-        await supabase.from("client_users").insert({
-          ...newAccount,
-          password: clientData.password,
-        });
-      } catch (err) {
-        console.warn("Supabase client insert error:", err);
-      }
-    }
-
-    toast.success(`Registered client account ${generatedId}!`);
-    return newAccount;
-  };
-
-  const handleDeleteClientAccount = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this client account?")) return false;
-    setClientUsers((prev) => prev.filter((c) => c.id !== id));
-    if (selectedClient?.id === id) setSelectedClient(null);
-    if (supabase) {
-      try {
-        await supabase.from("client_users").delete().eq("id", id);
-      } catch (err) {
-        console.warn("Delete client error:", err);
-      }
-    }
-    toast.success("Client account removed");
-    return true;
-  };
-
-  const handleCreateDeliverable = async (d: Partial<ClientDeliverable>) => {
-    const newD: ClientDeliverable = {
-      id: `del_${Date.now()}`,
-      client_id: d.client_id || "",
-      title: d.title || "Deliverable",
-      asset_url: d.asset_url || "",
-      type: d.type || "video",
-      version: d.version || "v1.0",
-      notes: d.notes,
-    };
-    setClientDeliverables((prev) => [...prev, newD]);
-    if (supabase) {
-      try {
-        await supabase.from("client_deliverables").insert(newD);
-      } catch (err) {
-        console.warn("Deliverable insert error:", err);
-      }
-    }
-    toast.success("Assigned deliverable to client");
-    return newD;
-  };
-
-  const handleDeleteDeliverable = async (id: string) => {
-    setClientDeliverables((prev) => prev.filter((d) => d.id !== id));
-    if (supabase) {
-      try {
-        await supabase.from("client_deliverables").delete().eq("id", id);
-      } catch (err) {
-        console.warn("Delete deliverable error:", err);
-      }
-    }
-    toast.success("Removed deliverable");
-    return true;
-  };
-
-  const handleCreateTask = async (t: Partial<ClientTask>) => {
-    const newT: ClientTask = {
-      id: `task_${Date.now()}`,
-      client_id: t.client_id || "",
-      title: t.title || "Milestone Task",
-      status: t.status || "In Progress",
-      progress: t.progress || 0,
-    };
-    setClientTasks((prev) => [...prev, newT]);
-    if (supabase) {
-      try {
-        await supabase.from("client_tasks").insert(newT);
-      } catch (err) {
-        console.warn("Task insert error:", err);
-      }
-    }
-    toast.success("Created milestone task");
-    return newT;
-  };
-
-  const handleUpdateTask = async (id: string, progress: number, status: string) => {
-    setClientTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, progress, status } : t))
-    );
-    if (supabase) {
-      try {
-        await supabase.from("client_tasks").update({ progress, status }).eq("id", id);
-      } catch (err) {
-        console.warn("Update task error:", err);
-      }
-    }
-    toast.info("Updated task progress");
-  };
-
-  const handleDeleteTask = async (id: string) => {
-    setClientTasks((prev) => prev.filter((t) => t.id !== id));
-    if (supabase) {
-      try {
-        await supabase.from("client_tasks").delete().eq("id", id);
-      } catch (err) {
-        console.warn("Delete task error:", err);
-      }
-    }
-    toast.success("Removed milestone");
-    return true;
-  };
-
-  // Live Chats State
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [replyText, setReplyText] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-
-  const fetchChatSessions = async () => {
-    if (!supabase) return;
-    setChatLoading(true);
-    try {
-      const { data } = await supabase
-        .from("chat_sessions")
-        .select("*, chat_users(*)")
-        .order("last_message_at", { ascending: false });
-      if (data) {
-        setChatSessions(data);
-        if (data.length > 0 && !selectedSessionId) {
-          setSelectedSessionId(data[0].id);
-        }
-      }
-    } catch (err) {
-      console.warn("Chat sessions fetch error:", err);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  const fetchChatMessages = async (sessionId: string) => {
-    if (!supabase) return;
-    try {
-      const { data } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true });
-      if (data) setChatMessages(data);
-    } catch (err) {
-      console.warn("Chat messages fetch error:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchChatSessions();
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (selectedSessionId) {
-      fetchChatMessages(selectedSessionId);
-    }
-  }, [selectedSessionId]);
-
-  const handleSendAdminReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSessionId || !replyText.trim() || !supabase) return;
-
-    const newMsg: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      session_id: selectedSessionId,
-      sender_type: "admin",
-      message_text: replyText.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    setChatMessages((prev) => [...prev, newMsg]);
-    setReplyText("");
-
-    try {
-      await supabase.from("chat_messages").insert(newMsg);
-      await supabase
-        .from("chat_sessions")
-        .update({
-          last_message_at: new Date().toISOString(),
-          last_message_text: newMsg.message_text,
-          unread_count: 0,
-        })
-        .eq("id", selectedSessionId);
-      playToneSequence([440, 554.37, 659.25], 0.08, 0.04);
-    } catch (err) {
-      console.warn("Send reply error:", err);
-    }
-  };
-
-  const handleToggleTakeover = async (sessionId: string, currentVal: boolean) => {
-    const newVal = !currentVal;
-    setChatSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, is_human_takeover: newVal } : s))
-    );
-    if (!supabase) return;
-    try {
-      await supabase
-        .from("chat_sessions")
-        .update({ is_human_takeover: newVal })
-        .eq("id", sessionId);
-      toast.info(`Human takeover ${newVal ? "activated" : "deactivated"}`);
-    } catch (err) {
-      console.warn("Takeover toggle error:", err);
-    }
-  };
-
   // Upload Modal State
   const [uploadModal, setUploadModal] = useState({
     active: false,
@@ -1048,27 +766,6 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       action: () => handleTabChange("analytics"),
     },
     {
-      id: "tab_client_access",
-      title: "Client Access & Review Studio",
-      subtitle: "Manage private client portal credentials and links",
-      shortcut: "⌘4",
-      action: () => handleTabChange("client_access"),
-    },
-    {
-      id: "tab_live_chats",
-      title: "Live Support Chats",
-      subtitle: "Human takeover and live concierge messaging",
-      shortcut: "⌘5",
-      action: () => handleTabChange("live_chats"),
-    },
-    {
-      id: "tab_chat_settings",
-      title: "Chat Config",
-      subtitle: "Configure studio bot persona and welcome text",
-      shortcut: "G C",
-      action: () => handleTabChange("chat_settings"),
-    },
-    {
       id: "act_upload",
       title: "Upload Media Asset",
       subtitle: "Upload 4K master film or poster to CDN",
@@ -1177,8 +874,6 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
       activeTab={activeTab}
       onTabChange={handleTabChange}
       unreadInquiries={submissions.filter((s) => !s.status || s.status.toLowerCase() === "new" || s.status.toLowerCase() === "pending").length}
-      unreadChats={chatSessions.filter((s) => s.unread_count > 0).length}
-      unreadFeedback={0}
       userEmail={email}
       onLogout={handleLogout}
       commandItems={commandItems}
@@ -1234,9 +929,7 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
                 initials: s.full_name?.slice(0, 2).toUpperCase(),
               }))}
               totalAssets={mediaAssets.length}
-              clientCount={clientUsers.length}
               analyticsVisitors={412}
-              liveChatCount={chatSessions.length}
               onSelectChannel={handleTabChange}
             />
           )}
@@ -1315,46 +1008,6 @@ export default function AdminApp({ onNavigateHome }: { onNavigateHome?: () => vo
 
           {activeTab === "analytics" && <AnalyticsTab />}
 
-          {activeTab === "client_access" && (
-            <ClientAccessTab
-              clientUsers={clientUsers}
-              selectedClient={selectedClient}
-              onSelectClient={setSelectedClient}
-              deliverables={clientDeliverables}
-              tasks={clientTasks}
-              onCreateClient={handleCreateClientAccount}
-              onDeleteClient={handleDeleteClientAccount}
-              onCreateDeliverable={handleCreateDeliverable}
-              onDeleteDeliverable={handleDeleteDeliverable}
-              onCreateTask={handleCreateTask}
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={handleDeleteTask}
-            />
-          )}
-
-          {activeTab === "live_chats" && (
-            <LiveChatsTab
-              sessions={chatSessions}
-              selectedSessionId={selectedSessionId}
-              onSelectSession={setSelectedSessionId}
-              messages={chatMessages}
-              replyText={replyText}
-              onReplyTextChange={setReplyText}
-              onSendReply={handleSendAdminReply}
-              onToggleTakeover={handleToggleTakeover}
-              isLoading={chatLoading}
-            />
-          )}
-
-          {activeTab === "chat_settings" && (
-            <ChatSettingsTab
-              editSettings={editSettings}
-              onSettingChange={handleSettingChange}
-              onSave={handleSaveSettings}
-              isSaving={isSavingSettings}
-              hasUnsaved={hasUnsavedSettings}
-            />
-          )}
         </motion.div>
       </AnimatePresence>
 

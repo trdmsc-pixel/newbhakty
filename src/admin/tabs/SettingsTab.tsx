@@ -54,9 +54,7 @@ export interface SettingsTabProps {
   repliedInquiries: number;
   inquiryAvatars: AvatarItem[];
   totalAssets: number;
-  clientCount: number;
   analyticsVisitors: number;
-  liveChatCount: number;
   onSelectChannel: (tab: string) => void;
 }
 
@@ -82,9 +80,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   repliedInquiries,
   inquiryAvatars,
   totalAssets,
-  clientCount,
   analyticsVisitors,
-  liveChatCount,
   onSelectChannel,
 }) => {
   const [activeSection, setActiveSection] = useState("00");
@@ -202,9 +198,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         repliedInquiries={repliedInquiries}
         inquiryAvatars={inquiryAvatars}
         totalAssets={totalAssets}
-        clientCount={clientCount}
         analyticsVisitors={analyticsVisitors}
-        liveChatCount={liveChatCount}
         onSelectChannel={onSelectChannel}
       />
 

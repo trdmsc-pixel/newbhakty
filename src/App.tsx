@@ -20,7 +20,6 @@ import { supabase, isSupabaseConfigured } from "./lib/supabase";
 
 // Code-split heavy administrative and client-portal bundles
 const AdminPanel = lazy(() => import("./components/AdminPanel"));
-const ClientAccessPanel = lazy(() => import("./components/ClientAccessPanel"));
 const StudioOSApp = lazy(() => import("./studio-os/StudioOSApp"));
 const PortalApp = lazy(() => import("./portal/PortalApp"));
 
@@ -37,8 +36,6 @@ function AppContent() {
     const isPortalRoute =
       path === "/admin" ||
       hash === "#admin" ||
-      path === "/client" ||
-      hash === "#client" ||
       path === "/studio-os" ||
       path.startsWith("/studio-os/") ||
       path === "/portal" ||
@@ -80,7 +77,11 @@ function AppContent() {
     window.addEventListener("hashchange", handleLocationChange);
 
     // Redirect retired legacy routes to "/"
-    if (window.location.pathname === "/mobile-app" || window.location.pathname === "/cinematic-websites") {
+    if (window.location.pathname === "/client" || window.location.hash === "#client") {
+      window.history.replaceState(null, "", "/portal");
+      setPath("/portal");
+      setHash("");
+    } else if (window.location.pathname === "/mobile-app" || window.location.pathname === "/cinematic-websites") {
       window.history.replaceState(null, "", "/");
       setPath("/");
     }
@@ -209,20 +210,6 @@ function AppContent() {
         }
       >
         <PortalApp onNavigateHome={() => navigate("/")} />
-      </Suspense>
-    );
-  }
-
-  if (path === "/client" || hash === "#client") {
-    return (
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[var(--tcs-night)] flex items-center justify-center">
-            <Ring size={48} stroke={4} animate="spin-slow" />
-          </div>
-        }
-      >
-        <ClientAccessPanel onNavigateHome={() => navigate("/")} />
       </Suspense>
     );
   }

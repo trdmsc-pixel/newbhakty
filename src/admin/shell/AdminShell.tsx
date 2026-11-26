@@ -9,8 +9,6 @@ export interface AdminShellProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   unreadInquiries?: number;
-  unreadChats?: number;
-  unreadFeedback?: number;
   userEmail?: string;
   onLogout: () => void;
   commandItems: CommandItem[];
@@ -30,8 +28,6 @@ export const AdminShell: React.FC<AdminShellProps> = ({
   activeTab,
   onTabChange,
   unreadInquiries = 0,
-  unreadChats = 0,
-  unreadFeedback = 0,
   userEmail,
   onLogout,
   commandItems,
@@ -63,12 +59,6 @@ export const AdminShell: React.FC<AdminShellProps> = ({
           ? "Media Assets"
           : activeTab === "analytics"
           ? "Analytics"
-          : activeTab === "client_access"
-          ? "Client Access"
-          : activeTab === "live_chats"
-          ? "Live Chats"
-          : activeTab === "chat_settings"
-          ? "Chat Config"
           : "Studio Workspace",
     };
 
@@ -145,8 +135,6 @@ export const AdminShell: React.FC<AdminShellProps> = ({
               activeTab={activeTab}
               onTabChange={onTabChange}
               unreadInquiries={unreadInquiries}
-              unreadChats={unreadChats}
-              unreadFeedback={unreadFeedback}
               userEmail={userEmail}
               onLogout={onLogout}
             />
@@ -204,9 +192,6 @@ export const AdminShell: React.FC<AdminShellProps> = ({
                   { id: "submissions", label: "Inquiries", badge: unreadInquiries },
                   { id: "assets", label: "Assets" },
                   { id: "analytics", label: "Analytics" },
-                  { id: "client_access", label: "Client Access", badge: unreadFeedback },
-                  { id: "live_chats", label: "Live Chats", badge: unreadChats },
-                  { id: "chat_settings", label: "Chat Config" },
                 ].map((c) => (
                   <button
                     key={c.id}

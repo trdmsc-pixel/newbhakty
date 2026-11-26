@@ -236,11 +236,11 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
           <div className="flex flex-wrap items-center justify-center gap-4">
             <button
               type="button"
-              onClick={() => (navigate ? navigate("/client") : (window.location.pathname = "/client"))}
+              onClick={() => (navigate ? navigate("/portal") : (window.location.pathname = "/portal"))}
               className="px-5 py-2.5 rounded-full bg-[var(--tcs-carbon)] border border-[var(--tcs-line)] hover:border-[var(--tcs-offwhite)]/60 text-[var(--tcs-offwhite)] font-mono text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/[0.04] transition-all cursor-pointer shadow-lg"
             >
               <span className="text-emerald-400 text-sm">🌐</span>
-              <span>Client Access Panel</span>
+              <span>Client Portal</span>
             </button>
 
             <button

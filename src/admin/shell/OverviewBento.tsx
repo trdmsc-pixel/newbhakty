@@ -22,10 +22,8 @@ export interface OverviewBentoProps {
 
   // Right panel: channels
   totalAssets: number;
-  clientCount: number;
   analyticsVisitors: number;
-  liveChatCount: number;
-  mostActiveChannel?: "client_access" | "analytics" | "live_chats";
+  mostActiveChannel?: "submissions" | "assets" | "analytics";
   onSelectChannel: (tab: string) => void;
   className?: string;
 }
@@ -41,9 +39,7 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
   repliedInquiries,
   inquiryAvatars,
   totalAssets,
-  clientCount,
   analyticsVisitors,
-  liveChatCount,
   mostActiveChannel = "analytics",
   onSelectChannel,
   className = "",
@@ -54,22 +50,22 @@ export const OverviewBento: React.FC<OverviewBentoProps> = ({
 
   const channelCards = [
     {
-      id: "client_access",
-      caption: "Client Portal",
-      title: "Projects",
-      count: clientCount,
+      id: "submissions",
+      caption: "Website Leads",
+      title: "Inquiries",
+      count: totalInquiries,
+    },
+    {
+      id: "assets",
+      caption: "CDN Library",
+      title: "Media Assets",
+      count: totalAssets,
     },
     {
       id: "analytics",
       caption: "Traffic",
       title: "Visitors",
       count: analyticsVisitors,
-    },
-    {
-      id: "live_chats",
-      caption: "Support",
-      title: "Live Chats",
-      count: liveChatCount,
     },
   ];
 
