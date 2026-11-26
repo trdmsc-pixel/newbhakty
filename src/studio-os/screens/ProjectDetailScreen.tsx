@@ -36,6 +36,7 @@ export const ProjectDetailScreen: React.FC = () => {
     pushToast,
     isOwner,
     supabaseSyncStatus,
+    setRoute,
   } = useStudioOS();
   const [assignOpen, setAssignOpen] = useState(false);
   const [projectTeamIds, setProjectTeamIds] = useState<string[]>([]);
@@ -160,6 +161,32 @@ export const ProjectDetailScreen: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
               <span>Client: <strong>{client?.name}</strong></span>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateProject(project.id, { portal_visible: !project.portal_visible });
+                    pushToast(project.portal_visible ? "Hidden from the client portal" : "Now visible in the client portal", "success");
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-semibold"
+                  style={project.portal_visible ? { background: "#E7F7EE", color: "#17663F" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
+                  title="Whether the client can see this project in their portal"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: project.portal_visible ? "#1F7A52" : "var(--sos-text-3)" }} />
+                  {project.portal_visible ? "Shown in client portal" : "Hidden from client portal"}
+                </button>
+              )}
+              {isOwner && project.portal_visible && project.status !== "lost" && client && !client.contacts.some((ct) => ct.is_portal_user) && (
+                <button
+                  type="button"
+                  onClick={() => setRoute("clients")}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-semibold"
+                  style={{ background: "#FFF3E0", color: "#9A4A00" }}
+                  title="Create a portal login for this client in Clients"
+                >
+                  {client.name} has no portal login yet →
+                </button>
+              )}
               <span>Code: <strong className="sos-tabular">{project.code}</strong></span>
               {isOwner && <span>Fee (owner only): <strong className="sos-tabular">{feeDisplay}</strong></span>}
               <span>

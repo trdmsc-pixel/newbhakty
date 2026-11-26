@@ -12,6 +12,7 @@ import {
   Mail,
   MessageSquare,
   Play,
+  Search,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -97,6 +98,51 @@ const money = (amount: number, currency: string) => {
   }
 };
 const milestoneDate = (p: PortalProject) => p.promised_date || p.forecast_date || p.hard_deadline;
+
+type PortalFilter = "all" | "in_progress" | "awaiting" | "delivered" | "closed" | "proposal" | "paused";
+const FILTERS: Array<{ id: PortalFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "in_progress", label: "In progress" },
+  { id: "awaiting", label: "Awaiting your approval" },
+  { id: "delivered", label: "Delivered" },
+  { id: "closed", label: "Completed & closed" },
+  { id: "proposal", label: "Proposals" },
+  { id: "paused", label: "Paused" },
+];
+/** Which bucket a project belongs to (one each, most specific first). */
+function projectBucket(p: PortalProject, gates: PortalGate[]): Exclude<PortalFilter, "all"> {
+  if (p.closed_at) return "closed";
+  if (p.status === "delivered" || p.status === "paid") return "delivered";
+  if (gates.some((g) => g.status === "waiting_on_client")) return "awaiting";
+  if (p.status === "lead" || p.status === "quoted") return "proposal";
+  if (p.status === "on_hold" || p.status === "parked") return "paused";
+  return "in_progress";
+}
+/** Share of visible stages approved (closed/delivered = 100%). */
+function projectProgress(p: PortalProject, gates: PortalGate[]): number {
+  if (p.closed_at || p.status === "delivered" || p.status === "paid") return 100;
+  if (!gates.length) return 0;
+  const done = gates.filter((g) => g.status === "approved" || g.status === "skipped").length;
+  return Math.round((done / gates.length) * 100);
+}
+
+const ProgressBar: React.FC<{ value: number; label?: string }> = ({ value, label }) => (
+  <div>
+    <div className="flex items-center justify-between text-[11px] mb-1 sos-tabular" style={{ color: "var(--sos-text-3)" }}>
+      <span>{label || "Progress"}</span>
+      <span className="font-semibold" style={{ color: value === 100 ? "#17663F" : "var(--sos-text-2)" }}>{value}%</span>
+    </div>
+    <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+      <motion.div
+        className="h-full rounded-full"
+        style={{ background: value === 100 ? "var(--sos-green)" : "var(--sos-primary)" }}
+        initial={{ width: 0 }}
+        animate={{ width: `${value}%` }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      />
+    </div>
+  </div>
+);
 
 const HEALTH: Record<PortalProject["health"], { label: string; bg: string; text: string }> = {
   on_track: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
@@ -394,7 +440,8 @@ function portalBadge(project: PortalProject, gates: PortalGate[]): { label: stri
   if (gates.some((g) => g.status === "waiting_on_client")) return { label: "Awaiting your approval", bg: "#FFFFFF", fg: "#9A4A00" };
   if (gates.some((g) => g.status === "revising")) return { label: "Revising your notes", bg: "#5B3FE4", fg: "#FFFFFF" };
   if (project.status === "on_hold") return { label: "On hold", bg: "#9A4A00", fg: "#FFFFFF" };
-  if (project.status === "quoted") return { label: "Proposal", bg: "#2563EB", fg: "#FFFFFF" };
+  if (project.status === "quoted" || project.status === "lead") return { label: "Proposal", bg: "#2563EB", fg: "#FFFFFF" };
+  if (project.status === "parked") return { label: "Paused", bg: "#9A4A00", fg: "#FFFFFF" };
   return { label: "In progress", bg: "rgba(15,17,21,0.72)", fg: "#FFFFFF" };
 }
 
@@ -404,6 +451,8 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
   const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
   const badge = portalBadge(project, gates);
   const hasFinal = deliverables.some((d) => d.is_final);
+  const progress = projectProgress(project, gates);
+  const doneStages = gates.filter((g) => g.status === "approved" || g.status === "skipped").length;
   return (
     <button type="button" onClick={onOpen} className="sos-card overflow-hidden text-left transition-transform hover:-translate-y-0.5">
       <ProjectThumb
@@ -442,6 +491,7 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
             </span>
           )}
         </div>
+        <ProgressBar value={progress} label={gates.length ? `${Math.min(doneStages, gates.length)} of ${gates.length} stages` : "Progress"} />
       </div>
     </button>
   );
@@ -873,7 +923,7 @@ const ProjectView: React.FC<{
         <ArrowLeft className="w-4 h-4" /> All projects
       </button>
 
-      <div className="sos-card p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="sos-card p-5 md:p-6 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
             {TYPE_LABEL[project.type] || "Project"}
@@ -892,6 +942,12 @@ const ProjectView: React.FC<{
               Expected delivery <strong>{fmtDate(milestoneDate(project))}</strong>
             </p>
           )}
+        </div>
+        <div className="md:basis-full w-full">
+          <ProgressBar
+            value={projectProgress(project, gates)}
+            label={`${gates.filter((g) => g.status === "approved" || g.status === "skipped").length} of ${gates.length} stages complete`}
+          />
         </div>
       </div>
 
@@ -1028,6 +1084,9 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<PortalTab>(() => (new URLSearchParams(window.location.search).get("tab") as PortalTab) || "projects");
+  const [listFilter, setListFilter] = useState<PortalFilter>("all");
+  const [listQuery, setListQuery] = useState("");
+  const [listSort, setListSort] = useState<"recent" | "due" | "name">("recent");
   const isLarge = useIsLarge();
   const studioInfo = useStudioInfo();
   const portalReady = signedIn && Boolean(contact?.ok) && !contact?.must_set_password;
@@ -1096,6 +1155,30 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   }, [gates]);
 
   const project = projects.find((p) => p.id === selected);
+
+  const bucketCounts = useMemo(() => {
+    const c: Partial<Record<PortalFilter, number>> = {};
+    for (const p of projects) {
+      const b = projectBucket(p, gates.filter((g) => g.project_id === p.id));
+      c[b] = (c[b] || 0) + 1;
+    }
+    return c;
+  }, [projects, gates]);
+
+  const visibleProjects = useMemo(() => {
+    const q = listQuery.trim().toLowerCase();
+    const list = projects.filter((p) => {
+      if (listFilter !== "all" && projectBucket(p, gates.filter((g) => g.project_id === p.id)) !== listFilter) return false;
+      return !q || `${p.title} ${p.current_stage || ""} ${TYPE_LABEL[p.type] || ""}`.toLowerCase().includes(q);
+    });
+    return list.sort((a, b) =>
+      listSort === "name"
+        ? a.title.localeCompare(b.title)
+        : listSort === "due"
+        ? (milestoneDate(a) || "9999").localeCompare(milestoneDate(b) || "9999")
+        : b.updated_at.localeCompare(a.updated_at)
+    );
+  }, [projects, gates, listFilter, listQuery, listSort]);
 
   return (
     <div className="studio-os-root">
@@ -1177,13 +1260,55 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   Everything the studio is making for {contact?.organisation || "you"}.
                 </p>
               </div>
+              {projects.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1" role="tablist" aria-label="Filter projects">
+                    {FILTERS.filter((f) => f.id === "all" || bucketCounts[f.id]).map((f) => {
+                      const active = listFilter === f.id;
+                      const count = f.id === "all" ? projects.length : bucketCounts[f.id] || 0;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => setListFilter(f.id)}
+                          className="relative shrink-0 h-10 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-2 border"
+                          style={active ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}
+                        >
+                          {f.label}
+                          <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center" style={active ? { background: "rgba(255,255,255,0.18)" } : { background: "var(--sos-surface-2)" }}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex items-center gap-2 h-11 px-4 rounded-full border flex-1 min-w-0" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }}>
+                      <Search className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
+                      <input value={listQuery} onChange={(e) => setListQuery(e.target.value)} placeholder="Search your projects…" aria-label="Search projects" className="flex-1 min-w-0 bg-transparent outline-none text-[14px]" style={{ color: "var(--sos-text-1)" }} />
+                    </div>
+                    <select value={listSort} onChange={(e) => setListSort(e.target.value as typeof listSort)} aria-label="Sort projects" className="h-11 px-4 rounded-full border text-[14px]" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}>
+                      <option value="recent">Recently updated</option>
+                      <option value="due">Delivery date</option>
+                      <option value="name">Name</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               {projects.length === 0 ? (
                 <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>
                   The studio hasn't shared a project here yet.
                 </div>
+              ) : visibleProjects.length === 0 ? (
+                <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>
+                  No projects match.{" "}
+                  <button type="button" onClick={() => { setListFilter("all"); setListQuery(""); }} style={{ color: "var(--sos-primary)" }}>Show all</button>
+                </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {projects.map((p) => (
+                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {visibleProjects.map((p) => (
                     <ProjectCard
                       key={p.id}
                       project={p}
@@ -1192,7 +1317,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                       onOpen={() => setSelected(p.id)}
                     />
                   ))}
-                </div>
+                </motion.div>
               )}
             </div>
           )}
