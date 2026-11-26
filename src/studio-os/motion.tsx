@@ -141,7 +141,12 @@ export const SwipeRow: React.FC<{
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
-}> = ({ onDone, onSnooze, className, style, children }) => {
+  /** Optional overrides for the reveal labels (defaults: Done / Snooze). */
+  doneLabel?: React.ReactNode;
+  snoozeLabel?: React.ReactNode;
+  snoozeBg?: string;
+  radius?: number;
+}> = ({ onDone, onSnooze, className, style, children, doneLabel, snoozeLabel, snoozeBg, radius = 18 }) => {
   const coarse = useCoarsePointer();
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
@@ -149,12 +154,12 @@ export const SwipeRow: React.FC<{
   const snoozeOpacity = useTransform(x, [-72, 0], [1, 0]);
   if (!coarse) return <div className={className} style={style}>{children}</div>;
   return (
-    <div className="relative overflow-hidden rounded-[18px]">
+    <div className="relative overflow-hidden" style={{ borderRadius: radius }}>
       <motion.div className="absolute inset-0 flex items-center pl-5 text-[13px] font-semibold gap-1.5" style={{ background: "#1F7A52", color: "#fff", opacity: doneOpacity }} aria-hidden>
-        <Check className="w-4 h-4" /> Done
+        {doneLabel ?? (<><Check className="w-4 h-4" /> Done</>)}
       </motion.div>
-      <motion.div className="absolute inset-0 flex items-center justify-end pr-5 text-[13px] font-semibold gap-1.5" style={{ background: "#B45309", color: "#fff", opacity: snoozeOpacity }} aria-hidden>
-        Snooze <Clock className="w-4 h-4" />
+      <motion.div className="absolute inset-0 flex items-center justify-end pr-5 text-[13px] font-semibold gap-1.5" style={{ background: snoozeBg || "#B45309", color: "#fff", opacity: snoozeOpacity }} aria-hidden>
+        {snoozeLabel ?? (<>Snooze <Clock className="w-4 h-4" /></>)}
       </motion.div>
       <motion.div
         drag="x"

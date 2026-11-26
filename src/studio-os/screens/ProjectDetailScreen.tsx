@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { usePortalPresence } from "../components/PortalPresence";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
@@ -74,6 +75,7 @@ export const ProjectDetailScreen: React.FC = () => {
     [projectBlocks, settings]
   );
   const forecast = project ? getProjectForecast(project.id) : null;
+  const presence = usePortalPresence();
 
   if (!project) return null;
 
@@ -151,6 +153,11 @@ export const ProjectDetailScreen: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {project && (presence[project.id] || []).map((v, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }} title={`Since ${new Date(v.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}>
+                  <span className="sos-live-dot" style={{ width: 6, height: 6 }} /> {v.name.split(" ")[0]} · {v.activity.toLowerCase()} now
+                </span>
+              ))}
               {isClosed ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed & closed · {format(parseISO(project.closed_at!), "d MMM yyyy")}

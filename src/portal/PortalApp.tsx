@@ -1076,14 +1076,33 @@ const ProjectView: React.FC<{
   deliverables: PortalDeliverable[];
   invoices: PortalInvoice[];
   tasks?: PortalTask[];
+  viewerName?: string;
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, tasks = [], onBack, onChanged }) => {
+}> = ({ project, gates, deliverables, invoices, tasks = [], viewerName, onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
   const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
   const awaiting = gates.filter((g) => g.status === "waiting_on_client");
+  // Live presence: let the studio see this project is open (private channel, own client only).
+  const activity = awaiting.length ? `Reviewing ${awaiting[0].name}` : "Viewing the project";
+  useEffect(() => {
+    const cid = (project as any).client_id as string | undefined;
+    if (!supabase || !cid) return;
+    const ch = supabase.channel(`presence:client:${cid}`, { config: { private: true, presence: { key: `c-${Math.random().toString(36).slice(2, 8)}` } } });
+    const meta = () => ({ role: "client", name: viewerName || "Client", project_id: project.id, project_title: project.title, activity, at: new Date().toISOString() });
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") ch.track(meta()).catch(() => {});
+    });
+    const onVis = () => (document.visibilityState === "visible" ? ch.track(meta()).catch(() => {}) : ch.untrack().catch(() => {}));
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      ch.untrack().catch(() => {});
+      supabase?.removeChannel(ch);
+    };
+  }, [project.id, activity, viewerName]);
   const previewFor = (gateId: string) =>
     [...deliverables].filter((d) => d.gate_id === gateId).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.url || project.review_link_url;
 
@@ -1470,6 +1489,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               deliverables={deliverables.filter((d) => d.project_id === project.id)}
               invoices={invoices.filter((i) => i.project_id === project.id)}
               tasks={portalTasks.filter((t) => t.project_id === project.id)}
+              viewerName={contact?.name}
               onBack={() => setSelected(null)}
               onChanged={load}
             />

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SegToggle } from "../../review/SegToggle";
 import { AnimatePresence, motion } from "motion/react";
+import { SwipeRow } from "../motion";
+import { usePortalPresence } from "../components/PortalPresence";
 
 const STATUS_ORDER: StudioProject["status"][] = ["lead", "quoted", "active", "on_hold", "parked", "delivered", "paid", "lost"];
 const STATUS_LABEL: Record<string, string> = { lead: "Lead", quoted: "Quoted", active: "Active", on_hold: "On hold", parked: "Parked", delivered: "Done · delivered", paid: "Paid", lost: "Lost / scrapped" };
@@ -75,6 +77,25 @@ export const ProjectsScreen: React.FC = () => {
     }
   };
   const [clientFilter, setClientFilter] = useState<string>("");
+  const [focusIdx, setFocusIdx] = useState(-1);
+  const [sheetFor, setSheetFor] = useState<string[] | null>(null);
+  type SavedView = { id: string; name: string; filter: string; client: string; mode: "list" | "cards" };
+  const [views, setViews] = useState<SavedView[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sos-project-views") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const persistViews = (v: SavedView[]) => {
+    setViews(v);
+    try {
+      localStorage.setItem("sos-project-views", JSON.stringify(v));
+    } catch {
+      /* ignore */
+    }
+  };
+  const presence = usePortalPresence();
   const [deliverables, setDeliverables] = useState<Record<string, DeliverableLike[]>>({});
   useEffect(() => {
     if (supabaseSyncStatus !== "synced" || !supabase) return;
@@ -96,6 +117,43 @@ export const ProjectsScreen: React.FC = () => {
       return true;
     });
   }, [projects, filter, clientFilter, gates]);
+
+  // Keyboard: J/K or ↓/↑ move · X select · D done · S status · Enter open · Esc clear.
+  useEffect(() => {
+    if (mode !== "list") return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable) return;
+      const k = e.key.toLowerCase();
+      const cur = filtered[focusIdx];
+      if (k === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.min(filtered.length - 1, i + 1));
+      } else if (k === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(0, i - 1));
+      } else if (k === "x" && cur) {
+        toggleSel(cur.id);
+      } else if (k === "d" && (selected.size || cur)) {
+        setStatus(selected.size ? [...selected] : [cur!.id], "delivered");
+        setSelected(new Set());
+      } else if (k === "s" && (selected.size || cur)) {
+        setSheetFor(selected.size ? [...selected] : [cur!.id]);
+      } else if (e.key === "Enter" && cur) {
+        openProject(cur.id);
+      } else if (e.key === "Escape") {
+        setSelected(new Set());
+        setSheetFor(null);
+        setFocusIdx(-1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, filtered, focusIdx, selected]);
+  useEffect(() => {
+    if (focusIdx >= 0) document.getElementById(`sos-prow-${filtered[focusIdx]?.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [focusIdx, filtered]);
 
   return (
     <div className="space-y-6">
@@ -125,6 +183,32 @@ export const ProjectsScreen: React.FC = () => {
 
       {/* Filter Tabs + client filter + view mode */}
       <div className="flex flex-wrap items-center gap-2">
+      <div className="w-full flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+        <span className="text-[11px] font-bold uppercase tracking-wider shrink-0 mr-1" style={{ color: "var(--sos-text-3)" }}>Views</span>
+        {views.map((v) => {
+          const on = v.filter === filter && v.client === clientFilter && v.mode === mode;
+          return (
+            <span key={v.id} className="group shrink-0 inline-flex items-center h-8 rounded-full border text-[12px] font-semibold overflow-hidden" style={on ? { background: "var(--sos-violet-soft)", color: "var(--sos-primary)", borderColor: "transparent" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}>
+              <button type="button" onClick={() => { setFilter(v.filter as PFilter); setClientFilter(v.client); setMode(v.mode); }} className="pl-3 pr-2 h-full">
+                ★ {v.name}
+              </button>
+              <button type="button" onClick={() => persistViews(views.filter((x) => x.id !== v.id))} className="pr-2.5 pl-0.5 h-full opacity-50 hover:opacity-100" aria-label={`Delete view ${v.name}`}>×</button>
+            </span>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => {
+            const cl = clients.find((c) => c.id === clientFilter)?.name;
+            const name = window.prompt("Name this view", [cl, filter !== "all" ? filter.replace("risk", "at risk").replace("waiting", "waiting on client") : ""].filter(Boolean).join(" · ") || "My view");
+            if (name?.trim()) persistViews([...views, { id: String(Date.now()), name: name.trim().slice(0, 40), filter, client: clientFilter, mode }]);
+          }}
+          className="shrink-0 h-8 px-3 rounded-full border border-dashed text-[12px] font-semibold"
+          style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
+        >
+          + Save current view
+        </button>
+      </div>
       <div className="w-full flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
         {(
           [
@@ -191,15 +275,27 @@ export const ProjectsScreen: React.FC = () => {
             const badge = projectStatusBadge(p, pGates);
             const due = p.forecast_date || p.promised_date || p.hard_deadline;
             const waiting = current?.status === "waiting_on_client";
+            const viewers = presence[p.id] || [];
             return (
-              <div
+              <SwipeRow
                 key={p.id}
+                radius={0}
+                onDone={() => setStatus([p.id], "delivered")}
+                onSnooze={() => setSheetFor([p.id])}
+                doneLabel={<>✓ Mark done</>}
+                snoozeLabel={<>Status ⋯</>}
+                snoozeBg="#5B3FE4"
+                style={{ background: "var(--sos-surface)" }}
+              >
+              <div
+                id={`sos-prow-${p.id}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => openProject(p.id)}
+                onMouseEnter={() => setFocusIdx(idx)}
                 onKeyDown={(e) => e.key === "Enter" && openProject(p.id)}
                 className="sos-row w-full text-left flex items-center gap-3.5 px-4 py-3.5 cursor-pointer"
-                style={{ borderColor: "var(--sos-border)", ["--i" as any]: Math.min(idx, 14), background: selected.has(p.id) ? "rgba(91,63,228,0.07)" : undefined }}
+                style={{ borderColor: "var(--sos-border)", ["--i" as any]: Math.min(idx, 14), background: selected.has(p.id) ? "rgba(91,63,228,0.07)" : undefined, boxShadow: focusIdx === idx ? "inset 0 0 0 2px rgba(91,63,228,0.35)" : undefined }}
               >
                 <input
                   type="checkbox"
@@ -215,6 +311,11 @@ export const ProjectsScreen: React.FC = () => {
                     <span className="text-[11px] font-bold sos-tabular shrink-0" style={{ color: "var(--sos-primary)" }}>{p.code}</span>
                     <span className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{p.title}</span>
                     {p.is_confidential && <Lock className="w-3 h-3 shrink-0 text-[#5B3FE4]" />}
+                    {viewers.length > 0 && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-2 h-5 rounded-full text-[10px] font-bold" style={{ background: "#E7F7EE", color: "#17663F" }} title={viewers.map((v) => `${v.name}: ${v.activity}`).join("\n")}>
+                        <span className="sos-live-dot" style={{ width: 6, height: 6 }} /> {viewers[0].name.split(" ")[0]} {viewers[0].activity.startsWith("Reviewing") ? "reviewing" : "viewing"} now
+                      </span>
+                    )}
                   </div>
                   <p className="text-[12px] truncate flex items-center gap-1.5" style={{ color: waiting ? "#9A4A00" : "var(--sos-text-3)" }}>
                     {waiting && <span className="sos-live-dot shrink-0" style={{ color: "#F59E0B" }} />}
@@ -246,10 +347,44 @@ export const ProjectsScreen: React.FC = () => {
                   ))}
                 </select>
               </div>
+              </SwipeRow>
             );
           })}
         </div>
       )}
+
+      {mode === "list" && filtered.length > 0 && (
+        <p className="hidden md:block text-[11px] -mt-2" style={{ color: "var(--sos-text-3)" }}>
+          <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>J</kbd>/<kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>K</kbd> move · <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>X</kbd> select · <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>D</kbd> done · <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>S</kbd> status · <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>⏎</kbd> open · <kbd className="px-1 rounded border" style={{ borderColor: "var(--sos-border)" }}>Esc</kbd> clear
+        </p>
+      )}
+      <p className="md:hidden text-[11px] -mt-2" style={{ color: "var(--sos-text-3)" }}>Swipe a project right to mark it done, left to change its status.</p>
+
+      <AnimatePresence>
+        {sheetFor && (
+          <motion.div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSheetFor(null)}>
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              className="w-full md:max-w-sm rounded-t-[26px] md:rounded-[26px] p-4 space-y-1.5 shadow-2xl"
+              style={{ background: "var(--sos-surface)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto w-10 h-1 rounded-full mb-2 md:hidden" style={{ background: "var(--sos-border)" }} />
+              <p className="text-[13px] font-semibold px-2 pb-1" style={{ color: "var(--sos-text-1)" }}>
+                Set status · {sheetFor.length === 1 ? projects.find((x) => x.id === sheetFor[0])?.code : `${sheetFor.length} projects`}
+              </p>
+              {STATUS_ORDER.map((st) => (
+                <button key={st} type="button" onClick={() => { setStatus(sheetFor, st); setSheetFor(null); setSelected(new Set()); }} className="w-full text-left h-11 px-3 rounded-[14px] text-[14px] font-medium hover:bg-black/[0.04]" style={{ color: st === "lost" ? "#B42318" : "var(--sos-text-1)" }}>
+                  {STATUS_LABEL[st]}
+                </button>
+              ))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selected.size > 0 && (
