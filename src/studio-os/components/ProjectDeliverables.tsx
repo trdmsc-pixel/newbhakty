@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Copy, Eye, EyeOff, Link2, Loader2, Plus, Send, Trash2, X } from "lucide-react";
+import { Copy, Eye, EyeOff, Image as ImageIcon, Link2, Loader2, MessageSquare, Play, Plus, Send, Trash2, Upload, X } from "lucide-react";
+import { ReviewMedia, type ReviewMediaHandle, fmtTime, parseMedia, parseNote } from "../../review/ReviewMedia";
 import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
 import { StudioGate, StudioProject } from "../types";
@@ -47,6 +48,83 @@ export function useProjectDeliverables(projectId: string) {
 
 const inputStyle = { background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" };
 
+/** Signed URL for a private review image (storage://studio-review/…). */
+export const resolveStudioReviewUrl = async (url: string) => {
+  if (!supabase || !url.startsWith("storage://studio-review/")) return null;
+  const { data } = await supabase.storage.from("studio-review").createSignedUrl(url.replace("storage://studio-review/", ""), 3600);
+  return data?.signedUrl || null;
+};
+
+/** Upload an image for client review to the private bucket; returns its storage:// url. */
+export async function uploadReviewImage(projectId: string, file: File): Promise<string> {
+  if (!supabase) throw new Error("Cloud sync is off");
+  if (!/^image\/(jpeg|png|webp|gif|avif)$/.test(file.type)) throw new Error("Use a JPG, PNG, WebP, GIF or AVIF image");
+  if (file.size > 25 * 1024 * 1024) throw new Error("Images must be 25 MB or smaller");
+  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${projectId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("studio-review").upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(error.message);
+  return `storage://studio-review/${path}`;
+}
+
+const KIND_LABEL: Record<string, string> = { youtube: "YouTube", vimeo: "Vimeo", image: "Image", iframe: "Embed", link: "Link" };
+
+/** Player + the client's timestamped / pinned notes for one deliverable. */
+const DeliverableReview: React.FC<{ d: Deliverable }> = ({ d }) => {
+  const { tasks, updateTask, toggleTaskDone } = useStudioOS();
+  const player = useRef<ReviewMediaHandle>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const notes = tasks
+    .filter((t) => d.gate_id && t.gate_id === d.gate_id && t.source === "portal")
+    .map((t) => ({ task: t, note: parseNote(t.title) }))
+    .filter((x) => x.note)
+    .sort((a, b) => (a.note!.time ?? a.note!.pin?.n ?? 0) - (b.note!.time ?? b.note!.pin?.n ?? 0));
+  return (
+    <div className="space-y-3 pt-1">
+      <ReviewMedia
+        ref={player}
+        url={d.url}
+        resolveUrl={resolveStudioReviewUrl}
+        pins={notes.filter((n) => n.note!.pin).map((n) => ({ ...n.note!.pin!, active: n.task.id === active }))}
+      />
+      {notes.length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="text-[12px] font-semibold flex items-center gap-1.5" style={{ color: "var(--sos-text-2)" }}>
+            <MessageSquare className="w-3.5 h-3.5" /> Client notes ({notes.filter((n) => n.task.status !== "done").length} open)
+          </p>
+          {notes.map(({ task, note }) => (
+            <div key={task.id} className="flex items-center gap-2.5 px-3 py-2 rounded-[12px]" style={{ background: "var(--sos-surface)", opacity: task.status === "done" ? 0.55 : 1 }} onMouseEnter={() => setActive(task.id)} onMouseLeave={() => setActive(null)}>
+              {note!.time !== undefined ? (
+                <button type="button" onClick={() => player.current?.seek(note!.time!)} className="shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded-full text-[12px] font-semibold sos-tabular text-white" style={{ background: "var(--sos-primary)" }} title="Jump to this moment">
+                  <Play className="w-3 h-3" /> {fmtTime(note!.time!)}
+                </button>
+              ) : (
+                <span className="shrink-0 px-2 h-7 rounded-full text-[12px] font-semibold flex items-center text-white" style={{ background: task.id === active ? "#B42318" : "var(--sos-primary)" }}>
+                  Pin {note!.pin!.n}
+                </span>
+              )}
+              <span className="flex-1 min-w-0 text-[13px]" style={{ color: "var(--sos-text-1)", textDecoration: task.status === "done" ? "line-through" : undefined }}>
+                {note!.text}
+              </span>
+              <span className="text-[11px] shrink-0" style={{ color: "var(--sos-text-3)" }}>{task.key}</span>
+              <button
+                type="button"
+                onClick={() => (task.status === "done" ? updateTask(task.id, { status: "todo" }) : toggleTaskDone(task.id))}
+                className="shrink-0 px-2.5 h-7 rounded-full text-[11px] font-semibold"
+                style={task.status === "done" ? { background: "#E7F7EE", color: "#17663F" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
+              >
+                {task.status === "done" ? "Fixed ✓" : "Mark fixed"}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        d.gate_id && <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Client notes with timestamps or pins appear here, live.</p>
+      )}
+    </div>
+  );
+};
+
 export const portalLinkFor = (projectId: string) => `${window.location.origin}/portal?project=${projectId}`;
 
 // ---------------------------------------------------------------------------
@@ -61,11 +139,27 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
   const [gateId, setGateId] = useState("");
   const [shared, setShared] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadImage = async (file: File) => {
+    setBusy(true);
+    try {
+      const storageUrl = await uploadReviewImage(project.id, file);
+      setUrl(storageUrl);
+      if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ""));
+      pushToast("Image uploaded — add it below", "success");
+    } catch (err: any) {
+      pushToast(err?.message || "Upload failed", "warn");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase || !title.trim() || !/^https?:\/\//.test(url.trim())) {
-      pushToast("Add a title and a full https:// link", "warn");
+    if (!supabase || !title.trim() || !/^(https?:\/\/|storage:\/\/studio-review\/)/.test(url.trim())) {
+      pushToast("Add a title and a link (or upload an image)", "warn");
       return;
     }
     setBusy(true);
@@ -103,7 +197,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
             Deliverables &amp; versions
           </h2>
           <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-            Shared items appear in the client portal. Vimeo, YouTube and Google Drive links play inline.
+            Shared items appear in the client portal. YouTube, Vimeo and images open in the review player; clients leave timestamped notes and pins.
           </p>
         </div>
         <button
@@ -121,7 +215,13 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
 
       <form onSubmit={add} className="grid grid-cols-1 md:grid-cols-6 gap-2.5 p-3 rounded-[18px]" style={{ background: "var(--sos-surface-2)" }}>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Fine cut)" className="md:col-span-2 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://vimeo.com/…" className="md:col-span-2 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
+        <div className="md:col-span-2 flex gap-1.5">
+          <input value={url.startsWith("storage://") ? "🖼 Uploaded image" : url} readOnly={url.startsWith("storage://")} onChange={(e) => setUrl(e.target.value)} placeholder="YouTube / Vimeo / image link" className="flex-1 min-w-0 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
+          <button type="button" onClick={() => (url.startsWith("storage://") ? setUrl("") : fileRef.current?.click())} className="shrink-0 h-10 px-3 rounded-[12px] border text-[12px] font-semibold inline-flex items-center gap-1" style={inputStyle} title="Upload an image for review">
+            {url.startsWith("storage://") ? <X className="w-3.5 h-3.5" /> : <Upload className="w-3.5 h-3.5" />} {url.startsWith("storage://") ? "" : "Image"}
+          </button>
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ""; }} />
+        </div>
         <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="v1" className="h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
         <select value={gateId} onChange={(e) => setGateId(e.target.value)} className="h-10 px-2 rounded-[12px] border text-[13px]" style={inputStyle}>
           <option value="">No stage</option>
@@ -149,12 +249,14 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
           {items.map((d) => {
             const gate = gates.find((g) => g.id === d.gate_id);
             return (
-              <div key={d.id} className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] sos-tile">
-                <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
+              <div key={d.id} className="px-3.5 py-3 rounded-[14px] sos-tile">
+              <div className="flex items-center gap-3">
+                {parseMedia(d.url)?.kind === "image" ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : ["youtube", "vimeo"].includes(parseMedia(d.url)?.kind || "") ? <Play className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />}
                 <div className="min-w-0 flex-1">
-                  <a href={d.url} target="_blank" rel="noreferrer" className="text-[14px] font-semibold truncate block hover:underline" style={{ color: "var(--sos-text-1)" }}>
+                  <button type="button" onClick={() => setOpenId(openId === d.id ? null : d.id)} className="text-[14px] font-semibold truncate block hover:underline text-left max-w-full" style={{ color: "var(--sos-text-1)" }} aria-expanded={openId === d.id}>
                     {d.title} {d.version && <span className="text-[11px] font-semibold" style={{ color: "var(--sos-text-3)" }}>{d.version}</span>}
-                  </a>
+                    <span className="text-[11px] font-medium ml-1.5" style={{ color: "var(--sos-text-3)" }}>{KIND_LABEL[parseMedia(d.url)?.kind || "link"]} · {openId === d.id ? "Hide" : "Review"}</span>
+                  </button>
                   <p className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>
                     {[gate ? `${gate.code} ${gate.name}` : null, format(parseISO(d.created_at), "d MMM yyyy")].filter(Boolean).join(" · ")}
                   </p>
@@ -172,6 +274,8 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
                 <button type="button" onClick={() => archive(d)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-3)" }} aria-label="Remove">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
+              </div>
+              {openId === d.id && <DeliverableReview d={d} />}
               </div>
             );
           })}
@@ -193,6 +297,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
   const [title, setTitle] = useState(`${gate.name} ${nextVersion}`);
   const [reuse, setReuse] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (latest && !url) {
@@ -204,7 +309,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
   }, [latest?.id]);
 
   const send = async () => {
-    if (!reuse && url.trim() && !/^https?:\/\//.test(url.trim())) {
+    if (!reuse && url.trim() && !/^(https?:\/\/|storage:\/\/studio-review\/)/.test(url.trim())) {
       pushToast("Use a full https:// review link", "warn");
       return;
     }
@@ -259,7 +364,49 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
         )}
         {!reuse && (
           <div className="space-y-2.5">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Review link — Vimeo, YouTube, Google Drive or Frame.io" className="w-full h-11 px-3.5 rounded-[14px] border text-[14px]" style={inputStyle} />
+            <div className="flex gap-2">
+              <input
+                value={url.startsWith("storage://") ? "🖼 Image uploaded" : url}
+                readOnly={url.startsWith("storage://")}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="YouTube or Vimeo link (plays in the portal)"
+                className="flex-1 min-w-0 h-11 px-3.5 rounded-[14px] border text-[14px]"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => (url.startsWith("storage://") ? setUrl("") : fileRef.current?.click())}
+                className="shrink-0 h-11 px-3.5 rounded-[14px] border text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                style={inputStyle}
+              >
+                {url.startsWith("storage://") ? <X className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />} {url.startsWith("storage://") ? "Remove" : "Image"}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                hidden
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  setBusy(true);
+                  try {
+                    setUrl(await uploadReviewImage(project.id, f));
+                  } catch (err: any) {
+                    pushToast(err?.message || "Upload failed", "warn");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </div>
+            {url && parseMedia(url) && parseMedia(url)!.kind !== "link" && (
+              <div className="max-h-[260px] overflow-hidden rounded-[18px]">
+                <ReviewMedia url={url} resolveUrl={resolveStudioReviewUrl} />
+              </div>
+            )}
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title shown to the client" className="w-full h-11 px-3.5 rounded-[14px] border text-[14px]" style={inputStyle} />
           </div>
         )}

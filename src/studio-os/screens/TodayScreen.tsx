@@ -1,33 +1,53 @@
+/**
+ * Today — one calm, ranked view of the day.
+ * 1. Client updates (live from the portal; chime + glow; only when new)
+ * 2. Now (WIP-limited) with a slim focus timer
+ * 3. Up next — one smart queue: client changes → overdue → replies owed →
+ *    promises due → due today → urgent
+ * Side: deadlines, waiting on clients, 7-day load.
+ */
 import React, { useEffect, useMemo, useState } from "react";
-import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { AnimatePresence, motion } from "motion/react";
-import { ActivePill, BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
-import { TeamLoadCard } from "../components/Team";
-import { addDays, differenceInCalendarDays, format, isSameDay, parseISO } from "date-fns";
-import {
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Clock,
-  Copy,
-  Hourglass,
-  Mail,
-  MessageCircle,
-  Moon,
-  Pause,
-  Play,
-  Plus,
-  RotateCcw,
-  Square,
-  Sparkles,
-  Sun,
-} from "lucide-react";
+import { addDays, differenceInCalendarDays, format, formatDistanceToNowStrict, parseISO } from "date-fns";
+import { ArrowRight, Bell, BellOff, Check, Copy, Hourglass, MessageSquare, Moon, Pause, Play, Plus, RotateCcw, Square } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { generateBriefSummary } from "../forecastEngine";
-import { HealthPill, TaskStatusChip } from "../components/StatusChip";
+import { TaskStatusSelect } from "../components/TaskStatusSelect";
+import { TeamLoadCard } from "../components/Team";
+import { useClientPulse } from "../components/ClientPulse";
+import { BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
+import type { StudioTask } from "../types";
+
+type QueueTag = "client" | "overdue" | "reply" | "promise" | "today" | "urgent";
+const TAG: Record<QueueTag, { label: string; bg: string; fg: string; rank: number }> = {
+  client: { label: "Client change", bg: "#FDECEC", fg: "#B42318", rank: 0 },
+  overdue: { label: "Overdue", bg: "#FDECEC", fg: "#B42318", rank: 1 },
+  reply: { label: "Reply owed", bg: "#EAF1FF", fg: "#1D4FD8", rank: 2 },
+  promise: { label: "Promise", bg: "#FFF3E0", fg: "#9A4A00", rank: 3 },
+  today: { label: "Due today", bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)", rank: 4 },
+  urgent: { label: "Urgent", bg: "#FFF3E0", fg: "#9A4A00", rank: 5 },
+};
+
+const Card: React.FC<{ title: string; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, right, className, children }) => (
+  <section className={`sos-card p-5 md:p-6 ${className || ""}`}>
+    <div className="flex items-center justify-between gap-2 mb-4">
+      <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+        {title}
+      </h2>
+      {right}
+    </div>
+    {children}
+  </section>
+);
+
+const Count: React.FC<{ n: number; tone?: "red" | "plain" }> = ({ n, tone = "plain" }) => (
+  <span
+    className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full sos-tabular"
+    style={tone === "red" && n ? { background: "#FDECEC", color: "#B42318" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
+  >
+    {n}
+  </span>
+);
 
 export const TodayScreen: React.FC = () => {
   const {
@@ -53,953 +73,533 @@ export const TodayScreen: React.FC = () => {
     pushToast,
     updateTask,
   } = useStudioOS();
+  const { updates, unread, markRead, markAllRead, soundOn, setSoundOn } = useClientPulse();
+  const [now, setNow] = useState(() => new Date());
+  const [showAll, setShowAll] = useState(false);
 
-  const today = useMemo(() => new Date(), []);
-  const [selectedDay, setSelectedDay] = useState<Date>(today);
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [briefExpanded, setBriefExpanded] = useState(true);
+  // Keep relative times and the closing countdown fresh.
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const todayIso = format(now, "yyyy-MM-dd");
+  const projectOf = (id?: string) => projects.find((p) => p.id === id);
 
-  // 1. Now tasks (strict WIP limit = settings.wip_limit, default 3)
-  const nowTasks = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.is_in_now && t.status !== "done")
-        .slice(0, settings.wip_limit),
-    [tasks, settings.wip_limit]
-  );
+  // ---- Now -----------------------------------------------------------------
+  const nowTasks = useMemo(() => tasks.filter((t) => t.is_in_now && t.status !== "done").slice(0, settings.wip_limit), [tasks, settings.wip_limit]);
+  const nowFull = nowTasks.length >= settings.wip_limit;
 
-  // Candidate tasks to promote to Now if fewer than 3
-  const suggestedForNow = useMemo(
-    () =>
-      tasks
-        .filter((t) => !t.is_in_now && t.status !== "done" && t.status !== "waiting_on_client")
-        .sort((a, b) => (a.priority === "urgent" ? -1 : b.priority === "urgent" ? 1 : 0))
-        .slice(0, 3),
-    [tasks]
-  );
-
-  // 2. Promised by you (next 48h or open promises)
-  const promises = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.type === "promise" && t.status !== "done")
-        .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"))
-        .slice(0, 4),
-    [tasks]
-  );
-
-  // 3. Replies owed
-  const repliesOwed = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.type === "reply_owed" && t.status !== "done")
-        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    [tasks]
-  );
-
-  // 4. Waiting on clients (from gates + waiting tasks)
-  const waitingGates = useMemo(() => {
-    const items: Array<{ id: string; label: string; clientName: string; days: number; projectId: string }> = [];
-    for (const g of gates) {
-      if (g.status === "waiting_on_client") {
-        const proj = projects.find((p) => p.id === g.project_id);
-        const client = clients.find((c) => c.id === proj?.client_id);
-        const days = g.sent_for_approval_at
-          ? Math.max(1, differenceInCalendarDays(today, parseISO(g.sent_for_approval_at)))
-          : 2;
-        items.push({
-          id: g.id,
-          label: g.name,
-          clientName: client?.contacts[0]?.name || client?.name || "Client",
-          days,
-          projectId: g.project_id,
-        });
-      }
-    }
+  // ---- Up next: one ranked queue --------------------------------------------
+  const queue = useMemo(() => {
+    const items: Array<{ task: StudioTask; tag: QueueTag; note: string }> = [];
     for (const t of tasks) {
-      if (t.status === "waiting_on_client" && !items.some((i) => i.projectId === t.project_id)) {
-        const proj = projects.find((p) => p.id === t.project_id);
-        const days = Math.max(1, differenceInCalendarDays(today, parseISO(t.updated_at)));
-        items.push({
-          id: t.id,
-          label: proj?.code || t.key,
-          clientName: t.waiting_on_name || "Client",
-          days,
-          projectId: t.project_id,
-        });
+      if (t.status === "done" || t.is_in_now) continue;
+      const due = t.due_date ? t.due_date.slice(0, 10) : null;
+      const dueDays = due ? differenceInCalendarDays(parseISO(due), now) : null;
+      const age = Math.max(1, differenceInCalendarDays(now, parseISO(t.created_at)));
+      let tag: QueueTag | null = null;
+      let note = "";
+      if (t.source === "portal" && t.status !== "waiting_on_client") {
+        tag = "client";
+        note = t.promised_to_name ? `from ${t.promised_to_name}` : "from the portal";
+      } else if (dueDays !== null && dueDays < 0 && t.status !== "waiting_on_client") {
+        tag = "overdue";
+        note = `${Math.abs(dueDays)}d late`;
+      } else if (t.type === "reply_owed") {
+        tag = "reply";
+        note = `${t.promised_to_name || "Client"} · ${age}d`;
+      } else if (t.type === "promise" && dueDays !== null && dueDays <= 2) {
+        tag = "promise";
+        note = `to ${t.promised_to_name || "client"} · ${dueDays === 0 ? "today" : dueDays === 1 ? "tomorrow" : format(parseISO(due!), "EEE d MMM")}`;
+      } else if (dueDays === 0 || t.do_date === todayIso) {
+        tag = "today";
+      } else if (t.priority === "urgent" && t.status !== "waiting_on_client") {
+        tag = "urgent";
       }
+      if (tag) items.push({ task: t, tag, note });
     }
-    return items.slice(0, 6);
-  }, [gates, tasks, projects, clients, today]);
+    return items.sort((a, b) => TAG[a.tag].rank - TAG[b.tag].rank || (a.task.due_date || "9999").localeCompare(b.task.due_date || "9999"));
+  }, [tasks, now, todayIso]);
+  const visibleQueue = showAll ? queue : queue.slice(0, 7);
+  const clientChanges = queue.filter((q) => q.tag === "client").length;
 
-  // 5. Next 5 Deadlines
-  const upcomingDeadlines = useMemo(
+  // ---- Side column ------------------------------------------------------------
+  const deadlines = useMemo(
     () =>
       projects
         .filter((p) => p.hard_deadline && !["delivered", "paid", "lost", "parked"].includes(p.status))
-        .map((p) => ({
-          project: p,
-          daysLeft: differenceInCalendarDays(parseISO(p.hard_deadline!), today),
-        }))
+        .map((p) => ({ project: p, daysLeft: differenceInCalendarDays(parseISO(p.hard_deadline!), now) }))
         .sort((a, b) => a.daysLeft - b.daysLeft)
         .slice(0, 5),
-    [projects, today]
+    [projects, now]
   );
 
-  // 6. Load meter (next 7 days) + lowest-priority P3 deferral candidate
-  const loadStats = useMemo(() => {
-    const horizon = addDays(today, 7);
+  const waiting = useMemo(() => {
+    const items: Array<{ id: string; label: string; who: string; days: number; projectId: string }> = [];
+    for (const g of gates) {
+      if (g.status !== "waiting_on_client") continue;
+      const proj = projectOf(g.project_id);
+      const client = clients.find((c) => c.id === proj?.client_id);
+      items.push({
+        id: g.id,
+        label: `${proj?.code || ""} ${g.name}`.trim(),
+        who: client?.contacts[0]?.name || client?.name || "Client",
+        days: g.sent_for_approval_at ? Math.max(0, differenceInCalendarDays(now, parseISO(g.sent_for_approval_at))) : 0,
+        projectId: g.project_id,
+      });
+    }
+    for (const t of tasks) {
+      if (t.status === "waiting_on_client" && !items.some((i) => i.projectId === t.project_id)) {
+        items.push({ id: t.id, label: `${t.key} ${t.title}`, who: t.waiting_on_name || "Client", days: Math.max(0, differenceInCalendarDays(now, parseISO(t.updated_at))), projectId: t.project_id });
+      }
+    }
+    return items.sort((a, b) => b.days - a.days).slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gates, tasks, projects, clients, now]);
+
+  const load = useMemo(() => {
+    const horizon = addDays(now, 7);
     const windowTasks = tasks.filter((t) => {
       if (t.status === "done") return false;
       if (!t.do_date && !t.due_date) return t.is_in_now;
-      const d = parseISO(t.do_date || t.due_date!);
-      return d <= horizon;
+      return parseISO(t.do_date || t.due_date!) <= horizon;
     });
-    const planned = windowTasks.reduce((acc, t) => acc + (t.estimate_hours || 1), 0);
+    const planned = Math.round(windowTasks.reduce((acc, t) => acc + (t.estimate_hours || 1), 0) * 10) / 10;
     const available = settings.work_hours_per_day * 7;
-    const pct = Math.min(130, Math.round((planned / available) * 100));
-    const overloaded = planned > available;
+    const rank: Record<string, number> = { low: 0, normal: 1, high: 2, urgent: 3 };
+    const candidate =
+      planned > available
+        ? [...windowTasks].filter((t) => !t.is_in_now && t.source !== "portal").sort((a, b) => (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1) || b.estimate_hours - a.estimate_hours)[0] || null
+        : null;
+    return { planned, available, pct: Math.min(100, Math.round((planned / available) * 100)), overloaded: planned > available, candidate };
+  }, [tasks, settings.work_hours_per_day, now]);
 
-    // Pick lowest-priority task (preferring non-Now low/P3 tasks) when overloaded
-    const projPriorityMap = new Map<string, "p1" | "p2" | "p3">(
-      projects.map((p) => [p.id, p.priority] as [string, "p1" | "p2" | "p3"])
-    );
-    const candidate = overloaded
-      ? [...windowTasks]
-          .filter((t) => !t.is_in_now)
-          .sort((a, b) => {
-            const pRank: Record<string, number> = { low: 0, normal: 1, high: 2, urgent: 3 };
-            const projRank: Record<"p1" | "p2" | "p3", number> = { p3: 0, p2: 1, p1: 2 };
-            const aProj = projPriorityMap.get(a.project_id) ?? "p2";
-            const bProj = projPriorityMap.get(b.project_id) ?? "p2";
-            if (projRank[aProj] !== projRank[bProj]) return projRank[aProj] - projRank[bProj];
-            if ((pRank[a.priority] ?? 1) !== (pRank[b.priority] ?? 1)) {
-              return (pRank[a.priority] ?? 1) - (pRank[b.priority] ?? 1);
-            }
-            return b.estimate_hours - a.estimate_hours;
-          })[0] || null
-      : null;
-
-    return {
-      planned: Math.round(planned * 10) / 10,
-      available,
-      pct,
-      overloaded,
-      overflowHours: Math.max(0, Math.round((planned - available) * 10) / 10),
-      candidate,
-    };
-  }, [tasks, projects, settings.work_hours_per_day, today]);
-
-  // Morning Brief summary (<=200 words, matches 07:30 IST Resend email)
-  const morningBrief = useMemo(
-    () =>
-      generateBriefSummary({
-        projects,
-        gates,
-        tasks,
-        clients,
-        settings,
-        holidays,
-        today,
-      }),
-    [projects, gates, tasks, clients, settings, holidays, today]
-  );
-
-  // 7. Date strip for Upcoming Tasks
-  const stripDays = useMemo(() => {
-    const base = addDays(today, weekOffset * 7 - 1);
-    return Array.from({ length: 7 }, (_, i) => addDays(base, i));
-  }, [today, weekOffset]);
-
-  const selectedDayTasks = useMemo(() => {
-    const iso = format(selectedDay, "yyyy-MM-dd");
-    return tasks
-      .filter((t) => t.status !== "done" && (t.do_date === iso || t.due_date === iso))
-      .slice(0, 5);
-  }, [tasks, selectedDay]);
-
-  // 8. Studio closes countdown (in Asia/Kolkata IST) + auto-prompt 60m prior
-  const { closesInText, shutdownWindowActive } = useMemo(() => {
+  // ---- Header -----------------------------------------------------------------
+  const { closesInText, shutdownWindow } = useMemo(() => {
     const [hh, mm] = settings.studio_closes_at.split(":").map(Number);
-    const closeDt = new Date(today);
-    closeDt.setHours(hh || 21, mm || 30, 0, 0);
-    const diffMins = Math.round((closeDt.getTime() - today.getTime()) / 60000);
-    if (diffMins <= 0) {
-      return { closesInText: "Evening Shutdown Ready", shutdownWindowActive: true };
-    }
-    const h = Math.floor(diffMins / 60);
-    const m = diffMins % 60;
-    return {
-      closesInText: `Studio closes in ${h}h ${m}m`,
-      shutdownWindowActive: diffMins <= 60,
-    };
-  }, [settings.studio_closes_at, today]);
+    const close = new Date(now);
+    close.setHours(hh || 21, mm || 30, 0, 0);
+    const mins = Math.round((close.getTime() - now.getTime()) / 60000);
+    if (mins <= 0) return { closesInText: "Evening shutdown", shutdownWindow: true };
+    return { closesInText: `Closes in ${Math.floor(mins / 60)}h ${mins % 60}m`, shutdownWindow: mins <= 60 };
+  }, [settings.studio_closes_at, now]);
 
   useEffect(() => {
-    if (!shutdownWindowActive) return;
-    const todayIso = format(today, "yyyy-MM-dd");
+    if (!shutdownWindow) return;
     try {
       if (localStorage.getItem("tcs_studio_os_shutdown_prompted") !== todayIso) {
         localStorage.setItem("tcs_studio_os_shutdown_prompted", todayIso);
         setEveningShutdownOpen(true);
       }
     } catch {
-      // ignore
+      /* ignore */
     }
-  }, [shutdownWindowActive, today, setEveningShutdownOpen]);
+  }, [shutdownWindow, todayIso, setEveningShutdownOpen]);
 
-  // Focus Timer display
-  const activeTimerTask = tasks.find((t) => t.id === activeTimerTaskId) || nowTasks[0];
-  const displaySecs = timerSeconds;
-  const timerH = String(Math.floor(displaySecs / 3600)).padStart(2, "0");
-  const timerM = String(Math.floor((displaySecs % 3600) / 60)).padStart(2, "0");
-  const timerS = String(displaySecs % 60).padStart(2, "0");
+  const brief = useMemo(() => generateBriefSummary({ projects, gates, tasks, clients, settings, holidays, today: now }), [projects, gates, tasks, clients, settings, holidays, now]);
 
-  // Greeting
-  const hour = today.getHours();
+  const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning, Shyam" : hour < 17 ? "Good afternoon, Shyam" : "Good evening, Shyam";
-  const topDeadline = upcomingDeadlines[0];
-  const statusLine = topDeadline
-    ? `${nowTasks.length} thing${nowTasks.length === 1 ? "" : "s"} in Now. ${topDeadline.project.code} deadline in ${
-        topDeadline.daysLeft >= 0 ? `${topDeadline.daysLeft} days` : `${Math.abs(topDeadline.daysLeft)}d overdue`
-      } — ${topDeadline.project.health.replace("_", " ")}.`
-    : `${nowTasks.length} thing${nowTasks.length === 1 ? "" : "s"} in Now. Everything calm and clear.`;
+  const headline = (() => {
+    const bits: string[] = [];
+    if (unread) bits.push(`${unread} new client update${unread > 1 ? "s" : ""}`);
+    else if (clientChanges) bits.push(`${clientChanges} client change${clientChanges > 1 ? "s" : ""} to do`);
+    const overdue = queue.filter((q) => q.tag === "overdue").length;
+    if (overdue) bits.push(`${overdue} overdue`);
+    const d = deadlines[0];
+    if (d) bits.push(`${d.project.code} due ${d.daysLeft < 0 ? `${Math.abs(d.daysLeft)}d ago` : d.daysLeft === 0 ? "today" : `in ${d.daysLeft}d`}`);
+    return bits.length ? bits.join(" · ") : "All calm. Pick what matters and go.";
+  })();
+
+  // ---- Timer --------------------------------------------------------------------
+  const timerTask = tasks.find((t) => t.id === activeTimerTaskId);
+  const hh = String(Math.floor(timerSeconds / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, "0");
+  const ss = String(timerSeconds % 60).padStart(2, "0");
+  const timerVisible = timerRunning || timerSeconds > 0;
+
+  const projectFromUpdate = (title: string) => projects.find((p) => title.toUpperCase().startsWith(`${p.code.toUpperCase()} `));
+  const unreadUpdates = updates.filter((u) => !u.read_at);
 
   return (
-    <div className="space-y-6">
-      {/* Calm Greeting Header */}
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-medium mb-1" style={{ color: "var(--sos-text-3)" }}>
-            {format(today, "EEEE, d MMMM yyyy")} · Asia/Kolkata
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium mb-0.5" style={{ color: "var(--sos-text-3)" }}>
+            {format(now, "EEEE, d MMMM")}
           </p>
-          <h1
-            className="sos-display text-[32px] md:text-[38px] font-semibold tracking-[-0.02em] leading-tight"
-            style={{ color: "var(--sos-text-1)" }}
-          >
+          <h1 className="sos-display text-[30px] md:text-[36px] font-semibold tracking-[-0.02em] leading-tight" style={{ color: "var(--sos-text-1)" }}>
             {greeting}
           </h1>
-          <p className="text-[15px] mt-1" style={{ color: "var(--sos-text-2)" }}>
-            {statusLine}
+          <p className="text-[15px] mt-1" style={{ color: unread || clientChanges ? "#B42318" : "var(--sos-text-2)" }}>
+            {headline}
           </p>
         </div>
-
-        {/* Studio Closes Black Pill Trigger -> opens Evening Shutdown */}
-        <button
-          type="button"
-          onClick={() => setEveningShutdownOpen(true)}
-          className="sos-pill-btn inline-flex items-center gap-2.5 px-4 py-2.5 self-start md:self-auto"
-          style={{
-            background: shutdownWindowActive ? "var(--sos-primary)" : "var(--sos-ink)",
-            color: shutdownWindowActive ? "#FFFFFF" : "var(--sos-ink-text)",
-          }}
-        >
-          <Moon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-          <span className="text-[13px] font-medium sos-tabular">{closesInText}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(brief.briefText);
+              pushToast("Morning brief copied", "info");
+            }}
+            className="sos-pill-btn h-10 px-3.5 text-[12px] font-medium border inline-flex items-center gap-1.5"
+            style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }}
+            title="Copy the 07:30 brief (confidential projects masked)"
+          >
+            <Copy className="w-3.5 h-3.5" /> Brief
+          </button>
+          <button
+            type="button"
+            onClick={() => setEveningShutdownOpen(true)}
+            className="sos-pill-btn inline-flex items-center gap-2 px-4 h-10"
+            style={{ background: shutdownWindow ? "var(--sos-primary)" : "var(--sos-ink)", color: shutdownWindow ? "#FFFFFF" : "var(--sos-ink-text)" }}
+          >
+            <Moon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+            <span className="text-[13px] font-medium sos-tabular">{closesInText}</span>
+          </button>
+        </div>
       </div>
 
-      {/* 07:30 IST Morning Brief Summary Banner */}
-      <section className="sos-card p-4 md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <span
-              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-              style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}
-            >
-              <Sun className="w-4 h-4" />
-            </span>
-            <div>
-              <h2 className="sos-display text-[16px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                07:30 Morning Brief
-              </h2>
-              <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                {morningBrief.wordCount} words · Confidential projects masked
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard?.writeText(morningBrief.briefText);
-                pushToast("Copied Morning Brief text", "info");
-              }}
-              className="sos-pill-btn inline-flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium border"
-              style={{
-                background: "var(--sos-surface-2)",
-                borderColor: "var(--sos-border)",
-                color: "var(--sos-text-2)",
-              }}
-            >
-              <Copy className="w-3.5 h-3.5" /> Copy brief
-            </button>
-            <button
-              type="button"
-              onClick={() => setBriefExpanded((b) => !b)}
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
-              aria-label="Toggle Morning Brief"
-            >
-              {briefExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {briefExpanded && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t text-[12px]" style={{ borderColor: "var(--sos-border)" }}>
-            <div className="sos-tile p-3 space-y-1">
-              <p className="font-semibold" style={{ color: "var(--sos-primary)" }}>
-                Today&apos;s Top {morningBrief.topNow.length}
-              </p>
-              {morningBrief.topNow.length === 0 ? (
-                <p style={{ color: "var(--sos-text-3)" }}>Clear queue</p>
-              ) : (
-                morningBrief.topNow.map((item, i) => (
-                  <p key={i} className="truncate" style={{ color: "var(--sos-text-1)" }}>
-                    <strong>{item.key}</strong> · {item.title}
-                  </p>
-                ))
-              )}
-            </div>
-
-            <div className="sos-tile p-3 space-y-1">
-              <p className="font-semibold text-[#9A4A00]">
-                Promises 48h &amp; Replies ({morningBrief.promises48h.length + morningBrief.repliesOwed.length})
-              </p>
-              {morningBrief.promises48h.slice(0, 2).map((p, i) => (
-                <p key={`p-${i}`} className="truncate" style={{ color: "var(--sos-text-1)" }}>
-                  {p.key} → {p.who} ({p.due})
-                </p>
-              ))}
-              {morningBrief.repliesOwed.slice(0, 2).map((r, i) => (
-                <p key={`r-${i}`} className="truncate" style={{ color: "var(--sos-text-2)" }}>
-                  Reply: {r.who} ({r.daysWaiting}d)
-                </p>
-              ))}
-            </div>
-
-            <div className="sos-tile p-3 space-y-1">
-              <p className="font-semibold" style={{ color: "var(--sos-blue)" }}>
-                Waiting on Clients ({morningBrief.waitingOnClients.length})
-              </p>
-              {morningBrief.waitingOnClients.length === 0 ? (
-                <p style={{ color: "var(--sos-text-3)" }}>None blocked</p>
-              ) : (
-                morningBrief.waitingOnClients.slice(0, 3).map((w, i) => (
-                  <p key={i} className="truncate" style={{ color: "var(--sos-text-1)" }}>
-                    {w.label} · {w.days}d
-                  </p>
-                ))
-              )}
-            </div>
-
-            <div className="sos-tile p-3 space-y-1">
-              <p
-                className="font-semibold"
-                style={{ color: morningBrief.lateProjects.length ? "var(--sos-red)" : "var(--sos-green)" }}
-              >
-                Late Forecasts ({morningBrief.lateProjects.length})
-              </p>
-              {morningBrief.lateProjects.length === 0 ? (
-                <p style={{ color: "var(--sos-green)" }}>All active schedules within buffer</p>
-              ) : (
-                morningBrief.lateProjects.slice(0, 3).map((lp, i) => (
-                  <p key={i} className="truncate" style={{ color: "var(--sos-red)" }}>
-                    {lp.label} ({lp.forecastDate}{lp.deadlineDate ? ` vs ${lp.deadlineDate}` : ""})
-                  </p>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Bento Grid — 12 columns on desktop, single column on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sos-stagger">
-        {/* 1. NOW (Max 3 tasks, WIP limit enforced) — 7 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-7 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
+      {/* 1. Client updates — only when something new arrived */}
+      <AnimatePresence initial={false}>
+        {unreadUpdates.length > 0 && (
+          <motion.section
+            key="client-updates"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.18 } }}
+            transition={{ duration: 0.24, ease: EASE }}
+            className="sos-card p-5 md:p-6 sos-priority-glow"
+            style={{ borderColor: "#F3B8B2" }}
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2.5">
-                <h2 className="sos-display text-[24px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                  Now
-                </h2>
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-[12px] font-semibold sos-tabular"
-                  style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}
-                >
-                  {nowTasks.length} / {settings.wip_limit}
+                <span className="w-8 h-8 rounded-full flex items-center justify-center bg-[#FDECEC] text-[#B42318]">
+                  <Bell className="w-4 h-4 sos-ring-bell" />
                 </span>
+                <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+                  Client updates
+                </h2>
+                <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-[#B42318] text-white sos-pulse-badge">{unreadUpdates.length} new</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setQuickAddOpen(true)}
-                className="sos-pill-btn inline-flex items-center gap-1.5 px-3.5 h-9 text-[13px] font-semibold text-white"
-                style={{ background: "var(--sos-primary)" }}
-              >
-                <Plus className="w-4 h-4" /> Quick Add
-              </button>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => setSoundOn(!soundOn)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-3)" }} aria-label={soundOn ? "Mute the update chime" : "Turn the update chime on"} title={soundOn ? "Chime on" : "Chime off"}>
+                  {soundOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                </button>
+                <button type="button" onClick={markAllRead} className="sos-pill-btn h-9 px-3 text-[12px] font-semibold" style={{ color: "var(--sos-text-2)" }}>
+                  Mark all seen
+                </button>
+              </div>
             </div>
-
-            {nowTasks.length === 0 ? (
-              <div
-                className="sos-tile p-5 text-center space-y-3"
-                style={{ color: "var(--sos-text-2)" }}
-              >
-                <Sparkles className="w-6 h-6 mx-auto" style={{ color: "var(--sos-green)" }} />
-                <p className="text-[14px] font-medium">Now is clear. Pick up to {settings.wip_limit} tasks below or enjoy the calm.</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {suggestedForNow.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => toggleTaskInNow(s.id)}
-                      className="sos-pill-btn px-3 py-1.5 text-[12px] font-medium border"
-                      style={{
-                        background: "var(--sos-surface)",
-                        borderColor: "var(--sos-border)",
-                        color: "var(--sos-text-1)",
-                      }}
-                    >
-                      + {s.key}: {s.title.slice(0, 32)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <AnimatePresence initial={false}>
-                {nowTasks.map((task) => {
-                  const proj = projects.find((p) => p.id === task.project_id);
-                  const isActiveTimer = activeTimerTaskId === task.id && timerRunning;
+            <div className="space-y-2">
+              <AnimatePresence initial={false}>
+                {unreadUpdates.map((u) => {
+                  const proj = projectFromUpdate(u.title);
+                  const approved = u.kind === "portal_approval";
                   return (
                     <motion.div
-                      key={task.id}
+                      key={u.id}
                       layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.22, ease: EASE } }}
-                      transition={{ duration: 0.2, ease: EASE }}
-                      style={{ overflow: "hidden" }}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                      className="flex items-start gap-3 p-3.5 rounded-[16px]"
+                      style={{ background: approved ? "#E7F7EE" : "#FFF6F5" }}
                     >
-                    <SwipeRow
-                      onDone={() => toggleTaskDone(task.id)}
-                      onSnooze={() => {
-                        updateTask(task.id, { is_in_now: false, status: "backlog" });
-                        pushToast(`Snoozed ${task.key} to Backlog`, "info");
-                      }}
-                      className="sos-tile p-4 flex items-center gap-3.5 transition-all hover:brightness-[0.99]"
-                    >
-                      <CompleteCheck label={`Complete ${task.title}`} onComplete={() => toggleTaskDone(task.id)} />
-
+                      <span className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: approved ? "var(--sos-green)" : "#B42318" }}>
+                        {approved ? <Check className="w-4 h-4" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                      </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => proj && openProject(proj.id)}
-                            className="text-[12px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}
-                          >
-                            {proj?.emoji} {task.key}
-                          </button>
-                          <TaskStatusSelect
-                            status={task.status}
-                            compact
-                            onChange={(next) => (next === "done" ? toggleTaskDone(task.id) : updateTask(task.id, { status: next }))}
-                          />
-                          <span className="text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
-                            ~{task.estimate_hours}h
-                          </span>
-                        </div>
-                        <p
-                          className="text-[15px] md:text-[16px] font-semibold mt-1 leading-snug"
-                          style={{ color: "var(--sos-text-1)" }}
-                        >
-                          {task.title}
+                        <p className="text-[14px] font-semibold leading-snug" style={{ color: "var(--sos-text-1)" }}>
+                          {u.title}
+                        </p>
+                        {u.body && (
+                          <p className="text-[13px] mt-0.5 line-clamp-2" style={{ color: "var(--sos-text-2)" }}>
+                            {u.body}
+                          </p>
+                        )}
+                        <p className="text-[11px] mt-1" style={{ color: "var(--sos-text-3)" }}>
+                          {formatDistanceToNowStrict(parseISO(u.created_at), { addSuffix: true })}
                         </p>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => (isActiveTimer ? toggleTimer() : startTimerForTask(task.id))}
-                        className="sos-pill-btn shrink-0 inline-flex items-center gap-1.5 px-3.5 h-9 text-[12px] font-semibold"
-                        style={{
-                          background: isActiveTimer ? "var(--sos-green)" : "var(--sos-surface)",
-                          color: isActiveTimer ? "#FFFFFF" : "var(--sos-text-1)",
-                          border: isActiveTimer ? "none" : "1px solid var(--sos-border)",
-                        }}
-                      >
-                        {isActiveTimer ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                        {isActiveTimer ? "Focus" : "Start"}
-                      </button>
-                    </SwipeRow>
+                      <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+                        {proj && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              markRead(u.id);
+                              openProject(proj.id);
+                            }}
+                            className="sos-pill-btn h-8 px-3 text-[12px] font-semibold text-white"
+                            style={{ background: "var(--sos-ink)" }}
+                          >
+                            Open {proj.code}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => markRead(u.id)} className="sos-pill-btn h-8 px-3 text-[12px] font-medium border" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }}>
+                          Seen
+                        </button>
+                      </div>
                     </motion.div>
                   );
                 })}
+              </AnimatePresence>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Main column */}
+        <div className="lg:col-span-8 space-y-5">
+          {/* 2. Now */}
+          <Card
+            title="Now"
+            right={
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[12px] font-semibold sos-tabular" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>
+                  {nowTasks.length} / {settings.wip_limit}
+                </span>
+                <button type="button" onClick={() => setQuickAddOpen(true)} className="sos-pill-btn inline-flex items-center gap-1.5 px-3.5 h-9 text-[13px] font-semibold text-white" style={{ background: "var(--sos-primary)" }}>
+                  <Plus className="w-4 h-4" /> Add
+                </button>
+              </div>
+            }
+          >
+            {/* Slim focus timer — only while timing */}
+            <AnimatePresence initial={false}>
+              {timerVisible && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: EASE }}
+                  className="overflow-hidden"
+                >
+                  <div className="mb-3 flex items-center gap-3 px-3.5 py-2.5 rounded-[16px]" style={{ background: timerRunning ? "#E7F7EE" : "var(--sos-surface-2)" }}>
+                    <span className="relative w-2.5 h-2.5 shrink-0">
+                      <span className="absolute inset-0 rounded-full" style={{ background: timerRunning ? "var(--sos-green)" : "var(--sos-text-3)" }} />
+                      <BreathingRing active={timerRunning} />
+                    </span>
+                    <span className="sos-num text-[20px] font-semibold sos-tabular" style={{ color: "var(--sos-text-1)" }}>
+                      <TickDigits value={hh} />:<TickDigits value={mm} />:<TickDigits value={ss} />
+                    </span>
+                    <span className="text-[13px] truncate flex-1 min-w-0" style={{ color: "var(--sos-text-2)" }}>
+                      {timerTask ? `${timerTask.key} · ${timerTask.title}` : "Focus"}
+                    </span>
+                    <button type="button" onClick={toggleTimer} className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: "var(--sos-green)" }} aria-label={timerRunning ? "Pause" : "Resume"}>
+                      {timerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                    </button>
+                    <button type="button" onClick={resetTimer} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ color: "var(--sos-text-2)" }} aria-label="Reset timer">
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={stopTimer} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ color: "var(--sos-text-2)" }} aria-label="Stop and log time">
+                      <Square className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {nowTasks.length === 0 ? (
+              <div className="sos-tile p-5 text-center text-[14px]" style={{ color: "var(--sos-text-2)" }}>
+                Now is clear. Pull something from <strong>Up next</strong> below.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <AnimatePresence initial={false}>
+                  {nowTasks.map((task) => {
+                    const proj = projectOf(task.project_id);
+                    const timing = activeTimerTaskId === task.id && timerRunning;
+                    const fromClient = task.source === "portal";
+                    return (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.22, ease: EASE } }}
+                        transition={{ duration: 0.2, ease: EASE }}
+                        style={{ overflow: "hidden" }}
+                      >
+                        <SwipeRow
+                          onDone={() => toggleTaskDone(task.id)}
+                          onSnooze={() => {
+                            updateTask(task.id, { is_in_now: false });
+                            pushToast(`${task.key} moved out of Now`, "info");
+                          }}
+                          className="sos-tile p-3.5 md:p-4 flex items-center gap-3"
+                          style={fromClient ? { boxShadow: "inset 3px 0 0 #B42318" } : undefined}
+                        >
+                          <CompleteCheck label={`Complete ${task.title}`} onComplete={() => toggleTaskDone(task.id)} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <button type="button" onClick={() => proj && openProject(proj.id)} className="text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}>
+                                {proj?.emoji} {task.key}
+                              </button>
+                              {fromClient && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FDECEC] text-[#B42318]">Client change</span>}
+                              <TaskStatusSelect status={task.status} compact onChange={(next) => (next === "done" ? toggleTaskDone(task.id) : updateTask(task.id, { status: next }))} />
+                              <span className="text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>~{task.estimate_hours}h</span>
+                            </div>
+                            <p className="text-[15px] font-semibold mt-1 leading-snug" style={{ color: "var(--sos-text-1)" }}>
+                              {task.title}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => (timing ? toggleTimer() : startTimerForTask(task.id))}
+                            className="sos-pill-btn shrink-0 inline-flex items-center gap-1.5 px-3 h-9 text-[12px] font-semibold"
+                            style={timing ? { background: "var(--sos-green)", color: "#FFFFFF" } : { background: "var(--sos-surface)", color: "var(--sos-text-1)", border: "1px solid var(--sos-border)" }}
+                          >
+                            {timing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{timing ? "Focusing" : "Start"}</span>
+                          </button>
+                        </SwipeRow>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* Load Meter inside bottom of Now card or cleanly below */}
-          <div className="mt-5 pt-4 border-t" style={{ borderColor: "var(--sos-border)" }}>
-            <div className="flex items-center justify-between text-[13px] mb-2">
-              <span className="font-medium" style={{ color: "var(--sos-text-2)" }}>
-                Next 7 days load
-              </span>
-              <span
-                className="font-semibold sos-tabular"
-                style={{ color: loadStats.overloaded ? "var(--sos-amber)" : "var(--sos-text-1)" }}
-              >
-                {loadStats.planned}h planned / {loadStats.available}h available
-              </span>
-            </div>
-            <div className="h-3.5 w-full rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }}>
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  loadStats.overloaded ? "sos-stripe-amber" : "sos-stripe-green"
-                }`}
-                style={{ width: `${Math.min(100, loadStats.pct)}%` }}
-              />
-            </div>
-
-            {loadStats.overloaded && loadStats.candidate && (
-              <div className="mt-3 p-3 rounded-[14px] bg-[#FFF3E0] text-[#9A5200] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[12px]">
-                <span>
-                  Overloaded (+{loadStats.overflowHours}h). Move low-priority{" "}
-                  <strong>
-                    {loadStats.candidate.key}: {loadStats.candidate.title.slice(0, 40)}
-                  </strong>{" "}
-                  ({loadStats.candidate.estimate_hours}h) to next week?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => moveTaskToNextWeek(loadStats.candidate!.id)}
-                  className="sos-pill-btn inline-flex items-center gap-1 px-3 h-7 text-[11px] font-bold bg-[#9A4A00] text-white shrink-0 self-start sm:self-auto"
-                >
-                  Move to next week <ArrowRight className="w-3 h-3" />
-                </button>
+          {/* 3. Up next — one ranked queue */}
+          <Card title="Up next" right={<Count n={queue.length} tone={clientChanges ? "red" : "plain"} />}>
+            {queue.length === 0 ? (
+              <p className="text-[14px]" style={{ color: "var(--sos-text-3)" }}>
+                Nothing urgent, overdue or owed. A good moment for deep work.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <AnimatePresence initial={false}>
+                  {visibleQueue.map(({ task, tag, note }) => {
+                    const proj = projectOf(task.project_id);
+                    const t = TAG[tag];
+                    return (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-[14px] ${tag === "client" ? "sos-priority-glow" : ""}`}
+                        style={{ background: tag === "client" ? "#FFF6F5" : "var(--sos-surface-2)" }}
+                      >
+                        <CompleteCheck label={tag === "reply" ? `Mark replied: ${task.title}` : `Complete ${task.title}`} onComplete={() => toggleTaskDone(task.id)} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                            <span className="font-semibold px-2 py-0.5 rounded-full" style={{ background: t.bg, color: t.fg }}>
+                              {t.label}
+                            </span>
+                            <button type="button" onClick={() => proj && openProject(proj.id)} className="font-semibold" style={{ color: "var(--sos-text-3)" }}>
+                              {proj?.emoji} {task.key}
+                            </button>
+                            {note && <span style={{ color: "var(--sos-text-3)" }}>· {note}</span>}
+                          </div>
+                          <p className="text-[14px] font-medium leading-snug mt-0.5 line-clamp-2 md:line-clamp-1" style={{ color: "var(--sos-text-1)" }} title={task.title}>
+                            {task.title}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={nowFull}
+                          onClick={() => toggleTaskInNow(task.id)}
+                          className="sos-pill-btn shrink-0 h-8 px-2.5 md:px-3 text-[12px] font-semibold border disabled:opacity-40 inline-flex items-center gap-1"
+                          style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+                          title={nowFull ? `Now is full (${settings.wip_limit})` : "Move into Now"}
+                        >
+                          <span className="hidden sm:inline">Now</span> <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+                {queue.length > 7 && (
+                  <button type="button" onClick={() => setShowAll((v) => !v)} className="text-[13px] font-medium pt-1" style={{ color: "var(--sos-primary)" }}>
+                    {showAll ? "Show less" : `Show all ${queue.length}`}
+                  </button>
+                )}
               </div>
             )}
-          </div>
-        </section>
+          </Card>
+        </div>
 
-        {/* 2. FOCUS TIMER (Time tracking card) — 5 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="sos-display text-[24px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                Time tracking
-              </h2>
-              <span
-                className="px-3 py-1 rounded-full text-[12px] font-medium"
-                style={{
-                  background: timerRunning ? "#E7F7EE" : "var(--sos-surface-2)",
-                  color: timerRunning ? "#17663F" : "var(--sos-text-2)",
-                }}
-              >
-                {timerRunning ? "● Active" : "Ready"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 my-4">
-              {[
-                { val: timerH, unit: "h" },
-                { val: timerM, unit: "m" },
-                { val: timerS, unit: "s" },
-              ].map((seg) => (
-                <div key={seg.unit} className="sos-tile py-5 px-3 text-center">
-                  <span
-                    className="sos-num text-[42px] md:text-[52px] font-semibold tracking-[-0.03em] leading-none"
-                    style={{ color: "var(--sos-text-1)" }}
-                  >
-                    <TickDigits value={String(seg.val)} />
-                  </span>
-                  <span className="sos-display text-[18px] font-medium ml-0.5" style={{ color: "var(--sos-text-3)" }}>
-                    {seg.unit}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-[13px] truncate text-center" style={{ color: "var(--sos-text-2)" }}>
-              {activeTimerTask ? `Focusing on ${activeTimerTask.key}: ${activeTimerTask.title}` : "Pick a task in Now to focus"}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 mt-5">
-            <button
-              type="button"
-              onClick={resetTimer}
-              className="sos-pill-btn w-11 h-11 flex items-center justify-center border"
-              style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
-              aria-label="Reset timer"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleTimer}
-              className="relative w-14 h-14"
-              aria-label={timerRunning ? "Pause timer" : "Start timer"}
-            >
-              <BreathingRing active={timerRunning} />
-              <span className="sos-pill-btn w-14 h-14 flex items-center justify-center text-white shadow-md" style={{ background: "var(--sos-green)" }}>
-                {timerRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={stopTimer}
-              className="sos-pill-btn w-11 h-11 flex items-center justify-center border"
-              style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
-              aria-label="Stop and log time"
-            >
-              <Square className="w-4 h-4" />
-            </button>
-          </div>
-        </section>
-
-        {/* 3. DEADLINES (Yellow highlight bento card) — 4 cols */}
-        <section
-          className="rounded-[24px] p-5 md:p-6 lg:col-span-4 flex flex-col justify-between"
-          style={{ background: "var(--sos-yellow-card)", color: "#0F1115" }}
-        >
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="sos-display text-[24px] font-semibold">Deadlines</h2>
-              <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-black/10">
-                Next {upcomingDeadlines.length}
-              </span>
-            </div>
-
-            <div className="space-y-2.5">
-              {upcomingDeadlines.map(({ project, daysLeft }) => {
-                const isLate = project.health === "late" || daysLeft < 0;
+        {/* Side column */}
+        <div className="lg:col-span-4 space-y-5">
+          <Card title="Deadlines" right={<Count n={deadlines.length} />}>
+            <div className="space-y-1.5">
+              {deadlines.length === 0 && <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>No hard deadlines set.</p>}
+              {deadlines.map(({ project, daysLeft }) => {
+                const color = project.health === "late" || daysLeft < 0 ? "#B42318" : project.health === "at_risk" || daysLeft <= 3 ? "#9A4A00" : "#17663F";
                 return (
-                  <button
-                    key={project.id}
-                    type="button"
-                    onClick={() => openProject(project.id)}
-                    className="w-full text-left flex items-center justify-between p-3 rounded-[16px] bg-white/75 hover:bg-white transition-colors"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{
-                            backgroundColor: isLate
-                              ? "#B42318"
-                              : project.health === "at_risk"
-                              ? "#F59E0B"
-                              : "#17663F",
-                          }}
-                        />
-                        <span className="text-[13px] font-bold truncate">
-                          {project.emoji} {project.code}
-                        </span>
-                      </div>
-                      <p className="text-[12px] text-[#5F6672] truncate mt-0.5">{project.title}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span
-                        className="sos-num text-[22px] font-bold leading-none"
-                        style={{ color: isLate ? "#B42318" : "#0F1115" }}
-                      >
-                        {daysLeft >= 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d`}
+                  <button key={project.id} type="button" onClick={() => openProject(project.id)} className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-[14px] hover:brightness-[0.98]" style={{ background: "var(--sos-surface-2)" }}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>
+                        {project.emoji} {project.code} <span className="font-normal" style={{ color: "var(--sos-text-3)" }}>· {project.title}</span>
                       </span>
-                      <p className="text-[11px] text-[#5F6672] sos-tabular">
-                        {project.hard_deadline ? format(parseISO(project.hard_deadline), "d MMM") : ""}
-                      </p>
-                    </div>
+                      {project.health === "late" && project.forecast_date && (
+                        <span className="block text-[11px]" style={{ color: "#B42318" }}>Forecast {format(parseISO(project.forecast_date), "d MMM")}</span>
+                      )}
+                    </span>
+                    <span className="text-right shrink-0">
+                      <span className="block text-[15px] font-bold sos-tabular" style={{ color }}>
+                        {daysLeft < 0 ? `${Math.abs(daysLeft)}d late` : daysLeft === 0 ? "Today" : `${daysLeft}d`}
+                      </span>
+                      <span className="block text-[11px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>{format(parseISO(project.hard_deadline!), "d MMM")}</span>
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </div>
-        </section>
+          </Card>
 
-        {/* 4. UPCOMING TASKS (Date strip + day timeline) — 8 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-8">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="sos-display text-[24px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-              Upcoming Tasks
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w - 1)}
-                className="w-8 h-8 rounded-full flex items-center justify-center border"
-                style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
-                aria-label="Previous week"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w + 1)}
-                className="w-8 h-8 rounded-full flex items-center justify-center border"
-                style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
-                aria-label="Next week"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickAddOpen(true)}
-                className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-9 text-[13px] font-semibold text-white"
-                style={{ background: "var(--sos-green)" }}
-              >
-                <Plus className="w-4 h-4" /> Add New Task
-              </button>
-            </div>
-          </div>
-
-          {/* Date Strip with Black Selected Pill */}
-          <div className="grid grid-cols-7 gap-1.5 mb-5">
-            {stripDays.map((d) => {
-              const selected = isSameDay(d, selectedDay);
-              const isToday = isSameDay(d, today);
-              return (
-                <button
-                  key={d.toISOString()}
-                  type="button"
-                  onClick={() => setSelectedDay(d)}
-                  className="relative py-2.5 min-h-[44px] rounded-[18px] flex flex-col items-center justify-center transition-colors duration-200"
-                  style={{
-                    color: selected ? "var(--sos-ink-text)" : "var(--sos-text-2)",
-                  }}
-                  aria-pressed={selected}
-                >
-                  {selected && <ActivePill layoutId="sos-date-pill" style={{ background: "var(--sos-ink)", borderRadius: 18 }} />}
-                  <span className="relative z-[1] text-[11px] font-medium opacity-75">{format(d, "EEE")}</span>
-                  <span className="relative z-[1] sos-num text-[17px] font-semibold mt-0.5">{format(d, "d")}</span>
-                  {isToday && !selected && (
-                    <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: "var(--sos-blue)" }} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Day Timeline */}
-          <div className="relative pl-14 space-y-3">
-            {/* Dotted vertical guide */}
-            <div
-              className="absolute left-[46px] top-2 bottom-2 border-l border-dashed"
-              style={{ borderColor: "var(--sos-border)" }}
-            />
-
-            {/* Current time indicator */}
-            <div className="relative flex items-center gap-3 py-1">
-              <span
-                className="absolute -left-14 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white sos-tabular"
-                style={{ background: "var(--sos-blue)" }}
-              >
-                {format(today, "HH:mm")}
-              </span>
-              <div className="w-full h-[2px]" style={{ background: "var(--sos-blue)" }} />
-            </div>
-
-            {selectedDayTasks.length === 0 ? (
-              <p className="text-[13px] py-4" style={{ color: "var(--sos-text-3)" }}>
-                No scheduled tasks on {format(selectedDay, "EEE d MMM")}. Click &ldquo;Add New Task&rdquo; to plan this day.
-              </p>
+          <Card title="Waiting on clients" right={<Hourglass className="w-4 h-4 text-[#9A4A00]" strokeWidth={1.75} />}>
+            {waiting.length === 0 ? (
+              <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>Nothing blocked on clients.</p>
             ) : (
-              selectedDayTasks.map((t, idx) => {
-                const proj = projects.find((p) => p.id === t.project_id);
-                const slotHour = `${String(10 + idx * 2).padStart(2, "0")}:00`;
-                return (
-                  <div key={t.id} className="relative flex items-center gap-3">
-                    <span className="absolute -left-14 text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
-                      {slotHour}
+              <div className="space-y-1.5">
+                {waiting.map((w) => (
+                  <button key={w.id} type="button" onClick={() => openProject(w.projectId)} className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-[14px]" style={{ background: "#FFF8EE" }}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{w.label}</span>
+                      <span className="block text-[12px] truncate" style={{ color: "#9A4A00" }}>{w.who}</span>
                     </span>
-                    <span
-                      className="w-3 h-3 rounded-full border-2 shrink-0 -ml-[13px] z-10"
-                      style={{ borderColor: "var(--sos-blue)", background: "var(--sos-surface)" }}
-                    />
-                    <div
-                      className="flex-1 sos-tile px-4 py-2.5 flex items-center justify-between gap-2 cursor-pointer"
-                      onClick={() => proj && openProject(proj.id)}
-                    >
-                      <div className="min-w-0">
-                        <span className="text-[14px] font-semibold truncate block" style={{ color: "var(--sos-text-1)" }}>
-                          {t.title}
-                        </span>
-                        <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                          {proj?.emoji} {t.key} · {t.estimate_hours}h
-                        </span>
-                      </div>
-                      <TaskStatusChip status={t.status} compact />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* 5. PROMISED BY YOU (Amber accent) — 4 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-              Promised by you
-            </h2>
-            <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-[#FFF3E0] text-[#9A4A00]">
-              {promises.length}
-            </span>
-          </div>
-          <div className="space-y-2.5">
-            {promises.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>
-                No pending promises.
-              </p>
-            ) : (
-              promises.map((p) => {
-                const proj = projects.find((pr) => pr.id === p.project_id);
-                return (
-                  <div
-                    key={p.id}
-                    className="p-3.5 rounded-[16px] border-l-4"
-                    style={{ background: "var(--sos-surface-2)", borderLeftColor: "var(--sos-amber)" }}
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[12px] mb-1">
-                      <span className="font-semibold inline-flex items-center gap-1" style={{ color: "var(--sos-text-2)" }}>
-                        {p.channel === "whatsapp" ? (
-                          <MessageCircle className="w-3.5 h-3.5 text-[#17663F]" />
-                        ) : (
-                          <Mail className="w-3.5 h-3.5 text-[#1D4FD8]" />
-                        )}
-                        {p.promised_to_name || "Client"}
-                      </span>
-                      <span className="sos-tabular font-semibold text-[#9A4A00]">
-                        {p.due_date ? format(parseISO(p.due_date), "d MMM") : "Soon"}
-                      </span>
-                    </div>
-                    <p className="text-[14px] font-medium leading-snug" style={{ color: "var(--sos-text-1)" }}>
-                      {p.title}
-                    </p>
-                    <span className="text-[11px] mt-1 inline-block" style={{ color: "var(--sos-text-3)" }}>
-                      {proj?.emoji} {p.key}
+                    <span className="text-[12px] font-semibold sos-tabular shrink-0" style={{ color: w.days >= 3 ? "#B42318" : "#9A4A00" }}>
+                      {w.days ? `${w.days}d` : "new"}
                     </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* 6. REPLIES OWED — 4 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-              Replies owed
-            </h2>
-            <span
-              className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full"
-              style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
-            >
-              {repliesOwed.length}
-            </span>
-          </div>
-          <div className="space-y-2.5">
-            {repliesOwed.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>
-                Inbox zero — nobody waiting on a reply.
-              </p>
-            ) : (
-              repliesOwed.map((r) => {
-                const days = Math.max(1, differenceInCalendarDays(today, parseISO(r.created_at)));
-                return (
-                  <div key={r.id} className="sos-tile p-3.5 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                        {r.promised_to_name || "Client"}{" "}
-                        <span className="font-normal sos-tabular" style={{ color: "var(--sos-text-3)" }}>
-                          · {days}d
-                        </span>
-                      </p>
-                      <p className="text-[13px] mt-0.5 leading-snug" style={{ color: "var(--sos-text-2)" }}>
-                        {r.title}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleTaskDone(r.id)}
-                      className="sos-pill-btn shrink-0 px-3 h-8 text-[12px] font-semibold border"
-                      style={{
-                        background: "var(--sos-surface)",
-                        borderColor: "var(--sos-border)",
-                        color: "var(--sos-blue)",
-                      }}
-                    >
-                      Mark replied
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* 7. WAITING ON CLIENTS — 4 cols */}
-        <section className="sos-card p-5 md:p-6 lg:col-span-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-              Waiting on clients
-            </h2>
-            <Hourglass className="w-4 h-4 text-[#9A4A00]" strokeWidth={1.75} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {waitingGates.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>
-                No approvals currently blocked on clients.
-              </p>
-            ) : (
-              waitingGates.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => openProject(w.projectId)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-medium bg-[#FFF3E0] text-[#9A4A00] hover:opacity-90 transition-opacity"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{w.label}</span>
-                  <span className="opacity-60">·</span>
-                  <span className="font-semibold">{w.clientName}</span>
-                  <span className="opacity-60">·</span>
-                  <span className="sos-tabular">{w.days}d</span>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className="mt-5 pt-4 border-t" style={{ borderColor: "var(--sos-border)" }}>
-            <p className="text-[12px] font-medium mb-2" style={{ color: "var(--sos-text-3)" }}>
-              Active Projects Health
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {projects
-                .filter((p) => p.status === "active")
-                .slice(0, 4)
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => openProject(p.id)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border"
-                    style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
-                  >
-                    <span>{p.emoji} {p.code}</span>
-                    <HealthPill health={p.health} />
                   </button>
                 ))}
+              </div>
+            )}
+          </Card>
+
+          <Card title="Next 7 days">
+            <div className="flex items-center justify-between text-[13px] mb-2">
+              <span style={{ color: "var(--sos-text-2)" }}>Planned vs available</span>
+              <span className="font-semibold sos-tabular" style={{ color: load.overloaded ? "#9A4A00" : "var(--sos-text-1)" }}>
+                {load.planned}h / {load.available}h
+              </span>
             </div>
-          </div>
-        </section>
+            <div className="h-3 w-full rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }}>
+              <div className={`h-full rounded-full transition-all duration-300 ${load.overloaded ? "sos-stripe-amber" : "sos-stripe-green"}`} style={{ width: `${load.pct}%` }} />
+            </div>
+            {load.overloaded && load.candidate && (
+              <div className="mt-3 p-3 rounded-[14px] bg-[#FFF3E0] text-[#9A5200] text-[12px] space-y-2">
+                <p>
+                  Over by {Math.round((load.planned - load.available) * 10) / 10}h. Move <strong>{load.candidate.key}</strong> ({load.candidate.estimate_hours}h) to next week?
+                </p>
+                <button type="button" onClick={() => moveTaskToNextWeek(load.candidate!.id)} className="sos-pill-btn inline-flex items-center gap-1 px-3 h-7 text-[11px] font-bold bg-[#9A4A00] text-white">
+                  Move it <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
+
       <TeamLoadCard compact />
     </div>
   );

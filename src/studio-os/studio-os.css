@@ -240,7 +240,30 @@
 }
 .studio-os-root .sos-drop-active { animation: sos-drop-pulse 1.2s var(--sos-ease) infinite; }
 
+/* Client-update attention: pulsing badge, bell nudge, priority card glow */
+@keyframes sos-badge-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(180, 35, 24, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0); }
+}
+.studio-os-root .sos-pulse-badge { animation: sos-badge-pulse 1.8s ease-out infinite; }
+@keyframes sos-bell-ring {
+  0%, 82%, 100% { transform: rotate(0); }
+  86% { transform: rotate(14deg); }
+  90% { transform: rotate(-12deg); }
+  94% { transform: rotate(8deg); }
+}
+.studio-os-root .sos-ring-bell { animation: sos-bell-ring 3.2s ease-in-out infinite; transform-origin: 50% 10%; }
+@keyframes sos-priority-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.0), 0 1px 2px rgba(15, 17, 21, 0.04); }
+  50% { box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.12), 0 1px 2px rgba(15, 17, 21, 0.04); }
+}
+.studio-os-root .sos-priority-glow { animation: sos-priority-glow 2.4s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
+  .studio-os-root .sos-pulse-badge,
+  .studio-os-root .sos-ring-bell,
+  .studio-os-root .sos-priority-glow,
   .studio-os-root .sos-stagger > *,
   .studio-os-root .sos-drop-active { animation: none !important; }
   .studio-os-root .sos-pill-btn,

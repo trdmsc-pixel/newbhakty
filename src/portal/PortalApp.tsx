@@ -1,21 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft,
   Check,
   Clock,
   Download,
-  ExternalLink,
   FileText,
   Loader2,
   LogOut,
   Mail,
   MessageSquare,
+  Play,
   Plus,
   Trash2,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./portalSupabase";
-import { toEmbed } from "./embed";
+import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
 import "../studio-os/studio-os.css";
 
 // ---------------------------------------------------------------------------
@@ -478,37 +478,10 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
   </div>
 );
 
-const Preview: React.FC<{ url: string | null }> = ({ url }) => {
-  const embed = toEmbed(url);
-  if (!embed) return null;
-  if (embed.kind === "iframe") {
-    return (
-      <div className="rounded-[18px] overflow-hidden bg-black aspect-video">
-        <iframe
-          src={embed.src}
-          title="Review preview"
-          className="w-full h-full"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-        />
-      </div>
-    );
-  }
-  return (
-    <a
-      href={embed.src}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="flex items-center justify-between gap-3 p-4 rounded-[18px] border"
-      style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface-2)" }}
-    >
-      <span className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-        Open review on {embed.host}
-      </span>
-      <ExternalLink className="w-4 h-4" style={{ color: "var(--sos-text-2)" }} />
-    </a>
-  );
+const resolveReviewUrl = async (url: string) => {
+  if (!supabase || !url.startsWith("storage://studio-review/")) return null;
+  const { data } = await supabase.storage.from("studio-review").createSignedUrl(url.replace("storage://studio-review/", ""), 3600);
+  return data?.signedUrl || null;
 };
 
 const ApprovalCard: React.FC<{
@@ -518,7 +491,27 @@ const ApprovalCard: React.FC<{
 }> = ({ gate, previewUrl, onDone }) => {
   const [mode, setMode] = useState<"idle" | "changes">("idle");
   const [comment, setComment] = useState("");
-  const [notes, setNotes] = useState<Array<{ t: string; text: string }>>([]);
+  const [notes, setNotes] = useState<Array<NoteRef & { id: number; t: string }>>([]);
+  const [activeNote, setActiveNote] = useState<number | null>(null);
+  const player = useRef<ReviewMediaHandle>(null);
+  const media = parseMedia(previewUrl);
+  const isVideo = media?.kind === "youtube" || media?.kind === "vimeo";
+  const isImage = media?.kind === "image";
+  const nextId = useRef(1);
+  const addTimedNote = async () => {
+    setMode("changes");
+    const t = await player.current?.getTime();
+    player.current?.pause();
+    const id = nextId.current++;
+    setNotes((prev) => [...prev, { id, time: t ?? undefined, t: t != null ? fmtTime(t) : "", text: "" }]);
+    setActiveNote(id);
+  };
+  const addPin = (x: number, y: number) => {
+    setMode("changes");
+    const id = nextId.current++;
+    setNotes((prev) => [...prev, { id, t: "", text: "", pin: { n: prev.filter((n) => n.pin).length + 1, x, y } }]);
+    setActiveNote(id);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const nextRound = gate.revision_round + 1;
@@ -556,7 +549,9 @@ const ApprovalCard: React.FC<{
         .split("\n")
         .map((l) => l.trim())
         .filter(Boolean),
-      ...notes.filter((n) => n.text.trim()).map((n) => `${n.t.trim() ? `[${n.t.trim()}] ` : ""}${n.text.trim()}`),
+      ...notes
+        .filter((n) => n.text.trim())
+        .map((n) => noteLine({ pin: n.pin, time: n.pin ? undefined : n.t.trim() ? parseTime(n.t) ?? undefined : undefined, text: n.text.trim() })),
     ];
     if (!lines.length) {
       setError("Please describe the changes you'd like.");
@@ -592,7 +587,32 @@ const ApprovalCard: React.FC<{
         </span>
       </div>
 
-      <Preview url={previewUrl} />
+      {previewUrl && (
+        <div className="space-y-2">
+          <ReviewMedia
+            ref={player}
+            url={previewUrl}
+            resolveUrl={resolveReviewUrl}
+            onImageClick={isImage ? addPin : undefined}
+            pins={notes.filter((n) => n.pin).map((n) => ({ ...n.pin!, active: n.id === activeNote }))}
+          />
+          {isVideo && (
+            <button
+              type="button"
+              onClick={addTimedNote}
+              className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-2"
+              style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+            >
+              <Clock className="w-4 h-4" /> Add a note at this moment
+            </button>
+          )}
+          {isImage && (
+            <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
+              Tap anywhere on the image to pin a note to that spot.
+            </p>
+          )}
+        </div>
+      )}
       {!previewUrl && (
         <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>
           The studio will attach the review link here.
@@ -646,30 +666,61 @@ const ApprovalCard: React.FC<{
             style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
           />
           <div className="space-y-2">
-            {notes.map((n, i) => (
-              <div key={i} className="flex items-center gap-2">
+            {notes.map((n) => (
+              <div key={n.id} className="flex items-center gap-2">
+                {n.pin ? (
+                  <span className="w-20 h-10 rounded-[12px] text-[13px] font-semibold flex items-center justify-center shrink-0 text-white" style={{ background: n.id === activeNote ? "#B42318" : "var(--sos-primary)" }}>
+                    Pin {n.pin.n}
+                  </span>
+                ) : (
+                  <div className="flex items-center shrink-0">
+                    <input
+                      value={n.t}
+                      onChange={(e) => setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, t: e.target.value } : x)))}
+                      placeholder="0:12"
+                      aria-label="Timestamp"
+                      className="w-20 h-10 px-3 rounded-[12px] border text-[13px] sos-tabular"
+                      style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+                    />
+                    {isVideo && n.t && parseTime(n.t) !== null && (
+                      <button type="button" onClick={() => player.current?.seek(parseTime(n.t)!)} className="w-9 h-10 flex items-center justify-center" style={{ color: "var(--sos-primary)" }} aria-label={`Play from ${n.t}`}>
+                        <Play className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <input
-                  value={n.t}
-                  onChange={(e) => setNotes((prev) => prev.map((x, j) => (j === i ? { ...x, t: e.target.value } : x)))}
-                  placeholder="0:12"
-                  className="w-20 h-10 px-3 rounded-[12px] border text-[13px] sos-tabular"
-                  style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
-                />
-                <input
+                  autoFocus={n.id === activeNote}
                   value={n.text}
-                  onChange={(e) => setNotes((prev) => prev.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))}
-                  placeholder="Note at this moment"
-                  className="flex-1 h-10 px-3 rounded-[12px] border text-[13px]"
+                  onFocus={() => setActiveNote(n.id)}
+                  onChange={(e) => setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, text: e.target.value } : x)))}
+                  placeholder={n.pin ? "What should change here?" : "Note at this moment"}
+                  className="flex-1 min-w-0 h-10 px-3 rounded-[12px] border text-[13px]"
                   style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
                 />
-                <button type="button" onClick={() => setNotes((prev) => prev.filter((_, j) => j !== i))} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-3)" }} aria-label="Remove note">
+                <button type="button" onClick={() => setNotes((prev) => prev.filter((x) => x.id !== n.id))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ color: "var(--sos-text-3)" }} aria-label="Remove note">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ))}
-            <button type="button" onClick={() => setNotes((prev) => [...prev, { t: "", text: "" }])} className="text-[13px] font-medium inline-flex items-center gap-1" style={{ color: "var(--sos-primary)" }}>
-              <Plus className="w-4 h-4" /> Add timestamp note
-            </button>
+            {isVideo ? (
+              <button type="button" onClick={addTimedNote} className="text-[13px] font-medium inline-flex items-center gap-1" style={{ color: "var(--sos-primary)" }}>
+                <Plus className="w-4 h-4" /> Note at the current moment
+              </button>
+            ) : !isImage ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const id = nextId.current++;
+                  setNotes((prev) => [...prev, { id, t: "", text: "" }]);
+                  setActiveNote(id);
+                }}
+                className="text-[13px] font-medium inline-flex items-center gap-1"
+                style={{ color: "var(--sos-primary)" }}
+              >
+                <Plus className="w-4 h-4" /> Add timestamp note
+              </button>
+            ) : null}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <button
@@ -705,6 +756,7 @@ const ProjectView: React.FC<{
   onChanged: () => void;
 }> = ({ project, gates, deliverables, invoices, onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
+  const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
   const done = project.status === "delivered" || project.status === "paid";
   const awaiting = gates.filter((g) => g.status === "waiting_on_client");
@@ -775,13 +827,13 @@ const ProjectView: React.FC<{
                 {[...deliverables]
                   .sort((a, b) => b.created_at.localeCompare(a.created_at))
                   .map((d) => (
-                    <a
-                      key={d.id}
-                      href={d.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] hover:opacity-90"
+                    <div key={d.id} className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setOpenDeliverable(openDeliverable === d.id ? null : d.id)}
+                      className="w-full text-left flex items-center gap-3 px-3.5 py-3 rounded-[14px] hover:opacity-90"
                       style={{ background: "var(--sos-surface-2)" }}
+                      aria-expanded={openDeliverable === d.id}
                     >
                       <FileText className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
                       <span className="flex-1 min-w-0 text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>
@@ -795,8 +847,10 @@ const ProjectView: React.FC<{
                       <span className="text-[12px] sos-tabular hidden sm:inline" style={{ color: "var(--sos-text-3)" }}>
                         {fmtDate(d.created_at)}
                       </span>
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sos-text-3)" }} />
-                    </a>
+                      <Play className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sos-text-3)" }} />
+                    </button>
+                    {openDeliverable === d.id && <ReviewMedia url={d.url} resolveUrl={resolveReviewUrl} />}
+                    </div>
                   ))}
               </div>
             )}

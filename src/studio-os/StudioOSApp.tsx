@@ -38,7 +38,7 @@ const ClientsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) =
 const SettingsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) => ({ default: m.SettingsScreen })));
 import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
-import { RealtimeBridge } from "./components/RealtimeBridge";
+import { ClientPulseProvider, useClientPulse } from "./components/ClientPulse";
 const InboxScreen = lazy(() => import("./screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
 const MailScreen = lazy(() => import("./screens/MailScreen").then((m) => ({ default: m.MailScreen })));
 const StudioCopilot = lazy(() => import("./components/StudioCopilot").then((m) => ({ default: m.StudioCopilot })));
@@ -94,6 +94,7 @@ const StudioOSShell: React.FC<{
   const meInitials = me?.initials || meName.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const roleLabel = { owner: "Founder", producer: "Producer", artist: "Artist", editor: "Editor", music: "Music" }[viewer.role] || "Team";
   const { pendingCount } = useInbox();
+  const { unread: clientUnread } = useClientPulse();
   usePointerGlow();
   // Unread + important mail count for the sidebar pill (owner only, calm polling).
   const [mailCount, setMailCount] = useState(0);
@@ -217,10 +218,10 @@ const StudioOSShell: React.FC<{
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [setQuickAddOpen, setRoute]);
 
-  type NavItem = { id: StudioRoute; label: string; icon: React.ReactNode; badge?: string; group: string; matches?: StudioRoute[] };
+  type NavItem = { id: StudioRoute; label: string; icon: React.ReactNode; badge?: string; urgent?: boolean; group: string; matches?: StudioRoute[] };
   const navItems: NavItem[] = [
     // My work — tasks and messages
-    { group: "My work", id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+    { group: "My work", id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: clientUnread > 0 ? String(clientUnread) : undefined, urgent: clientUnread > 0 },
     { group: "My work", id: "board", label: "Tasks", matches: ["board", "table"], icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
     { group: "My work", id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
     { group: "My work", id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
@@ -305,12 +306,13 @@ const StudioOSShell: React.FC<{
                     </span>
                     {!sidebarCollapsed && item.badge && (
                       <span
-                        className="relative z-[1] px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
+                        className={`relative z-[1] px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.urgent ? "sos-pulse-badge" : ""}`}
+                        style={item.urgent ? { background: "#B42318", color: "#FFFFFF" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
                       >
                         {item.badge}
                       </span>
                     )}
+                    {sidebarCollapsed && item.urgent && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318] sos-pulse-badge" aria-hidden />}
                   </button>
                 );
               })}
@@ -499,21 +501,29 @@ const StudioOSShell: React.FC<{
               <button
                 type="button"
                 onClick={() => {
+                  if (clientUnread > 0) {
+                    setRoute("today");
+                    return;
+                  }
                   const lateCount = projects.filter((p) => p.health === "late").length;
                   if (lateCount > 0) {
                     setRoute("timeline");
                     pushToast(`${lateCount} project(s) with late forecast`, "warn");
                   } else {
-                    pushToast("All calm — no late forecasts.", "info");
+                    pushToast("All calm — no new client updates.", "info");
                   }
                 }}
                 className="relative w-9 h-9 rounded-full flex items-center justify-center border"
-                style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)" }}
-                aria-label="Notifications"
+                style={{ borderColor: clientUnread ? "#B42318" : "var(--sos-border)", color: clientUnread ? "#B42318" : "var(--sos-text-2)" }}
+                aria-label={clientUnread ? `${clientUnread} new client updates` : "Notifications"}
               >
-                <Bell className="w-4 h-4" strokeWidth={1.75} />
-                {projects.some((p) => p.health === "late") && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" />
+                <Bell className={`w-4 h-4 ${clientUnread ? "sos-ring-bell" : ""}`} strokeWidth={1.75} />
+                {clientUnread > 0 ? (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#B42318] text-white text-[10px] font-bold flex items-center justify-center sos-pulse-badge">
+                    {clientUnread}
+                  </span>
+                ) : (
+                  projects.some((p) => p.health === "late") && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" />
                 )}
               </button>
 
@@ -591,7 +601,10 @@ const StudioOSShell: React.FC<{
           className="flex flex-col items-center gap-0.5 text-[11px] font-medium"
           style={{ color: route === "today" ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
-          <CalendarCheck2 className="w-5 h-5" />
+          <span className="relative">
+            <CalendarCheck2 className="w-5 h-5" />
+            {clientUnread > 0 && <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-[#B42318] ring-2 ring-white sos-pulse-badge" aria-label={`${clientUnread} new client updates`} />}
+          </span>
           Today
         </button>
         <button
@@ -644,7 +657,6 @@ const StudioOSShell: React.FC<{
       </nav>
 
       {/* Modals & Evening Shutdown Ritual */}
-      <RealtimeBridge />
       <QuickAddModal />
       <WhatsAppImportModal />
       <NewProjectModal />
@@ -888,7 +900,9 @@ export default function StudioOSApp({ onNavigateHome }: { onNavigateHome: () => 
   return (
     <StudioOSProvider>
       <InboxProvider>
-        <StudioOSShell onNavigateHome={onNavigateHome} userEmail={userEmail} onLogout={handleLogout} />
+        <ClientPulseProvider>
+          <StudioOSShell onNavigateHome={onNavigateHome} userEmail={userEmail} onLogout={handleLogout} />
+        </ClientPulseProvider>
       </InboxProvider>
     </StudioOSProvider>
   );
