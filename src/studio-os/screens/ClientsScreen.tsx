@@ -95,7 +95,7 @@ const ClientDetail: React.FC<{ client: StudioClient; actions: Actions }> = ({ cl
               {ct.is_portal_user && (
                 <span
                   className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "#E7F7EE", color: "#17663F" }}
+                  style={{ background: "var(--sos-ok-bg)", color: "var(--sos-ok-text)" }}
                   title={ct.portal_last_login_at ? `Last signed in ${formatDistanceToNowStrict(parseISO(ct.portal_last_login_at), { addSuffix: true })}` : "Not signed in yet"}
                 >
                   {ct.portal_login_id || "Portal ✓"}
@@ -404,9 +404,9 @@ export const ClientsScreen: React.FC = () => {
     return (
       <span className="flex flex-wrap items-center gap-1">
         {s.unread > 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#B42318] text-white sos-pulse-badge">{s.unread} new</span>}
-        {s.waiting > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#FFF3E0] text-[#9A4A00]">{s.waiting} awaiting</span>}
+        {s.waiting > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--sos-warn-bg)", color: "var(--sos-warn-text)" }}>{s.waiting} awaiting</span>}
         {s.active > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>{s.active} active</span>}
-        {s.portal && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#E7F7EE] text-[#17663F]">Portal</span>}
+        {s.portal && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--sos-ok-bg)", color: "var(--sos-ok-text)" }}>Portal</span>}
       </span>
     );
   };
@@ -474,7 +474,7 @@ export const ClientsScreen: React.FC = () => {
       </div>
 
       {!live && (
-        <p className="text-[13px] px-4 py-3 rounded-[14px]" style={{ background: "#FFF1E6", color: "#9A3412" }}>
+        <p className="text-[13px] px-4 py-3 rounded-[14px]" style={{ background: "var(--sos-info-bg)", color: "var(--sos-info-text)" }}>
           Sign in with cloud sync on to add clients and manage portal logins.
         </p>
       )}
@@ -564,7 +564,7 @@ export const ClientsScreen: React.FC = () => {
                   <Avatar c={c} />
                   <div className="min-w-0 flex-1">
                     <p className="sos-display text-[16px] font-semibold flex items-center gap-1.5 truncate" style={{ color: "var(--sos-text-1)" }}>
-                      {c.name} {c.is_confidential && <Lock className="w-3.5 h-3.5 text-[#5B3FE4]" />}
+                      {c.name} {c.is_confidential && <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sos-primary)" }} />}
                     </p>
                     <div className="mt-1"><Badges c={c} /></div>
                   </div>
@@ -606,7 +606,7 @@ export const ClientsScreen: React.FC = () => {
                   <Avatar c={c} size={30} />
                   <div className="min-w-0 flex-1 grid grid-cols-1 md:grid-cols-[1.4fr_1.2fr_auto] md:items-center gap-x-4 gap-y-0.5">
                     <p className="text-[14px] font-semibold truncate flex items-center gap-1.5" style={{ color: "var(--sos-text-1)" }}>
-                      {c.name} {c.is_confidential && <Lock className="w-3 h-3 text-[#5B3FE4]" />}
+                      {c.name} {c.is_confidential && <Lock className="w-3 h-3 shrink-0" style={{ color: "var(--sos-primary)" }} />}
                     </p>
                     <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
                       {c.contacts[0] ? `${c.contacts[0].name}${c.contacts[0].email ? ` · ${c.contacts[0].email}` : ""}` : "No contact"}
@@ -682,7 +682,7 @@ export const ClientsScreen: React.FC = () => {
                     <Avatar c={selectedClient} size={48} />
                     <div className="min-w-0 flex-1">
                       <h2 className="sos-display text-[22px] font-semibold flex items-center gap-2 truncate" style={{ color: "var(--sos-text-1)" }}>
-                        {selectedClient.name} {selectedClient.is_confidential && <Lock className="w-4 h-4 text-[#5B3FE4]" />}
+                        {selectedClient.name} {selectedClient.is_confidential && <Lock className="w-4 h-4 shrink-0" style={{ color: "var(--sos-primary)" }} />}
                       </h2>
                       <p className="text-[13px] truncate" style={{ color: "var(--sos-text-3)" }}>{selectedClient.organisation}</p>
                       <div className="mt-1.5"><Badges c={selectedClient} /></div>

@@ -114,8 +114,8 @@ export const StudioClock: React.FC<{ info: StudioInfo; compact?: boolean; onOpen
   const sameZone = diff === 0;
   const diffLabel = sameZone ? "Same time as you" : `${Math.abs(diff) / 60 >= 1 ? `${Math.floor(Math.abs(diff) / 60)}h` : ""}${Math.abs(diff) % 60 ? ` ${Math.abs(diff) % 60}m` : ""} ${diff > 0 ? "ahead of" : "behind"} you`.trim();
   const nextHoliday = info.holidays.find((h) => h.date > p.iso);
-  const color = status.tone === "open" ? "#17663F" : status.tone === "holiday" ? "#B42318" : "#9A4A00";
-  const bg = status.tone === "open" ? "#E7F7EE" : status.tone === "holiday" ? "#FDECEC" : "#FFF3E0";
+  const color = status.tone === "open" ? "var(--sos-ok-text)" : status.tone === "holiday" ? "var(--sos-danger-text)" : "var(--sos-warn-text)";
+  const bg = status.tone === "open" ? "var(--sos-ok-bg)" : status.tone === "holiday" ? "var(--sos-danger-bg)" : "var(--sos-warn-bg)";
   const hh = String(((p.hour + 11) % 12) + 1);
   const mm = String(p.minute).padStart(2, "0");
   const ss = String(p.second).padStart(2, "0");
@@ -203,7 +203,7 @@ export const PortalNav: React.FC<{ tab: PortalTab; onTab: (t: PortalTab) => void
   ];
   return (
     <nav className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-2.5 backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--sos-canvas) 80%, transparent)" }} aria-label="Portal sections">
-      <div className="flex gap-1 p-1 rounded-full overflow-x-auto no-scrollbar" style={{ background: "var(--sos-surface)", boxShadow: "0 1px 2px rgba(15,17,21,0.06)" }} role="tablist">
+      <div className="flex gap-1 p-1 rounded-full overflow-x-auto no-scrollbar" style={{ background: "var(--sos-surface)", border: "1px solid var(--sos-border)", boxShadow: "var(--sos-shadow)" }} role="tablist">
         {items.map((it) => {
           const active = tab === it.id;
           return (
@@ -287,22 +287,22 @@ export const CalendarTab: React.FC<{ info: StudioInfo }> = ({ info }) => {
                     title={holiday || (off ? "Studio closed (weekend)" : "Working day")}
                     className="aspect-square rounded-[12px] p-1 flex flex-col items-center justify-start text-[13px] relative"
                     style={{
-                      background: holiday ? "#FDECEC" : off ? "var(--sos-surface-2)" : "transparent",
-                      color: holiday ? "#B42318" : off ? "var(--sos-text-3)" : "var(--sos-text-1)",
+                      background: holiday ? "var(--sos-danger-bg)" : off ? "var(--sos-surface-2)" : "transparent",
+                      color: holiday ? "var(--sos-danger-text)" : off ? "var(--sos-text-3)" : "var(--sos-text-1)",
                       boxShadow: today ? "inset 0 0 0 2px var(--sos-primary)" : undefined,
                       fontWeight: today ? 700 : 500,
                     }}
                   >
                     <span className="sos-tabular">{Number(iso.slice(8))}</span>
                     {holiday && <span className="hidden sm:block text-[9px] leading-tight mt-0.5 line-clamp-2 text-center">{holiday}</span>}
-                    {holiday && <span className="sm:hidden w-1 h-1 rounded-full bg-[#B42318] mt-0.5" />}
+                    {holiday && <span className="sm:hidden w-1 h-1 rounded-full mt-0.5" style={{ background: "var(--sos-danger-text)" }} />}
                   </div>
                 );
               })}
             </motion.div>
           </AnimatePresence>
           <div className="flex flex-wrap gap-3 mt-4 text-[11px]" style={{ color: "var(--sos-text-3)" }}>
-            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-[#FDECEC]" /> Holiday (closed)</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "var(--sos-danger-bg)" }} /> Holiday (closed)</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "var(--sos-surface-2)" }} /> Weekend</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ boxShadow: "inset 0 0 0 2px var(--sos-primary)" }} /> Today in India</span>
           </div>
@@ -315,7 +315,7 @@ export const CalendarTab: React.FC<{ info: StudioInfo }> = ({ info }) => {
             <ul className="space-y-2">
               {upcoming.map((h) => (
                 <li key={h.date} className="flex items-center gap-3">
-                  <span className="w-11 h-11 rounded-[12px] flex flex-col items-center justify-center shrink-0 bg-[#FDECEC] text-[#B42318]">
+                  <span className="w-11 h-11 rounded-[12px] flex flex-col items-center justify-center shrink-0" style={{ background: "var(--sos-danger-bg)", color: "var(--sos-danger-text)" }}>
                     <span className="text-[9px] font-bold uppercase">{prettyIso(h.date, { month: "short" })}</span>
                     <span className="text-[15px] font-bold leading-none">{Number(h.date.slice(8))}</span>
                   </span>
@@ -458,7 +458,7 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
-          {error && <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#B42318" }}>{error}</p>}
+          {error && <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "var(--sos-danger-bg)", color: "var(--sos-danger-text)" }}>{error}</p>}
         </div>
       </div>
     </div>
@@ -539,7 +539,7 @@ export const AccountTab: React.FC<{ name?: string; organisation?: string; loginI
           <input type="password" required autoComplete="new-password" placeholder="New password (8+ characters)" value={pw} onChange={(e) => setPw(e.target.value)} className={field} style={fieldStyle} aria-label="New password" />
           <input type="password" required autoComplete="new-password" placeholder="Repeat new password" value={pw2} onChange={(e) => setPw2(e.target.value)} className={field} style={fieldStyle} aria-label="Repeat new password" />
           {msg && (
-            <p className="text-[13px] px-3.5 py-2.5 rounded-[12px] inline-flex items-center gap-1.5" style={msg.ok ? { background: "#E7F7EE", color: "#17663F" } : { background: "#FDECEC", color: "#B42318" }} role="status">
+            <p className="text-[13px] px-3.5 py-2.5 rounded-[12px] inline-flex items-center gap-1.5" style={msg.ok ? { background: "var(--sos-ok-bg)", color: "var(--sos-ok-text)" } : { background: "var(--sos-danger-bg)", color: "var(--sos-danger-text)" }} role="status">
               {msg.ok && <Check className="w-4 h-4" />} {msg.text}
             </p>
           )}

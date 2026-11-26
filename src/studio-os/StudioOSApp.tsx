@@ -764,7 +764,7 @@ const StudioOSShell: React.FC<{
                 </div>
               </div>
               <div className="p-3 border-t shrink-0" style={{ borderColor: "var(--sos-border)" }}>
-                <button type="button" onClick={onLogout} className="w-full flex items-center justify-center gap-2 h-12 rounded-[14px] text-[15px] font-semibold" style={{ background: "var(--sos-surface-2)", color: "#B42318" }}>
+                <button type="button" onClick={onLogout} className="w-full flex items-center justify-center gap-2 h-12 rounded-[14px] text-[15px] font-semibold" style={{ background: "var(--sos-danger-bg)", color: "var(--sos-danger-text)" }}>
                   <LogOut className="w-4 h-4" /> Sign out
                 </button>
               </div>
@@ -801,7 +801,7 @@ const StudioOSShell: React.FC<{
                   type="button"
                   onClick={t.action.onClick}
                   className="-my-1 -mr-1.5 px-3 h-7 rounded-full text-[12px] font-bold inline-flex items-center gap-1"
-                  style={{ background: "rgba(255,255,255,0.16)", color: "#FFFFFF" }}
+                  style={{ background: "color-mix(in srgb, var(--sos-ink-text) 14%, transparent)", color: "var(--sos-ink-text)" }}
                   title="Undo (⌘/Ctrl+Z)"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> {t.action.label}
