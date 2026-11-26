@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
-import { Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { GateStatusChip, HealthPill, StackedAvatars } from "../components/StatusChip";
 import { BoardScreen } from "./BoardScreen";
@@ -126,6 +126,14 @@ export const ProjectDetailScreen: React.FC = () => {
     <div className="space-y-6">
       {sendGate && project && <SendForApprovalModal project={project} gate={sendGate} onClose={() => setSendGateId(null)} />}
       {assignOpen && project && <AssignMembersModal project={project} onClose={() => setAssignOpen(false)} />}
+      <button
+        type="button"
+        onClick={() => (window.history.state?.sosRoute && window.history.length > 1 ? window.history.back() : setRoute("projects"))}
+        className="group inline-flex items-center gap-1.5 h-9 pl-2.5 pr-3.5 -mb-2 rounded-full text-[13px] font-semibold transition-colors hover:bg-black/[0.04]"
+        style={{ color: "var(--sos-text-2)" }}
+      >
+        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" /> Back
+      </button>
       {/* Project Header */}
       <div className="sos-card p-5 md:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

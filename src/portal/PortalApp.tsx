@@ -110,12 +110,8 @@ const money = (amount: number, currency: string) => {
     return `${currency} ${amount}`;
   }
 };
-/** Expected delivery: the studio's planned date, moved later only when approvals/revisions pushed it. */
-const milestoneDate = (p: PortalProject) => {
-  const planned = p.promised_date || p.hard_deadline;
-  if (planned && p.forecast_date) return p.forecast_date > planned ? p.forecast_date : planned;
-  return planned || p.forecast_date;
-};
+/** Delivery date shown to clients: only the studio's planned date (the internal projection stays private). */
+const milestoneDate = (p: PortalProject) => p.promised_date || p.hard_deadline || null;
 const plannedMoved = (p: PortalProject) => {
   const planned = p.promised_date;
   return Boolean(planned && p.forecast_date && p.forecast_date > planned);
@@ -163,8 +159,8 @@ const ProgressBar: React.FC<{ value: number; label?: string }> = ({ value, label
 const HEALTH: Record<PortalProject["health"], { label: string; bg: string; text: string }> = {
   on_track: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
   tight: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
-  at_risk: { label: "Watching closely", bg: "#FFF3E0", text: "#9A4A00" },
-  late: { label: "Date under review", bg: "#FFF3E0", text: "#9A4A00" },
+  at_risk: { label: "On track", bg: "#E7F7EE", text: "#17663F" },
+  late: { label: "Timeline tight", bg: "#FFF8E1", text: "#8A5A00" },
 };
 const TYPE_LABEL: Record<string, string> = {
   ad_film: "Ad film",
@@ -470,7 +466,7 @@ const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; don
   let note = "";
   if (done) note = project.closed_at ? "Thank you — all final files are in Deliverables." : "Delivered by the studio.";
   else if (waiting) note = waitDays >= 2 ? `${waiting.name} has been with you for ${waitDays} days. The delivery date moves about a day for each extra day of review — approving soon keeps it on track.` : `${waiting.name} is ready for your review. Quick feedback keeps the delivery date on track.`;
-  else if (plannedMoved(project)) note = `Originally planned for ${fmtDate(project.promised_date)}; moved as reviews and revisions took longer than planned.`;
+  else if (plannedMoved(project)) note = "Review times shape the schedule. If upcoming reviews take longer than planned, this date may move a little later — we'll always confirm any change with you first.";
   else if (date) note = "On schedule. The date updates automatically as each stage is approved.";
   else note = "The studio will confirm the delivery date shortly.";
   const tone = done ? { bg: "#E7F7EE", fg: "#17663F", orb: "rgba(34,197,94,0.45)", cls: "sos-aurora-green" } : waiting && waitDays >= 2 ? { bg: "#FFF8EE", fg: "#9A4A00", orb: "rgba(245,158,11,0.45)", cls: "sos-aurora-amber" } : { bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)", orb: "rgba(124,92,255,0.5)", cls: "" };

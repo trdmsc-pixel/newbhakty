@@ -46,7 +46,19 @@ export const ProjectsScreen: React.FC = () => {
     pushToast(`${ids.length} project${ids.length > 1 ? "s" : ""} → ${STATUS_LABEL[status]}`, "success");
   };
   const { supabaseSyncStatus } = useStudioOS();
-  const [filter, setFilter] = useState<"active" | "pipeline" | "delivered" | "all">("active");
+  type PFilter = "active" | "waiting" | "risk" | "pipeline" | "paused" | "delivered" | "lost" | "all";
+  const [filter, setFilter] = useState<PFilter>("active");
+  const matches = (p: StudioProject, f: PFilter) => {
+    const open = !p.closed_at && !["delivered", "paid", "lost"].includes(p.status);
+    if (f === "active") return open && p.status === "active";
+    if (f === "waiting") return open && gates.some((g) => g.project_id === p.id && g.status === "waiting_on_client");
+    if (f === "risk") return open && (p.health === "late" || p.health === "at_risk");
+    if (f === "pipeline") return p.status === "lead" || p.status === "quoted";
+    if (f === "paused") return p.status === "on_hold" || p.status === "parked";
+    if (f === "delivered") return !["lost"].includes(p.status) && (p.status === "delivered" || p.status === "paid" || Boolean(p.closed_at));
+    if (f === "lost") return p.status === "lost";
+    return true;
+  };
   const [mode, setModeState] = useState<"cards" | "list">(() => {
     try {
       return (localStorage.getItem("sos-projects-mode") as "cards" | "list") || "list";
@@ -80,12 +92,10 @@ export const ProjectsScreen: React.FC = () => {
   const filtered = useMemo(() => {
     return projects.filter((p) => {
       if (clientFilter && p.client_id !== clientFilter) return false;
-      if (filter === "active") return (p.status === "active" || p.status === "on_hold") && !p.closed_at;
-      if (filter === "pipeline") return p.status === "lead" || p.status === "quoted";
-      if (filter === "delivered") return p.status === "delivered" || p.status === "paid" || Boolean(p.closed_at);
+      if (!matches(p, filter)) return false;
       return true;
     });
-  }, [projects, filter, clientFilter]);
+  }, [projects, filter, clientFilter, gates]);
 
   return (
     <div className="space-y-6">
@@ -115,28 +125,36 @@ export const ProjectsScreen: React.FC = () => {
 
       {/* Filter Tabs + client filter + view mode */}
       <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex p-1 rounded-full" style={{ background: "var(--sos-surface-2)" }}>
+      <div className="w-full flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
         {(
           [
-            { id: "active", label: "Active" },
-            { id: "pipeline", label: "Leads & Quotes" },
-            { id: "delivered", label: "Delivered" },
-            { id: "all", label: "All" },
+            { id: "active", label: "Active", tone: "var(--sos-primary)" },
+            { id: "waiting", label: "Waiting on client", tone: "#D97706" },
+            { id: "risk", label: "At risk", tone: "#DC2626" },
+            { id: "pipeline", label: "Leads & quotes", tone: "#2563EB" },
+            { id: "paused", label: "Paused", tone: "#64748B" },
+            { id: "delivered", label: "Delivered", tone: "#16A34A" },
+            { id: "lost", label: "Lost", tone: "#94A3B8" },
+            { id: "all", label: "All", tone: "var(--sos-text-2)" },
           ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setFilter(t.id)}
-            className="px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors"
-            style={{
-              background: filter === t.id ? "var(--sos-surface)" : "transparent",
-              color: filter === t.id ? "var(--sos-text-1)" : "var(--sos-text-2)",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+        ).map((t) => {
+          const count = projects.filter((p) => (!clientFilter || p.client_id === clientFilter) && matches(p, t.id)).length;
+          if (!count && t.id !== "all" && t.id !== "active" && filter !== t.id) return null;
+          const on = filter === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setFilter(t.id)}
+              className="relative shrink-0 h-9 pl-3 pr-2 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 border transition-colors"
+              style={on ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.tone }} />
+              {t.label}
+              <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center sos-tabular" style={{ background: on ? "rgba(255,255,255,0.18)" : "var(--sos-surface-2)" }}>{count}</span>
+            </button>
+          );
+        })}
       </div>
         <select
           value={clientFilter}

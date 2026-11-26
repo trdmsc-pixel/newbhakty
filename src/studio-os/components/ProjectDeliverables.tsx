@@ -409,7 +409,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 md:p-4" onClick={onClose}>
-      <div className="w-full md:max-w-lg rounded-t-[28px] md:rounded-[28px] p-6 shadow-2xl border space-y-4" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full md:max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[28px] md:rounded-[28px] p-5 sm:p-6 shadow-2xl border space-y-4" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
@@ -439,7 +439,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
                 value={url.startsWith("storage://") ? "🖼 Image uploaded" : url}
                 readOnly={url.startsWith("storage://")}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="YouTube or Vimeo link (plays in the portal)"
+                placeholder="YouTube, Vimeo or Google Drive link"
                 className="flex-1 min-w-0 h-11 px-3.5 rounded-[14px] border text-[14px]"
                 style={inputStyle}
               />
@@ -473,9 +473,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
               />
             </div>
             {url && parseMedia(url) && parseMedia(url)!.kind !== "link" && (
-              <div className="max-h-[260px] overflow-hidden rounded-[18px]">
-                <ReviewMedia url={url} resolveUrl={resolveStudioReviewUrl} />
-              </div>
+              <ReviewMedia url={url} resolveUrl={resolveStudioReviewUrl} />
             )}
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title shown to the client" className="w-full h-11 px-3.5 rounded-[14px] border text-[14px]" style={inputStyle} />
           </div>

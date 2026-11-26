@@ -228,8 +228,8 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
 
   if (media.kind === "youtube" || media.kind === "vimeo") {
     return (
-      <div className={`rounded-[18px] overflow-hidden bg-black aspect-video relative ${className || ""}`}>
-        <div ref={mount} className="absolute inset-0 [&_iframe]:w-full [&_iframe]:h-full [&>div]:h-full" />
+      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
+        <div ref={mount} className="absolute inset-0 [&_iframe]:absolute [&_iframe]:inset-0 [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:border-0 [&>div]:w-full [&>div]:h-full" />
         {error && <p className="absolute inset-x-0 bottom-0 p-3 text-[12px] text-white/80 bg-black/60">{error}</p>}
       </div>
     );
@@ -253,7 +253,7 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
               onImageClick(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
             }}
           >
-            <img src={imgSrc} alt="Shared for review" className="w-full h-auto block select-none" draggable={false} />
+            <img src={imgSrc} alt="Shared for review" className="w-full h-auto max-h-[78vh] object-contain block select-none mx-auto" draggable={false} />
             {pins.map((p) => (
               <span
                 key={p.n}
@@ -271,11 +271,12 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
 
   if (media.kind === "iframe") {
     return (
-      <div className={`rounded-[18px] overflow-hidden bg-black aspect-video ${className || ""}`}>
+      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
         <iframe
           src={media.src}
           title="Review preview"
-          className="w-full h-full"
+          loading="lazy"
+          className="absolute inset-0 w-full h-full border-0"
           allow="autoplay; fullscreen; picture-in-picture"
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"

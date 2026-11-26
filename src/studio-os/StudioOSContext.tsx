@@ -448,6 +448,31 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [forecastMap]
   );
 
+  // Browser / phone back button moves between Studio OS screens.
+  const fromPop = useRef(false);
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as { sosRoute?: StudioRoute; pid?: string | null } | null;
+      if (!st?.sosRoute) return;
+      fromPop.current = true;
+      if (st.pid) setSelectedProjectId(st.pid);
+      setRoute(st.sosRoute);
+    };
+    window.addEventListener("popstate", onPop);
+    if (!window.history.state?.sosRoute) window.history.replaceState({ ...(window.history.state || {}), sosRoute: route, pid: selectedProjectId }, "");
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (fromPop.current) {
+      fromPop.current = false;
+      return;
+    }
+    const cur = window.history.state as { sosRoute?: StudioRoute; pid?: string | null } | null;
+    if (cur?.sosRoute === route && (route !== "project_detail" || cur?.pid === selectedProjectId)) return;
+    window.history.pushState({ sosRoute: route, pid: route === "project_detail" ? selectedProjectId : null }, "");
+  }, [route, selectedProjectId]);
+
   const openProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
     setRoute("project_detail");

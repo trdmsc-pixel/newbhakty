@@ -307,8 +307,8 @@
    receipts. Shared by Studio OS and the client portal.
    =================================================================== */
 @keyframes sos-slide-in {
-  from { opacity: 0; transform: translateX(-10px) scale(0.995); filter: blur(2px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translate3d(-10px, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 .studio-os-root .sos-rows > * { animation: sos-slide-in 360ms var(--sos-ease) both; animation-delay: calc(var(--i, 0) * 38ms); }
 
@@ -394,3 +394,18 @@
   .studio-os-root .sos-row, .studio-os-root .sos-row-thumb { transition: none !important; transform: none !important; }
 }
 .studio-os-root .sos-aurora > *:not(.sos-orb) { position: relative; z-index: 1; }
+
+/* ---- 60/120 Hz smoothness: compositor-only animation, cheaper effects on touch ---- */
+.studio-os-root { -webkit-tap-highlight-color: transparent; text-rendering: optimizeLegibility; }
+.studio-os-root button, .studio-os-root a, .studio-os-root [role="button"] { touch-action: manipulation; }
+.studio-os-root .sos-orb { will-change: transform; transform: translateZ(0); }
+.studio-os-root .sos-bar > span::after { will-change: transform; }
+.studio-os-root .sos-rows > * { content-visibility: auto; contain-intrinsic-size: auto 68px; }
+.studio-os-root .overflow-y-auto, .studio-os-root .overflow-x-auto { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+@media (hover: none), (max-width: 767px) {
+  /* The rotating border repaints every frame — keep it as a still gradient on phones/tablets. */
+  .studio-os-root .sos-aurora::after { animation: none; --sos-angle: 200deg; }
+  .studio-os-root .sos-orb { animation-duration: 14s; filter: blur(22px); }
+  .studio-os-root [style*="backdrop-filter"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .studio-os-root .sos-bar > span::after { animation-duration: 4s; }
+}
