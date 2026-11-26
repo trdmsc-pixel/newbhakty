@@ -88,6 +88,11 @@ export interface ClientContact {
   whatsapp?: string;
   role?: string;
   is_portal_user: boolean;
+  /** Client ID used as the portal username (server-managed). */
+  portal_login_id?: string;
+  must_set_password?: boolean;
+  portal_last_login_at?: string;
+  has_portal_login?: boolean;
 }
 
 export interface StudioClient {

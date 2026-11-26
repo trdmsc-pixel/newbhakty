@@ -9,7 +9,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:rls": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/portal_rls_test.sql && psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/team_rls_test.sql"
+    "test:rls": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/portal_rls_test.sql && psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/team_rls_test.sql && psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/client_accounts_test.sql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",

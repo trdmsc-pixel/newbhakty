@@ -14,7 +14,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { supabase, isSupabaseConfigured } from "./portalSupabase";
 import { toEmbed } from "./embed";
 import "../studio-os/studio-os.css";
 
@@ -156,16 +156,47 @@ const Footer = () => (
 );
 
 // ---------------------------------------------------------------------------
-// Login (magic link, portal contacts only — enforced server-side)
+// Login: Client ID (or email) + password, or an emailed sign-in link
 // ---------------------------------------------------------------------------
+const fieldCls = "w-full h-12 px-4 rounded-[14px] border text-[15px]";
+const fieldStyle: React.CSSProperties = { background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" };
+const ErrorNote: React.FC<{ text: string }> = ({ text }) => (
+  <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#B42318" }} role="alert">
+    {text}
+  </p>
+);
+
 const PortalLogin: React.FC = () => {
+  const [mode, setMode] = useState<"password" | "link">("password");
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  const submit = async (e: React.FormEvent) => {
+  const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setState("sending");
+    setState("busy");
+    try {
+      const res = await fetch("/api/portal/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: login.trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Couldn't sign in.");
+      const { error } = await supabase!.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+      if (error) throw new Error(error.message);
+      setState("idle");
+    } catch (err: any) {
+      setMessage(err?.message || "Couldn't sign in.");
+      setState("error");
+    }
+  };
+
+  const sendLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState("busy");
     try {
       const res = await fetch("/api/portal/request-link", {
         method: "POST",
@@ -182,6 +213,12 @@ const PortalLogin: React.FC = () => {
     }
   };
 
+  const switchTo = (m: "password" | "link") => {
+    setMode(m);
+    setState("idle");
+    setMessage("");
+  };
+
   return (
     <div className="max-w-md mx-auto px-4">
       <Brand />
@@ -194,54 +231,151 @@ const PortalLogin: React.FC = () => {
             Follow progress, review cuts and approve stages with the studio.
           </p>
         </div>
-        {state === "sent" ? (
-          <div className="p-4 rounded-[18px] flex gap-3" style={{ background: "var(--sos-violet-soft)" }}>
-            <Mail className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "var(--sos-primary)" }} />
-            <div>
-              <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                Check your inbox
-              </p>
-              <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-                {message} The link signs you in on this device.
-              </p>
+
+        {mode === "password" ? (
+          <form onSubmit={signIn} className="space-y-4">
+            <label className="block">
+              <span className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>
+                Client ID or email
+              </span>
+              <input
+                required
+                autoComplete="username"
+                autoCapitalize="characters"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="TCS-XXXXXX"
+                className={fieldCls}
+                style={fieldStyle}
+              />
+            </label>
+            <label className="block">
+              <span className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>
+                Password
+              </span>
+              <input required type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldCls} style={fieldStyle} />
+            </label>
+            {state === "error" && <ErrorNote text={message} />}
+            <button
+              type="submit"
+              disabled={state === "busy"}
+              className="sos-pill-btn w-full h-12 text-[15px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: "var(--sos-primary)" }}
+            >
+              {state === "busy" && <Loader2 className="w-4 h-4 animate-spin" />} Sign in
+            </button>
+            <div className="flex items-center justify-between text-[12px]">
+              <button type="button" onClick={() => switchTo("link")} className="font-medium" style={{ color: "var(--sos-primary)" }}>
+                Email me a sign-in link instead
+              </button>
+              <span style={{ color: "var(--sos-text-3)" }}>Forgot it? Ask the studio.</span>
             </div>
+          </form>
+        ) : state === "sent" ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-[18px] flex gap-3" style={{ background: "var(--sos-violet-soft)" }}>
+              <Mail className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "var(--sos-primary)" }} />
+              <div>
+                <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+                  Check your inbox
+                </p>
+                <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>
+                  {message} The link signs you in on this device.
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={() => switchTo("password")} className="text-[12px] font-medium" style={{ color: "var(--sos-primary)" }}>
+              Sign in with Client ID instead
+            </button>
           </div>
         ) : (
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={sendLink} className="space-y-4">
             <label className="block">
               <span className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>
                 Work email
               </span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="w-full h-12 px-4 rounded-[14px] border text-[15px]"
-                style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
-              />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldCls} style={fieldStyle} />
             </label>
-            {state === "error" && (
-              <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "#FDECEC", color: "#B42318" }}>
-                {message}
-              </p>
-            )}
+            {state === "error" && <ErrorNote text={message} />}
             <button
               type="submit"
-              disabled={state === "sending"}
+              disabled={state === "busy"}
               className="sos-pill-btn w-full h-12 text-[15px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: "var(--sos-primary)" }}
             >
-              {state === "sending" && <Loader2 className="w-4 h-4 animate-spin" />} Email me a sign-in link
+              {state === "busy" && <Loader2 className="w-4 h-4 animate-spin" />} Email me a sign-in link
             </button>
-            <p className="text-[12px] text-center" style={{ color: "var(--sos-text-3)" }}>
-              Access is by invitation from the studio.
-            </p>
+            <button type="button" onClick={() => switchTo("password")} className="text-[12px] font-medium" style={{ color: "var(--sos-primary)" }}>
+              Sign in with Client ID and password
+            </button>
           </form>
         )}
+        <p className="text-[12px] text-center" style={{ color: "var(--sos-text-3)" }}>
+          Access is by invitation from the studio.
+        </p>
       </div>
       <Footer />
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// First sign-in: choose your own password
+// ---------------------------------------------------------------------------
+const SetPassword: React.FC<{ loginId?: string; name?: string; onDone: () => void; onSignOut: () => void }> = ({ loginId, name, onDone, onSignOut }) => {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw.length < 8) return setError("Use at least 8 characters.");
+    if (pw !== pw2) return setError("The two passwords don't match.");
+    setBusy(true);
+    setError("");
+    const { error: err } = await supabase!.auth.updateUser({ password: pw });
+    if (err) {
+      setBusy(false);
+      return setError(/different/i.test(err.message) ? "Choose a password different from the temporary one." : err.message);
+    }
+    await supabase!.rpc("portal_password_was_set");
+    setBusy(false);
+    onDone();
+  };
+
+  return (
+    <div className="max-w-md mx-auto px-4">
+      <Brand onSignOut={onSignOut} />
+      <form onSubmit={submit} className="sos-card p-7 md:p-8 space-y-5 mt-6">
+        <div>
+          <h1 className="sos-display text-[26px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
+            {name ? `Welcome, ${name.split(" ")[0]}` : "Welcome"}
+          </h1>
+          <p className="text-[14px] mt-1" style={{ color: "var(--sos-text-2)" }}>
+            Choose your own password to finish setting up your account.
+          </p>
+        </div>
+        {loginId && (
+          <div className="p-3.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--sos-text-3)" }}>Your Client ID</p>
+            <p className="text-[17px] font-semibold" style={{ color: "var(--sos-text-1)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{loginId}</p>
+          </div>
+        )}
+        <input type="text" name="username" autoComplete="username" value={loginId || ""} readOnly hidden />
+        <label className="block">
+          <span className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>New password</span>
+          <input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} className={fieldCls} style={fieldStyle} />
+        </label>
+        <label className="block">
+          <span className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--sos-text-2)" }}>Repeat password</span>
+          <input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} className={fieldCls} style={fieldStyle} />
+        </label>
+        {error && <ErrorNote text={error} />}
+        <button type="submit" disabled={busy} className="sos-pill-btn w-full h-12 text-[15px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: "var(--sos-primary)" }}>
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />} Save password
+        </button>
+      </form>
     </div>
   );
 };
@@ -721,7 +855,7 @@ const ProjectView: React.FC<{
 export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => void }) {
   const [checking, setChecking] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
-  const [contact, setContact] = useState<{ ok: boolean; name?: string; organisation?: string } | null>(null);
+  const [contact, setContact] = useState<{ ok: boolean; name?: string; organisation?: string; login_id?: string; must_set_password?: boolean } | null>(null);
   const [projects, setProjects] = useState<PortalProject[]>([]);
   const [gates, setGates] = useState<PortalGate[]>([]);
   const [deliverables, setDeliverables] = useState<PortalDeliverable[]>([]);
@@ -800,6 +934,8 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
         </div>
       ) : !signedIn ? (
         <PortalLogin />
+      ) : contact?.ok && contact.must_set_password ? (
+        <SetPassword loginId={contact.login_id} name={contact.name} onSignOut={signOut} onDone={() => setContact({ ...contact, must_set_password: false })} />
       ) : contact && !contact.ok ? (
         <div className="max-w-md mx-auto px-4">
           <Brand onSignOut={signOut} />
@@ -808,7 +944,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               No projects shared yet
             </h1>
             <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
-              This email doesn't have portal access. If you were expecting it, ask the studio to send you an invitation.
+              This account doesn't have portal access right now. If you were expecting it, please contact the studio.
             </p>
             <button type="button" onClick={onNavigateHome} className="text-[13px] font-medium" style={{ color: "var(--sos-primary)" }}>
               Visit thechantingstudio.in

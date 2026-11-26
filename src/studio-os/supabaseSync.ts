@@ -185,6 +185,10 @@ function fromContactRow(row: any): ClientContact {
     whatsapp: row.whatsapp || undefined,
     role: row.role || undefined,
     is_portal_user: Boolean(row.is_portal_user),
+    portal_login_id: row.portal_login_id || undefined,
+    must_set_password: Boolean(row.must_set_password),
+    portal_last_login_at: row.portal_last_login_at || undefined,
+    has_portal_login: Boolean(row.auth_user_id),
   };
 }
 
