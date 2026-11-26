@@ -162,6 +162,12 @@ export class GmailClient {
     return this.get(`/messages/${id}`, { format: "full" });
   }
 
+  /** Attachment bytes (Gmail returns base64url). */
+  async getAttachment(messageId: string, attachmentId: string): Promise<Buffer> {
+    const j = await this.get(`/messages/${messageId}/attachments/${attachmentId}`);
+    return Buffer.from(String(j?.data || "").replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  }
+
   getThreadMeta(id: string): Promise<any> {
     return this.get(`/threads/${id}`, { format: "metadata", metadataHeaders: ["From", "To", "Subject", "Date", "Message-ID"] });
   }

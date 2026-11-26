@@ -23,7 +23,7 @@ async function owner(req: Request, res: Response): Promise<SupabaseClient | null
   return sb;
 }
 
-interface Account {
+export interface Account {
   id: string;
   email: string;
   signature_text: string | null;
@@ -32,7 +32,7 @@ interface Account {
   granted_scopes: string | null;
 }
 
-async function accounts(sb: SupabaseClient): Promise<Account[]> {
+export async function accounts(sb: SupabaseClient): Promise<Account[]> {
   const { data } = await sb
     .from("studio_gmail_accounts")
     .select("id, email, signature_text, signature_html, signature_enabled, granted_scopes")
@@ -44,7 +44,7 @@ async function accounts(sb: SupabaseClient): Promise<Account[]> {
 }
 
 const clientCache = new Map<string, { gmail: GmailClient; exp: number }>();
-async function gmailFor(sb: SupabaseClient, acct: Account): Promise<GmailClient> {
+export async function gmailFor(sb: SupabaseClient, acct: Account): Promise<GmailClient> {
   const hit = clientCache.get(acct.id);
   if (hit && hit.exp > Date.now()) return hit.gmail;
   const { data: token } = await sb.rpc("studio_gmail_get_token", { p_account_id: acct.id });
@@ -64,7 +64,7 @@ async function gmailFor(sb: SupabaseClient, acct: Account): Promise<GmailClient>
 const canModify = (a: Account) => !a.granted_scopes || /gmail\.modify|mail\.google\.com/.test(a.granted_scopes);
 const canSend = (a: Account) => !a.granted_scopes || /gmail\.send|mail\.google\.com/.test(a.granted_scopes);
 
-function header(msg: any, name: string): string {
+export function header(msg: any, name: string): string {
   return (msg?.payload?.headers || []).find((h: any) => String(h.name).toLowerCase() === name.toLowerCase())?.value || "";
 }
 
@@ -72,7 +72,7 @@ function decode(data?: string): string {
   return data ? Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8") : "";
 }
 
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   return html
     .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -90,10 +90,10 @@ function htmlToText(html: string): string {
     .trim();
 }
 
-function walk(part: any, acc: { plain: string; html: string; attachments: any[] }) {
+export function walk(part: any, acc: { plain: string; html: string; attachments: any[] }) {
   if (!part) return;
   if (part.filename && part.body?.attachmentId) {
-    acc.attachments.push({ filename: part.filename, mimeType: part.mimeType, size: part.body.size || 0 });
+    acc.attachments.push({ filename: part.filename, mimeType: part.mimeType, size: part.body.size || 0, attachment_id: part.body.attachmentId });
   } else if (part.mimeType === "text/plain" && part.body?.data && !acc.plain) acc.plain = decode(part.body.data);
   else if (part.mimeType === "text/html" && part.body?.data && !acc.html) acc.html = decode(part.body.data);
   (part.parts || []).forEach((p: any) => walk(p, acc));
@@ -306,6 +306,41 @@ export function registerMailRoutes(app: Express) {
       res.json({ thread_id: t.id, account: acct.email, important: labels.has("IMPORTANT"), unread: labels.has("UNREAD"), messages });
     } catch (err: any) {
       res.status(err?.status === 404 ? 404 : 502).json({ error: err?.message || "Could not load thread." });
+    }
+  });
+
+  // Attachment download. Vercel caps responses at ~4.5 MB, so large files are
+  // served in 4 MB parts (?part=0,1,…); the browser joins them into one file.
+  const PART = 4_000_000;
+  const attCache = new Map<string, { buf: Buffer; exp: number }>();
+  app.get("/api/studio-os/mail/attachment", async (req, res) => {
+    const sb = await owner(req, res);
+    if (!sb) return;
+    const q = z
+      .object({ account: z.string().email(), message_id: z.string().regex(/^[\w-]{6,64}$/), attachment_id: z.string().regex(/^[\w-]{6,2000}$/), part: z.coerce.number().int().min(0).max(40).optional() })
+      .safeParse(req.query);
+    if (!q.success) return res.status(400).json({ error: "Invalid attachment request." });
+    const acct = (await accounts(sb)).find((a) => a.email === q.data.account);
+    if (!acct) return res.status(404).json({ error: "Account not connected." });
+    try {
+      const key = `${acct.id}:${q.data.message_id}:${q.data.attachment_id}`;
+      let hit = attCache.get(key);
+      if (!hit || hit.exp < Date.now()) {
+        hit = { buf: await (await gmailFor(sb, acct)).getAttachment(q.data.message_id, q.data.attachment_id), exp: Date.now() + 5 * 60_000 };
+        if (attCache.size > 6) attCache.clear();
+        attCache.set(key, hit);
+      }
+      const total = Math.max(1, Math.ceil(hit.buf.length / PART));
+      const part = q.data.part || 0;
+      if (part >= total) return res.status(416).json({ error: "No such part." });
+      res.set("Content-Type", "application/octet-stream");
+      res.set("Cache-Control", "private, no-store");
+      res.set("X-Total-Parts", String(total));
+      res.set("X-Total-Bytes", String(hit.buf.length));
+      res.set("Access-Control-Expose-Headers", "X-Total-Parts, X-Total-Bytes");
+      return res.send(hit.buf.subarray(part * PART, (part + 1) * PART));
+    } catch (err: any) {
+      return res.status(err?.status === 404 ? 404 : 502).json({ error: err?.message || "Couldn't download the attachment." });
     }
   });
 

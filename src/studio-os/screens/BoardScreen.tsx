@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { GmailScanButton } from "../components/GmailScanButton";
 import { motion } from "motion/react";
 import { EASE } from "../motion";
 import { ViewSwitcher } from "../components/ViewSwitcher";
@@ -241,6 +242,7 @@ export const BoardScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
 
           <div className="flex flex-wrap items-center gap-2">
             <ViewSwitcher area="tasks" />
+            <GmailScanButton target="tasks" />
           </div>
         </div>
       )}

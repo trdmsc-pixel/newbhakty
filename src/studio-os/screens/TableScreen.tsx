@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { GmailScanButton } from "../components/GmailScanButton";
 import { ViewSwitcher } from "../components/ViewSwitcher";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { ActivePill, SwipeRow } from "../motion";
@@ -84,6 +85,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ViewSwitcher area="tasks" />
+            <GmailScanButton target="tasks" />
             <button
               type="button"
               onClick={() => setQuickAddOpen(true)}

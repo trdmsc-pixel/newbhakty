@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { GmailScanButton } from "../components/GmailScanButton";
 import { supabase } from "../../lib/supabase";
 import { ProjectThumb, thumbCandidates, type DeliverableLike } from "../../review/ProjectThumb";
 import { resolveStudioReviewUrl } from "../components/ProjectDeliverables";
@@ -63,6 +64,7 @@ export const ProjectsScreen: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2 self-start">
         <ViewSwitcher area="projects" />
+        <GmailScanButton target="projects" />
         <button
           type="button"
           onClick={() => setNewProjectOpen(true)}

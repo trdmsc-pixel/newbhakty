@@ -4,6 +4,7 @@
  *    full client file with portal messages). Search and filters apply to all.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { GmailScanButton } from "../components/GmailScanButton";
 import { AnimatePresence, motion } from "motion/react";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
 import {
@@ -481,9 +482,12 @@ export const ClientsScreen: React.FC = () => {
           </p>
         </div>
         {live && (
+          <div className="flex flex-wrap items-center gap-2">
+          <GmailScanButton target="clients" />
           <button type="button" onClick={() => setClientForm({ client: null })} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white" style={{ background: "var(--sos-primary)" }}>
             <Plus className="w-4 h-4" /> New client
           </button>
+          </div>
         )}
       </div>
 

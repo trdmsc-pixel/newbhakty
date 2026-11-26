@@ -4,6 +4,7 @@ import { format, formatDistanceToNowStrict, isToday, parseISO } from "date-fns";
 import {
   Archive,
   ArrowLeft,
+  Download,
   ExternalLink,
   ListPlus,
   Loader2,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { studioApi } from "../api";
+import { supabase } from "../../lib/supabase";
 import { ComposeModal, loadMailAccounts, MailAccountInfo, signatureOptions } from "../components/ComposeModal";
 import { gmailThreadUrl } from "../InboxContext";
 
@@ -50,7 +52,7 @@ interface ThreadMessage {
   date: string | null;
   subject: string;
   text: string;
-  attachments: Array<{ filename: string; mimeType: string; size: number }>;
+  attachments: Array<{ filename: string; mimeType: string; size: number; attachment_id?: string }>;
   unread: boolean;
   sent: boolean;
 }
@@ -79,51 +81,189 @@ const shortDate = (iso: string | null) => {
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
+// ---------------------------------------------------------------------------
+// Mail cache: lists and threads stay in memory while Studio OS is open, so
+// switching tabs is instant. Lists refresh in the background every 10 minutes.
+// ---------------------------------------------------------------------------
+const REFRESH_MS = 10 * 60 * 1000;
+type ListEntry = { threads: ThreadRow[]; errors: string[]; at: number };
+const listCache = new Map<string, ListEntry>();
+const inflight = new Map<string, Promise<ListEntry>>();
+const detailCache = new Map<string, ThreadDetail>();
+let accountsCache: MailAccountInfo[] | null = null;
+const listeners = new Set<() => void>();
+
+const listKey = (filter: Filter, account: string, q: string) => JSON.stringify([filter, account, q]);
+
+function fetchList(filter: Filter, account: string, q: string): Promise<ListEntry> {
+  const key = listKey(filter, account, q);
+  const running = inflight.get(key);
+  if (running) return running;
+  const params = new URLSearchParams({ filter });
+  if (account) params.set("account", account);
+  if (q) params.set("q", q);
+  const p = studioApi<{ threads: ThreadRow[]; errors: string[] }>(`/api/studio-os/mail/threads?${params}`)
+    .then((res) => {
+      const entry = { threads: res.threads, errors: res.errors || [], at: Date.now() };
+      listCache.set(key, entry);
+      listeners.forEach((l) => l());
+      return entry;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
+let refreshTimer: number | null = null;
+/** Load the default mail view once (call after sign-in) and keep it fresh every 10 minutes. */
+export function prefetchMail() {
+  if (!listCache.has(listKey("important", "", ""))) fetchList("important", "", "").catch(() => {});
+  if (!accountsCache) loadMailAccounts().then((a) => (accountsCache = a)).catch(() => {});
+  if (refreshTimer === null && typeof window !== "undefined") {
+    refreshTimer = window.setInterval(() => {
+      // Refresh every list that has been opened, quietly.
+      for (const k of listCache.keys()) {
+        const [f, a, q] = JSON.parse(k);
+        fetchList(f, a, q).catch(() => {});
+      }
+    }, REFRESH_MS);
+  }
+}
+
+/** Turn URLs and email addresses in plain text into clickable links. */
+const LINK_RE = /(https?:\/\/[^\s<>()"']+[^\s<>()"'.,;:!?\]])|(www\.[^\s<>()"']+[^\s<>()"'.,;:!?\]])|([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
+export function Linkified({ text }: { text: string }) {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const raw = m[0];
+    const href = m[3] ? `mailto:${raw}` : m[2] ? `https://${raw}` : raw;
+    out.push(
+      <a key={m.index} href={href} target={m[3] ? undefined : "_blank"} rel="noopener noreferrer" className="underline break-all" style={{ color: "var(--sos-primary)" }}>
+        {raw}
+      </a>
+    );
+    last = m.index + raw.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return <>{out}</>;
+}
+
+const fmtSize = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
+
+/** Download a Gmail attachment through the server (in 4 MB parts for big files). */
+async function downloadAttachment(account: string, messageId: string, a: { filename: string; mimeType: string; attachment_id?: string }, open = false) {
+  if (!a.attachment_id) throw new Error("This attachment can't be downloaded.");
+  const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : "";
+  const parts: ArrayBuffer[] = [];
+  let total = 1;
+  for (let part = 0; part < total; part++) {
+    const r = await fetch(`/api/studio-os/mail/attachment?${new URLSearchParams({ account, message_id: messageId, attachment_id: a.attachment_id, part: String(part) })}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `Download failed (${r.status})`);
+    }
+    total = Number(r.headers.get("X-Total-Parts") || 1);
+    parts.push(await r.arrayBuffer());
+  }
+  const url = URL.createObjectURL(new Blob(parts, { type: a.mimeType || "application/octet-stream" }));
+  if (open) window.open(url, "_blank", "noopener");
+  else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = a.filename || "attachment";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export const MailScreen: React.FC = () => {
   const { pushToast, openQuickAdd, isOwner } = useStudioOS();
   const [filter, setFilter] = useState<Filter>("important");
   const [account, setAccount] = useState("");
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [threads, setThreads] = useState<ThreadRow[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
+  const initial = listCache.get(listKey("important", "", ""));
+  const [threads, setThreads] = useState<ThreadRow[]>(initial?.threads || []);
+  const [errors, setErrors] = useState<string[]>(initial?.errors || []);
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<MailAccountInfo[]>([]);
+  const [accounts, setAccounts] = useState<MailAccountInfo[]>(accountsCache || []);
   const [selected, setSelected] = useState<ThreadRow | null>(null);
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
 
   useEffect(() => {
-    loadMailAccounts().then(setAccounts).catch(() => setAccounts([]));
+    if (accountsCache) return;
+    loadMailAccounts()
+      .then((a) => {
+        accountsCache = a;
+        setAccounts(a);
+      })
+      .catch(() => setAccounts([]));
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ filter });
-      if (account) params.set("account", account);
-      if (submittedQuery) params.set("q", submittedQuery);
-      const res = await studioApi<{ threads: ThreadRow[]; errors: string[] }>(`/api/studio-os/mail/threads?${params}`);
-      setThreads(res.threads);
-      setErrors(res.errors || []);
-    } catch (err: any) {
-      setErrors([err?.message || "Could not load mail"]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, account, submittedQuery]);
+  /** force=true → always hit Gmail; otherwise show the cache and refresh only if older than 10 min. */
+  const load = useCallback(
+    async (force = false) => {
+      const key = listKey(filter, account, submittedQuery);
+      const hit = listCache.get(key);
+      if (hit) {
+        setThreads(hit.threads);
+        setErrors(hit.errors);
+        if (!force && Date.now() - hit.at < REFRESH_MS) return;
+      }
+      setLoading(true);
+      try {
+        const res = await fetchList(filter, account, submittedQuery);
+        setThreads(res.threads);
+        setErrors(res.errors);
+      } catch (err: any) {
+        if (!hit) setErrors([err?.message || "Could not load mail"]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filter, account, submittedQuery]
+  );
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // Background refreshes (every 10 min) update the open list without a spinner.
+  useEffect(() => {
+    prefetchMail();
+    const onUpdate = () => {
+      const hit = listCache.get(listKey(filter, account, submittedQuery));
+      if (hit) {
+        setThreads(hit.threads);
+        setErrors(hit.errors);
+      }
+    };
+    listeners.add(onUpdate);
+    return () => {
+      listeners.delete(onUpdate);
+    };
+  }, [filter, account, submittedQuery]);
+
   const openThread = async (t: ThreadRow) => {
     setSelected(t);
-    setDetail(null);
-    setDetailLoading(true);
+    const dkey = `${t.account}:${t.thread_id}:${t.message_count}`;
+    const cachedDetail = detailCache.get(dkey);
+    setDetail(cachedDetail || null);
+    setDetailLoading(!cachedDetail);
     try {
-      const d = await studioApi<ThreadDetail>(`/api/studio-os/mail/thread/${t.thread_id}?account=${encodeURIComponent(t.account)}`);
+      const d = cachedDetail || (await studioApi<ThreadDetail>(`/api/studio-os/mail/thread/${t.thread_id}?account=${encodeURIComponent(t.account)}`));
+      detailCache.set(dkey, d);
+      if (detailCache.size > 80) detailCache.delete(detailCache.keys().next().value as string);
       setDetail(d);
       if (t.unread && accounts.find((a) => a.email === t.account)?.can_modify) {
         studioApi("/api/studio-os/mail/modify", { body: { account: t.account, thread_id: t.thread_id, action: "read" } }).catch(() => {});
@@ -177,7 +317,7 @@ export const MailScreen: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={load} className="sos-pill-btn h-11 w-11 inline-flex items-center justify-center border" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }} aria-label="Refresh">
+          <button type="button" onClick={() => load(true)} className="sos-pill-btn h-11 w-11 inline-flex items-center justify-center border" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }} aria-label="Refresh">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button type="button" onClick={() => setComposeOpen(true)} className="sos-pill-btn h-11 px-5 text-[14px] font-semibold text-white inline-flex items-center gap-2" style={{ background: "var(--sos-primary)" }}>
@@ -342,10 +482,10 @@ export const MailScreen: React.FC = () => {
               )}
 
               {detail?.messages.map((m, idx) => (
-                <MessageCard key={m.id} m={m} defaultOpen={idx >= detail.messages.length - 2} />
+                <MessageCard key={m.id} m={m} account={detail.account} defaultOpen={idx >= detail.messages.length - 2} />
               ))}
 
-              {detail && <QuickReply detail={detail} row={selected} accounts={accounts} onSent={load} />}
+              {detail && <QuickReply detail={detail} row={selected} accounts={accounts} onSent={() => load(true)} />}
             </motion.div>
           )}
         </section>
@@ -362,8 +502,21 @@ const ActionBtn: React.FC<{ onClick: () => void; icon: React.ReactNode; label: s
   </button>
 );
 
-const MessageCard: React.FC<{ m: ThreadMessage; defaultOpen: boolean }> = ({ m, defaultOpen }) => {
+const MessageCard: React.FC<{ m: ThreadMessage; account: string; defaultOpen: boolean }> = ({ m, account, defaultOpen }) => {
   const [open, setOpen] = useState(defaultOpen);
+  const [busyAtt, setBusyAtt] = useState<number | null>(null);
+  const [attError, setAttError] = useState("");
+  const grab = async (i: number, openIt: boolean) => {
+    setBusyAtt(i);
+    setAttError("");
+    try {
+      await downloadAttachment(account, m.id, m.attachments[i], openIt);
+    } catch (e: any) {
+      setAttError(e?.message || "Download failed");
+    } finally {
+      setBusyAtt(null);
+    }
+  };
   return (
     <div className="sos-card p-4 md:p-5">
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full text-left flex items-start justify-between gap-3" aria-expanded={open}>
@@ -385,17 +538,30 @@ const MessageCard: React.FC<{ m: ThreadMessage; defaultOpen: boolean }> = ({ m, 
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease }} className="overflow-hidden">
             <pre className="mt-3 whitespace-pre-wrap break-words font-[inherit] text-[14px] leading-relaxed" style={{ color: "var(--sos-text-1)" }}>
-              {m.text || "(no text content)"}
+              {m.text ? <Linkified text={m.text} /> : "(no text content)"}
             </pre>
             {m.attachments.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {m.attachments.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px]" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>
-                    <Paperclip className="w-3 h-3" /> {a.filename}
-                  </span>
-                ))}
+                {m.attachments.map((a, i) => {
+                  const viewable = /^(image\/|application\/pdf|text\/|video\/|audio\/)/.test(a.mimeType || "");
+                  return (
+                    <span key={i} className="inline-flex items-center rounded-full text-[12px] overflow-hidden" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}>
+                      <button type="button" disabled={busyAtt !== null} onClick={() => grab(i, false)} className="inline-flex items-center gap-1.5 pl-3 pr-2.5 h-8 hover:opacity-80 disabled:opacity-60" title={`Download ${a.filename}`}>
+                        {busyAtt === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" style={{ color: "var(--sos-primary)" }} />}
+                        <span className="max-w-[220px] truncate">{a.filename}</span>
+                        <span style={{ color: "var(--sos-text-3)" }}>{fmtSize(a.size)}</span>
+                      </button>
+                      {viewable && (
+                        <button type="button" disabled={busyAtt !== null} onClick={() => grab(i, true)} className="h-8 px-2.5 border-l text-[11px] font-semibold hover:opacity-80" style={{ borderColor: "var(--sos-border)", color: "var(--sos-primary)" }} title="Open in a new tab">
+                          Open
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             )}
+            {attError && <p className="mt-2 text-[12px]" style={{ color: "#B42318" }}>{attError}</p>}
           </motion.div>
         )}
       </AnimatePresence>

@@ -43,7 +43,6 @@ const SettingsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) 
 import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
 import { ClientPulseProvider, useClientPulse } from "./components/ClientPulse";
-const InboxScreen = lazy(() => import("./screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
 const MailScreen = lazy(() => import("./screens/MailScreen").then((m) => ({ default: m.MailScreen })));
 const StudioCopilot = lazy(() => import("./components/StudioCopilot").then((m) => ({ default: m.StudioCopilot })));
 const MoneyScreen = lazy(() => import("./screens/MoneyScreen").then((m) => ({ default: m.MoneyScreen })));
@@ -98,13 +97,14 @@ const StudioOSShell: React.FC<{
   const meName = me?.name || viewer.name || "Shyam Sharma";
   const meInitials = me?.initials || meName.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const roleLabel = { owner: "Founder", producer: "Producer", artist: "Artist", editor: "Editor", music: "Music" }[viewer.role] || "Team";
-  const { pendingCount } = useInbox();
   const { unread: clientUnread } = useClientPulse();
   usePointerGlow();
   // Unread + important mail count for the sidebar pill (owner only, calm polling).
   const [mailCount, setMailCount] = useState(0);
   useEffect(() => {
     if (!isOwner) return;
+    // Load mail once in the background and keep it fresh (every 10 min), so the Mail tab opens instantly.
+    import("./screens/MailScreen").then((m) => m.prefetchMail()).catch(() => {});
     let alive = true;
     const tick = () =>
       studioApi<{ unread_important: number }>("/api/studio-os/mail/counts")
@@ -223,7 +223,7 @@ const StudioOSShell: React.FC<{
         if (key === "t") setRoute("today");
         else if (key === "b") setRoute("board");
         else if (key === "p") setRoute("projects");
-        else if (key === "i") setRoute("inbox");
+        else if (key === "m") setRoute("mail");
         gPrefixRef.current = 0;
       }
     };
@@ -236,7 +236,6 @@ const StudioOSShell: React.FC<{
     // My work — tasks and messages
     { group: "My work", id: "today", label: "Today", icon: <CalendarCheck2 className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: clientUnread > 0 ? String(clientUnread) : undefined, urgent: clientUnread > 0 },
     { group: "My work", id: "board", label: "Tasks", matches: ["board", "table"], icon: <Kanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-    { group: "My work", id: "inbox", label: "Inbox", icon: <Inbox className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: pendingCount > 0 ? String(pendingCount) : undefined },
     { group: "My work", id: "mail", label: "Mail", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: mailCount > 0 ? String(mailCount) : undefined },
     // Productions — projects and clients
     { group: "Productions", id: "projects", label: "Projects", matches: ["projects", "pipeline", "timeline", "project_detail"], icon: <FolderKanban className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
@@ -460,7 +459,7 @@ const StudioOSShell: React.FC<{
               aria-expanded={mobileMenuOpen}
             >
               <Menu className="w-5 h-5" />
-              {(clientUnread > 0 || pendingCount > 0) && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" aria-hidden />}
+              {(clientUnread > 0 || mailCount > 0) && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" aria-hidden />}
             </button>
             {/* Search Pill */}
             <div
@@ -594,7 +593,7 @@ const StudioOSShell: React.FC<{
             {route === "settings" && (
               <SettingsScreen onInstallPWA={handleInstallPWA} canInstallPWA={Boolean(deferredPrompt)} />
             )}
-            {route === "inbox" && (isOwner ? <InboxScreen /> : <TodayScreen />)}
+            {route === "inbox" && (isOwner ? <MailScreen /> : <TodayScreen />)}
             {route === "money" && (isOwner ? <MoneyScreen /> : <TodayScreen />)}
             {route === "mail" && (isOwner ? <MailScreen /> : <TodayScreen />)}
             </ScreenTransition>
@@ -652,18 +651,18 @@ const StudioOSShell: React.FC<{
 
         <button
           type="button"
-          onClick={() => setRoute(isOwner ? "inbox" : "table")}
+          onClick={() => setRoute(isOwner ? "mail" : "table")}
           className="relative flex flex-col items-center gap-0.5 text-[11px] font-medium"
-          style={{ color: route === "inbox" || (!isOwner && route === "table") ? "var(--sos-primary)" : "var(--sos-text-3)" }}
+          style={{ color: route === "mail" || (!isOwner && route === "table") ? "var(--sos-primary)" : "var(--sos-text-3)" }}
         >
-          {isOwner ? <Inbox className="w-5 h-5" /> : <Table2 className="w-5 h-5" />}
-          {isOwner ? "Inbox" : "Table"}
-          {isOwner && pendingCount > 0 && (
+          {isOwner ? <Mail className="w-5 h-5" /> : <Table2 className="w-5 h-5" />}
+          {isOwner ? "Mail" : "Table"}
+          {isOwner && mailCount > 0 && (
             <span
               className="absolute -top-1 left-1/2 ml-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center sos-tabular"
               style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}
             >
-              {pendingCount}
+              {mailCount}
             </span>
           )}
         </button>
