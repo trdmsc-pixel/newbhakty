@@ -1,6 +1,6 @@
 import { addDays, format, subDays } from "date-fns";
-import { deterministicUuid, isUuid } from "./uuid";
-import { computeProjectForecast } from "./forecastEngine";
+import { deterministicUuid, isUuid } from "./uuid.js";
+import { computeProjectForecast } from "./forecastEngine.js";
 import {
   ActivityLogItem,
   GateTemplateKey,
@@ -14,7 +14,7 @@ import {
   StudioSettings,
   StudioTask,
   StudioTimeEntry,
-} from "./types";
+} from "./types.js";
 
 export { computeProjectForecast };
 
