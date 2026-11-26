@@ -88,7 +88,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export async function geminiGenerate(
   body: Record<string, unknown>,
-  opts: { preferred?: string; timeoutMs?: number; key?: string; tier?: GeminiTier } = {}
+  opts: { preferred?: string; timeoutMs?: number; key?: string; tier?: GeminiTier; /** stop trying more models after this many ms overall */ budgetMs?: number } = {}
 ): Promise<{ data: any; model: string }> {
   const tier: GeminiTier = opts.tier || "fast";
   const key = opts.key || env("GEMINI_API_KEY");
@@ -96,10 +96,13 @@ export async function geminiGenerate(
   let lastStatus = 503;
   let lastMsg = "Gemini is unavailable";
   const tried: string[] = [];
+  const startedAt = Date.now();
+  const overBudget = () => Boolean(opts.budgetMs) && Date.now() - startedAt > opts.budgetMs!;
 
   const attemptModel = async (model: string): Promise<{ data: any; model: string } | null> => {
     tried.push(model);
     for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0 && overBudget()) return null;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 55_000);
       try {
@@ -142,10 +145,12 @@ export async function geminiGenerate(
   };
 
   for (const model of chain(tier, opts.preferred)) {
+    if (tried.length && overBudget()) break;
     const ok = await attemptModel(model);
     if (ok) return ok;
   }
   for (const model of (await discover(key)).filter((m) => !tried.includes(m) && !missing.has(m) && (parked.get(m) || 0) <= Date.now())) {
+    if (overBudget()) break;
     const ok = await attemptModel(model);
     if (ok) return ok;
   }

@@ -331,6 +331,8 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     type="video"
                     value={editFilm.videoUrl || ""}
                     onChange={(val) => handleFieldChange("videoUrl", val)}
+                    onPoster={(url) => handleFieldChange("imageUrl", url)}
+                    aiContext={`Portfolio film: ${editFilm.title || ""} (${editFilm.category || ""})`}
                     placeholder="Direct MP4 / WEBM video stream link"
                   />
                 </Field>

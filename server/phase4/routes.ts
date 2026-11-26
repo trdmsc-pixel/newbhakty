@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { runScopeCheck } from "../phase9/aiMedia.js";
 import { z } from "zod";
 import { computeProjectForecast } from "../../src/studio-os/forecastEngine.js";
 import { split as aiSplit } from "../../lib/ai/index.js";
@@ -161,10 +162,16 @@ export function registerPhase4Routes(app: Express) {
       }
     }
 
+    // Scope-creep check on change requests (AI, fast tier) — notifies the owner if it looks like extra work.
+    let scope: any = null;
+    if (body.data.action === "changes") {
+      scope = await runScopeCheck(sb, project.id, gate.id).catch(() => null);
+    }
+
     // Quiet push to the studio (Phase 2 trigger: client approvals / changes).
     const label = project.is_confidential ? "Confidential project" : `${project.code} ${project.title}`;
     await sendWebPushToAll(sb, {
-      title: body.data.action === "approved" ? `Approved: ${gate.name}` : `Changes requested: ${gate.name}`,
+      title: body.data.action === "approved" ? `Approved: ${gate.name}` : `${scope && (scope.verdict !== "in_scope" || scope.over_rounds) ? "⚠️ Scope? " : ""}Changes requested: ${gate.name}`,
       body: `${label} — via client portal`,
       url: "/studio-os",
       tag: `portal-${gate.id}`,

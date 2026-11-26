@@ -20,6 +20,7 @@ import { supabase, isSupabaseConfigured } from "./portalSupabase";
 import { AccountTab, CalendarTab, MessagesTab, PortalAssistant, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
 import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
+import { SketchOverlay, VoiceNoteButton } from "./PortalReviewTools";
 import { ProjectThumb, thumbCandidates, downloadHref, isStreamOnly } from "../review/ProjectThumb";
 import "../studio-os/studio-os.css";
 
@@ -67,6 +68,7 @@ interface PortalDeliverable {
   created_at: string;
   is_final: boolean;
   download_url: string | null;
+  client_summary?: string | null;
 }
 interface PortalInvoice {
   id: string;
@@ -557,8 +559,11 @@ const resolveReviewUrl = async (url: string) => {
 const ApprovalCard: React.FC<{
   gate: PortalGate;
   previewUrl: string | null;
+  /** "What changed in this version" (written by the studio with AI). */
+  summary?: string | null;
   onDone: (msg: string) => void;
-}> = ({ gate, previewUrl, onDone }) => {
+}> = ({ gate, previewUrl, summary, onDone }) => {
+  const [sketch, setSketch] = useState<{ time?: number } | null>(null);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
   const [comment, setComment] = useState("");
   const [notes, setNotes] = useState<Array<NoteRef & { id: number; t: string }>>([]);
@@ -660,22 +665,85 @@ const ApprovalCard: React.FC<{
 
       {previewUrl && (
         <div className="space-y-2">
-          <ReviewMedia
-            ref={player}
-            url={previewUrl}
-            resolveUrl={resolveReviewUrl}
-            onImageClick={isImage ? addPin : undefined}
-            pins={notes.filter((n) => n.pin).map((n) => ({ ...n.pin!, active: n.id === activeNote }))}
-          />
-          {isVideo && (
-            <button
-              type="button"
-              onClick={addTimedNote}
-              className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-2"
-              style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
-            >
-              <Clock className="w-4 h-4" /> Add a note at this moment
-            </button>
+          {summary && (
+            <div className="px-4 py-3 rounded-[14px] space-y-1" style={{ background: "var(--sos-surface-2)" }}>
+              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>What changed in this version</p>
+              <p className="text-[14px] whitespace-pre-line leading-relaxed" style={{ color: "var(--sos-text-1)" }}>{summary}</p>
+            </div>
+          )}
+          {(() => {
+            const mediaEl = (
+              <ReviewMedia
+                ref={player}
+                url={previewUrl}
+                resolveUrl={resolveReviewUrl}
+                onImageClick={isImage && !sketch ? addPin : undefined}
+                pins={notes.filter((n) => n.pin).map((n) => ({ ...n.pin!, active: n.id === activeNote }))}
+              />
+            );
+            return sketch ? (
+              <SketchOverlay
+                gateId={gate.id}
+                mediaUrl={previewUrl}
+                time={sketch.time}
+                timeLabel={sketch.time != null ? fmtTime(sketch.time) : undefined}
+                onCancel={() => setSketch(null)}
+                onDone={(text) => {
+                  const id = nextId.current++;
+                  setMode("changes");
+                  setNotes((prev) => [...prev, { id, time: sketch.time, t: sketch.time != null ? fmtTime(sketch.time) : "", text: `✏️ ${text}` }]);
+                  setActiveNote(id);
+                  setSketch(null);
+                }}
+              >
+                {mediaEl}
+              </SketchOverlay>
+            ) : (
+              mediaEl
+            );
+          })()}
+          {!sketch && (isVideo || isImage) && (
+            <div className="flex flex-wrap gap-2">
+              {isVideo && (
+                <button
+                  type="button"
+                  onClick={addTimedNote}
+                  className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-2"
+                  style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+                >
+                  <Clock className="w-4 h-4" /> Add a note at this moment
+                </button>
+              )}
+              <VoiceNoteButton
+                stage={gate.name}
+                onStart={async () => {
+                  if (!isVideo) return undefined;
+                  const t = await player.current?.getTime();
+                  player.current?.pause();
+                  return t != null ? fmtTime(t) : undefined;
+                }}
+                onText={(text, t) => {
+                  const id = nextId.current++;
+                  setMode("changes");
+                  setNotes((prev) => [...prev, { id, time: t ? parseTime(t) ?? undefined : undefined, t: t || "", text: `🎙 ${text}` }]);
+                  setActiveNote(id);
+                }}
+                onError={setError}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  const t = isVideo ? await player.current?.getTime() : null;
+                  player.current?.pause();
+                  setSketch({ time: t ?? undefined });
+                }}
+                className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-2"
+                style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+                title={isVideo ? "Pause where you want, then draw on the frame" : "Draw on the image"}
+              >
+                ✏️ Draw on {isVideo ? "the frame" : "the image"}
+              </button>
+            </div>
           )}
           {isImage && (
             <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
@@ -1000,6 +1068,7 @@ const ProjectView: React.FC<{
           key={g.id}
           gate={g}
           previewUrl={previewFor(g.id)}
+          summary={[...deliverables].filter((d) => d.gate_id === g.id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.client_summary}
           onDone={(msg) => {
             if (msg) setFlash(msg);
             onChanged();
@@ -1047,6 +1116,12 @@ const ProjectView: React.FC<{
                       </span>
                       <Play className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sos-text-3)" }} />
                     </button>
+                    {openDeliverable === d.id && d.client_summary && (
+                      <div className="px-4 py-3 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>
+                        <p className="text-[12px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--sos-text-3)" }}>What changed in this version</p>
+                        <p className="text-[13px] whitespace-pre-line" style={{ color: "var(--sos-text-1)" }}>{d.client_summary}</p>
+                      </div>
+                    )}
                     {openDeliverable === d.id && <ReviewMedia url={d.url} resolveUrl={resolveReviewUrl} />}
                     </div>
                   ))}

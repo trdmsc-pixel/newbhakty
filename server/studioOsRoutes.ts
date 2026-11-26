@@ -627,6 +627,15 @@ export function registerStudioOSRoutes(app: Express) {
         today: new Date(),
       });
 
+      // The one AI daily brief (cached in studio_ai_insights; shown on Today).
+      let aiText = "";
+      try {
+        const { runDailyBrief, briefToText } = await import("./phase9/aiMedia.js");
+        if (getEnv("GEMINI_API_KEY")) aiText = briefToText((await runDailyBrief(sb)).result);
+      } catch (e: any) {
+        console.warn("AI brief skipped:", e?.message);
+      }
+
       const resendKey = getEnv("RESEND_API_KEY");
       const resendFrom =
         getEnv("RESEND_FROM") || "Studio OS <onboarding@resend.dev>";
@@ -647,7 +656,7 @@ export function registerStudioOSRoutes(app: Express) {
             from: resendFrom,
             to: [briefTo],
             subject: `Studio OS Morning Brief — ${brief.dateLabel}`,
-            text: `${brief.briefText}\n\nOpen Today: https://www.thechantingstudio.in/studio-os`,
+            text: `${aiText ? `${aiText}\n\n———\n\n` : ""}${brief.briefText}\n\nOpen Today: https://www.thechantingstudio.in/studio-os`,
           }),
         });
 

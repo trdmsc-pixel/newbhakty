@@ -3,6 +3,7 @@ import { Upload, FolderOpen, Copy, Check, X, Film, Image as ImageIcon, Link2, Lo
 import { useToast } from "../../context/ToastContext";
 import { Button } from "./Button";
 import { uploadToCloudinary, MEDIA_UPLOAD_LIMIT_MB } from "../../lib/cloudinary";
+import { describeMedia, imagePreview, pickPosterFrame, type MediaMeta } from "./mediaAI";
 
 /**
  * Lets the admin shell register every upload in the global asset library,
@@ -27,6 +28,10 @@ export interface MediaFieldProps {
   label?: string;
   type?: "image" | "video" | "auto";
   className?: string;
+  /** Called with an AI-picked poster frame (already uploaded) after a video upload. */
+  onPoster?: (url: string) => void;
+  /** What this media is used for (helps the AI write alt text / SEO). */
+  aiContext?: string;
 }
 
 const looksLikeVideo = (url: string) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url) || /youtu\.?be|vimeo\.com/i.test(url);
@@ -39,7 +44,11 @@ export const MediaField: React.FC<MediaFieldProps> = ({
   label,
   type = "auto",
   className = "",
+  onPoster,
+  aiContext,
 }) => {
+  const [ai, setAi] = useState<{ busy: string; meta?: MediaMeta; poster?: { url: string; preview: string; reason: string }; error?: string } | null>(null);
+  const [copiedKey, setCopiedKey] = useState("");
   const { onUploaded } = useContext(MediaUploadContext);
   const toast = useToast();
   const [copied, setCopied] = useState(false);
@@ -82,6 +91,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
         /* library registration is best-effort; the field already has the file */
       }
       toast.success(`Uploaded ${file.name} — applied to this field. Remember to save.`);
+      void runAI(file, url, kind);
     } catch (err: any) {
       toast.error(err?.message || "Upload failed.");
     } finally {
@@ -89,6 +99,40 @@ export const MediaField: React.FC<MediaFieldProps> = ({
       setProgress("");
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  /** After upload: smart poster frame (videos) + alt text / SEO / tags (Gemini). Best-effort. */
+  const runAI = async (file: File, url: string, kind: "image" | "video") => {
+    try {
+      let preview: string | undefined;
+      let poster: { url: string; preview: string; reason: string } | undefined;
+      if (kind === "video") {
+        setAi({ busy: "Picking the best poster frame…" });
+        const pick = await pickPosterFrame(file);
+        const posterUrl = await uploadToCloudinary(pick.poster);
+        try {
+          await onUploaded?.(pick.poster.name, posterUrl, "image");
+        } catch {
+          /* best-effort */
+        }
+        poster = { url: posterUrl, preview: pick.preview, reason: pick.reason };
+        preview = pick.preview;
+        setAi({ busy: "Writing alt text & SEO…", poster });
+      } else {
+        setAi({ busy: "Writing alt text & SEO…" });
+        preview = await imagePreview(file);
+      }
+      const meta = await describeMedia({ url, kind, name: file.name, poster: preview, context: aiContext || label });
+      setAi({ busy: "", meta, poster });
+    } catch (e: any) {
+      setAi((a) => ({ ...(a || {}), busy: "", error: e?.message || "AI step skipped" }));
+    }
+  };
+
+  const copy = (k: string, text: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(k);
+    setTimeout(() => setCopiedKey(""), 1500);
   };
 
   const applyLink = () => {
@@ -227,6 +271,61 @@ export const MediaField: React.FC<MediaFieldProps> = ({
               Cancel
             </Button>
           </div>
+        </div>
+      )}
+
+      {ai && (
+        <div className="rounded-[14px] border border-[var(--a-line)] bg-[var(--a-surface-1)] p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] font-semibold text-[var(--a-text)] inline-flex items-center gap-1.5">
+              {ai.busy ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--a-accent)]" /> : <span aria-hidden>✨</span>} {ai.busy || "AI for this upload"}
+            </p>
+            {!ai.busy && (
+              <button type="button" onClick={() => setAi(null)} aria-label="Close" className="p-1 rounded-full text-[var(--a-text-3)] hover:text-[var(--a-text)] cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {ai.poster && (
+            <div className="flex items-center gap-3">
+              <img src={ai.poster.preview} alt="Suggested poster frame" className="w-28 h-auto rounded-[8px] border border-[var(--a-line)]" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-[12px] text-[var(--a-text-2)]">Poster frame{ai.poster.reason ? ` — ${ai.poster.reason}` : ""}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {onPoster && (
+                    <Button size="sm" variant="primary" onClick={() => { onPoster(ai.poster!.url); toast.success("Poster applied — remember to save."); }}>
+                      Use as poster
+                    </Button>
+                  )}
+                  <Button size="sm" variant="secondary" onClick={() => copy("poster", ai.poster!.url)}>
+                    {copiedKey === "poster" ? "Copied" : "Copy poster link"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {ai.meta && (
+            <div className="space-y-1.5 text-[12px]">
+              {([
+                ["Alt text", ai.meta.alt_text],
+                ["SEO title", ai.meta.seo_title],
+                ["SEO description", ai.meta.seo_description],
+                ["Tags", ai.meta.tags.join(", ")],
+              ] as const).map(([k, v]) =>
+                v ? (
+                  <div key={k} className="flex items-start gap-2">
+                    <span className="w-24 shrink-0 text-[var(--a-text-3)]">{k}</span>
+                    <span className="flex-1 min-w-0 text-[var(--a-text)]">{v}</span>
+                    <button type="button" onClick={() => copy(k, v)} className="shrink-0 p-1 rounded-full text-[var(--a-text-3)] hover:text-[var(--a-text)] cursor-pointer" aria-label={`Copy ${k}`}>
+                      {copiedKey === k ? <Check className="w-3.5 h-3.5 text-[var(--a-ok-text)]" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                ) : null
+              )}
+              <p className="text-[11px] text-[var(--a-text-3)]">Saved to this file in the asset library.</p>
+            </div>
+          )}
+          {ai.error && <p className="text-[12px] text-[var(--a-text-3)]">{ai.error}</p>}
         </div>
       )}
 

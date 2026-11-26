@@ -455,6 +455,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         onSettingChange("hero_loop_url", val);
                         onSettingChange("hero_video_bg_url", val);
                       }}
+                      onPoster={(url) => onSettingChange("hero_poster_url", url)}
+                      aiContext="Homepage hero background loop"
                       placeholder="Direct mp4 / webm CDN link"
                     />
                   </Field>
@@ -487,6 +489,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       type="video"
                       value={editSettings.showreel_video_url || ""}
                       onChange={(val) => onSettingChange("showreel_video_url", val)}
+                      onPoster={(url) => onSettingChange("showreel_poster_url", url)}
+                      aiContext="Studio showreel"
                       placeholder="4K showreel video file"
                     />
                   </Field>

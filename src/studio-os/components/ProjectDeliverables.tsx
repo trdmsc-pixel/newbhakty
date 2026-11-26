@@ -5,6 +5,7 @@ import { thumbFor } from "../../review/ProjectThumb";
 import { ReviewMedia, type ReviewMediaHandle, fmtTime, parseMedia, parseNote } from "../../review/ReviewMedia";
 import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
+import { DeliverableAI } from "./DeliverableAI";
 import { StudioGate, StudioProject } from "../types";
 
 export interface Deliverable {
@@ -124,6 +125,12 @@ const DeliverableReview: React.FC<{ d: Deliverable }> = ({ d }) => {
       ) : (
         d.gate_id && <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Client notes with timestamps or pins appear here, live.</p>
       )}
+      <DeliverableAI
+        deliverableId={d.id}
+        hasGate={Boolean(d.gate_id)}
+        onSeek={(s) => player.current?.seek(s)}
+        onMarkFixed={(ids) => ids.forEach((id) => tasks.find((t) => t.id === id && t.status !== "done") && toggleTaskDone(id))}
+      />
     </div>
   );
 };
