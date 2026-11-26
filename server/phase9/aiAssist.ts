@@ -1,5 +1,5 @@
 /**
- * AI helpers beyond Studio OS Copilot (Meta Muse first, Gemini fallback):
+ * AI helpers beyond Studio OS Copilot (Google Gemini via GEMINI_API_KEY):
  *
  *  Client portal (client's own JWT):
  *   POST /api/portal/ai/chat    — answers questions about *their* projects only.
@@ -28,7 +28,7 @@ function limited(key: string, max: number, windowMs: number) {
   return hits.length > max;
 }
 
-const aiConfigured = () => Boolean(getEnv("META_API_KEY") || getEnv("GEMINI_API_KEY"));
+const aiConfigured = () => Boolean(getEnv("GEMINI_API_KEY"));
 
 /** A Supabase client acting as the signed-in portal user (RLS + portal views apply). */
 function clientAs(token: string) {
@@ -132,7 +132,7 @@ Return JSON: {"points": ["...", "..."]} — one change per point, concise, polit
     const adminPass = getEnv("ADMIN_PASSWORD") || getEnv("VITE_ADMIN_PASSWORD");
     const passOk = Boolean(adminPass) && String(req.headers["x-admin-key"] || "") === adminPass;
     if (!owner.ok && !passOk) return res.status(401).json({ error: "Sign in to the admin with your studio account to use AI writing." });
-    if (!aiConfigured()) return res.status(503).json({ error: "No AI model configured — set META_API_KEY in Vercel." });
+    if (!aiConfigured()) return res.status(503).json({ error: "GEMINI_API_KEY is not configured on the server." });
     if (limited(`aaw:${req.ip}`, 60, 60 * 60_000)) return res.status(429).json({ error: "AI limit reached — try again in a bit." });
     const parsed = z
       .object({

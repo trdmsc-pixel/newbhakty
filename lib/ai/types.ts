@@ -1,4 +1,4 @@
-export type AIProviderName = "claude" | "gemini" | "meta";
+export type AIProviderName = "claude" | "gemini";
 
 export interface AIImageInput {
   mimeType: string; // image/png, image/jpeg, image/webp

@@ -1,5 +1,5 @@
 /**
- * "✨ Write with AI" for admin text fields (Meta Muse via /api/admin/ai/write).
+ * "✨ Write with AI" for admin text fields (Gemini via /api/admin/ai/write).
  * Shows three suggestions; one click applies a suggestion to the field.
  */
 import React, { useState } from "react";
@@ -60,7 +60,7 @@ export const AIWriteButton: React.FC<AIWriteConfig> = ({ field, value, onApply, 
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold bg-[var(--a-accent-soft)] text-[var(--a-accent)] hover:brightness-95 cursor-pointer"
         aria-expanded={open}
-        title={`Write ${field} with AI (Meta Muse)`}
+        title={`Write ${field} with AI (Gemini)`}
       >
         <Sparkles className="w-3 h-3" /> Write with AI
       </button>
