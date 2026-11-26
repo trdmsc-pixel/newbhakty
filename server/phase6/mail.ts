@@ -441,3 +441,51 @@ export function registerMailRoutes(app: Express) {
     }
   });
 }
+
+
+/**
+ * Create a Gmail draft (never sends). Used by the Copilot.
+ * If thread_id is given, replies in-thread to the last inbound sender.
+ */
+export async function createDraftForCopilot(
+  sb: SupabaseClient,
+  o: { account?: string; thread_id?: string; to?: string[]; cc?: string[]; subject?: string; body: string; signature?: string }
+): Promise<{ account: string; draft_id: string; thread_id?: string; to: string[]; subject: string }> {
+  const all = await accounts(sb);
+  let acct = all.find((a) => a.email === o.account);
+  if (!acct && o.thread_id) {
+    const { data: k } = await sb.from("studio_email_threads").select("gmail_account").eq("thread_id", o.thread_id).limit(1).maybeSingle();
+    acct = all.find((a) => a.email === k?.gmail_account);
+  }
+  acct = acct || all.find((a) => a.email.startsWith("studio@")) || all[0];
+  if (!acct) throw new Error("No Gmail account connected.");
+  const gmail = await gmailFor(sb, acct);
+
+  let to = o.to || [];
+  let subject = o.subject || "";
+  let inReplyTo: string | undefined;
+  let references: string | undefined;
+  if (o.thread_id) {
+    const t = await gmail.getThread(o.thread_id);
+    const msgs = t.messages || [];
+    const inbound = [...msgs].reverse().find((x: any) => !(x.labelIds || []).includes("SENT")) || msgs[msgs.length - 1];
+    if (!to.length && inbound) to = [parseAddress(header(inbound, "From")).email];
+    if (!subject) subject = header(inbound, "Subject") || "";
+    if (subject && !/^re:/i.test(subject)) subject = `Re: ${subject}`;
+    inReplyTo = header(inbound, "Message-ID") || undefined;
+    references = [header(inbound, "References"), inReplyTo].filter(Boolean).join(" ") || undefined;
+  }
+  if (!to.length) throw new Error("No recipient for the draft.");
+  const sig = await signatureFor(sb, all, o.signature || "account", acct);
+  const text = sig ? `${o.body.trimEnd()}\n\n--\n${sig.text}` : o.body;
+  const html = sig ? `${textToHtml(o.body.trimEnd())}<br><br><div style="color:#5F6672">--<br>${sig.html}</div>` : textToHtml(o.body);
+  const raw = buildMime({ from: acct.email, to, cc: o.cc || [], subject, text, html, inReplyTo, references });
+  const res = await gmail.draftRaw(raw, o.thread_id);
+  return { account: acct.email, draft_id: res.id, thread_id: o.thread_id, to, subject };
+}
+
+export async function deleteDraftForCopilot(sb: SupabaseClient, account: string, draftId: string) {
+  const acct = (await accounts(sb)).find((a) => a.email === account);
+  if (!acct) return;
+  await (await gmailFor(sb, acct)).deleteDraft(draftId);
+}

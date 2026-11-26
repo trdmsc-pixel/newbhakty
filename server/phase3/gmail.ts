@@ -193,6 +193,11 @@ export class GmailClient {
     return data;
   }
 
+  async deleteDraft(id: string): Promise<void> {
+    const res = await fetch(`${API}/drafts/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${this.accessToken}` } });
+    if (!res.ok && res.status !== 404) throw new Error(`Draft delete failed (${res.status})`);
+  }
+
   modifyThread(id: string, addLabelIds: string[], removeLabelIds: string[]) {
     return this.post(`/threads/${id}/modify`, { addLabelIds, removeLabelIds });
   }

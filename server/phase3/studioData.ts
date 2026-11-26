@@ -203,6 +203,7 @@ export interface NewTaskInput {
   type?: "task" | "promise" | "reply_owed" | "follow_up" | "admin";
   priority?: "urgent" | "high" | "normal" | "low";
   dueDate?: string | null;
+  estimateHours?: number | null;
   source: "manual" | "email" | "whatsapp" | "website" | "portal" | "ai";
   sourceRef?: string | null;
   promisedToContactId?: string | null;
@@ -236,7 +237,7 @@ export async function createTask(sb: SupabaseClient, ctx: StudioCtx, input: NewT
         priority: input.priority || "normal",
         do_date: due,
         due_date: due,
-        estimate_hours: 1,
+        estimate_hours: input.estimateHours && input.estimateHours > 0 ? Math.min(200, input.estimateHours) : 1,
         assignee_member_id: ctx.ownerMemberId,
         source: input.source,
         source_ref: input.sourceRef || null,

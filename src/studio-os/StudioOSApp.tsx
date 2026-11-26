@@ -41,6 +41,7 @@ import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
 import { RealtimeBridge } from "./components/RealtimeBridge";
 const InboxScreen = lazy(() => import("./screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
 const MailScreen = lazy(() => import("./screens/MailScreen").then((m) => ({ default: m.MailScreen })));
+const StudioCopilot = lazy(() => import("./components/StudioCopilot").then((m) => ({ default: m.StudioCopilot })));
 const MoneyScreen = lazy(() => import("./screens/MoneyScreen").then((m) => ({ default: m.MoneyScreen })));
 import { InboxProvider, useInbox } from "./InboxContext";
 import { NewProjectModal } from "./components/NewProjectModal";
@@ -471,6 +472,21 @@ const StudioOSShell: React.FC<{
                 />
               </div>
 
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("sos:copilot-toggle"))}
+                  className="sos-pill-btn inline-flex items-center gap-1.5 px-3 md:px-4 h-9 text-[13px] font-semibold border"
+                  style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+                  aria-label="Open Studio Copilot (Ctrl+J)"
+                  title="Studio Copilot · ⌘/Ctrl+J"
+                >
+                  <span aria-hidden>✨</span>
+                  <span className="hidden md:inline">Studio Copilot</span>
+                  <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>⌘J</kbd>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setQuickAddOpen(true)}
@@ -554,6 +570,12 @@ const StudioOSShell: React.FC<{
           </main>
         </div>
       </div>
+
+      {isOwner && (
+        <Suspense fallback={null}>
+          <StudioCopilot />
+        </Suspense>
+      )}
 
       {/* Mobile Frosted Bottom Tab Bar (<768px) */}
       <nav
