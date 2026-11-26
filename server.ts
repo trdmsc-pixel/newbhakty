@@ -8,6 +8,7 @@ import { registerPhase5Routes } from "./server/phase5/routes.js";
 import { registerMailRoutes } from "./server/phase6/mail.js";
 import { registerCopilotRoutes } from "./server/phase7/copilot.js";
 import { registerClientRoutes } from "./server/phase8/clients.js";
+import { registerMediaRoutes, uploadSiteMedia } from "./server/media.js";
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -135,7 +136,7 @@ app.use((req, res, next) => {
   app.get("/api/locate", getGeoLocation); // Legacy alias
 
   // ----------------------------------------------------
-  // API ROUTE: GITHUB MEDIA UPLOAD (100% FREE CDN FOR PORTFOLIO)
+  // API ROUTE: SITE MEDIA UPLOAD (Supabase Storage, stable /api/media URLs)
   // ----------------------------------------------------
   app.post("/api/media-upload", async (req, res) => {
     try {
@@ -144,54 +145,20 @@ app.use((req, res, next) => {
         return res.status(400).json({ error: "fileName and fileData are required fields." });
       }
 
-      // Retrieve GitHub PAT token
-      const token = process.env.GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN || "";
-      if (!token) {
-        return res.status(500).json({ error: "GITHUB_TOKEN is not configured on this server environment." });
-      }
-
       // Strip base64 prefix
       let base64Content = fileData;
       if (fileData.includes(";base64,")) {
         base64Content = fileData.split(";base64,").pop();
       }
 
-      // Create collision-resistant filename prefix
-      const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const cleanName = fileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
-      const finalFileName = `${uniqueId}_${cleanName}`;
-
-      const owner = "trdmsc-pixel";
-      const repo = "newbhakty";
-      const branch = "media";
-
-      const uploadUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${finalFileName}`;
-
-      const response = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/vnd.github.v3+json",
-          "Content-Type": "application/json",
-          "User-Agent": "Node.js"
-        },
-        body: JSON.stringify({
-          message: `Upload media asset via portfolio admin panel: ${finalFileName}`,
-          content: base64Content,
-          branch: branch
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.message || "GitHub API media upload error.");
-      }
-
-      const cdnUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${finalFileName}`;
-      return res.json({ url: cdnUrl, success: true });
+      // Site media lives in Supabase Storage ("site-media"), served via the
+      // stable /api/media/<file> route. (The old GitHub "media" branch outgrew
+      // jsDelivr's 50 MB package limit, which broke every video on the site.)
+      const url = await uploadSiteMedia(String(fileName), Buffer.from(base64Content, "base64"));
+      return res.json({ url, success: true });
     } catch (err: any) {
-      console.error("GitHub Media Upload Error:", err);
-      return res.status(500).json({ error: err.message || "Failed to upload file to GitHub CDN." });
+      console.error("Media upload error:", err);
+      return res.status(500).json({ error: err.message || "Failed to upload the file." });
     }
   });
 
@@ -272,6 +239,7 @@ app.use((req, res, next) => {
   registerMailRoutes(app);
   registerCopilotRoutes(app);
   registerClientRoutes(app);
+  registerMediaRoutes(app);
 
   // Serve static UI assets or run Vite middleware
 async function startServer() {

@@ -77,21 +77,21 @@ const SiteDataContext = createContext<SiteDataContextProps | undefined>(undefine
 // Initial fallback/default site settings
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   // Hero Section (Section 5.1 & 8)
-  navbar_logo_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
+  navbar_logo_url: "/api/media/1795139377614-tcs_transparent_logo_maion_logo.png",
   navbar_logo_height: "34",
-  footer_logo_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
+  footer_logo_url: "/api/media/1795139377614-tcs_transparent_logo_maion_logo.png",
   footer_logo_height: "110",
-  logo_img_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1795139377614-tcs_transparent_logo_maion_logo.png",
+  logo_img_url: "/api/media/1795139377614-tcs_transparent_logo_maion_logo.png",
   hero_eyebrow: "AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE",
   hero_title: "Film-scale craft.\nAI-speed delivery.",
   hero_description: "Brand films, AI commercials, trailers and hybrid live-action VFX for brands, agencies and production houses.",
-  hero_loop_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781186188643-uz2iudjbk_seedance_2_0___tv_spot_ad___bmw23__bmw2_create_a_hyper_premium_cinematic_tv_spot_commercial_for_the_4k.webm",
-  hero_poster_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188194291-p22sxzh5f_3_series_exterior_left_front_three_quarter.avif",
+  hero_loop_url: "/api/media/1781186188643-uz2iudjbk_seedance_2_0___tv_spot_ad___bmw23__bmw2_create_a_hyper_premium_cinematic_tv_spot_commercial_for_the_4k.webm",
+  hero_poster_url: "/api/media/1781188194291-p22sxzh5f_3_series_exterior_left_front_three_quarter.avif",
   hero_credit: "BMW 4K TV SPOT • DIRECTED BY THE CHANTING STUDIO",
 
   // Showreel Section (Section 5.2 & 8)
-  showreel_video_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188825650-g9hzeknyz_banner.webm",
-  showreel_poster_url: "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781187896400-j5gl1zley_freepik_high_budget_cinematic_stu_2846789120.jpg",
+  showreel_video_url: "/api/media/1781188825650-g9hzeknyz_banner.webm",
+  showreel_poster_url: "/api/media/1781187896400-j5gl1zley_freepik_high_budget_cinematic_stu_2846789120.jpg",
   showreel_duration: "0:45",
   showreel_aspect: "16:9",
 
@@ -167,6 +167,15 @@ const DEFAULT_MEDIA_ASSETS: MediaAsset[] = [
   }
 ];
 
+// Media used to be served from jsDelivr (GitHub "media" branch). That branch
+// outgrew jsDelivr's 50 MB limit, so media now lives behind /api/media/<file>.
+// Rewrite any old links still held in a visitor's local cache.
+const LEGACY_MEDIA_PREFIX = /https:\/\/cdn\.jsdelivr\.net\/gh\/trdmsc-pixel\/newbhakty@media\//g;
+const readCache = (key: string): string | null => {
+  const raw = localStorage.getItem(key);
+  return raw ? raw.replace(LEGACY_MEDIA_PREFIX, "/api/media/") : raw;
+};
+
 export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [activePage, setActivePage] = useState<"ai" | "live">("ai");
@@ -174,7 +183,7 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Synchronous local storage initializers to eliminate initial rendering flash and timing races
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
     try {
-      const stored = localStorage.getItem("bhakty_site_settings");
+      const stored = readCache("bhakty_site_settings");
       if (stored) {
         const parsed = JSON.parse(stored);
         return { ...DEFAULT_SITE_SETTINGS, ...parsed };
@@ -184,14 +193,14 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
   const [navigationMenu, setNavigationMenu] = useState<NavigationMenuItem[]>(() => {
     try {
-      const stored = localStorage.getItem("bhakty_navigation_menu");
+      const stored = readCache("bhakty_navigation_menu");
       if (stored) return JSON.parse(stored);
     } catch (e) {}
     return DEFAULT_NAVIGATION_MENU;
   });
   const [portfolioWorks, setPortfolioWorks] = useState<VideoBlock[]>(() => {
     try {
-      const stored = localStorage.getItem("bhakty_portfolio_works");
+      const stored = readCache("bhakty_portfolio_works");
       if (stored) return JSON.parse(stored);
     } catch (e) {}
     return PORTFOLIO_VIDEOS.map(w => ({
@@ -201,14 +210,14 @@ export const SiteDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(() => {
     try {
-      const stored = localStorage.getItem("bhakty_pricing_tiers");
+      const stored = readCache("bhakty_pricing_tiers");
       if (stored) return JSON.parse(stored);
     } catch (e) {}
     return PRICING_TIERS;
   });
   const [portfolioTabs, setPortfolioTabs] = useState<PortfolioTab[]>(() => {
     try {
-      const stored = localStorage.getItem("bhakty_portfolio_tabs");
+      const stored = readCache("bhakty_portfolio_tabs");
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;

@@ -247,11 +247,11 @@ function AppContent() {
           loopUrl={
             siteSettings.hero_loop_url ||
             siteSettings.hero_video_bg_url ||
-            "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781186188643-uz2iudjbk_seedance_2_0___tv_spot_ad___bmw23__bmw2_create_a_hyper_premium_cinematic_tv_spot_commercial_for_the_4k.webm"
+            "/api/media/1781186188643-uz2iudjbk_seedance_2_0___tv_spot_ad___bmw23__bmw2_create_a_hyper_premium_cinematic_tv_spot_commercial_for_the_4k.webm"
           }
           posterUrl={
             siteSettings.hero_poster_url ||
-            "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188194291-p22sxzh5f_3_series_exterior_left_front_three_quarter.avif"
+            "/api/media/1781188194291-p22sxzh5f_3_series_exterior_left_front_three_quarter.avif"
           }
           credit={siteSettings.hero_credit || "BMW 4K TV SPOT • DIRECTED BY THE CHANTING STUDIO"}
           onWatchReel={() => setTriggerReelPlay(true)}
@@ -265,11 +265,11 @@ function AppContent() {
           videoUrl={
             siteSettings.showreel_video_url ||
             siteSettings.page2_hero_video_bg_url ||
-            "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781188825650-g9hzeknyz_banner.webm"
+            "/api/media/1781188825650-g9hzeknyz_banner.webm"
           }
           posterUrl={
             siteSettings.showreel_poster_url ||
-            "https://cdn.jsdelivr.net/gh/trdmsc-pixel/newbhakty@media/1781187896400-j5gl1zley_freepik_high_budget_cinematic_stu_2846789120.jpg"
+            "/api/media/1781187896400-j5gl1zley_freepik_high_budget_cinematic_stu_2846789120.jpg"
           }
           duration={siteSettings.showreel_duration || "0:45"}
           aspect={(siteSettings.showreel_aspect as "2.39" | "16:9") || "16:9"}
