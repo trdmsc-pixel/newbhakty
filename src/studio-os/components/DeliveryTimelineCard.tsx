@@ -76,7 +76,8 @@ export const DeliveryTimelineCard: React.FC<{ project: StudioProject; forecast: 
   );
 
   return (
-    <div className="sos-card p-5 space-y-3.5">
+    <div className={`sos-card sos-aurora sos-aurora-glow ${forecast.health === "late" || forecast.health === "at_risk" ? "sos-aurora-amber" : forecast.health === "on_track" ? "sos-aurora-green" : ""} p-5 space-y-3.5 overflow-hidden`}>
+      <span className="sos-orb" style={{ width: 160, height: 160, top: -70, right: -50, background: `radial-gradient(circle, ${forecast.health === "late" || forecast.health === "at_risk" ? "rgba(245,158,11,0.4)" : "rgba(124,92,255,0.4)"}, transparent 70%)` }} />
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-semibold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: "var(--sos-text-3)" }}>
           <CalendarClock className="w-4 h-4" style={{ color: "var(--sos-primary)" }} /> Delivery timeline
@@ -91,11 +92,11 @@ export const DeliveryTimelineCard: React.FC<{ project: StudioProject; forecast: 
         {dateInput("Hard deadline", project.hard_deadline, (v) => updateProject(project.id, { hard_deadline: v }), "The client's absolute deadline")}
       </div>
 
-      <div className="p-3.5 rounded-[14px] space-y-1" style={{ background: "var(--sos-surface-2)" }}>
+      <div className="relative p-3.5 rounded-[14px] space-y-1" style={{ background: "var(--sos-surface-2)" }}>
         <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--sos-text-3)" }}>
           Projected delivery
         </p>
-        <p className="sos-num text-[24px] font-semibold leading-tight" style={{ color: "var(--sos-text-1)" }}>
+        <p key={forecast.forecast_date} className="sos-num sos-pop sos-gradient-text text-[26px] font-semibold leading-tight">
           {fmt(forecast.forecast_date)}
         </p>
         <p className="text-[12px]" style={{ color: forecast.shift_days > 0 ? "#9A4A00" : "var(--sos-text-2)" }}>
@@ -117,7 +118,7 @@ export const DeliveryTimelineCard: React.FC<{ project: StudioProject; forecast: 
             ["Client expected", forecast.projected_client_delay_days, "#9A4A00"],
             ["Studio", forecast.studio_delay_days, "var(--sos-text-2)"],
           ].map(([label, v, c]) => (
-            <div key={label as string} className="p-2 rounded-[12px]" style={{ background: "var(--sos-surface-2)" }}>
+            <div key={label as string} className="sos-brief-item p-2 rounded-[12px]" style={{ background: "var(--sos-surface-2)" }}>
               <p className="sos-num text-[18px] font-semibold" style={{ color: c as string }}>
                 +{Math.round(Number(v))}d
               </p>
@@ -132,7 +133,7 @@ export const DeliveryTimelineCard: React.FC<{ project: StudioProject; forecast: 
       {forecast.reasons.length > 0 && (
         <ul className="space-y-1">
           {forecast.reasons.slice(0, 6).map((r, i) => (
-            <li key={i} className="text-[12px] leading-snug" style={{ color: "var(--sos-text-2)" }}>
+            <li key={i} className="sos-brief-item text-[12px] leading-snug" style={{ color: "var(--sos-text-2)", ["--i" as any]: i }}>
               • {r}
             </li>
           ))}

@@ -191,7 +191,7 @@ const ClientMessages: React.FC<{ client: StudioClient; messages: PortalMessage[]
           return (
             <div key={m.id} className={`flex ${m.from_studio ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] px-3.5 py-2.5 rounded-[16px] text-[13px] ${m.from_studio ? "rounded-br-[6px] text-white" : "rounded-bl-[6px]"}`}
+                className={`sos-bubble max-w-[85%] px-3.5 py-2.5 rounded-[16px] text-[13px] ${m.from_studio ? "sos-bubble-me rounded-br-[6px] text-white" : "rounded-bl-[6px]"}`}
                 style={m.from_studio ? { background: "var(--sos-primary)" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>

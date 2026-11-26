@@ -301,3 +301,96 @@
 
 .studio-os-root .no-scrollbar { scrollbar-width: none; }
 .studio-os-root .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ===================================================================
+   Premium motion layer — list rows, glow panels, shimmer progress,
+   receipts. Shared by Studio OS and the client portal.
+   =================================================================== */
+@keyframes sos-slide-in {
+  from { opacity: 0; transform: translateX(-10px) scale(0.995); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.studio-os-root .sos-rows > * { animation: sos-slide-in 360ms var(--sos-ease) both; animation-delay: calc(var(--i, 0) * 38ms); }
+
+/* List row: lift, soft violet wash and a glowing accent bar on hover. */
+.studio-os-root .sos-row { position: relative; transition: background-color 220ms var(--sos-ease), transform 220ms var(--sos-ease); }
+.studio-os-root .sos-row::before {
+  content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #8B6CFF, #5B3FE4); box-shadow: 0 0 12px rgba(91, 63, 228, 0.55);
+  transform: scaleY(0); transition: transform 260ms var(--sos-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .studio-os-root .sos-row:hover { background: linear-gradient(90deg, rgba(91, 63, 228, 0.07), rgba(91, 63, 228, 0) 70%); transform: translateX(3px); }
+  .studio-os-root .sos-row:hover::before { transform: scaleY(1); }
+  .studio-os-root .sos-row:hover .sos-row-thumb { transform: scale(1.06); box-shadow: 0 6px 18px rgba(91, 63, 228, 0.22); }
+  .studio-os-root .sos-row:hover .sos-row-chevron { transform: translateX(3px); color: var(--sos-primary) !important; }
+}
+.studio-os-root .sos-row-thumb, .studio-os-root .sos-row-chevron { transition: transform 260ms var(--sos-ease), box-shadow 260ms var(--sos-ease), color 200ms; }
+
+/* Gradient progress with a travelling sheen. */
+@keyframes sos-sheen { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+@keyframes sos-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.studio-os-root .sos-bar { position: relative; overflow: hidden; border-radius: 999px; background: var(--sos-surface-2); }
+.studio-os-root .sos-bar > span {
+  position: absolute; inset: 0 auto 0 0; border-radius: inherit; transform-origin: left;
+  background: linear-gradient(90deg, #7C5CFF, #5B3FE4 60%, #3B82F6);
+  box-shadow: 0 0 10px rgba(91, 63, 228, 0.45);
+  animation: sos-fill 900ms var(--sos-ease) both; animation-delay: calc(var(--i, 0) * 38ms + 120ms);
+  overflow: hidden;
+}
+.studio-os-root .sos-bar > span.done { background: linear-gradient(90deg, #22C55E, #17A34A); box-shadow: 0 0 10px rgba(23, 163, 74, 0.4); }
+.studio-os-root .sos-bar > span::after {
+  content: ""; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: sos-sheen 2.8s ease-in-out infinite; animation-delay: 1.2s;
+}
+
+/* Animated aurora border + inner glow for hero panels (brief, delivery). */
+@keyframes sos-aurora { to { --sos-angle: 360deg; } }
+@property --sos-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.studio-os-root .sos-aurora { position: relative; isolation: isolate; }
+.studio-os-root .sos-aurora::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 2;
+  background: conic-gradient(from var(--sos-angle), rgba(124, 92, 255, 0.0), rgba(124, 92, 255, 0.85), rgba(59, 130, 246, 0.7), rgba(236, 72, 153, 0.55), rgba(124, 92, 255, 0.0) 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: sos-aurora 6s linear infinite;
+}
+.studio-os-root .sos-aurora-glow { box-shadow: 0 10px 40px -12px rgba(91, 63, 228, 0.35), 0 2px 6px rgba(15, 17, 21, 0.04); }
+.studio-os-root .sos-aurora-amber::after { background: conic-gradient(from var(--sos-angle), rgba(245, 158, 11, 0), rgba(245, 158, 11, 0.9), rgba(239, 68, 68, 0.6), rgba(245, 158, 11, 0) 70%); }
+.studio-os-root .sos-aurora-green::after { background: conic-gradient(from var(--sos-angle), rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.85), rgba(16, 185, 129, 0.6), rgba(34, 197, 94, 0) 70%); }
+
+/* Soft floating orbs behind a panel. */
+@keyframes sos-float { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(12px, -10px) scale(1.08); } }
+.studio-os-root .sos-orb { position: absolute; border-radius: 999px; filter: blur(28px); opacity: 0.55; pointer-events: none; animation: sos-float 9s ease-in-out infinite; z-index: 0; }
+
+/* Big date: rise + gradient text. */
+@keyframes sos-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.96); } 60% { opacity: 1; transform: translateY(-2px) scale(1.01); } 100% { transform: none; } }
+.studio-os-root .sos-pop { animation: sos-pop 640ms var(--sos-ease) both; }
+.studio-os-root .sos-gradient-text { background: linear-gradient(120deg, var(--sos-text-1) 20%, #5B3FE4 55%, #3B82F6 90%); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+
+/* Live status dot. */
+@keyframes sos-ping { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
+.studio-os-root .sos-live-dot { position: relative; display: inline-block; width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+.studio-os-root .sos-live-dot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: sos-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* Chat bubbles + receipts. */
+@keyframes sos-bubble-in { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+.studio-os-root .sos-bubble { animation: sos-bubble-in 320ms var(--sos-ease) both; transform-origin: bottom; }
+.studio-os-root .sos-bubble-me { background: linear-gradient(135deg, #7C5CFF, #5B3FE4 55%, #4F46E5) !important; box-shadow: 0 6px 18px -6px rgba(91, 63, 228, 0.55); }
+@keyframes sos-tick { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }
+.studio-os-root .sos-tick path { stroke-dasharray: 20; animation: sos-tick 420ms var(--sos-ease) both; }
+.studio-os-root .sos-tick path + path { animation-delay: 140ms; }
+
+/* Segmented toggle pill slides between options. */
+.studio-os-root .sos-seg { position: relative; display: inline-flex; padding: 4px; border-radius: 999px; }
+
+/* Brief list items fade up in sequence. */
+.studio-os-root .sos-brief-item { animation: sos-rise 300ms var(--sos-ease) both; animation-delay: calc(var(--i, 0) * 45ms + 80ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-os-root .sos-rows > *, .studio-os-root .sos-bar > span, .studio-os-root .sos-bar > span::after,
+  .studio-os-root .sos-aurora::after, .studio-os-root .sos-orb, .studio-os-root .sos-pop, .studio-os-root .sos-live-dot::after,
+  .studio-os-root .sos-bubble, .studio-os-root .sos-tick path, .studio-os-root .sos-brief-item { animation: none !important; }
+  .studio-os-root .sos-row, .studio-os-root .sos-row-thumb { transition: none !important; transform: none !important; }
+}
+.studio-os-root .sos-aurora > *:not(.sos-orb) { position: relative; z-index: 1; }

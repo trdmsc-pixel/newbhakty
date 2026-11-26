@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SegToggle } from "../review/SegToggle";
 import { StudioLogo } from "../brand/StudioLogo";
 import { format, parseISO } from "date-fns";
 import {
@@ -153,14 +154,8 @@ const ProgressBar: React.FC<{ value: number; label?: string }> = ({ value, label
       <span>{label || "Progress"}</span>
       <span className="font-semibold" style={{ color: value === 100 ? "#17663F" : "var(--sos-text-2)" }}>{value}%</span>
     </div>
-    <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
-      <motion.div
-        className="h-full rounded-full"
-        style={{ background: value === 100 ? "var(--sos-green)" : "var(--sos-primary)" }}
-        initial={{ width: 0 }}
-        animate={{ width: `${value}%` }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      />
+    <div className="sos-bar h-2 w-full" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+      <span className={value === 100 ? "done" : ""} style={{ width: `${value}%` }} />
     </div>
   </div>
 );
@@ -478,16 +473,19 @@ const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; don
   else if (plannedMoved(project)) note = `Originally planned for ${fmtDate(project.promised_date)}; moved as reviews and revisions took longer than planned.`;
   else if (date) note = "On schedule. The date updates automatically as each stage is approved.";
   else note = "The studio will confirm the delivery date shortly.";
-  const tone = done ? { bg: "#E7F7EE", fg: "#17663F" } : waiting && waitDays >= 2 ? { bg: "#FFF8EE", fg: "#9A4A00" } : { bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)" };
+  const tone = done ? { bg: "#E7F7EE", fg: "#17663F", orb: "rgba(34,197,94,0.45)", cls: "sos-aurora-green" } : waiting && waitDays >= 2 ? { bg: "#FFF8EE", fg: "#9A4A00", orb: "rgba(245,158,11,0.45)", cls: "sos-aurora-amber" } : { bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)", orb: "rgba(124,92,255,0.5)", cls: "" };
   return (
-    <div className="p-5 md:p-6 flex flex-col justify-center gap-2 border-t md:border-t-0 md:border-l" style={{ background: tone.bg, borderColor: "var(--sos-border)" }}>
+    <div className={`sos-aurora ${tone.cls} relative overflow-hidden p-5 md:p-6 flex flex-col justify-center gap-2 border-t md:border-t-0 md:border-l md:rounded-r-[inherit]`} style={{ background: tone.bg, borderColor: "var(--sos-border)" }}>
+      <span className="sos-orb" style={{ width: 200, height: 200, top: -80, right: -70, background: `radial-gradient(circle, ${tone.orb}, transparent 70%)` }} />
+      <span className="sos-orb" style={{ width: 140, height: 140, bottom: -70, left: -30, background: `radial-gradient(circle, ${tone.orb}, transparent 70%)`, animationDelay: "-5s", opacity: 0.35 }} />
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: tone.fg }}>
+        <span className="text-[11px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5" style={{ color: tone.fg }}>
+          {!done && <span className="sos-live-dot" />}
           {done ? (project.closed_at ? "Completed" : "Delivered") : "Expected delivery"}
         </span>
         {!done && <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
       </div>
-      <p className="sos-display text-[30px] font-semibold leading-none sos-tabular" style={{ color: "var(--sos-text-1)" }}>
+      <p key={date || "tbc"} className="sos-display sos-pop sos-gradient-text text-[36px] font-semibold leading-none sos-tabular">
         {date ? format(parseISO(date), "d MMM") : "TBC"}
       </p>
       {date && <p className="text-[13px] font-medium" style={{ color: "var(--sos-text-2)" }}>{format(parseISO(date), "EEEE, yyyy")}</p>}
@@ -496,28 +494,31 @@ const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; don
   );
 };
 
-const ProjectRow: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void }> = ({ project, gates, deliverables, onOpen }) => {
+const ProjectRow: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void; index?: number }> = ({ project, gates, deliverables, onOpen, index = 0 }) => {
   const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
   const badge = portalBadge(project, gates);
   const progress = projectProgress(project, gates);
   const date = done ? null : milestoneDate(project);
   return (
-    <button type="button" onClick={onOpen} className="w-full text-left flex items-center gap-3 px-3.5 py-3 hover:bg-black/[0.02] transition-colors">
-      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="w-16 h-11 rounded-[10px] shrink-0" style={{ background: "var(--sos-violet-soft)" }} />
+    <button type="button" onClick={onOpen} className="sos-row w-full text-left flex items-center gap-3.5 px-4 py-3.5" style={{ ["--i" as any]: Math.min(index, 14) }}>
+      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="sos-row-thumb w-[72px] h-12 rounded-[12px] shrink-0 overflow-hidden" style={{ background: "var(--sos-violet-soft)" }} />
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
         <div className="flex items-center gap-2 mt-1">
-          <div className="h-1.5 w-20 sm:w-28 rounded-full overflow-hidden shrink-0" style={{ background: "var(--sos-surface-2)" }}>
-            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: progress === 100 ? "var(--sos-green)" : "var(--sos-primary)" }} />
+          <div className="sos-bar h-1.5 w-20 sm:w-28 shrink-0" style={{ ["--i" as any]: Math.min(index, 14) }}>
+            <span className={progress === 100 ? "done" : ""} style={{ width: `${progress}%` }} />
           </div>
           <span className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
             {TYPE_LABEL[project.type] || "Project"} · {done ? (project.closed_at ? "Completed" : "Delivered") : project.current_stage || "Getting started"}
           </span>
         </div>
       </div>
-      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0" style={{ background: badge.bg, color: badge.fg }}>{badge.label}</span>
+      <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0" style={{ background: badge.bg, color: badge.fg }}>
+        {gates.some((g) => g.status === "waiting_on_client") && <span className="sos-live-dot" />}
+        {badge.label}
+      </span>
       <span className="text-[13px] font-semibold sos-tabular shrink-0 w-[70px] text-right" style={{ color: "var(--sos-text-1)" }}>{date ? fmtDate(date).replace(/ \d{4}$/, "") : "—"}</span>
-      <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
+      <ChevronRight className="sos-row-chevron w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
     </button>
   );
 };
@@ -1098,8 +1099,8 @@ const ProjectView: React.FC<{
         <ArrowLeft className="w-4 h-4" /> All projects
       </button>
 
-      <div className="sos-card overflow-hidden">
-        <div className="grid md:grid-cols-[1fr_300px]">
+      <motion.div className="sos-card overflow-hidden" initial={{ opacity: 0, y: 14, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+        <div className="grid md:grid-cols-[1fr_320px]">
           <div className="p-5 md:p-6 space-y-4 min-w-0">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>
@@ -1127,7 +1128,7 @@ const ProjectView: React.FC<{
           </div>
           <DeliveryPanel project={project} gates={gates} done={done} />
         </div>
-      </div>
+      </motion.div>
 
       {(project.closed_at || deliverables.some((d) => d.is_final)) && (
         <FinalDelivery
@@ -1522,12 +1523,8 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                       <option value="due">Delivery date</option>
                       <option value="name">Name</option>
                     </select>
-                    <div className="inline-flex p-1 rounded-full border h-11 items-center shrink-0" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)" }} role="tablist" aria-label="View">
-                      {(["list", "cards"] as const).map((m) => (
-                        <button key={m} type="button" role="tab" aria-selected={listMode === m} onClick={() => setListMode(m)} className="h-8 px-3.5 rounded-full text-[13px] font-semibold capitalize" style={listMode === m ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)" } : { color: "var(--sos-text-2)" }}>
-                          {m}
-                        </button>
-                      ))}
+                    <div className="shrink-0 self-start sm:self-auto">
+                      <SegToggle id="portal-list-mode" value={listMode} onChange={setListMode} options={[{ id: "list", label: "List" }, { id: "cards", label: "Cards" }]} />
                     </div>
                   </div>
                 </div>
@@ -1542,13 +1539,13 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   <button type="button" onClick={() => { setListFilter("all"); setListQuery(""); }} style={{ color: "var(--sos-primary)" }}>Show all</button>
                 </div>
               ) : listMode === "list" ? (
-                <div className="sos-card overflow-hidden divide-y" style={{ borderColor: "var(--sos-border)" }}>
-                  {visibleProjects.map((p) => (
-                    <ProjectRow key={p.id} project={p} gates={gates.filter((g) => g.project_id === p.id)} deliverables={deliverables.filter((d) => d.project_id === p.id)} onOpen={() => setSelected(p.id)} />
+                <div key={`${listFilter}-${listSort}`} className="sos-card overflow-hidden divide-y sos-rows" style={{ borderColor: "var(--sos-border)" }}>
+                  {visibleProjects.map((p, i) => (
+                    <ProjectRow key={p.id} index={i} project={p} gates={gates.filter((g) => g.project_id === p.id)} deliverables={deliverables.filter((d) => d.project_id === p.id)} onOpen={() => setSelected(p.id)} />
                   ))}
                 </div>
               ) : (
-                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sos-stagger">
                   {visibleProjects.map((p) => (
                     <ProjectCard
                       key={p.id}

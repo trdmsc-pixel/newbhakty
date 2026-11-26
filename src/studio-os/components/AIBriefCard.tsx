@@ -85,13 +85,14 @@ export const AIBriefCard: React.FC = () => {
 
   const List: React.FC<{ title: string; rows: Array<{ project: string; pid?: string; text: string; note?: string }>; tone?: string; icon?: React.ReactNode }> = ({ title, rows, tone, icon }) =>
     rows.length ? (
-      <div className="space-y-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--sos-text-3)" }}>
+      <div className="space-y-0.5 p-3 rounded-[16px]" style={{ background: "color-mix(in srgb, var(--sos-surface) 70%, transparent)", backdropFilter: "blur(6px)" }}>
+        <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1" style={{ color: tone || "var(--sos-text-3)" }}>
           {icon}
           {title}
+          <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>{rows.length}</span>
         </p>
         {rows.map((r, i) => (
-          <button key={i} type="button" onClick={() => r.pid && openProject(r.pid)} className="w-full text-left text-[13px] leading-snug flex items-baseline gap-1.5 hover:opacity-80" style={{ color: "var(--sos-text-1)" }}>
+          <button key={i} type="button" onClick={() => r.pid && openProject(r.pid)} className="sos-brief-item sos-row w-full text-left text-[13px] leading-snug flex items-baseline gap-1.5 px-2 py-1.5 -mx-2 rounded-[10px]" style={{ color: "var(--sos-text-1)", ["--i" as any]: i }}>
             {r.project && <span className="font-semibold sos-tabular shrink-0" style={{ color: "var(--sos-primary)" }}>{r.project}</span>}
             <span className="min-w-0">
               {r.text}
@@ -105,14 +106,17 @@ export const AIBriefCard: React.FC = () => {
   const empty = !brief.focus.length && !brief.waiting.length && !brief.risks.length && !brief.deadlines.length && !brief.replies.length;
 
   return (
-    <section className="sos-card p-5 md:p-6 space-y-3">
+    <section className="sos-card sos-aurora sos-aurora-glow p-5 md:p-6 space-y-3 overflow-hidden">
+      <span className="sos-orb" style={{ width: 220, height: 220, top: -90, right: -60, background: "radial-gradient(circle, rgba(124,92,255,0.45), transparent 70%)" }} />
+      <span className="sos-orb" style={{ width: 180, height: 180, bottom: -90, left: -40, background: "radial-gradient(circle, rgba(59,130,246,0.35), transparent 70%)", animationDelay: "-4s" }} />
+      <div className="relative z-[1] space-y-3">
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2.5 min-w-0 text-left">
-          <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-surface-2)", color: "var(--sos-primary)" }}>
+          <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4 60%, #3B82F6)", boxShadow: "0 6px 18px -6px rgba(91,63,228,0.7)" }}>
             <Sparkles className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+            <h2 className="sos-display text-[19px] font-semibold sos-gradient-text">
               Today's brief
             </h2>
             <p className="text-[13px] truncate" style={{ color: "var(--sos-text-2)" }}>{brief.headline || "All quiet"}</p>
@@ -128,7 +132,7 @@ export const AIBriefCard: React.FC = () => {
       {open && (
         <>
           {empty && <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>Nothing urgent — no overdue tasks, approvals or risks today.</p>}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <List title="Focus today" rows={brief.focus} tone="#B42318" />
             <List title="Waiting on clients" rows={brief.waiting} tone="#9A4A00" />
             <List title="Timeline risks" rows={brief.risks} tone="#9A4A00" />
@@ -136,6 +140,7 @@ export const AIBriefCard: React.FC = () => {
             <List title="Replies & promises" rows={brief.replies} />
           </div>
           {error && <p className="text-[12px] px-3 py-2 rounded-[10px]" style={{ background: "#FFF3E0", color: "#9A4A00" }}>{error}</p>}
+          {busy && !ai && <div className="sos-bar h-1"><span style={{ width: "100%" }} /></div>}
           {ai && (
             <div className="p-3.5 rounded-[14px] space-y-3" style={{ background: "var(--sos-surface-2)" }}>
               <p className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>✨ {ai.headline}</p>
@@ -148,6 +153,7 @@ export const AIBriefCard: React.FC = () => {
           )}
         </>
       )}
+      </div>
     </section>
   );
 };

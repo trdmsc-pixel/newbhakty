@@ -412,8 +412,23 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
           Write to the studio anytime. {status.open ? "The studio is open now — expect a reply soon." : `The studio is closed right now (${status.detail.replace(/^Back |^Opens /, "back ")}); we'll reply when we're in.`}
         </p>
       </div>
-      <div className="sos-card p-4 md:p-5 space-y-4">
-        <div className="max-h-[52vh] min-h-[200px] overflow-y-auto space-y-2.5 pr-1">
+      <div className="sos-card sos-aurora sos-aurora-glow overflow-hidden">
+        <span className="sos-orb" style={{ width: 240, height: 240, top: -110, right: -80, background: "radial-gradient(circle, rgba(124,92,255,0.35), transparent 70%)" }} />
+        <div className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-b" style={{ borderColor: "var(--sos-border)", background: "color-mix(in srgb, var(--sos-surface) 75%, transparent)", backdropFilter: "blur(10px)" }}>
+          <span className="relative w-10 h-10 rounded-full flex items-center justify-center text-white text-[13px] font-bold shrink-0" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4 60%, #3B82F6)", boxShadow: "0 6px 16px -6px rgba(91,63,228,0.7)" }}>
+            TCS
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: "var(--sos-surface)", background: status.open ? "#22C55E" : "#F59E0B", color: status.open ? "#22C55E" : "#F59E0B" }}>
+              {status.open && <span className="sos-live-dot" style={{ width: 6, height: 6, color: "#22C55E" }} />}
+            </span>
+          </span>
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>The Chanting Studio</p>
+            <p className="text-[12px] truncate" style={{ color: status.open ? "#17663F" : "#9A4A00" }}>{status.open ? "Online now · usually replies within the hour" : `Away · ${status.detail}`}</p>
+          </div>
+          <span className="ml-auto text-[11px] hidden sm:inline" style={{ color: "var(--sos-text-3)" }}>✓ sent · ✓✓ delivered · <span style={{ color: "#1D9BF0" }}>✓✓ read</span></span>
+        </div>
+        <div className="p-4 md:p-5 space-y-4">
+        <div className="max-h-[52vh] min-h-[220px] overflow-y-auto space-y-2.5 pr-1">
           {messages.length === 0 && (
             <div className="h-[200px] flex flex-col items-center justify-center text-center gap-2" style={{ color: "var(--sos-text-3)" }}>
               <MessageSquare className="w-6 h-6" />
@@ -421,12 +436,24 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
             </div>
           )}
           <AnimatePresence initial={false}>
-            {messages.map((m) => {
+            {messages.map((m, idx) => {
               const proj = projects.find((p) => p.id === m.project_id);
+              const dayKey = new Date(m.created_at).toDateString();
+              const newDay = idx === 0 || new Date(messages[idx - 1].created_at).toDateString() !== dayKey;
               return (
+                <React.Fragment key={m.id}>
+                {newDay && (
+                  <div className="flex items-center gap-3 py-1.5">
+                    <span className="flex-1 h-px" style={{ background: "var(--sos-border)" }} />
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>
+                      {dayKey === new Date().toDateString() ? "Today" : new Date(m.created_at).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}
+                    </span>
+                    <span className="flex-1 h-px" style={{ background: "var(--sos-border)" }} />
+                  </div>
+                )}
                 <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: EASE }} className={`flex ${m.from_studio ? "justify-start" : "justify-end"}`}>
                   <div
-                    className={`max-w-[85%] px-4 py-2.5 rounded-[18px] text-[14px] ${m.from_studio ? "rounded-bl-[6px]" : "rounded-br-[6px] text-white"}`}
+                    className={`sos-bubble max-w-[85%] px-4 py-2.5 rounded-[18px] text-[14px] ${m.from_studio ? "rounded-bl-[6px]" : "sos-bubble-me rounded-br-[6px] text-white"}`}
                     style={m.from_studio ? { background: "var(--sos-surface-2)", color: "var(--sos-text-1)" } : { background: "var(--sos-primary)" }}
                   >
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
@@ -439,6 +466,7 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
                     </p>
                   </div>
                 </motion.div>
+                </React.Fragment>
               );
             })}
           </AnimatePresence>
@@ -466,11 +494,12 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
               style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
               aria-label="Message"
             />
-            <button type="button" disabled={busy || !text.trim()} onClick={send} className="w-12 h-12 rounded-full flex items-center justify-center text-white disabled:opacity-40 shrink-0" style={{ background: "var(--sos-primary)" }} aria-label="Send">
+            <button type="button" disabled={busy || !text.trim()} onClick={send} className="w-12 h-12 rounded-full flex items-center justify-center text-white disabled:opacity-40 shrink-0 transition-transform duration-200 hover:scale-105 active:scale-95" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4 60%, #3B82F6)", boxShadow: text.trim() ? "0 8px 22px -8px rgba(91,63,228,0.8)" : "none" }} aria-label="Send">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
           {error && <p className="text-[13px] px-3.5 py-2.5 rounded-[12px]" style={{ background: "var(--sos-danger-bg)", color: "var(--sos-danger-text)" }}>{error}</p>}
+        </div>
         </div>
       </div>
     </div>

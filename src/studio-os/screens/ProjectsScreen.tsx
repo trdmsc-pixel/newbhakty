@@ -1,4 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SegToggle } from "../../review/SegToggle";
+import { AnimatePresence, motion } from "motion/react";
+
+const STATUS_ORDER: StudioProject["status"][] = ["lead", "quoted", "active", "on_hold", "parked", "delivered", "paid", "lost"];
+const STATUS_LABEL: Record<string, string> = { lead: "Lead", quoted: "Quoted", active: "Active", on_hold: "On hold", parked: "Parked", delivered: "Done · delivered", paid: "Paid", lost: "Lost / scrapped" };
 import { GmailScanButton } from "../components/GmailScanButton";
 import { supabase } from "../../lib/supabase";
 import { ProjectThumb, thumbCandidates, type DeliverableLike } from "../../review/ProjectThumb";
@@ -24,7 +29,22 @@ import { useStudioOS } from "../StudioOSContext";
 import { HealthPill } from "../components/StatusChip";
 
 export const ProjectsScreen: React.FC = () => {
-  const { projects, clients, gates, tasks, openProject, setNewProjectOpen } = useStudioOS();
+  const { projects, clients, gates, tasks, openProject, setNewProjectOpen, updateProject, pushToast } = useStudioOS();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSel = (id: string) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const setStatus = (ids: string[], status: StudioProject["status"]) => {
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const closing = status === "delivered" || status === "paid";
+      updateProject(id, closing ? { status, closed_at: now, health: "on_track" } : status === "active" ? { status, closed_at: undefined } : { status });
+    }
+    pushToast(`${ids.length} project${ids.length > 1 ? "s" : ""} → ${STATUS_LABEL[status]}`, "success");
+  };
   const { supabaseSyncStatus } = useStudioOS();
   const [filter, setFilter] = useState<"active" | "pipeline" | "delivered" | "all">("active");
   const [mode, setModeState] = useState<"cards" | "list">(() => {
@@ -135,19 +155,15 @@ export const ProjectsScreen: React.FC = () => {
               </option>
             ))}
         </select>
-        <div className="inline-flex p-1 rounded-full ml-auto" style={{ background: "var(--sos-surface-2)" }}>
-          {(["list", "cards"] as const).map((m) => (
-            <button key={m} type="button" onClick={() => setMode(m)} className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold capitalize" style={{ background: mode === m ? "var(--sos-surface)" : "transparent", color: mode === m ? "var(--sos-text-1)" : "var(--sos-text-2)" }}>
-              {m}
-            </button>
-          ))}
+        <div className="ml-auto">
+          <SegToggle id="sos-projects-mode" size="sm" value={mode} onChange={setMode} options={[{ id: "list", label: "List" }, { id: "cards", label: "Cards" }]} />
         </div>
       </div>
 
       {mode === "list" && (
-        <div className="sos-card overflow-hidden divide-y" style={{ borderColor: "var(--sos-border)" }}>
+        <div key={`${filter}-${clientFilter}`} className="sos-card overflow-hidden divide-y sos-rows" style={{ borderColor: "var(--sos-border)" }}>
           {filtered.length === 0 && <p className="p-5 text-[13px]" style={{ color: "var(--sos-text-3)" }}>No projects here.</p>}
-          {filtered.map((p) => {
+          {filtered.map((p, idx) => {
             const client = clients.find((c) => c.id === p.client_id);
             const pGates = gates.filter((g) => g.project_id === p.id);
             const approved = pGates.filter((g) => g.status === "approved" || g.status === "skipped").length;
@@ -158,22 +174,39 @@ export const ProjectsScreen: React.FC = () => {
             const due = p.forecast_date || p.promised_date || p.hard_deadline;
             const waiting = current?.status === "waiting_on_client";
             return (
-              <button key={p.id} type="button" onClick={() => openProject(p.id)} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-black/[0.02]" style={{ borderColor: "var(--sos-border)" }}>
-                <ProjectThumb candidates={thumbCandidates(p.cover_image_url, deliverables[p.id] || [])} resolveUrl={resolveStudioReviewUrl} emoji={p.emoji} className="w-14 h-10 rounded-[10px] shrink-0" style={{ background: "var(--sos-surface-2)" }} />
+              <div
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openProject(p.id)}
+                onKeyDown={(e) => e.key === "Enter" && openProject(p.id)}
+                className="sos-row w-full text-left flex items-center gap-3.5 px-4 py-3.5 cursor-pointer"
+                style={{ borderColor: "var(--sos-border)", ["--i" as any]: Math.min(idx, 14), background: selected.has(p.id) ? "rgba(91,63,228,0.07)" : undefined }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleSel(p.id)}
+                  className="w-4 h-4 shrink-0 accent-[#5B3FE4] cursor-pointer"
+                  aria-label={`Select ${p.code}`}
+                />
+                <ProjectThumb candidates={thumbCandidates(p.cover_image_url, deliverables[p.id] || [])} resolveUrl={resolveStudioReviewUrl} emoji={p.emoji} className="sos-row-thumb w-16 h-11 rounded-[12px] shrink-0 overflow-hidden" style={{ background: "var(--sos-surface-2)" }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[11px] font-bold sos-tabular shrink-0" style={{ color: "var(--sos-primary)" }}>{p.code}</span>
                     <span className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{p.title}</span>
                     {p.is_confidential && <Lock className="w-3 h-3 shrink-0 text-[#5B3FE4]" />}
                   </div>
-                  <p className="text-[12px] truncate" style={{ color: waiting ? "#9A4A00" : "var(--sos-text-3)" }}>
+                  <p className="text-[12px] truncate flex items-center gap-1.5" style={{ color: waiting ? "#9A4A00" : "var(--sos-text-3)" }}>
+                    {waiting && <span className="sos-live-dot shrink-0" style={{ color: "#F59E0B" }} />}
                     {client?.name || "—"} · {current ? `${current.name}${waiting ? " · waiting on client" : ""}` : "All stages done"}
                     {openTaskCount ? ` · ${openTaskCount} open` : ""}
                   </p>
                 </div>
                 <div className="hidden sm:block w-28 shrink-0">
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--sos-primary)" }} />
+                  <div className="sos-bar h-1.5" style={{ ["--i" as any]: Math.min(idx, 14) }}>
+                    <span className={pct === 100 ? "done" : ""} style={{ width: `${pct}%` }} />
                   </div>
                   <p className="text-[10px] mt-1 sos-tabular" style={{ color: "var(--sos-text-3)" }}>{approved}/{pGates.length} stages</p>
                 </div>
@@ -181,12 +214,63 @@ export const ProjectsScreen: React.FC = () => {
                   <p className="text-[13px] font-semibold sos-tabular" style={{ color: "var(--sos-text-1)" }}>{due ? format(parseISO(due), "d MMM") : "—"}</p>
                   <HealthPill health={p.health} />
                 </div>
-                <span className="hidden md:inline px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0" style={{ background: badge.bg, color: badge.fg }}>{badge.label}</span>
-              </button>
+                <select
+                  value={p.status}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setStatus([p.id], e.target.value as StudioProject["status"])}
+                  className="hidden md:block h-8 pl-2.5 pr-7 rounded-full border text-[11px] font-bold shrink-0 cursor-pointer"
+                  style={{ background: badge.bg, color: badge.fg, borderColor: "transparent" }}
+                  aria-label={`Status of ${p.code}`}
+                  title="Change status"
+                >
+                  {STATUS_ORDER.map((st) => (
+                    <option key={st} value={st}>{STATUS_LABEL[st]}</option>
+                  ))}
+                </select>
+              </div>
             );
           })}
         </div>
       )}
+
+      <AnimatePresence>
+        {selected.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-2 pl-4 pr-2 py-2 rounded-full text-[13px] font-medium max-w-[calc(100vw-24px)]"
+            style={{ background: "#16181D", color: "#fff", boxShadow: "0 18px 50px -12px rgba(91,63,228,0.55), 0 0 0 1px rgba(255,255,255,0.06)" }}
+          >
+            <span className="font-semibold">{selected.size} selected</span>
+            <button type="button" onClick={() => setSelected(new Set(filtered.map((p) => p.id)))} className="h-8 px-3 rounded-full text-[12px] hover:bg-white/10">Select all ({filtered.length})</button>
+            <select
+              value=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setStatus([...selected], e.target.value as StudioProject["status"]);
+                setSelected(new Set());
+              }}
+              className="h-8 pl-3 pr-7 rounded-full text-[12px] font-semibold cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+              aria-label="Set status for selected"
+            >
+              <option value="" style={{ color: "#000" }}>Set status…</option>
+              {STATUS_ORDER.map((st) => (
+                <option key={st} value={st} style={{ color: "#000" }}>{STATUS_LABEL[st]}</option>
+              ))}
+            </select>
+            <button type="button" onClick={() => { setStatus([...selected], "delivered"); setSelected(new Set()); }} className="h-8 px-3.5 rounded-full text-[12px] font-semibold" style={{ background: "linear-gradient(135deg, #22C55E, #17A34A)" }}>
+              ✓ Mark done
+            </button>
+            <button type="button" onClick={() => { if (window.confirm(`Mark ${selected.size} project(s) as lost / scrapped?`)) { setStatus([...selected], "lost"); setSelected(new Set()); } }} className="h-8 px-3.5 rounded-full text-[12px] font-semibold" style={{ background: "rgba(239,68,68,0.9)" }}>
+              Scrap
+            </button>
+            <button type="button" onClick={() => setSelected(new Set())} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10" aria-label="Clear selection">✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Poster Cards Grid */}
       {mode === "cards" && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sos-stagger">
