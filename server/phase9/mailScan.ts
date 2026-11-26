@@ -95,7 +95,7 @@ function isOwn(email: string, accountEmails: string[]) {
   return accountEmails.includes(email) || OWN_DOMAINS.has(d) || accountEmails.some((a) => !GENERIC_DOMAINS.has(domainOf(a)) && domainOf(a) === d);
 }
 
-function findClient(ctx: StudioCtx, name?: string, emails: string[] = []) {
+export function findClient(ctx: StudioCtx, name?: string, emails: string[] = []) {
   const n = norm(name || "");
   for (const e of emails) {
     const byContact = ctx.clients.find((c) => c.contacts.some((ct) => (ct.email || "").toLowerCase() === e));
@@ -110,10 +110,11 @@ function findClient(ctx: StudioCtx, name?: string, emails: string[] = []) {
   return null;
 }
 
-async function createClient(
+export async function createClient(
   sb: SupabaseClient,
   ctx: StudioCtx,
-  c: { name: string; organisation?: string; email_domain?: string; notes?: string; contacts?: Array<{ name?: string; email?: string; role?: string; phone?: string }> }
+  c: { name: string; organisation?: string; email_domain?: string; notes?: string; contacts?: Array<{ name?: string; email?: string; role?: string; phone?: string }> },
+  origin = "Gmail scan"
 ) {
   const domain = (c.email_domain || domainOf(c.contacts?.[0]?.email || "")).toLowerCase();
   const { data: client, error } = await sb
@@ -122,7 +123,7 @@ async function createClient(
       name: c.name.slice(0, 120),
       organisation: (c.organisation || c.name).slice(0, 160),
       email_domains: domain && !GENERIC_DOMAINS.has(domain) ? [domain] : [],
-      notes: [c.notes, "Created from Gmail scan."].filter(Boolean).join("\n").slice(0, 1000),
+      notes: [c.notes, `Created from ${origin}.`].filter(Boolean).join("\n").slice(0, 1000),
     })
     .select("id, name, organisation, email_domains, timezone, is_confidential")
     .single();
@@ -140,11 +141,11 @@ async function createClient(
   }
   const row = { ...(client as any), email_domains: (client as any).email_domains || [], contacts };
   ctx.clients.push(row);
-  await logActivity(sb, { actor: "ai", actorName: "Gmail scan", entityType: "client", entityId: client.id, action: `Added client ${client.name} from Gmail` });
+  await logActivity(sb, { actor: "ai", actorName: origin, entityType: "client", entityId: client.id, action: `Added client ${client.name} (${origin})` });
   return row;
 }
 
-async function uniqueCode(sb: SupabaseClient, seed: string): Promise<string> {
+export async function uniqueCode(sb: SupabaseClient, seed: string): Promise<string> {
   const letters = seed.toUpperCase().replace(/[^A-Z]/g, "");
   const base = (letters.slice(0, 3) || "PRJ").padEnd(3, "X");
   const { data } = await sb.from("studio_projects").select("code");
@@ -157,8 +158,8 @@ async function uniqueCode(sb: SupabaseClient, seed: string): Promise<string> {
   return `P${Date.now().toString(36).slice(-4).toUpperCase()}`;
 }
 
-const TYPES = ["ad_film", "explainer", "music_video", "series", "trailer", "reel", "own_film", "internal"];
-const STATUSES = ["lead", "quoted", "active", "on_hold", "delivered"];
+export const TYPES = ["ad_film", "explainer", "music_video", "series", "trailer", "reel", "own_film", "internal"];
+export const STATUSES = ["lead", "quoted", "active", "on_hold", "delivered"];
 const isDate = (s: any) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 async function ask(system: string, prompt: string) {
@@ -187,6 +188,55 @@ function mailBlock(digests: Digest[], accountEmails: string[]) {
       text: d.text,
     }))
   );
+}
+
+/** Create a project with the standard stages for its type. Returns { id, code, gates }. */
+export async function createProjectWithGates(
+  sb: SupabaseClient,
+  ctx: StudioCtx,
+  p: { title: string; client: { id: string; name: string }; type?: string; status?: string; hard_deadline?: string | null; promised_date?: string | null; priority?: string }
+) {
+  const id = crypto.randomUUID();
+  const code = await uniqueCode(sb, p.client.name);
+  const type = TYPES.includes(String(p.type)) ? String(p.type) : "ad_film";
+  const status = STATUSES.includes(String(p.status)) ? String(p.status) : "lead";
+  const { error } = await sb.from("studio_projects").insert({
+    id,
+    code,
+    title: String(p.title).slice(0, 120),
+    client_id: p.client.id,
+    type,
+    status,
+    priority: ["p1", "p2", "p3"].includes(String(p.priority)) ? p.priority : "p2",
+    hard_deadline: isDate(p.hard_deadline) ? p.hard_deadline : null,
+    promised_date: isDate(p.promised_date) ? p.promised_date : null,
+    owner_member_id: ctx.ownerMemberId,
+    emoji: status === "lead" ? "✉️" : "🎬",
+    last_client_touch_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(error.message);
+  const template = type === "music_video" ? "music_video" : type === "series" ? "series_episode" : type === "internal" ? "internal" : "film";
+  const active = status === "active";
+  const gates = createGatesFromTemplate(id, template as any, 0).map((g) => ({
+    id: g.id,
+    project_id: id,
+    order_index: g.order_index,
+    code: g.code,
+    name: g.name,
+    needs_client_approval: g.needs_client_approval,
+    estimate_days: g.estimate_days,
+    status: g.order_index === 0 && active ? "in_work" : "not_started",
+    started_at: g.order_index === 0 && active ? new Date().toISOString() : null,
+    revisions_included: g.revisions_included,
+    portal_visible: g.portal_visible,
+  }));
+  if (gates.length) {
+    await sb.from("studio_gates").insert(gates);
+    await sb.from("studio_projects").update({ current_gate_id: gates[0].id }).eq("id", id);
+  }
+  ctx.projects.push({ id, code, title: p.title, client_id: p.client.id, status, is_confidential: false, fee_amount: null, current_gate_id: gates[0]?.id || null, hard_deadline: null, promised_date: null, forecast_date: null });
+  await recomputeProjectForecast(id).catch(() => null);
+  return { id, code, status, gates };
 }
 
 export function registerMailScanRoutes(app: Express) {
@@ -272,47 +322,14 @@ Find NEW production projects (a brief, an enquiry for a film/ad/music video/seri
             skipped.push(`${p.title} (no client found)`);
             continue;
           }
-          const id = crypto.randomUUID();
-          const code = await uniqueCode(sb, client.name);
-          const type = TYPES.includes(p.type) ? p.type : "ad_film";
-          const status = STATUSES.includes(p.status) ? p.status : "lead";
-          const { error } = await sb.from("studio_projects").insert({
-            id,
-            code,
-            title: String(p.title).slice(0, 120),
-            client_id: client.id,
-            type,
-            status,
-            priority: "p2",
-            hard_deadline: isDate(p.hard_deadline) ? p.hard_deadline : null,
-            owner_member_id: ctx.ownerMemberId,
-            emoji: status === "lead" ? "✉️" : "🎬",
-            last_client_touch_at: new Date().toISOString(),
-          });
-          if (error) {
-            skipped.push(`${p.title} (${error.message})`);
+          let made: { id: string; code: string; status: string };
+          try {
+            made = await createProjectWithGates(sb, ctx, { title: p.title, client, type: p.type, status: p.status, hard_deadline: p.hard_deadline });
+          } catch (e: any) {
+            skipped.push(`${p.title} (${e?.message || "error"})`);
             continue;
           }
-          const template = type === "music_video" ? "music_video" : type === "series" ? "series_episode" : type === "internal" ? "internal" : "film";
-          const active = status === "active";
-          const gates = createGatesFromTemplate(id, template as any, 0).map((g) => ({
-            id: g.id,
-            project_id: id,
-            order_index: g.order_index,
-            code: g.code,
-            name: g.name,
-            needs_client_approval: g.needs_client_approval,
-            estimate_days: g.estimate_days,
-            status: g.order_index === 0 && active ? "in_work" : "not_started",
-            started_at: g.order_index === 0 && active ? new Date().toISOString() : null,
-            revisions_included: g.revisions_included,
-            portal_visible: g.portal_visible,
-          }));
-          if (gates.length) {
-            await sb.from("studio_gates").insert(gates);
-            await sb.from("studio_projects").update({ current_gate_id: gates[0].id }).eq("id", id);
-          }
-          ctx.projects.push({ id, code, title: p.title, client_id: client.id, status, is_confidential: false, fee_amount: null, current_gate_id: gates[0]?.id || null, hard_deadline: null, promised_date: null, forecast_date: null });
+          const { id, code, status } = made;
           // Link the source threads to the project for Mail / the brief.
           const threadIds = (p.thread_ids || []).filter((x: any) => typeof x === "string").slice(0, 10);
           if (threadIds.length) await sb.from("studio_email_threads").update({ project_id: id, client_id: client.id }).in("thread_id", threadIds);
@@ -328,7 +345,6 @@ Find NEW production projects (a brief, an enquiry for a film/ad/music video/seri
               channel: "gmail",
             }).catch(() => null);
           }
-          await recomputeProjectForecast(id).catch(() => null);
           await logActivity(sb, { actor: "ai", actorName: "Gmail scan", entityType: "project", entityId: id, action: `Created ${code} — ${p.title} from Gmail` });
           created.push({ kind: "project", label: `${code} — ${p.title} (${client.name}, ${status})`, id });
         }

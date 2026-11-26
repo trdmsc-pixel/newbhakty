@@ -22,6 +22,7 @@ interface IngestToken {
   token_hint: string | null;
   last_used_at: string | null;
   created_at: string;
+  scope?: string;
 }
 
 const EXPECTED_ACCOUNTS = ["shyam@thechantingstudio.in", "studio@thechantingstudio.in", "accounts@thechantingstudio.in"];
@@ -135,7 +136,7 @@ export const AutomationSettings: React.FC = () => {
         .select("id, email, label, is_personal, connected_at, needs_reconnect, last_sync_at, last_error, messages_processed, is_active, granted_scopes")
         .is("archived_at", null)
         .order("email"),
-      supabase.from("studio_ingest_tokens").select("id, label, token_hint, last_used_at, created_at").is("revoked_at", null).order("created_at", { ascending: false }),
+      supabase.from("studio_ingest_tokens").select("id, label, token_hint, last_used_at, created_at, scope").is("revoked_at", null).order("created_at", { ascending: false }),
     ]);
     setAccounts((acc || []) as GmailAccount[]);
     setTokens((tok || []) as IngestToken[]);
@@ -178,6 +179,20 @@ export const AutomationSettings: React.FC = () => {
       load();
     } catch (err: any) {
       pushToast(err?.message || "Could not create token", "warn");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const [claudeUrl, setClaudeUrl] = useState("");
+  const createClaudeLink = async () => {
+    setBusy("claude");
+    try {
+      const res = await studioApi<IngestToken & { token: string }>("/api/studio-os/ingest-tokens", { body: { label: "Claude connector", scope: "claude" } });
+      setClaudeUrl(`${window.location.origin}/api/mcp/${res.token}`);
+      load();
+    } catch (err: any) {
+      pushToast(err?.message || "Could not create the Claude link", "warn");
     } finally {
       setBusy(null);
     }
@@ -394,6 +409,52 @@ export const AutomationSettings: React.FC = () => {
         {accounts.length > 0 && <SignaturesEditor />}
       </section>
 
+      {/* Claude connector (MCP) */}
+      <section className="sos-card p-6 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          {sectionTitle(<Bot className="w-4 h-4" style={{ color: "var(--sos-primary)" }} />, "Connect Claude", "Let Claude (claude.ai) read and update your clients, projects and tasks from your chats.")}
+          <button
+            type="button"
+            disabled={busy === "claude"}
+            onClick={createClaudeLink}
+            className="sos-pill-btn h-9 px-4 text-[13px] font-semibold text-white inline-flex items-center gap-1.5 disabled:opacity-60"
+            style={{ background: "var(--sos-primary)" }}
+          >
+            {busy === "claude" ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Create Claude link
+          </button>
+        </div>
+        {claudeUrl && (
+          <div className="p-4 rounded-[16px] space-y-2" style={{ background: "var(--sos-violet-soft)" }}>
+            <p className="text-[12px] font-semibold" style={{ color: "var(--sos-primary)" }}>
+              Copy this connector URL now — it won’t be shown again. Anyone with it can edit Studio OS, so keep it private.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 min-w-0 truncate text-[12px] px-3 py-2 rounded-[10px]" style={{ background: "var(--sos-surface)", color: "var(--sos-text-1)" }}>
+                {claudeUrl}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(claudeUrl);
+                  pushToast("Connector URL copied", "success");
+                }}
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}
+                aria-label="Copy connector URL"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        <ol className="text-[12px] space-y-1.5 list-decimal pl-4" style={{ color: "var(--sos-text-2)" }}>
+          <li>Click <strong>Create Claude link</strong> and copy the URL.</li>
+          <li>On claude.ai: <strong>Settings → Connectors → Add custom connector</strong>. Name it “Studio OS”, paste the URL, click Add (no OAuth needed).</li>
+          <li>In a chat, turn on Studio OS from the tools menu and ask, e.g. “Update Studio OS with every client and project we’ve discussed — current status, stages and open to-dos.”</li>
+          <li>Claude shows each change before making it. Revoke the link below any time to cut access.</li>
+        </ol>
+      </section>
+
       {/* Ingest tokens & Shortcuts */}
       <section className="sos-card p-6 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -441,6 +502,7 @@ export const AutomationSettings: React.FC = () => {
                 <KeyRound className="w-3.5 h-3.5" style={{ color: "var(--sos-text-3)" }} />
                 <span className="text-[13px] flex-1" style={{ color: "var(--sos-text-1)" }}>
                   {t.label} <span style={{ color: "var(--sos-text-3)" }}>{t.token_hint}</span>
+                  {t.scope === "claude" && <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>Claude</span>}
                 </span>
                 <span className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>
                   used {ago(t.last_used_at)}

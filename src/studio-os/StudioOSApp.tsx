@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { StudioLogo } from "../brand/StudioLogo";
 import {
   ArrowLeft,
@@ -773,6 +774,7 @@ const StudioOSShell: React.FC<{
 
       {/* Modals & Evening Shutdown Ritual */}
       <QuickAddModal />
+      <UpdateBanner />
       <WhatsAppImportModal />
       <NewProjectModal />
       <EveningShutdownModal />

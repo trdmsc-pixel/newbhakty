@@ -491,12 +491,13 @@ export function registerPhase3Routes(app: Express) {
     const sb = serviceOr500(res);
     if (!sb) return;
     const label = typeof req.body?.label === "string" && req.body.label.trim() ? req.body.label.trim().slice(0, 60) : "iPhone Shortcut";
+    const scope = req.body?.scope === "claude" ? "claude" : "ingest";
     const token = `sos_${crypto.randomBytes(24).toString("base64url")}`;
     const { data: member } = await sb.from("studio_members").select("id").eq("role", "owner").eq("is_active", true).limit(1).maybeSingle();
     const { data, error } = await sb
       .from("studio_ingest_tokens")
-      .insert({ label, token_hash: hashToken(token), token_hint: `…${token.slice(-4)}`, member_id: member?.id || null })
-      .select("id, label, token_hint, created_at")
+      .insert({ label, token_hash: hashToken(token), token_hint: `…${token.slice(-4)}`, member_id: member?.id || null, scope })
+      .select("id, label, token_hint, created_at, scope")
       .single();
     if (error) return res.status(500).json({ error: error.message });
     res.json({ ...data, token }); // plaintext shown once
@@ -526,8 +527,8 @@ export function registerPhase3Routes(app: Express) {
     if (!sb) return;
     const token = extractBearerToken(req);
     if (!token.startsWith("sos_")) return res.status(401).json({ error: "Bearer ingest token required." });
-    const { data: tok } = await sb.from("studio_ingest_tokens").select("id, revoked_at").eq("token_hash", hashToken(token)).maybeSingle();
-    if (!tok || tok.revoked_at) return res.status(401).json({ error: "Invalid or revoked token." });
+    const { data: tok } = await sb.from("studio_ingest_tokens").select("id, revoked_at, scope").eq("token_hash", hashToken(token)).maybeSingle();
+    if (!tok || tok.revoked_at || (tok as any).scope === "claude") return res.status(401).json({ error: "Invalid or revoked token." });
 
     if (rateLimited(`ingest:${tok.id}`, 20, 60_000)) return res.status(429).json({ error: "Slow down — max 20 per minute." });
     const { count } = await sb

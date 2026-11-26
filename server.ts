@@ -12,6 +12,7 @@ import { registerMediaRoutes, registerMediaUploadRoutes, uploadSiteMedia } from 
 import { registerAiAssistRoutes } from "./server/phase9/aiAssist.js";
 import { registerAiMediaRoutes } from "./server/phase9/aiMedia.js";
 import { registerMailScanRoutes } from "./server/phase9/mailScan.js";
+import { registerClaudeMcpRoutes } from "./server/phase9/claudeMcp.js";
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -246,6 +247,7 @@ app.use((req, res, next) => {
   registerAiAssistRoutes(app);
   registerAiMediaRoutes(app);
   registerMailScanRoutes(app);
+  registerClaudeMcpRoutes(app);
 
   // Serve static UI assets or run Vite middleware
 async function startServer() {
