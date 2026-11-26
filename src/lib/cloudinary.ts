@@ -298,6 +298,85 @@ const compressVideo = async (
   });
 };
 
+export const MEDIA_UPLOAD_LIMIT_MB = 50;
+const SINGLE_REQUEST_MAX_BYTES = 3 * 1024 * 1024;
+const CHUNK_BYTES = 2.5 * 1024 * 1024; // ~3.4 MB once base64-encoded, under Vercel's 4.5 MB
+
+/** Final file name: keep the original, adjusting the extension when we re-encoded. */
+function targetNameFor(file: File, blob: Blob): string {
+  let name = file.name;
+  const setExt = (ext: string) => {
+    const parts = name.split(".");
+    if (parts.length > 1) {
+      parts[parts.length - 1] = ext;
+      name = parts.join(".");
+    } else name += `.${ext}`;
+  };
+  if (file.type === "image/jpeg" && blob.type === "image/jpeg" && !/\.(jpe?g)$/i.test(name)) setExt("jpg");
+  if (file.type.startsWith("video/") && blob.type.includes("webm") && !/\.webm$/i.test(name)) setExt("webm");
+  return name;
+}
+
+const blobToBase64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] || "");
+    r.onerror = () => reject(new Error("Failed to read local file contents."));
+    r.readAsDataURL(blob);
+  });
+
+async function postJson(url: string, body: unknown, timeoutMs: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || data?.message || `Server media upload error (HTTP ${res.status}).`);
+    return data;
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new Error("Upload timed out — please check your connection and try again.");
+    throw err;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Large files: send ~2.5 MB chunks, then ask the server to assemble and commit to GitHub. */
+async function uploadInChunks(blob: Blob, fileName: string, onProgress?: (p: string) => void): Promise<string> {
+  const total = Math.ceil(blob.size / CHUNK_BYTES);
+  const parts: string[] = new Array(total);
+  let done = 0;
+  const sendChunk = async (i: number) => {
+    const data = await blobToBase64(blob.slice(i * CHUNK_BYTES, Math.min(blob.size, (i + 1) * CHUNK_BYTES)));
+    let lastErr: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await postJson("/api/media-upload/chunk", { data }, 60000);
+        parts[i] = res.sha;
+        done++;
+        onProgress?.(`Uploading ${Math.round((done / total) * 100)}% (${(blob.size / 1048576).toFixed(1)} MB)…`);
+        return;
+      } catch (err) {
+        lastErr = err;
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
+    }
+    throw lastErr;
+  };
+  onProgress?.(`Uploading 0% (${(blob.size / 1048576).toFixed(1)} MB)…`);
+  // Three chunks in flight at a time.
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(3, total) }, async () => {
+      while (next < total) await sendChunk(next++);
+    })
+  );
+  onProgress?.("Saving file to the media library…");
+  const res = await postJson("/api/media-upload/finish", { fileName, parts }, 90000);
+  onProgress?.("File uploaded successfully!");
+  return res.url;
+}
+
 export const uploadToCloudinary = async (
   file: File,
   onProgress?: (progress: string) => void
@@ -338,10 +417,15 @@ export const uploadToCloudinary = async (
     }
   }
 
-  // Enforce post-compression limit check (25 MB limit for GitHub Contents API)
-  const limitBytes = 25 * 1024 * 1024;
+  // Per-file limit: 50 MB (GitHub's recommended maximum for a single file).
+  const limitBytes = MEDIA_UPLOAD_LIMIT_MB * 1024 * 1024;
   if (activeBlob.size > limitBytes) {
-    throw new Error(`File is too large (${(activeBlob.size / 1024 / 1024).toFixed(1)} MB) even after compression. Maximum upload size allowed is 25 MB.`);
+    throw new Error(`File is too large (${(activeBlob.size / 1024 / 1024).toFixed(1)} MB) even after compression. Maximum upload size is ${MEDIA_UPLOAD_LIMIT_MB} MB.`);
+  }
+
+  // Vercel caps each request at 4.5 MB, so anything above ~3 MB goes up in chunks.
+  if (activeBlob.size > SINGLE_REQUEST_MAX_BYTES) {
+    return uploadInChunks(activeBlob, targetNameFor(file, activeBlob), onProgress);
   }
 
   if (onProgress) {
@@ -407,7 +491,7 @@ export const uploadToCloudinary = async (
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            throw new Error(errData?.error || errData?.message || "Server media upload error.");
+            throw new Error(errData?.error || errData?.message || `Server media upload error (HTTP ${res.status}).`);
           }
 
           const data = await res.json();

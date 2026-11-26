@@ -55,3 +55,69 @@ export async function uploadSiteMedia(fileName: string, base64Content: string): 
   }
   return `/api/media/${finalFileName}`;
 }
+
+// ---------------------------------------------------------------------------
+// Chunked uploads (files larger than Vercel's 4.5 MB request limit).
+// Each chunk becomes a loose Git blob in the repo (not committed anywhere);
+// "finish" joins them and commits the whole file to the media branch.
+// ---------------------------------------------------------------------------
+export const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+const SHA = /^[0-9a-f]{40}$/;
+
+function ghHeaders(token: string, accept = "application/vnd.github+json") {
+  return { Authorization: `Bearer ${token}`, Accept: accept, "Content-Type": "application/json", "User-Agent": "tcs-site-media" };
+}
+const ghToken = () => {
+  const t = getEnv("GITHUB_TOKEN") || getEnv("VITE_GITHUB_TOKEN");
+  if (!t) throw new Error("GITHUB_TOKEN is not configured on this server environment.");
+  return t;
+};
+
+export function registerMediaUploadRoutes(app: Express) {
+  app.post("/api/media-upload/chunk", async (req: Request, res: Response) => {
+    try {
+      let data = String(req.body?.data || "");
+      if (data.includes(";base64,")) data = data.split(";base64,").pop() || "";
+      if (!data || data.length > 4_200_000) return res.status(400).json({ error: "Chunk missing or too large." });
+      const r = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/git/blobs`, {
+        method: "POST",
+        headers: ghHeaders(ghToken()),
+        body: JSON.stringify({ content: data, encoding: "base64" }),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok || !j.sha) return res.status(502).json({ error: j?.message || "GitHub rejected the chunk." });
+      return res.json({ sha: j.sha });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Chunk upload failed." });
+    }
+  });
+
+  app.post("/api/media-upload/finish", async (req: Request, res: Response) => {
+    try {
+      const fileName = String(req.body?.fileName || "").trim();
+      const parts: string[] = Array.isArray(req.body?.parts) ? req.body.parts : [];
+      if (!fileName || !parts.length || parts.length > 40 || !parts.every((p) => SHA.test(p))) {
+        return res.status(400).json({ error: "fileName and parts are required." });
+      }
+      const token = ghToken();
+      const buffers: Buffer[] = new Array(parts.length);
+      // Fetch the chunks back (4 at a time) as raw bytes.
+      for (let i = 0; i < parts.length; i += 4) {
+        await Promise.all(
+          parts.slice(i, i + 4).map(async (sha, k) => {
+            const r = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/git/blobs/${sha}`, { headers: ghHeaders(token, "application/vnd.github.raw") });
+            if (!r.ok) throw new Error(`Could not read chunk ${i + k + 1} back from GitHub (${r.status}).`);
+            buffers[i + k] = Buffer.from(await r.arrayBuffer());
+          })
+        );
+      }
+      const whole = Buffer.concat(buffers);
+      if (whole.length > MAX_MEDIA_BYTES) return res.status(413).json({ error: `File is larger than ${MAX_MEDIA_BYTES / 1048576} MB.` });
+      const url = await uploadSiteMedia(fileName, whole.toString("base64"));
+      return res.json({ url, success: true, bytes: whole.length });
+    } catch (err: any) {
+      console.error("Media upload finish error:", err);
+      return res.status(500).json({ error: err?.message || "Failed to assemble the upload." });
+    }
+  });
+}

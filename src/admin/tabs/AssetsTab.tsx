@@ -99,7 +99,7 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
           Drop media files here or click to upload
         </h3>
         <p className="text-admin-body text-[var(--a-text-3)] max-w-md mt-1.5">
-          Upload 4K Master videos (MP4, WebM) or high-resolution imagery up to 100MB with automatic CDN distribution
+          Upload 4K Master videos (MP4, WebM) or high-resolution imagery up to 50 MB per file — large videos are optimised automatically
         </p>
       </button>
 
