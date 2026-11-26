@@ -136,7 +136,7 @@ app.use((req, res, next) => {
   app.get("/api/locate", getGeoLocation); // Legacy alias
 
   // ----------------------------------------------------
-  // API ROUTE: SITE MEDIA UPLOAD (Supabase Storage, stable /api/media URLs)
+  // API ROUTE: SITE MEDIA UPLOAD (GitHub "media" branch, stable /api/media URLs)
   // ----------------------------------------------------
   app.post("/api/media-upload", async (req, res) => {
     try {
@@ -151,10 +151,9 @@ app.use((req, res, next) => {
         base64Content = fileData.split(";base64,").pop();
       }
 
-      // Site media lives in Supabase Storage ("site-media"), served via the
-      // stable /api/media/<file> route. (The old GitHub "media" branch outgrew
-      // jsDelivr's 50 MB package limit, which broke every video on the site.)
-      const url = await uploadSiteMedia(String(fileName), Buffer.from(base64Content, "base64"));
+      // Site media is committed to the GitHub "media" branch and served via the
+      // stable /api/media/<file> route (redirects to the file on GitHub).
+      const url = await uploadSiteMedia(String(fileName), base64Content);
       return res.json({ url, success: true });
     } catch (err: any) {
       console.error("Media upload error:", err);
