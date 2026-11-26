@@ -48,7 +48,38 @@ const sectionTitle = (icon: React.ReactNode, title: string, sub: string) => (
 );
 
 export const AutomationSettings: React.FC = () => {
-  const { settings, updateSettings, pushToast, supabaseSyncStatus } = useStudioOS();
+  const { settings, updateSettings, pushToast, supabaseSyncStatus, reloadFromCloud } = useStudioOS();
+  const [scanDays, setScanDays] = useState(60);
+  const [scan, setScan] = useState<{ running: boolean; processed: number; items: number; note?: string } | null>(null);
+  /** Re-read recent client mail (after a fresh start / new clients) so tasks, statuses and replies owed match the inbox. */
+  const scanClientMail = async () => {
+    setScan({ running: true, processed: 0, items: 0 });
+    let processed = 0;
+    let items = 0;
+    try {
+      for (let round = 0; round < 12; round++) {
+        const res = await studioApi<any>(`/api/cron/gmail-sync?backfill_days=${scanDays}`, { method: "POST", body: {} });
+        if (res.skippedReason) {
+          setScan({ running: false, processed, items, note: res.skippedReason });
+          return;
+        }
+        const accounts = res.accounts || [];
+        processed += accounts.reduce((s: number, a: any) => s + (a.processed || 0) + (a.skipped || 0), 0);
+        items += accounts.reduce((s: number, a: any) => s + (a.items || 0), 0);
+        const errors = accounts.map((a: any) => a.error).filter(Boolean);
+        setScan({ running: true, processed, items });
+        if (errors.length) {
+          setScan({ running: false, processed, items, note: `Stopped: ${errors[0]}` });
+          return;
+        }
+        if (!res.remaining) break;
+      }
+      setScan({ running: false, processed, items, note: "Done — check Inbox for suggestions; confident ones were applied automatically." });
+      reloadFromCloud();
+    } catch (err: any) {
+      setScan({ running: false, processed, items, note: err?.message || "Scan failed" });
+    }
+  };
   const [status, setStatus] = useState<AIStatus | null>(null);
   const [accounts, setAccounts] = useState<GmailAccount[]>([]);
   const [tokens, setTokens] = useState<IngestToken[]>([]);
@@ -219,6 +250,27 @@ export const AutomationSettings: React.FC = () => {
           >
             {busy === "connect" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Connect account
           </button>
+        </div>
+        <div className="p-3.5 rounded-[16px] space-y-2.5" style={{ background: "var(--sos-surface-2)" }}>
+          <p className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Scan client mail</p>
+          <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
+            Re-reads recent emails to and from your clients' contacts and domains, then matches them to clients, projects and tasks — promises, replies owed, approvals and delivery updates. Run it after adding clients. Each email uses one Gemini Flash-Lite request (500/day free).
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={scanDays} onChange={(e) => setScanDays(Number(e.target.value))} disabled={scan?.running} className="h-9 px-3 rounded-full border text-[13px]" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }} aria-label="How far back">
+              <option value={30}>Last 30 days</option>
+              <option value={60}>Last 60 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+            <button type="button" disabled={scan?.running || status?.google === false} onClick={scanClientMail} className="sos-pill-btn h-9 px-4 text-[13px] font-semibold border inline-flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}>
+              {scan?.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />} {scan?.running ? "Scanning…" : "Scan now"}
+            </button>
+            {scan && (
+              <span className="text-[12px]" style={{ color: "var(--sos-text-2)" }}>
+                {scan.processed} emails read · {scan.items} suggestions{scan.note ? ` — ${scan.note}` : ""}
+              </span>
+            )}
+          </div>
         </div>
         {gmailResult && (
           <div

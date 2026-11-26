@@ -48,8 +48,37 @@ export interface SyncSummary {
   skippedReason?: string;
 }
 
-export async function runGmailSync(sb: SupabaseClient): Promise<SyncSummary> {
-  const summary: SyncSummary = { accounts: [], replyOwedCreated: 0, draftsCreated: 0 };
+/**
+ * Gmail query for a backfill: the last N days, only mail to/from known client
+ * contacts or client domains (keeps AI usage focused on real client work).
+ */
+async function backfillQuery(sb: SupabaseClient, days: number): Promise<string | null> {
+  const [{ data: contacts }, { data: clients }] = await Promise.all([
+    sb.from("studio_client_contacts").select("email").is("archived_at", null).not("email", "is", null),
+    sb.from("studio_clients").select("email_domains").is("archived_at", null),
+  ]);
+  const terms = new Set<string>();
+  for (const c of contacts || []) if (c.email) terms.add(String(c.email).toLowerCase());
+  for (const c of clients || []) for (const d of (c.email_domains || []) as string[]) if (d && !/gmail|yahoo|outlook|hotmail|icloud/i.test(d)) terms.add(`@${String(d).toLowerCase()}`);
+  if (!terms.size) return null;
+  const parts = Array.from(terms).slice(0, 40).flatMap((t) => [`from:${t}`, `to:${t}`]);
+  return `newer_than:${days}d -in:chats {${parts.join(" ")}}`;
+}
+
+export interface SyncOptions {
+  /** Scan the last N days of client mail instead of only new mail (fresh start / catch-up). */
+  backfillDays?: number;
+}
+
+export async function runGmailSync(sb: SupabaseClient, opts: SyncOptions = {}): Promise<SyncSummary & { remaining?: number; backfillQuery?: boolean }> {
+  const summary: SyncSummary & { remaining?: number; backfillQuery?: boolean } = { accounts: [], replyOwedCreated: 0, draftsCreated: 0 };
+  const backfill = opts.backfillDays ? await backfillQuery(sb, Math.min(365, Math.max(1, opts.backfillDays))) : null;
+  if (opts.backfillDays && !backfill) {
+    summary.skippedReason = "Add client contacts (with emails) or client email domains first — the scan only reads mail from your clients.";
+    return summary;
+  }
+  summary.backfillQuery = Boolean(backfill);
+  summary.remaining = 0;
   if (!googleConfigured()) {
     summary.skippedReason = "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not configured";
     return summary;
@@ -76,7 +105,10 @@ export async function runGmailSync(sb: SupabaseClient): Promise<SyncSummary> {
 
       let ids: string[] = [];
       let newHistoryId = account.last_history_id;
-      if (account.last_history_id) {
+      if (backfill) {
+        const list = await gmail.listMessageIds(backfill, 100);
+        ids = (list.messages || []).map((m) => m.id);
+      } else if (account.last_history_id) {
         try {
           const h = await gmail.historySince(account.last_history_id);
           ids = h.ids;
@@ -86,7 +118,7 @@ export async function runGmailSync(sb: SupabaseClient): Promise<SyncSummary> {
           account.last_history_id = null; // history expired → fall back to a window scan
         }
       }
-      if (!account.last_history_id) {
+      if (!backfill && !account.last_history_id) {
         const [list, profile] = await Promise.all([gmail.listMessageIds(SYNC_QUERY, 15), gmail.profile()]);
         ids = (list.messages || []).map((m) => m.id);
         newHistoryId = profile.historyId;
@@ -101,6 +133,7 @@ export async function runGmailSync(sb: SupabaseClient): Promise<SyncSummary> {
       const todo = ids.filter((id) => !doneSet.has(id));
       const batch = todo.slice(0, MAX_MESSAGES_PER_ACCOUNT);
       let truncated = todo.length > batch.length;
+      let handled = 0;
 
       for (const id of batch) {
         if (Date.now() - started > TIME_BUDGET_MS) {
@@ -119,13 +152,16 @@ export async function runGmailSync(sb: SupabaseClient): Promise<SyncSummary> {
         if (outcome.outcome !== "error") {
           await sb.from("studio_gmail_processed").upsert({ gmail_account: account.email, message_id: id, outcome: outcome.outcome });
         }
+        handled++;
       }
+      summary.remaining = (summary.remaining || 0) + Math.max(0, todo.length - handled);
 
       await sb
         .from("studio_gmail_accounts")
         .update({
           // Keep the old cursor if we could not finish; the ledger prevents double work.
-          last_history_id: truncated ? account.last_history_id || newHistoryId : newHistoryId,
+          // A backfill never moves the incremental cursor.
+          last_history_id: backfill ? account.last_history_id : truncated ? account.last_history_id || newHistoryId : newHistoryId,
           last_sync_at: new Date().toISOString(),
           last_error: null,
           needs_reconnect: false,

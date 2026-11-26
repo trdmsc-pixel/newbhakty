@@ -306,7 +306,8 @@ export function registerPhase3Routes(app: Express) {
     const sb = serviceOr500(res);
     if (!sb) return;
     try {
-      res.json({ ok: true, ...(await runGmailSync(sb)) });
+      const days = Number((req.query.backfill_days as string) || (req.body && (req.body as any).backfill_days) || 0);
+      res.json({ ok: true, ...(await runGmailSync(sb, days > 0 ? { backfillDays: days } : {})) });
     } catch (err) {
       res.status(500).json({ error: errorMessage(err) });
     }

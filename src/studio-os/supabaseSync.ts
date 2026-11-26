@@ -622,9 +622,11 @@ export async function loadOrSeedStudioOSFromSupabase(): Promise<
       email: session.user.email || "",
     };
 
-    // Demo seeding only ever runs for the owner on a truly empty workspace.
+    // Demo seeding only ever runs for the owner on a brand-new install (no settings row
+    // yet). A workspace that was cleared on purpose (fresh start) is never re-seeded.
     if (viewer.isOwner && (!projProbe || projProbe.length === 0)) {
-      await seedAllTables(session.user.id);
+      const { count: settingsCount } = await supabase.from("studio_settings").select("id", { count: "exact", head: true });
+      if (!settingsCount) await seedAllTables(session.user.id);
     }
 
     let [

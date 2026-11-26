@@ -250,6 +250,54 @@ export function registerClientRoutes(app: Express) {
     return res.json({ ok: true });
   });
 
+  // ---- Permanently delete a client and everything that belongs to them ----
+  app.delete("/api/studio-os/clients/:id/purge", async (req, res) => {
+    const sb = await owner(req, res);
+    if (!sb) return;
+    const id = String(req.params.id);
+    const { data: client } = await sb.from("studio_clients").select("id, name").eq("id", id).maybeSingle();
+    if (!client) return res.status(404).json({ error: "Client not found." });
+    if (/^internal/i.test(client.name)) return res.status(400).json({ error: "The Internal studio client can't be deleted." });
+    const confirmName = String((req.body && (req.body as any).confirm_name) || "").trim().toLowerCase();
+    if (confirmName !== client.name.trim().toLowerCase()) return res.status(400).json({ error: "Type the client's name exactly to confirm." });
+    try {
+      const { data: projects } = await sb.from("studio_projects").select("id").eq("client_id", id);
+      const pids = (projects || []).map((p: any) => p.id);
+      const { data: contacts } = await sb.from("studio_client_contacts").select("id, auth_user_id").eq("client_id", id);
+      const step = async (q: PromiseLike<{ error: any }>) => {
+        const { error } = await q;
+        if (error) throw new Error(error.message);
+      };
+      if (pids.length) {
+        await step(sb.from("studio_projects").update({ current_gate_id: null }).in("id", pids));
+        // Time entries hang off tasks, not projects.
+        const { data: tks } = await sb.from("studio_tasks").select("id").in("project_id", pids);
+        const tids = (tks || []).map((t: any) => t.id);
+        for (let i = 0; i < tids.length; i += 200) await step(sb.from("studio_time_entries").delete().in("task_id", tids.slice(i, i + 200)));
+        for (const t of ["studio_generation_blocks", "studio_project_members", "studio_deliverables", "studio_payments", "studio_expenses", "studio_tasks"]) {
+          await step(sb.from(t).delete().in("project_id", pids));
+        }
+        await step(sb.from("studio_email_threads").update({ project_id: null }).in("project_id", pids));
+        await step(sb.from("studio_inbox_items").delete().in("matched_project_id", pids));
+        await step(sb.from("studio_gates").delete().in("project_id", pids));
+      }
+      await step(sb.from("studio_portal_messages").delete().eq("client_id", id));
+      await step(sb.from("studio_email_threads").update({ client_id: null }).eq("client_id", id));
+      await step(sb.from("studio_inbox_items").delete().eq("matched_client_id", id));
+      if (pids.length) await step(sb.from("studio_projects").delete().in("id", pids));
+      await step(sb.from("studio_client_contacts").delete().eq("client_id", id));
+      await step(sb.from("studio_clients").delete().eq("id", id));
+      // Remove the client's portal logins (never a studio team account).
+      for (const c of contacts || []) {
+        if (c.auth_user_id && !(await isStaffUser(sb, c.auth_user_id))) await sb.auth.admin.deleteUser(c.auth_user_id).catch(() => null);
+      }
+      await sb.from("studio_activity_log").insert({ actor: "member", actor_name: "Shyam", entity_type: "client", entity_id: id, action: `deleted client ${client.name} (${pids.length} project${pids.length === 1 ? "" : "s"})` });
+      return res.json({ ok: true, projects: pids.length, contacts: (contacts || []).length });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Could not delete the client." });
+    }
+  });
+
   // ---- Contacts ----
   app.post("/api/studio-os/clients/:id/contacts", async (req, res) => {
     const sb = await owner(req, res);

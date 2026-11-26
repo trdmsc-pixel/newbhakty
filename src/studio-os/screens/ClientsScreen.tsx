@@ -388,14 +388,28 @@ export const ClientsScreen: React.FC = () => {
     },
   };
 
-  const archiveClient = async (c: StudioClient) => {
-    if (!window.confirm(`Archive ${c.name}? Their portal logins stop working.`)) return;
+  /** Permanently delete a client and everything linked to them (typed-name confirmation). */
+  const deleteClient = async (c: StudioClient) => {
+    const projectCount = projects.filter((p) => p.client_id === c.id).length;
+    const typed = window.prompt(
+      [
+        `Permanently delete ${c.name}?`,
+        "",
+        `This removes ${projectCount} project${projectCount === 1 ? "" : "s"} with all their stages, tasks, deliverables, invoices and time logs, ${c.contacts.length} contact${c.contacts.length === 1 ? "" : "s"}, their portal logins and messages.`,
+        "This cannot be undone.",
+        "",
+        `Type the client's name to confirm: ${c.name}`,
+      ].join("\n")
+    );
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== c.name.trim().toLowerCase()) return pushToast("Name didn't match — nothing was deleted", "warn");
     try {
-      await studioApi(`/api/studio-os/clients/${c.id}`, { method: "DELETE" });
-      pushToast("Client archived", "success");
+      const res = await studioApi<{ projects: number }>(`/api/studio-os/clients/${c.id}/purge`, { method: "DELETE", body: { confirm_name: typed.trim() } });
+      pushToast(`Deleted ${c.name}${res.projects ? ` and ${res.projects} project${res.projects === 1 ? "" : "s"}` : ""}`, "success");
+      if (selected === c.id) setSelected(null);
       reloadFromCloud();
     } catch (err: any) {
-      pushToast(err?.message || "Couldn't archive", "warn");
+      pushToast(err?.message || "Couldn't delete the client", "warn");
     }
   };
 
@@ -423,8 +437,8 @@ export const ClientsScreen: React.FC = () => {
         <button type="button" onClick={() => setClientForm({ client: c })} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-2)" }} aria-label={`Edit ${c.name}`}>
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        {projects.every((p) => p.client_id !== c.id) && (
-          <button type="button" onClick={() => archiveClient(c)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--sos-text-3)" }} aria-label={`Archive ${c.name}`}>
+        {!/^internal/i.test(c.name) && (
+          <button type="button" onClick={() => deleteClient(c)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#FDECEC]" style={{ color: "#B42318" }} aria-label={`Delete ${c.name}`} title="Delete client and all their data">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
