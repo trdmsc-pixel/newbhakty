@@ -60,7 +60,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
   const [latency, setLatency] = useState(String(settings.default_approval_latency_days));
   const [hours, setHours] = useState(String(settings.work_hours_per_day));
   const [closesAt, setClosesAt] = useState(settings.studio_closes_at);
-  const [opensAt, setOpensAt] = useState(settings.studio_opens_at || "10:00");
+  const [opensAt, setOpensAt] = useState(settings.studio_opens_at || "10:30");
   const [workDays, setWorkDays] = useState<number[]>(settings.work_days || [1, 2, 3, 4, 5, 6]);
   const [wipLimit, setWipLimit] = useState(String(settings.wip_limit));
   const [takesPerKeeper, setTakesPerKeeper] = useState(String(settings.takes_per_keeper));
@@ -79,7 +79,7 @@ export const SettingsScreen: React.FC<{ onInstallPWA?: () => void; canInstallPWA
     setLatency(String(settings.default_approval_latency_days));
     setHours(String(settings.work_hours_per_day));
     setClosesAt(settings.studio_closes_at);
-    setOpensAt(settings.studio_opens_at || "10:00");
+    setOpensAt(settings.studio_opens_at || "10:30");
     setWorkDays(settings.work_days || [1, 2, 3, 4, 5, 6]);
     setWipLimit(String(settings.wip_limit));
     setTakesPerKeeper(String(settings.takes_per_keeper));

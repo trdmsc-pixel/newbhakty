@@ -160,7 +160,7 @@ const RAW_SETTINGS: StudioSettings = {
   overrun_factor: 1.6,
   default_approval_latency_days: 2,
   work_hours_per_day: 7,
-  studio_closes_at: "21:30",
+  studio_closes_at: "18:30",
   wip_limit: 3,
   takes_per_keeper: 3,
   block_seconds: 20,

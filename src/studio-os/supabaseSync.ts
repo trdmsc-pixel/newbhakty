@@ -106,7 +106,7 @@ function fromSettingsRow(row: any): StudioSettings {
     ),
     work_hours_per_day: Number(row.work_hours_per_day ?? INITIAL_SETTINGS.work_hours_per_day),
     studio_closes_at: toHm(row.studio_closes_at, INITIAL_SETTINGS.studio_closes_at),
-    studio_opens_at: toHm(row.studio_opens_at, "10:00"),
+    studio_opens_at: toHm(row.studio_opens_at, "10:30"),
     work_days: Array.isArray(row.work_days) && row.work_days.length ? row.work_days.map(Number) : [1, 2, 3, 4, 5, 6],
     wip_limit: Number(row.wip_limit ?? INITIAL_SETTINGS.wip_limit),
     takes_per_keeper: Number(row.takes_per_keeper ?? INITIAL_SETTINGS.takes_per_keeper),

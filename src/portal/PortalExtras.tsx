@@ -18,7 +18,7 @@ export interface StudioInfo {
   holidays: Array<{ date: string; name: string }>;
 }
 
-const DEFAULT_INFO: StudioInfo = { timezone: "Asia/Kolkata", opens_at: "10:00", closes_at: "21:30", work_days: [1, 2, 3, 4, 5, 6], holidays: [] };
+const DEFAULT_INFO: StudioInfo = { timezone: "Asia/Kolkata", opens_at: "10:30", closes_at: "18:30", work_days: [1, 2, 3, 4, 5, 6], holidays: [] };
 
 export function useStudioInfo() {
   const [info, setInfo] = useState<StudioInfo>(DEFAULT_INFO);

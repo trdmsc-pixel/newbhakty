@@ -191,7 +191,7 @@ function mapSettings(row: any): StudioSettings {
     overrun_factor: Number(row?.overrun_factor ?? 1.6),
     default_approval_latency_days: Number(row?.default_approval_latency_days ?? 2),
     work_hours_per_day: Number(row?.work_hours_per_day ?? 7),
-    studio_closes_at: String(row?.studio_closes_at || "21:30").slice(0, 5),
+    studio_closes_at: String(row?.studio_closes_at || "18:30").slice(0, 5),
     wip_limit: Number(row?.wip_limit ?? 3),
     takes_per_keeper: Number(row?.takes_per_keeper ?? 3),
     block_seconds: Number(row?.block_seconds ?? 20),
@@ -515,7 +515,7 @@ export function registerStudioOSRoutes(app: Express) {
         const rawDue = t.due_date;
         const dueMs = rawDue.includes("T")
           ? Date.parse(rawDue)
-          : Date.parse(`${rawDue.slice(0, 10)}T21:30:00+05:30`);
+          : Date.parse(`${rawDue.slice(0, 10)}T18:30:00+05:30`);
         if (Number.isNaN(dueMs)) continue;
         const hoursLeft = (dueMs - now.getTime()) / (60 * 60 * 1000);
         if (hoursLeft >= -0.5 && hoursLeft <= 3) {
