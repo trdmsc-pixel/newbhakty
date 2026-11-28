@@ -97,6 +97,8 @@ export interface ClientContact {
   must_set_password?: boolean;
   portal_last_login_at?: string;
   has_portal_login?: boolean;
+  /** Portal permission: admin · approver · reviewer · finance · viewer. */
+  portal_role?: "admin" | "approver" | "reviewer" | "finance" | "viewer";
 }
 
 export interface StudioClient {
@@ -247,6 +249,9 @@ export interface StudioTask {
   snoozed_until?: string;
   completed_at?: string;
   portal_visible: boolean;
+  /** Who owns the next action: the studio (default) or the client (shows under "Your attention required"). */
+  responsibility?: "studio" | "client";
+  parent_task_id?: string;
   created_at: string;
   updated_at: string;
 }

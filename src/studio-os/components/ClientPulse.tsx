@@ -100,7 +100,7 @@ export const ClientPulseProvider: React.FC<{ children: React.ReactNode }> = ({ c
       .like("kind", "portal_%")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(40);
     setUpdates((data || []) as ClientUpdate[]);
   }, []);
 
@@ -129,7 +129,7 @@ export const ClientPulseProvider: React.FC<{ children: React.ReactNode }> = ({ c
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "studio_notifications" }, (payload: any) => {
         const n = payload?.new as ClientUpdate | undefined;
         if (!n?.kind?.startsWith("portal_")) return;
-        setUpdates((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 20));
+        setUpdates((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 40));
         if (soundRef.current) chime();
         pushToast(n.title || "Client update from the portal", n.kind === "portal_approval" ? "success" : "warn");
         reload(500);
@@ -172,3 +172,46 @@ export const ClientPulseProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   return <PulseContext.Provider value={{ updates, unread, markRead, markAllRead, soundOn, setSoundOn }}>{children}</PulseContext.Provider>;
 };
+
+/** Where a client update should land: exact project tab + item (from its url), else best guess from kind/title. */
+export function useOpenUpdate() {
+  const { projects, openProject, setRoute } = useStudioOS();
+  const { markRead } = useClientPulse();
+  return useCallback(
+    (u: ClientUpdate) => {
+      markRead(u.id);
+      let q: URLSearchParams | null = null;
+      try {
+        q = u.url ? new URL(u.url, window.location.origin).searchParams : null;
+      } catch {
+        q = null;
+      }
+      const pid = q?.get("project");
+      if (pid && projects.some((p) => p.id === pid)) return openProject(pid, { tab: q?.get("tab") || undefined, focus: q?.get("focus") || undefined });
+      const code = u.title.split(" — ")[0]?.trim();
+      const proj = projects.find((p) => p.code === code);
+      const tabByKind: Record<string, string> = {
+        portal_approval: "milestones",
+        portal_changes: "changes",
+        portal_changes_over: "changes",
+        portal_upload: "files",
+        portal_message: "emails",
+        portal_comment: "files",
+        portal_change_request: "changes",
+        portal_task: "tasks",
+      };
+      if (proj) return openProject(proj.id, { tab: tabByKind[u.kind] });
+      const clientId = q?.get("client");
+      if (clientId) {
+        try {
+          sessionStorage.setItem(CLIENT_FOCUS_KEY, clientId);
+        } catch {
+          /* ignore */
+        }
+        return setRoute("clients");
+      }
+      setRoute("today");
+    },
+    [projects, openProject, setRoute, markRead]
+  );
+}

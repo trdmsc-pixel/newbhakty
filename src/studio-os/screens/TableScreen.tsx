@@ -4,7 +4,7 @@ import { ViewSwitcher } from "../components/ViewSwitcher";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { ActivePill, SwipeRow } from "../motion";
 import { format, parseISO } from "date-fns";
-import { Check, Clock, Eye, EyeOff, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, Clock, Eye, EyeOff, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { PriorityBadge, TaskStatusChip } from "../components/StatusChip";
 import { AssigneePicker } from "../components/Team";
@@ -204,7 +204,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                         aria-label={`Due date for ${task.key}`}
                       />
                     </td>
-                    <td className="py-3.5 px-3">
+                    <td className="py-3.5 px-3 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => updateTask(task.id, { portal_visible: !task.portal_visible })}
@@ -214,6 +214,16 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                         aria-pressed={task.portal_visible}
                       >
                         {task.portal_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateTask(task.id, task.responsibility === "client" ? { responsibility: "studio" } : { responsibility: "client", portal_visible: true })}
+                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                        style={task.responsibility === "client" ? { background: "#FFF3E0", color: "#9A4A00" } : { color: "var(--sos-text-3)" }}
+                        title={task.responsibility === "client" ? "Client's to-do — shows under “Your attention required” in the portal; the client can tick it off. Click to make it a studio task." : "Studio task — click to make it the client's to-do (shows under “Your attention required”)"}
+                        aria-pressed={task.responsibility === "client"}
+                      >
+                        <UserCheck className="w-4 h-4" />
                       </button>
                     </td>
                     <td className="py-3.5 px-3">
@@ -269,6 +279,9 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                 <span className="flex items-center gap-1.5">
                   <button type="button" onClick={() => updateTask(task.id, { portal_visible: !task.portal_visible })} className="w-7 h-7 rounded-full flex items-center justify-center" style={task.portal_visible ? { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" } : { color: "var(--sos-text-3)" }} aria-label={task.portal_visible ? "Hide from client" : "Show to client"}>
                     {task.portal_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  </button>
+                  <button type="button" onClick={() => updateTask(task.id, task.responsibility === "client" ? { responsibility: "studio" } : { responsibility: "client", portal_visible: true })} className="w-7 h-7 rounded-full flex items-center justify-center" style={task.responsibility === "client" ? { background: "#FFF3E0", color: "#9A4A00" } : { color: "var(--sos-text-3)" }} aria-label={task.responsibility === "client" ? "Make studio task" : "Make client's to-do"}>
+                    <UserCheck className="w-3.5 h-3.5" />
                   </button>
                   <input
                     type="date"

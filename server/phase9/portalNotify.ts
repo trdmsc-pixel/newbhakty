@@ -59,14 +59,22 @@ export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string, opt
   const mark = (ids: string[], email_status: string) => sb.from("studio_portal_notifications").update({ email_status }).in("id", ids);
 
   // Each client's email preference: instant / daily digest (sent by the morning run) / portal only.
-  const { data: prefs } = await sb.from("studio_clients").select("id, email_pref").in("id", [...new Set(pending.map((n) => n.client_id))]);
+  const { data: prefs } = await sb.from("studio_clients").select("id, email_pref, email_kinds").in("id", [...new Set(pending.map((n) => n.client_id))]);
   const pref = new Map((prefs || []).map((c: any) => [c.id, c.email_pref || "instant"]));
+  // Optional per-client choice of which kinds are emailed (null = all four).
+  const kinds = new Map((prefs || []).map((c: any) => [c.id, Array.isArray(c.email_kinds) ? new Set<string>(c.email_kinds) : null]));
 
   // One email per client, combining everything sent to them in this window.
   const byClient = new Map<string, any[]>();
   for (const n of pending) {
     const p = pref.get(n.client_id) || "instant";
     if (p === "portal") {
+      await mark([n.id], "skipped");
+      skipped++;
+      continue;
+    }
+    const allowed = kinds.get(n.client_id);
+    if (allowed && !allowed.has(n.kind)) {
       await mark([n.id], "skipped");
       skipped++;
       continue;

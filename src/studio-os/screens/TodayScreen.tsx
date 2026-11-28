@@ -16,7 +16,7 @@ import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { TeamLoadCard } from "../components/Team";
 import { AIBriefCard } from "../components/AIBriefCard";
 import { TodayActivity } from "../components/TodayActivity";
-import { CLIENT_FOCUS_KEY, useClientPulse } from "../components/ClientPulse";
+import { CLIENT_FOCUS_KEY, useClientPulse, useOpenUpdate } from "../components/ClientPulse";
 import { BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
 import type { StudioTask } from "../types";
 
@@ -77,6 +77,7 @@ export const TodayScreen: React.FC = () => {
     setRoute,
   } = useStudioOS();
   const { updates, unread, markRead, markAllRead, soundOn, setSoundOn } = useClientPulse();
+  const openUpdate = useOpenUpdate();
   const [now, setNow] = useState(() => new Date());
   const [showAll, setShowAll] = useState(false);
 
@@ -313,8 +314,12 @@ export const TodayScreen: React.FC = () => {
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                      className="flex items-start gap-3 p-3.5 rounded-[16px]"
+                      className="flex items-start gap-3 p-3.5 rounded-[16px] cursor-pointer transition-transform hover:-translate-y-0.5"
                       style={{ background: approved ? "#E7F7EE" : isMessage ? "var(--sos-violet-soft)" : "#FFF6F5" }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openUpdate(u)}
+                      onKeyDown={(e) => e.key === "Enter" && openUpdate(u)}
                     >
                       <span className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: approved ? "var(--sos-green)" : isMessage ? "var(--sos-primary)" : "#B42318" }}>
                         {approved ? <Check className="w-4 h-4" /> : <MessageSquare className="w-3.5 h-3.5" />}
@@ -332,7 +337,7 @@ export const TodayScreen: React.FC = () => {
                           {formatDistanceToNowStrict(parseISO(u.created_at), { addSuffix: true })}
                         </p>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+                      <div className="flex flex-col sm:flex-row gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                         {isMessage && clientId && (
                           <button
                             type="button"
@@ -355,8 +360,7 @@ export const TodayScreen: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              markRead(u.id);
-                              openProject(proj.id);
+                              openUpdate(u);
                             }}
                             className="sos-pill-btn h-8 px-3 text-[12px] font-semibold text-white"
                             style={{ background: "var(--sos-ink)" }}

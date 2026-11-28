@@ -33,11 +33,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./portalSupabase";
-import { AccountTab, CalendarTab, MessagesTab, PortalAssistant, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
+import { AccountTab, CalendarTab, PortalAssistant, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
 import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
 import { SketchOverlay, VoiceNoteButton } from "./PortalReviewTools";
 import { ProjectThumb, thumbCandidates, downloadHref, isStreamOnly } from "../review/ProjectThumb";
+import { ActivityPanel, ApprovalHistoryCard, ProjectGantt, AssetLibrary, AttentionRequired, ChangeRequestsCard, MailInbox, MessagesButton, ProductionPanel, ReviewStudio, SectionBar, useSectionBadges, type ProjectSection } from "./PortalProduction";
 import "../studio-os/studio-os.css";
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,8 @@ interface PortalTask {
   status: string;
   due_date: string | null;
   completed_at: string | null;
+  responsibility?: string;
+  description?: string | null;
 }
 interface PortalDeliverable {
   id: string;
@@ -1307,7 +1310,21 @@ const ProjectView: React.FC<{
   showInvoices?: boolean;
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], stageNotes = [], viewerName, showInvoices = true, onBack, onChanged }) => {
+  section?: ProjectSection;
+  onSection?: (s: ProjectSection) => void;
+  sectionContent?: React.ReactNode;
+  refreshKey?: number;
+}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], stageNotes = [], viewerName, showInvoices = true, onBack, onChanged, section = "overview", onSection, sectionContent, refreshKey = 0 }) => {
+  const badges = useSectionBadges(project.id, refreshKey);
+  const [taskBusy, setTaskBusy] = useState<string | null>(null);
+  const toggleClientTask = async (t: PortalTask) => {
+    if (!supabase || t.responsibility !== "client") return;
+    setTaskBusy(t.id);
+    const { error } = await supabase.rpc("portal_complete_task", { p_task: t.id, p_done: t.status !== "done", p_note: null });
+    setTaskBusy(null);
+    if (error) window.alert(/not_permitted/.test(error.message) ? "Your account can view this but can't tick it off." : "Couldn't update. Please try again.");
+    onChanged();
+  };
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
@@ -1371,6 +1388,17 @@ const ProjectView: React.FC<{
         </div>
       </motion.div>
 
+      {onSection && <SectionBar value={section} onChange={onSection} badges={{ ...badges, overview: awaiting.length || undefined }} />}
+
+      {section !== "overview" && sectionContent ? (
+        <AnimatePresence mode="wait">
+          <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22 }} className="space-y-5">
+            {sectionContent}
+          </motion.div>
+        </AnimatePresence>
+      ) : (
+      <>
+
       {(project.closed_at || deliverables.some((d) => d.is_final)) && (
         <FinalDelivery
           project={project}
@@ -1412,12 +1440,19 @@ const ProjectView: React.FC<{
                 {[...tasks]
                   .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") || (a.due_date || "9999").localeCompare(b.due_date || "9999"))
                   .map((t) => (
-                    <div key={t.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)", opacity: t.status === "done" ? 0.6 : 1 }}>
+                    <div key={t.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)", opacity: t.status === "done" ? 0.6 : 1, boxShadow: t.responsibility === "client" && t.status !== "done" ? "inset 3px 0 0 #F59E0B" : undefined }}>
+                      {t.responsibility === "client" ? (
+                        <button type="button" disabled={taskBusy === t.id} onClick={() => toggleClientTask(t)} className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-transform hover:scale-110" style={{ background: t.status === "done" ? "var(--sos-green)" : "var(--sos-surface)", color: "#fff", border: t.status === "done" ? "none" : "1.5px solid #F59E0B" }} aria-label={t.status === "done" ? "Mark not done" : "Mark done"}>
+                          {taskBusy === t.id ? <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#F59E0B" }} /> : t.status === "done" && <Check className="w-3 h-3" />}
+                        </button>
+                      ) : (
                       <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: t.status === "done" ? "var(--sos-green)" : "var(--sos-surface)", color: "#fff", border: t.status === "done" ? "none" : "1.5px solid var(--sos-border)" }}>
                         {t.status === "done" && <Check className="w-3 h-3" />}
                       </span>
+                      )}
                       <span className="flex-1 min-w-0 text-[14px]" style={{ color: "var(--sos-text-1)", textDecoration: t.status === "done" ? "line-through" : undefined }}>
                         {t.title}
+                        {t.responsibility === "client" && t.status !== "done" && <span className="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full align-middle" style={{ background: "#FFF3E0", color: "#9A4A00" }}>Your to-do</span>}
                       </span>
                       <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>
                         {t.status === "done" ? `done ${fmtDate(t.completed_at)}` : t.due_date ? `due ${fmtDate(t.due_date)}` : ""}
@@ -1480,6 +1515,8 @@ const ProjectView: React.FC<{
           {showInvoices && <InvoicesCard invoices={invoices} />}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
@@ -1538,108 +1575,109 @@ const PortalSidebar: React.FC<{
   tab: string;
   onTab: (t: HubTab) => void;
   awaiting: number;
+  unread: number;
+  onMessages: () => void;
   who?: string;
+  name?: string;
   info: any;
   onSignOut: () => void;
-}> = ({ tab, onTab, awaiting, who, info, onSignOut }) => {
-  const items: Array<{ id: HubTab; label: string; icon: React.ReactNode; badge?: number }> = [
-    { id: "projects", label: "Projects", icon: <Clapperboard className="w-[18px] h-[18px]" />, badge: awaiting },
-    { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-[18px] h-[18px]" /> },
-    { id: "files", label: "Files", icon: <FolderOpen className="w-[18px] h-[18px]" /> },
-    { id: "invoices", label: "Invoices", icon: <Receipt className="w-[18px] h-[18px]" /> },
-    { id: "account", label: "Account", icon: <UserRound className="w-[18px] h-[18px]" /> },
+}> = ({ tab, onTab, awaiting, unread, onMessages, who, name, info, onSignOut }) => {
+  const groups: Array<{ group: string; items: Array<{ id: HubTab | "messages"; label: string; icon: React.ReactNode; badge?: number; urgent?: boolean }> }> = [
+    {
+      group: "Your work",
+      items: [
+        { id: "projects", label: "Projects", icon: <Clapperboard className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: awaiting, urgent: awaiting > 0 },
+        { id: "messages", label: "Messages", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: unread, urgent: unread > 0 },
+        { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+      ],
+    },
+    {
+      group: "Library",
+      items: [
+        { id: "files", label: "Files", icon: <FolderOpen className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+        { id: "invoices", label: "Invoices", icon: <Receipt className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+      ],
+    },
+    { group: "You", items: [{ id: "account", label: "Account", icon: <UserRound className="w-[18px] h-[18px]" strokeWidth={1.75} /> }] },
   ];
+  const initials = (name || who || "C").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <aside className="hidden lg:flex flex-col w-[264px] fixed inset-y-0 left-0 z-40 border-r" style={{ background: "var(--sos-surface)" }}>
-      <div className="px-5 pt-6 pb-4">
-        <StudioLogo surface="light" height={24} />
-        <p className="text-[12px] mt-1.5 truncate" style={{ color: "var(--sos-text-3)" }}>{who || "Client portal"}</p>
+    <aside className="hidden lg:flex flex-col justify-between w-[256px] fixed inset-y-0 left-0 z-40 border-r" style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}>
+      <div className="p-4 space-y-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+        <div className="px-1">
+          <StudioLogo surface="light" height={22} />
+          <p className="text-[11px] mt-1 truncate" style={{ color: "var(--sos-text-3)" }}>Client portal</p>
+        </div>
+        <nav className="space-y-1" aria-label="Portal">
+          {groups.map(({ group, items }) => (
+            <div key={group} className="space-y-1 pb-2">
+              <p className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>{group}</p>
+              {items.map((it) => {
+                const on = tab === it.id;
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => (it.id === "messages" ? onMessages() : onTab(it.id as HubTab))}
+                    className="relative w-full flex items-center justify-between gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors duration-200"
+                    style={{ color: on ? "var(--sos-ink-text)" : "var(--sos-text-2)" }}
+                    aria-current={on ? "page" : undefined}
+                  >
+                    {on && <motion.span layoutId="portal-side-pill" className="absolute inset-0 rounded-full" style={{ background: "var(--sos-ink)" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                    <span className="relative z-[1] flex items-center gap-2.5 min-w-0">
+                      {it.icon}
+                      <span className="truncate">{it.label}</span>
+                    </span>
+                    {it.badge ? (
+                      <span className={`relative z-[1] px-2 py-0.5 rounded-full text-[10px] font-semibold ${it.urgent ? "sos-pulse-badge" : ""}`} style={it.urgent ? { background: "#B42318", color: "#FFFFFF" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>
+                        {it.badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
       </div>
-      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1" aria-label="Portal">
-        {items.map((it) => {
-          const on = tab === it.id;
-          return (
-            <button
-              key={it.id}
-              type="button"
-              onClick={() => onTab(it.id)}
-              className="relative w-full h-11 px-3.5 rounded-[14px] flex items-center gap-3 text-[14px] font-semibold transition-colors"
-              style={{ color: on ? "var(--sos-ink-text)" : "var(--sos-text-2)" }}
-            >
-              {on && <motion.span layoutId="portal-side-pill" className="absolute inset-0 rounded-[14px]" style={{ background: "var(--sos-ink)", boxShadow: "0 8px 20px -10px rgba(15,17,21,0.6)" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-              <span className="relative z-[1] flex items-center gap-3 w-full">
-                {it.icon}
-                {it.label}
-                {it.badge ? <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{it.badge}</span> : null}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-      <div className="p-3 space-y-2 border-t">
+      <div className="p-4 space-y-3 border-t" style={{ borderColor: "var(--sos-border)" }}>
         <StudioClock info={info} compact onOpenCalendar={() => onTab("calendar")} />
-        <button type="button" onClick={onSignOut} className="w-full h-10 px-3.5 rounded-[12px] flex items-center gap-2.5 text-[13px] font-semibold hover:bg-black/[0.04]" style={{ color: "var(--sos-text-2)" }}>
-          <LogOut className="w-4 h-4" /> Sign out
-        </button>
+        <div className="flex items-center gap-2.5 px-1">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4)" }}>{initials}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{name || "Client"}</p>
+            <p className="text-[11px] truncate" style={{ color: "var(--sos-text-3)" }}>{who}</p>
+          </div>
+          <button type="button" onClick={onSignOut} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 hover:opacity-80" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }} aria-label="Sign out" title="Sign out">
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );
 };
 
-/** Everything waiting on the client, with one-tap approve. */
-const ReviewQueue: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; onOpen: (id: string) => void; onChanged: () => void }> = ({ projects, gates, onOpen, onChanged }) => {
-  const [busy, setBusy] = useState<string | null>(null);
-  const waiting = gates.filter((g) => g.status === "waiting_on_client" && projects.some((p) => p.id === g.project_id));
-  if (!waiting.length) return null;
-  const approve = async (g: PortalGate) => {
-    if (!supabase || !window.confirm(`Approve "${g.name.replace(/^Ep \d+ · /, "")}"? The studio moves on to the next stage.`)) return;
-    setBusy(g.id);
-    const { data, error } = await supabase.rpc("portal_approve_gate", { p_gate_id: g.id, p_comment: null });
-    if (!error) {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      fetch("/api/portal/after-action", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ project_id: (data as any)?.project_id || g.project_id, gate_id: g.id, action: "approved" }) }).catch(() => {});
-    }
-    setBusy(null);
-    onChanged();
-  };
-  return (
-    <div className="sos-card sos-aurora sos-aurora-amber sos-aurora-glow p-5 space-y-3 overflow-hidden">
-      <span className="sos-orb" style={{ width: 220, height: 220, top: -110, right: -60, background: "radial-gradient(circle, rgba(245,158,11,0.28), transparent 70%)" }} />
-      <div className="flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg, #FBBF24, #F59E0B)" }}><Sparkles className="w-4 h-4" /></span>
-        <div>
-          <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Waiting for your review · {waiting.length}</h2>
-          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Approve in one tap, or open it to watch and leave notes.</p>
-        </div>
-      </div>
-      <div className="space-y-2">
-        {waiting.map((g) => {
-          const p = projects.find((x) => x.id === g.project_id)!;
-          return (
-            <div key={g.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 rounded-[16px]" style={{ background: "var(--sos-surface)", boxShadow: "0 0 0 1px var(--sos-border)" }}>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{g.name.replace(/^Ep (\d+) · /, "Episode $1 · ")}</p>
-                <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{p.title}{g.sent_for_approval_at ? ` · sent ${fmtDate(g.sent_for_approval_at)}` : ""}</p>
-              </div>
-              <button type="button" onClick={() => onOpen(p.id)} className="sos-jelly sos-jelly-ghost h-9 px-4 text-[13px]">Review</button>
-              <button type="button" disabled={busy === g.id} onClick={() => approve(g)} className="sos-jelly sos-jelly-green h-9 px-4 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-60">
-                {busy === g.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Approve
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 /** Every version and final file across projects. */
+const FILE_CATS: Record<string, string> = { brief: "Briefs", script: "Scripts", storyboard: "Storyboards", character_ref: "Character references", environment: "Environments", brand: "Brand guidelines", audio: "Audio", music: "Music", raw_footage: "Raw footage", review_video: "Review videos", final: "Final deliverables" };
 const FilesTab: React.FC<{ projects: PortalProject[]; deliverables: PortalDeliverable[] }> = ({ projects, deliverables }) => {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [cat, setCat] = useState<string>("all");
+  const [uploads, setUploads] = useState<Array<{ id: string; project_id: string; name: string; path: string; size: number | null; mime: string | null; category: string | null; contact_name: string | null; created_at: string }>>([]);
+  useEffect(() => {
+    supabase?.from("studio_client_uploads").select("id, project_id, name, path, size, mime, category, contact_name, created_at").order("created_at", { ascending: false }).then(({ data }) => setUploads((data || []) as any));
+  }, []);
+  const catOf = (d: PortalDeliverable) => (d as any).category || (d.is_final ? "final" : "review_video");
+  const cats = [...new Set([...deliverables.map(catOf), ...uploads.map((u) => u.category).filter(Boolean)])] as string[];
+  const usedBytes = uploads.reduce((a, u) => a + (u.size || 0), 0);
+  const openUpload = async (path: string) => {
+    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(path, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+  const shownUploads = uploads.filter((u) => (cat === "all" || u.category === cat) && (!q || `${u.name} ${projects.find((p) => p.id === u.project_id)?.title || ""}`.toLowerCase().includes(q.toLowerCase())));
   const list = deliverables.filter((d) => {
     const p = projects.find((x) => x.id === d.project_id);
-    return !q || `${d.title} ${d.version || ""} ${p?.title || ""}`.toLowerCase().includes(q.toLowerCase());
+    return (cat === "all" || catOf(d) === cat) && (!q || `${d.title} ${d.version || ""} ${p?.title || ""}`.toLowerCase().includes(q.toLowerCase()));
   });
   const byProject = projects.map((p) => ({ p, files: list.filter((d) => d.project_id === p.id).sort((a, b) => b.created_at.localeCompare(a.created_at)) })).filter((x) => x.files.length);
   return (
@@ -1654,7 +1692,34 @@ const FilesTab: React.FC<{ projects: PortalProject[]; deliverables: PortalDelive
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" className="flex-1 min-w-0 bg-transparent outline-none text-[14px]" style={{ color: "var(--sos-text-1)" }} />
         </div>
       </div>
-      {!byProject.length && <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>No files yet.</div>}
+      {cats.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+          {["all", ...cats].map((c) => (
+            <button key={c} type="button" onClick={() => setCat(c)} className="shrink-0 h-9 px-4 rounded-full text-[13px] font-semibold border" style={cat === c ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}>
+              {c === "all" ? "All" : FILE_CATS[c] || c}
+            </button>
+          ))}
+        </div>
+      )}
+      {!byProject.length && !shownUploads.length && <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>No files yet.</div>}
+      {shownUploads.length > 0 && (
+        <section className="sos-card p-5 space-y-2.5">
+          <h2 className="text-[15px] font-semibold flex flex-wrap items-center gap-2" style={{ color: "var(--sos-text-1)" }}>
+            <Upload className="w-4 h-4" style={{ color: "var(--sos-primary)" }} /> Sent by your team <span className="text-[12px] font-medium" style={{ color: "var(--sos-text-3)" }}>· {shownUploads.length} · {(usedBytes / 1048576).toFixed(1)} MB stored</span>
+          </h2>
+          <div className="grid gap-2 xl:grid-cols-2">
+            {shownUploads.map((u) => (
+              <button key={u.id} type="button" onClick={() => openUpload(u.path)} className="text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>
+                <FileText className="w-4 h-4 shrink-0" style={{ color: "var(--sos-primary)" }} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>{u.name}</span>
+                  <span className="block text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{[projects.find((p) => p.id === u.project_id)?.title, u.category ? FILE_CATS[u.category] : null, u.contact_name, fmtDate(u.created_at), u.size ? `${(u.size / 1048576).toFixed(1)} MB` : ""].filter(Boolean).join(" · ")}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {byProject.map(({ p, files }) => (
         <section key={p.id} className="sos-card p-5 space-y-2.5">
           <h2 className="text-[15px] font-semibold flex items-center gap-2" style={{ color: "var(--sos-text-1)" }}>{p.emoji} {p.title} <span className="text-[12px] font-medium" style={{ color: "var(--sos-text-3)" }}>· {files.length}</span></h2>
@@ -1713,11 +1778,12 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
   const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; note: string | null; created_at: string; contact_name: string | null }>>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [category, setCategory] = useState("");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
     if (!supabase) return;
-    const { data } = await supabase.from("studio_client_uploads").select("id, name, path, size, note, created_at, contact_name").eq("project_id", project.id).order("created_at", { ascending: false });
+    const { data } = await supabase.from("studio_client_uploads").select("id, name, path, size, note, created_at, contact_name, category").eq("project_id", project.id).order("created_at", { ascending: false });
     setItems((data || []) as any);
   }, [project.id]);
   useEffect(() => {
@@ -1734,7 +1800,7 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
         const path = `${project.client_id}/${project.id}/${crypto.randomUUID()}-${safe}`;
         const up = await supabase.storage.from("client-uploads").upload(path, f, { contentType: f.type || "application/octet-stream" });
         if (up.error) throw new Error(up.error.message);
-        const { error } = await supabase.rpc("portal_add_upload", { p_project: project.id, p_name: f.name, p_path: path, p_size: f.size, p_mime: f.type || null, p_note: note.trim() || null });
+        const { error } = await supabase.rpc("portal_add_upload", { p_project: project.id, p_name: f.name, p_path: path, p_size: f.size, p_mime: f.type || null, p_note: note.trim() || null, p_category: category || null });
         if (error) throw new Error(error.message);
       }
       setNote("");
@@ -1765,6 +1831,18 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
         className="rounded-[16px] border-2 border-dashed p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
       >
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is it? (optional)" className="flex-1 min-w-0 h-11 px-3.5 rounded-[12px] border text-[14px]" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }} />
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-11 px-3 rounded-[12px] border text-[14px]" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }} aria-label="Type of file">
+          <option value="">Type (optional)</option>
+          <option value="brief">Brief</option>
+          <option value="script">Script</option>
+          <option value="storyboard">Storyboard</option>
+          <option value="character_ref">Character reference</option>
+          <option value="environment">Environment / location</option>
+          <option value="brand">Brand guidelines</option>
+          <option value="audio">Audio / voice-over</option>
+          <option value="music">Music</option>
+          <option value="raw_footage">Raw footage</option>
+        </select>
         <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="sos-jelly h-11 px-5 text-[14px] inline-flex items-center justify-center gap-2 disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {busy ? "Uploading…" : "Choose or drop files"}
         </button>
@@ -1783,42 +1861,6 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
     </div>
   );
 };
-
-/** Always-available "Message the studio" button + slide-up panel. */
-const MessagesLauncher: React.FC<{ open: boolean; setOpen: (o: boolean) => void; unread: number; children: React.ReactNode }> = ({ open, setOpen, unread, children }) => (
-  <>
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      className="fixed z-[70] right-4 bottom-[84px] md:right-6 md:bottom-24 sos-jelly inline-flex items-center gap-2 h-12 pl-4 pr-5 text-[14px] shadow-xl"
-      aria-label="Message the studio"
-    >
-      <MessageSquare className="w-4 h-4" /> Message us
-      {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center" style={{ background: "#E11D48" }}>{unread}</span>}
-    </button>
-    <AnimatePresence>
-      {open && (
-        <motion.div className="fixed inset-0 z-[90] flex items-end md:items-stretch md:justify-end bg-black/35" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 34 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full md:w-[480px] max-h-[92dvh] md:max-h-none md:h-full overflow-y-auto overscroll-contain rounded-t-[26px] md:rounded-none p-4 md:p-5 shadow-2xl"
-            style={{ background: "var(--sos-canvas)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[12px] font-semibold px-3 py-1 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>Goes to the studio like an email — not live chat</span>
-              <button type="button" onClick={() => setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }} aria-label="Close"><X className="w-4 h-4" /></button>
-            </div>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </>
-);
 
 /** Upcoming reviews and deliveries, for the Timeline page. */
 const UpcomingTimeline: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; onOpen: (id: string) => void }> = ({ projects, gates, onOpen }) => {
@@ -1859,7 +1901,13 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [toast, setToast] = useState<PortalNotification | null>(null);
   const [msgOpen, setMsgOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "messages");
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
-  const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
+  const [selected, setSelectedRaw] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
+  const [section, setSection] = useState<ProjectSection>(() => (new URLSearchParams(window.location.search).get("section") as ProjectSection) || "overview");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const setSelected = useCallback((id: string | null, sec: ProjectSection = "overview") => {
+    setSelectedRaw(id);
+    setSection(sec);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<PortalTab>(() => (new URLSearchParams(window.location.search).get("tab") as PortalTab) || "projects");
   const [listFilter, setListFilter] = useState<PortalFilter>("all");
@@ -1919,6 +1967,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
       setGates((g.data || []) as PortalGate[]);
       setDeliverables((d.data || []) as PortalDeliverable[]);
       setInvoices((i.data || []) as PortalInvoice[]);
+      setRefreshKey((k) => k + 1);
     }
     setLoading(false);
   }, []);
@@ -1933,7 +1982,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
     if (n.kind === "message") setMsgOpen(true);
     else if (n.project_id) {
       setTab("projects");
-      setSelected(n.project_id);
+      setSelected(n.project_id, n.kind === "comment_reply" ? "reviews" : "overview");
     }
   };
 
@@ -1946,9 +1995,9 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   }, [signedIn, load]);
 
   useEffect(() => {
-    const url = tab !== "projects" ? `/portal?tab=${tab}` : selected ? `/portal?project=${selected}` : "/portal";
+    const url = tab !== "projects" ? `/portal?tab=${tab}` : selected ? `/portal?project=${selected}${section !== "overview" ? `&section=${section}` : ""}` : "/portal";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState({}, "", url);
-  }, [selected, tab]);
+  }, [selected, tab, section]);
 
   const signOut = async () => {
     await supabase?.auth.signOut().catch(() => {});
@@ -1990,6 +2039,16 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
     );
   }, [projects, gates, listFilter, listQuery, listSort]);
 
+  const inbox = (
+    <MailInbox
+      messages={messages as any}
+      reload={reloadMessages}
+      projects={projects.map((p) => ({ id: p.id, title: p.title }))}
+      clientId={projects[0]?.client_id}
+      initialProject={selected}
+    />
+  );
+
   return (
     <div className="studio-os-root">
       {checking ? (
@@ -2026,22 +2085,37 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
+              unread={unread}
+              onMessages={() => setMsgOpen(true)}
               who={contact?.organisation}
+              name={contact?.name}
               info={studioInfo}
               onSignOut={signOut}
             />
           )}
-          <div className="lg:ml-[264px] min-w-0">
-          <div className="px-4 md:px-8 xl:px-10 max-w-[1520px] mx-auto">
+          <div className="lg:ml-[256px] min-w-0">
+          <div className="px-4 md:px-8 xl:px-10 w-full">
           {isLarge ? (
             <div className="sticky top-0 z-30 -mx-4 md:-mx-8 xl:-mx-10 px-4 md:px-8 xl:px-10 h-16 flex items-center justify-end gap-3 backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--sos-canvas) 80%, transparent)" }}>
-              {contact?.ok && <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />}
+              {contact?.ok && (
+                <>
+                  <MessagesButton unread={unread} open={msgOpen} setOpen={setMsgOpen}>{inbox}</MessagesButton>
+                  <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />
+                </>
+              )}
             </div>
           ) : (
             <Brand
               onSignOut={signOut}
               who={contact?.organisation}
-              extra={contact?.ok ? <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} /> : null}
+              extra={
+                contact?.ok ? (
+                  <span className="flex items-center gap-2">
+                    <MessagesButton unread={unread} open={msgOpen} setOpen={setMsgOpen}>{inbox}</MessagesButton>
+                    <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />
+                  </span>
+                ) : null
+              }
             />
           )}
           <NotificationToast n={toast} onClose={closeToast} onOpen={openNotification} />
@@ -2070,6 +2144,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                 >
                   {tab === "calendar" ? (
                     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
+                      <div className="xl:col-span-2"><ProjectGantt projects={projects} gates={gates as any} onOpen={(id) => { setTab("projects"); setSelected(id); }} /></div>
                       <CalendarTab info={studioInfo} />
                       <UpcomingTimeline projects={projects} gates={gates} onOpen={(id) => { setTab("projects"); setSelected(id); }} />
                     </div>
@@ -2098,8 +2173,33 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               viewerName={contact?.name}
               onBack={() => setSelected(null)}
               onChanged={load}
+              section={section}
+              onSection={(s) => {
+                setSection(s);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              refreshKey={refreshKey}
+              sectionContent={
+                section === "creative" ? (
+                  <AssetLibrary projectId={project.id} mode="creative" onChanged={load} />
+                ) : section === "assets" ? (
+                  <AssetLibrary projectId={project.id} mode="bible" onChanged={load} />
+                ) : section === "production" ? (
+                  <ProductionPanel projectId={project.id} onChanged={load} />
+                ) : section === "reviews" ? (
+                  <>
+                    <ReviewStudio projectId={project.id} clientId={project.client_id} deliverables={deliverables.filter((d) => d.project_id === project.id)} />
+                    <div className="grid gap-5 2xl:grid-cols-2 items-start">
+                      <ChangeRequestsCard projectId={project.id} onChanged={load} />
+                      <ApprovalHistoryCard projectId={project.id} />
+                    </div>
+                  </>
+                ) : section === "activity" ? (
+                  <ActivityPanel project={project} gates={gates.filter((g) => g.project_id === project.id)} deliverables={deliverables.filter((d) => d.project_id === project.id)} messages={messages as any} tasks={portalTasks.filter((t) => t.project_id === project.id)} />
+                ) : null
+              }
             />
-            <div className="mt-5"><ClientUploads project={project} /></div>
+            {section === "overview" && <div className="mt-5"><ClientUploads project={project} /></div>}
             </>
           ) : (
             <div className="space-y-5">
@@ -2111,7 +2211,19 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   Everything the studio is making for {contact?.organisation || "you"}.
                 </p>
               </div>
-              <ReviewQueue projects={projects} gates={gates} onOpen={setSelected} onChanged={load} />
+              <AttentionRequired
+                projects={projects}
+                gates={gates}
+                tasks={portalTasks}
+                unreadMessages={unread}
+                refreshKey={refreshKey}
+                onOpen={(id, sec) => {
+                  setSelected(id, sec || "overview");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                onOpenMessages={() => setMsgOpen(true)}
+                onChanged={load}
+              />
               {projects.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1" role="tablist" aria-label="Filter projects">
@@ -2188,9 +2300,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           <Footer />
           </div>
           </div>
-          <MessagesLauncher open={msgOpen} setOpen={setMsgOpen} unread={unread}>
-            <MessagesTab messages={messages} reload={reloadMessages} projects={projects.map((p) => ({ id: p.id, title: p.title }))} info={studioInfo} />
-          </MessagesLauncher>
+
           <PortalAssistant />
           <UpdateBanner />
         </div>

@@ -193,6 +193,7 @@ function fromContactRow(row: any): ClientContact {
     must_set_password: Boolean(row.must_set_password),
     portal_last_login_at: row.portal_last_login_at || undefined,
     has_portal_login: Boolean(row.auth_user_id),
+    portal_role: row.portal_role || "admin",
   };
 }
 
@@ -432,6 +433,8 @@ function toTaskRow(t: StudioTask) {
     snoozed_until: t.snoozed_until ?? null,
     completed_at: t.completed_at ?? null,
     portal_visible: Boolean(t.portal_visible),
+    responsibility: t.responsibility === "client" ? "client" : "studio",
+    parent_task_id: isUuid(t.parent_task_id) ? t.parent_task_id : null,
     created_at: t.created_at || new Date().toISOString(),
     updated_at: t.updated_at || new Date().toISOString(),
   };
@@ -463,6 +466,8 @@ function fromTaskRow(row: any): StudioTask {
     snoozed_until: row.snoozed_until || undefined,
     completed_at: row.completed_at || undefined,
     portal_visible: Boolean(row.portal_visible),
+    responsibility: row.responsibility === "client" ? "client" : "studio",
+    parent_task_id: row.parent_task_id || undefined,
     created_at: row.created_at || new Date().toISOString(),
     updated_at: row.updated_at || new Date().toISOString(),
   };

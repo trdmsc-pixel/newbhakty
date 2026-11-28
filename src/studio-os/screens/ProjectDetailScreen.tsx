@@ -16,6 +16,7 @@ import { AssignMembersModal, MemberStack } from "../components/Team";
 import { ProjectMoneyTab } from "../components/Money";
 import { supabase } from "../../lib/supabase";
 import { ProjectDeliverablesTab, SendForApprovalModal } from "../components/ProjectDeliverables";
+import { ApprovalHistory, AssetsAdmin, ChangeRequestsAdmin, ProjectMessagesPanel, ReviewCommentsAdmin, ShotsAdmin, useFocusFlash } from "../components/ProductionAdmin";
 import { computeGenerationEstimate } from "../forecastEngine";
 import { GateStatus, GenerationBlockStatus, type StudioGate, type StudioTask, type StudioProject } from "../types";
 
@@ -55,7 +56,7 @@ const MilestoneRow: React.FC<{ gate: StudioGate; revisions: StudioTask[]; onTogg
   const open = revisions.filter((t) => t.status !== "done").length;
   const done = g.status === "approved";
   return (
-    <div className="sos-tile sos-row flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3" style={{ boxShadow: g.status === "waiting_on_client" ? "inset 3px 0 0 #F59E0B" : open ? "inset 3px 0 0 #DC2626" : undefined }}>
+    <div data-focus={`gate:${g.id}`} className="sos-tile sos-row flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3" style={{ boxShadow: g.status === "waiting_on_client" ? "inset 3px 0 0 #F59E0B" : open ? "inset 3px 0 0 #DC2626" : undefined }}>
       <button
         type="button"
         onClick={onToggle}
@@ -343,6 +344,7 @@ export const ProjectDetailScreen: React.FC = () => {
     isOwner,
     supabaseSyncStatus,
     setRoute,
+    projectFocus,
   } = useStudioOS();
   const [assignOpen, setAssignOpen] = useState(false);
   const [projectTeamIds, setProjectTeamIds] = useState<string[]>([]);
@@ -355,7 +357,21 @@ export const ProjectDetailScreen: React.FC = () => {
       .then(({ data }) => setProjectTeamIds((data || []).map((r: any) => r.member_id)));
   }, [selectedProjectId, supabaseSyncStatus, assignOpen]);
 
-  const [tab, setTab] = useState<"approvals" | "changes" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables" | "money">("approvals");
+  const [tab, setTab] = useState<"approvals" | "changes" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables" | "money" | "production" | "assets">("approvals");
+  // Deep links (Today feed, bell, notification URLs) land on the exact tab + item.
+  useEffect(() => {
+    if (!projectFocus?.tab && !projectFocus?.focus) return;
+    const map: Record<string, typeof tab> = { files: "deliverables", deliverables: "deliverables", changes: "changes", tasks: "list", emails: "emails", messages: "emails", production: "production", assets: "assets", overview: "overview", milestones: "approvals", money: "money" };
+    const t = projectFocus.tab ? map[projectFocus.tab] : projectFocus.focus?.startsWith("gate:") ? "approvals" : undefined;
+    if (t) setTab(t);
+    if (projectFocus.focus?.startsWith("gate:")) {
+      const g = gates.find((x) => `gate:${x.id}` === projectFocus.focus);
+      if (g?.episode) setEpSel(g.episode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectFocus?.n]);
+  const focusKey = projectFocus?.focus;
+  useFocusFlash(tab === "approvals" && focusKey?.startsWith("gate:") ? focusKey : undefined, true);
   const [sendGateId, setSendGateId] = useState<string | null>(null);
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const client = clients.find((c) => c.id === project?.client_id);
@@ -610,6 +626,8 @@ export const ProjectDetailScreen: React.FC = () => {
                 { id: "approvals", label: "Milestones" },
                 { id: "changes", label: "Client changes", badge: tasks.filter((t) => t.project_id === project.id && t.source === "portal" && t.status !== "done" && !t.archived_at).length },
                 { id: "overview", label: "Overview" },
+                { id: "production", label: "Production" },
+                { id: "assets", label: "Creative & Bible" },
                 { id: "list", label: `Tasks (${projectTasks.filter((t) => t.status !== "done").length})` },
                 { id: "board", label: "Board" },
                 { id: "deliverables", label: "Files & versions" },
@@ -885,10 +903,24 @@ export const ProjectDetailScreen: React.FC = () => {
               onSend={(gid) => setSendGateId(gid)}
             />
           )}
+          {tab === "changes" && <ChangeRequestsAdmin project={project} focus={focusKey} />}
+          {tab === "production" && <ShotsAdmin project={project} gates={projectGates} focus={focusKey} />}
+          {tab === "assets" && <AssetsAdmin project={project} focus={focusKey} />}
+          {tab === "overview" && <ApprovalHistory projectId={project.id} />}
           {tab === "list" && <TableScreen projectFilterId={project.id} />}
           {tab === "board" && <BoardScreen projectFilterId={project.id} />}
-          {tab === "emails" && <ProjectEmailsTab projectId={project.id} />}
-          {tab === "deliverables" && <ProjectDeliverablesTab project={project} gates={projectGates} />}
+          {tab === "emails" && (
+            <>
+              <ProjectMessagesPanel project={project} />
+              <ProjectEmailsTab projectId={project.id} />
+            </>
+          )}
+          {tab === "deliverables" && (
+            <>
+              <ReviewCommentsAdmin projectId={project.id} focus={focusKey} />
+              <ProjectDeliverablesTab project={project} gates={projectGates} focus={focusKey} />
+            </>
+          )}
           {tab === "money" && isOwner && <ProjectMoneyTab project={project} />}
         </div>
 

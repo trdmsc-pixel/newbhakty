@@ -121,6 +121,28 @@ const ClientDetail: React.FC<{ client: StudioClient; actions: Actions }> = ({ cl
                     Turn off portal
                   </button>
                 )}
+                {ct.is_portal_user && (
+                  <select
+                    defaultValue={ct.portal_role || "admin"}
+                    onChange={async (e) => {
+                      const role = e.target.value;
+                      const { error } = (await supabase?.from("studio_client_contacts").update({ portal_role: role }).eq("id", ct.id)) || {};
+                      if (error) return window.alert(error.message);
+                      ct.portal_role = role as any;
+                      e.target.blur();
+                    }}
+                    className="h-7 px-2 rounded-full border text-[11px] font-semibold"
+                    style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }}
+                    title="Portal permission: Admin (everything) · Approver (approve, comment, no invoices) · Reviewer (comment only) · Finance (invoices only) · Viewer (read only)"
+                    aria-label="Portal permission"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="approver">Approver</option>
+                    <option value="reviewer">Reviewer</option>
+                    <option value="finance">Finance</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                )}
                 <button type="button" onClick={() => a.onRemoveContact(ct)} className={smallBtn} style={{ color: "var(--sos-text-3)" }} aria-label={`Remove ${ct.name}`}>
                   <Trash2 className="w-3 h-3" />
                 </button>

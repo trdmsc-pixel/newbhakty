@@ -140,35 +140,112 @@ export const portalLinkFor = (projectId: string) => `${window.location.origin}/p
 // ---------------------------------------------------------------------------
 // Deliverables tab
 // ---------------------------------------------------------------------------
-/** Files the client uploaded through the portal (private bucket). */
-const ClientUploadsPanel: React.FC<{ projectId: string }> = ({ projectId }) => {
-  const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; note: string | null; contact_name: string | null; created_at: string }>>([]);
-  useEffect(() => {
+export const FILE_CATEGORIES: Array<{ id: string; label: string }> = [
+  { id: "brief", label: "Briefs" },
+  { id: "script", label: "Scripts" },
+  { id: "storyboard", label: "Storyboards" },
+  { id: "character_ref", label: "Character references" },
+  { id: "environment", label: "Environments" },
+  { id: "brand", label: "Brand guidelines" },
+  { id: "audio", label: "Audio" },
+  { id: "music", label: "Music" },
+  { id: "raw_footage", label: "Raw footage" },
+  { id: "review_video", label: "Review videos" },
+  { id: "final", label: "Final deliverables" },
+];
+const catLabel = (c?: string | null) => FILE_CATEGORIES.find((x) => x.id === c)?.label;
+
+/** Files the client uploaded through the portal (private Supabase bucket). Download, recategorise, delete (frees the storage). */
+const ClientUploadsPanel: React.FC<{ projectId: string; focus?: string }> = ({ projectId, focus }) => {
+  const { pushToast } = useStudioOS();
+  const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; mime: string | null; note: string | null; category: string | null; contact_name: string | null; created_at: string }>>([]);
+  const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(() => {
     if (!supabase) return;
-    supabase.from("studio_client_uploads").select("id, name, path, size, note, contact_name, created_at").eq("project_id", projectId).is("archived_at", null).order("created_at", { ascending: false }).then(({ data }) => setItems((data || []) as any));
+    supabase.from("studio_client_uploads").select("id, name, path, size, mime, note, category, contact_name, created_at").eq("project_id", projectId).is("archived_at", null).order("created_at", { ascending: false }).then(({ data }) => setItems((data || []) as any));
   }, [projectId]);
+  useEffect(() => {
+    load();
+    if (!supabase) return;
+    const ch = supabase.channel(`uploads-${projectId}`).on("postgres_changes", { event: "*", schema: "public", table: "studio_client_uploads", filter: `project_id=eq.${projectId}` }, () => load()).subscribe();
+    return () => {
+      supabase?.removeChannel(ch);
+    };
+  }, [load, projectId]);
+  useEffect(() => {
+    if (!focus?.startsWith("upload:") || !items.length) return;
+    const el = document.querySelector(`[data-focus="${focus}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("sos-focus-flash");
+    window.setTimeout(() => el.classList.remove("sos-focus-flash"), 2600);
+  }, [focus, items.length]);
   if (!items.length) return null;
-  const open = async (path: string) => {
-    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(path, 600);
+  const download = async (it: (typeof items)[number]) => {
+    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(it.path, 600, { download: it.name });
+    if (!data?.signedUrl) return pushToast("Couldn't open the file", "warn");
+    const a = document.createElement("a");
+    a.href = data.signedUrl;
+    a.download = it.name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setDownloaded((s) => new Set(s).add(it.id));
+  };
+  const view = async (it: (typeof items)[number]) => {
+    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(it.path, 600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
   };
+  const remove = async (it: (typeof items)[number]) => {
+    const warn = downloaded.has(it.id) ? "" : "\n\nYou haven't downloaded it in this session — make sure you have a copy.";
+    if (!window.confirm(`Delete “${it.name}” permanently?\n\nIt is removed from storage (frees ${it.size ? `${(it.size / 1048576).toFixed(1)} MB` : "the space"}) and disappears from the client portal.${warn}`)) return;
+    setBusy(it.id);
+    const { error: e1 } = await supabase!.storage.from("client-uploads").remove([it.path]);
+    if (e1) {
+      setBusy(null);
+      return pushToast(e1.message, "warn");
+    }
+    await supabase!.from("studio_client_uploads").update({ archived_at: new Date().toISOString() }).eq("id", it.id);
+    setBusy(null);
+    pushToast("File deleted and storage freed", "success");
+    load();
+  };
+  const setCategory = async (id: string, category: string) => {
+    await supabase!.from("studio_client_uploads").update({ category: category || null }).eq("id", id);
+    load();
+  };
+  const total = items.reduce((a, x) => a + (x.size || 0), 0);
   return (
     <div className="sos-card p-5 space-y-2">
-      <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>From the client · {items.length}</h3>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>From the client · {items.length}</h3>
+        <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>{(total / 1048576).toFixed(1)} MB in private storage</span>
+      </div>
       {items.map((it) => (
-        <button key={it.id} type="button" onClick={() => open(it.path)} className="w-full text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>
-          <Download className="w-4 h-4 shrink-0" style={{ color: "var(--sos-primary)" }} />
-          <span className="min-w-0 flex-1">
+        <div key={it.id} data-focus={`upload:${it.id}`} className="flex flex-wrap md:flex-nowrap items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>
+          <button type="button" onClick={() => view(it)} className="min-w-0 flex-1 text-left">
             <span className="block text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>{it.name}</span>
             <span className="block text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{[it.note, it.contact_name, format(parseISO(it.created_at), "d MMM, HH:mm"), it.size ? `${(it.size / 1048576).toFixed(1)} MB` : ""].filter(Boolean).join(" · ")}</span>
-          </span>
-        </button>
+          </button>
+          <select value={it.category || ""} onChange={(e) => setCategory(it.id, e.target.value)} className="h-8 px-2 rounded-full border text-[12px]" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-2)", background: "var(--sos-surface)" }} aria-label="Category">
+            <option value="">Uncategorised</option>
+            {FILE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          <button type="button" onClick={() => download(it)} className="inline-flex items-center gap-1 px-3 h-8 rounded-full text-[12px] font-semibold" style={downloaded.has(it.id) ? { background: "#E7F7EE", color: "#17663F" } : { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>
+            <Download className="w-3.5 h-3.5" /> {downloaded.has(it.id) ? "Downloaded" : "Download"}
+          </button>
+          <button type="button" disabled={busy === it.id} onClick={() => remove(it)} className="inline-flex items-center gap-1 px-3 h-8 rounded-full text-[12px] font-semibold" style={{ background: "#FDECEC", color: "#B42318" }} aria-label={`Delete ${it.name}`}>
+            {busy === it.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
+          </button>
+        </div>
       ))}
     </div>
   );
 };
 
-export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: StudioGate[] }> = ({ project, gates }) => {
+export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: StudioGate[]; focus?: string }> = ({ project, gates, focus }) => {
   const { pushToast, updateProject } = useStudioOS();
   const [isFinal, setIsFinal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
@@ -179,8 +256,12 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
   const [gateId, setGateId] = useState("");
   const [shared, setShared] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(focus?.startsWith("deliverable:") ? focus.slice(12) : null);
+  const [category, setCategory] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focus?.startsWith("deliverable:")) setOpenId(focus.slice(12));
+  }, [focus]);
 
   const uploadImage = async (file: File) => {
     setBusy(true);
@@ -212,6 +293,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
       shared_with_client: shared,
       is_final: isFinal,
       download_url: downloadUrl.trim() || null,
+      category: category || (isFinal ? "final" : null),
     });
     setBusy(false);
     if (error) return pushToast(error.message, "warn");
@@ -254,7 +336,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
 
   return (
     <div className="space-y-5">
-    <ClientUploadsPanel projectId={project.id} />
+    <ClientUploadsPanel projectId={project.id} focus={focus} />
     <div className="sos-card p-5 md:p-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -296,7 +378,11 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
             </option>
           ))}
         </select>
-        <input value={downloadUrl} onChange={(e) => setDownloadUrl(e.target.value)} placeholder="Optional: master-file download link (Drive / Dropbox / WeTransfer)" className="md:col-span-6 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="md:col-span-2 h-10 px-2 rounded-[12px] border text-[13px]" style={inputStyle} aria-label="Category">
+          <option value="">Category (optional)</option>
+          {FILE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        <input value={downloadUrl} onChange={(e) => setDownloadUrl(e.target.value)} placeholder="Optional: master-file download link (Drive / Dropbox / WeTransfer)" className="md:col-span-4 h-10 px-3 rounded-[12px] border text-[13px]" style={inputStyle} />
         <div className="md:col-span-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           <label className="inline-flex items-center gap-2 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
             <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="w-4 h-4 accent-[#5B3FE4]" />
@@ -321,7 +407,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
           {items.map((d) => {
             const gate = gates.find((g) => g.id === d.gate_id);
             return (
-              <div key={d.id} className="px-3.5 py-3 rounded-[14px] sos-tile">
+              <div key={d.id} data-focus={`deliverable:${d.id}`} className="px-3.5 py-3 rounded-[14px] sos-tile">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 {parseMedia(d.url)?.kind === "image" ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : ["youtube", "vimeo"].includes(parseMedia(d.url)?.kind || "") ? <Play className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />}
                 <div className="min-w-[55%] flex-1">

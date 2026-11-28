@@ -76,6 +76,13 @@ interface PersistedState {
   timeEntries: StudioTimeEntry[];
 }
 
+export interface ProjectFocus {
+  /** files · changes · tasks · emails · production · assets · overview · milestones */
+  tab?: string;
+  /** e.g. "upload:<id>", "deliverable:<id>", "gate:<id>", "cr:<id>", "shot:<id>", "asset:<id>" */
+  focus?: string;
+}
+
 export interface ToastAction {
   label: string;
   onClick: () => void;
@@ -110,7 +117,9 @@ interface StudioOSContextValue {
   route: StudioRoute;
   setRoute: (r: StudioRoute) => void;
   selectedProjectId: string | null;
-  openProject: (projectId: string) => void;
+  openProject: (projectId: string, opts?: ProjectFocus) => void;
+  /** Where to land inside a project (tab + element), set by deep links from Today / the bell. */
+  projectFocus: (ProjectFocus & { n: number }) | null;
   darkMode: boolean;
   toggleDarkMode: () => void;
   searchQuery: string;
@@ -473,10 +482,25 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     window.history.pushState({ sosRoute: route, pid: route === "project_detail" ? selectedProjectId : null }, "");
   }, [route, selectedProjectId]);
 
-  const openProject = useCallback((projectId: string) => {
+  const [projectFocus, setProjectFocus] = useState<(ProjectFocus & { n: number }) | null>(null);
+  const openProject = useCallback((projectId: string, opts?: ProjectFocus) => {
     setSelectedProjectId(projectId);
     setRoute("project_detail");
+    setProjectFocus(opts ? { ...opts, n: Date.now() } : null);
   }, []);
+  // Deep links from notifications / emails: /studio-os?project=<id>&tab=<tab>&focus=<kind:id>
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const pid = q.get("project");
+      if (pid && /^[0-9a-f-]{36}$/i.test(pid)) {
+        openProject(pid, { tab: q.get("tab") || undefined, focus: q.get("focus") || undefined });
+        window.history.replaceState(window.history.state, "", window.location.pathname);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [openProject]);
 
   const buildActivityItem = (
     entity_type: ActivityLogItem["entity_type"],
@@ -1140,6 +1164,7 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setRoute,
     selectedProjectId,
     openProject,
+    projectFocus,
     darkMode,
     toggleDarkMode,
     searchQuery,

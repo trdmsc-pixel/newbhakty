@@ -44,6 +44,7 @@ const SettingsScreen = lazy(() => import("./screens/SecondaryScreens").then((m) 
 import { QuickAddModal } from "./components/QuickAddModal";
 import { WhatsAppImportModal } from "./components/WhatsAppImportModal";
 import { ClientPulseProvider, useClientPulse } from "./components/ClientPulse";
+import { StudioBell } from "./components/StudioBell";
 const MailScreen = lazy(() => import("./screens/MailScreen").then((m) => ({ default: m.MailScreen })));
 const StudioCopilot = lazy(() => import("./components/StudioCopilot").then((m) => ({ default: m.StudioCopilot })));
 const MoneyScreen = lazy(() => import("./screens/MoneyScreen").then((m) => ({ default: m.MoneyScreen })));
@@ -536,34 +537,7 @@ const StudioOSShell: React.FC<{
                 <Plus className="w-4 h-4" /> New Task
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (clientUnread > 0) {
-                    setRoute("today");
-                    return;
-                  }
-                  const lateCount = projects.filter((p) => p.health === "late").length;
-                  if (lateCount > 0) {
-                    setRoute("timeline");
-                    pushToast(`${lateCount} project(s) with late forecast`, "warn");
-                  } else {
-                    pushToast("All calm — no new client updates.", "info");
-                  }
-                }}
-                className="relative w-9 h-9 rounded-full flex items-center justify-center border"
-                style={{ borderColor: clientUnread ? "#B42318" : "var(--sos-border)", color: clientUnread ? "#B42318" : "var(--sos-text-2)" }}
-                aria-label={clientUnread ? `${clientUnread} new client updates` : "Notifications"}
-              >
-                <Bell className={`w-4 h-4 ${clientUnread ? "sos-ring-bell" : ""}`} strokeWidth={1.75} />
-                {clientUnread > 0 ? (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#B42318] text-white text-[10px] font-bold flex items-center justify-center sos-pulse-badge">
-                    {clientUnread}
-                  </span>
-                ) : (
-                  projects.some((p) => p.health === "late") && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B42318]" />
-                )}
-              </button>
+              <StudioBell />
 
               <div
                 className="hidden sm:flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border"

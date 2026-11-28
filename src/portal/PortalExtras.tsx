@@ -349,6 +349,7 @@ interface Msg {
 }
 
 import { Receipt } from "../review/Receipt";
+import { EmailKindsCard } from "./PortalProduction";
 export { Receipt };
 
 export function usePortalMessages(enabled: boolean) {
@@ -606,6 +607,7 @@ export const AccountTab: React.FC<{ name?: string; organisation?: string; loginI
     <div className="space-y-5">
       <h1 className="sos-display text-[28px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Account</h1>
       <EmailPrefCard />
+      <EmailKindsCard />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
         <div className="sos-card p-5 space-y-3">
           <div className="flex items-center gap-3">
