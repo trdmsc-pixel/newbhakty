@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { StageHistoryButton } from "../components/StageHistory";
 import { usePortalPresence } from "../components/PortalPresence";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
@@ -476,6 +477,7 @@ export const ProjectDetailScreen: React.FC = () => {
                         </label>
                       )}
 
+                      <StageHistoryButton project={project} gate={g} />
                       {g.needs_client_approval && g.status !== "approved" && (
                         <button
                           type="button"

@@ -110,7 +110,8 @@ const StudioOSShell: React.FC<{
     let flushTimer: number | null = null;
     const flush = () => {
       if (flushTimer) window.clearTimeout(flushTimer);
-      flushTimer = window.setTimeout(() => studioApi("/api/studio-os/portal-notify/flush", { method: "POST", body: {} }).catch(() => {}), 2500);
+      // 65 s: the server waits 60 s before emailing, so an accidental change you undo is never sent.
+      flushTimer = window.setTimeout(() => studioApi("/api/studio-os/portal-notify/flush", { method: "POST", body: {} }).catch(() => {}), 65_000);
     };
     flush();
     const notifyCh = supabase

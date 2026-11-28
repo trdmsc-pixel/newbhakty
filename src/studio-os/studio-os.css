@@ -401,7 +401,9 @@
 .studio-os-root .sos-orb { will-change: transform; transform: translateZ(0); }
 .studio-os-root .sos-bar > span::after { will-change: transform; }
 .studio-os-root .sos-rows > * { content-visibility: auto; contain-intrinsic-size: auto 68px; }
-.studio-os-root .overflow-y-auto, .studio-os-root .overflow-x-auto { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+/* Momentum scrolling only. NOTE: no overscroll-behavior here — it blocked wheel scrolling
+   from reaching the page when the cursor was over the main column. Dialogs opt in with .overscroll-contain. */
+.studio-os-root .overflow-y-auto, .studio-os-root .overflow-x-auto { -webkit-overflow-scrolling: touch; }
 @media (hover: none), (max-width: 767px) {
   /* The rotating border repaints every frame — keep it as a still gradient on phones/tablets. */
   .studio-os-root .sos-aurora::after { animation: none; --sos-angle: 200deg; }

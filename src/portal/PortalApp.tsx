@@ -713,8 +713,9 @@ const ApprovalCard: React.FC<{
   previewUrl: string | null;
   /** "What changed in this version" (written by the studio with AI). */
   summary?: string | null;
+  note?: { body: string; created_at: string };
   onDone: (msg: string) => void;
-}> = ({ gate, previewUrl, summary, onDone }) => {
+}> = ({ gate, previewUrl, summary, note, onDone }) => {
   const [sketch, setSketch] = useState<{ time?: number } | null>(null);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
   const [comment, setComment] = useState("");
@@ -817,6 +818,14 @@ const ApprovalCard: React.FC<{
 
       {previewUrl && (
         <div className="space-y-2">
+          {note && (
+            <div className="relative px-4 py-3 rounded-[14px] space-y-1" style={{ background: "linear-gradient(135deg, rgba(124,92,255,0.10), rgba(59,130,246,0.06))", border: "1px solid rgba(124,92,255,0.18)" }}>
+              <p className="text-[12px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--sos-primary)" }}>
+                <MessageSquare className="w-3.5 h-3.5" /> Note from the studio · {fmtDate(note.created_at)}
+              </p>
+              <p className="text-[14px] whitespace-pre-line leading-relaxed" style={{ color: "var(--sos-text-1)" }}>{note.body}</p>
+            </div>
+          )}
           {summary && (
             <div className="px-4 py-3 rounded-[14px] space-y-1" style={{ background: "var(--sos-surface-2)" }}>
               <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>What changed in this version</p>
@@ -1159,10 +1168,11 @@ const ProjectView: React.FC<{
   invoices: PortalInvoice[];
   tasks?: PortalTask[];
   revisions?: PortalRevision[];
+  stageNotes?: Array<{ id: string; gate_id: string; body: string; created_at: string }>;
   viewerName?: string;
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], viewerName, onBack, onChanged }) => {
+}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], stageNotes = [], viewerName, onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
@@ -1247,6 +1257,7 @@ const ProjectView: React.FC<{
           gate={g}
           previewUrl={previewFor(g.id)}
           summary={[...deliverables].filter((d) => d.gate_id === g.id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.client_summary}
+          note={stageNotes.filter((n) => n.gate_id === g.id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]}
           onDone={(msg) => {
             if (msg) setFlash(msg);
             onChanged();
@@ -1606,6 +1617,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               invoices={invoices.filter((i) => i.project_id === project.id)}
               tasks={portalTasks.filter((t) => t.project_id === project.id)}
               revisions={revisions.filter((r) => r.project_id === project.id)}
+              stageNotes={messages.filter((m: any) => m.from_studio && m.gate_id && m.project_id === project.id) as any}
               viewerName={contact?.name}
               onBack={() => setSelected(null)}
               onChanged={load}

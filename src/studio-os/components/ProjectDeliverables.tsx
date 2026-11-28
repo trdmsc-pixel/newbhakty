@@ -367,6 +367,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
   const [title, setTitle] = useState(`${gate.name} ${nextVersion}`);
   const [reuse, setReuse] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -393,6 +394,18 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
           url: url.trim(),
           version: nextVersion,
           shared_with_client: true,
+        });
+        if (error) throw new Error(error.message);
+      }
+      if (note.trim() && supabase && project.client_id) {
+        const { error } = await supabase.from("studio_portal_messages").insert({
+          client_id: project.client_id,
+          project_id: project.id,
+          gate_id: gate.id,
+          body: note.trim(),
+          from_studio: true,
+          author_name: "The Chanting Studio",
+          via: "studio",
         });
         if (error) throw new Error(error.message);
       }
@@ -478,6 +491,19 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title shown to the client" className="w-full h-11 px-3.5 rounded-[14px] border text-[14px]" style={inputStyle} />
           </div>
         )}
+        <label className="block space-y-1.5">
+          <span className="text-[12px] font-semibold" style={{ color: "var(--sos-text-2)" }}>Note to the client (optional)</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={4000}
+            placeholder={`e.g. "Here's the ${gate.name.toLowerCase()} with the logo change you asked for — please check the ending at 0:42."`}
+            className="w-full px-3.5 py-2.5 rounded-[14px] border text-[14px] resize-y"
+            style={inputStyle}
+          />
+          <span className="block text-[11px]" style={{ color: "var(--sos-text-3)" }}>Shown on their review card and in Messages, emailed with the review link, and kept in this stage's history.</span>
+        </label>
         <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
           Revision rounds used: {gate.revision_round} of {gate.revisions_included} included.
         </p>

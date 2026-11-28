@@ -104,6 +104,26 @@ const TOOLS = [
     },
   },
   {
+    name: "send_note_to_client",
+    description:
+      "Send a short note to the client in their portal (and by email after a minute), optionally about a specific stage. Use for review notes, updates or replies. It's logged in that stage's history as sent via Claude. Only call this when the user explicitly asks to send/tell the client something; show the user the exact text first.",
+    inputSchema: {
+      type: "object",
+      required: ["project_code", "message"],
+      properties: {
+        project_code: str("Project code"),
+        stage_name: str("Optional stage name, e.g. 'Storyboard'"),
+        message: str("The note, written to the client (plain text, ≤ 2000 chars)"),
+      },
+    },
+  },
+  {
+    name: "get_stage_history",
+    description: "Read what was sent to and received from the client on a project (optionally one stage): notes, versions shared, review requests, change requests with status, approvals.",
+    inputSchema: { type: "object", required: ["project_code"], properties: { project_code: str("Project code"), stage_name: str("Optional stage name") } },
+    annotations: { readOnlyHint: true },
+  },
+  {
     name: "add_task",
     description: "Add a task to a project (skips exact duplicates of open tasks).",
     inputSchema: {
@@ -278,6 +298,50 @@ async function callTool(sb: SupabaseClient, name: string, a: any): Promise<unkno
       await recomputeProjectForecast(p.id).catch(() => null);
       await log("project", p.id, `Updated ${p.code}: ${changes.join(", ") || "no changes"}`);
       return { project_code: p.code, updated: changes };
+    }
+
+    case "send_note_to_client": {
+      const p = byCode(a.project_code);
+      if (!p) throw new Error(`No project ${a.project_code}`);
+      if (!p.client_id) throw new Error(`${p.code} has no client.`);
+      const text = String(a.message || "").trim().slice(0, 2000);
+      if (!text) throw new Error("message is empty");
+      let gateId: string | null = null;
+      if (a.stage_name) {
+        const { data: gates } = await sb.from("studio_gates").select("id, name, code").eq("project_id", p.id).is("archived_at", null);
+        const n = norm(a.stage_name);
+        gateId = (gates || []).find((g: any) => norm(g.name) === n || norm(g.code) === n || norm(g.name).includes(n))?.id || null;
+      }
+      const { error } = await sb.from("studio_portal_messages").insert({ client_id: p.client_id, project_id: p.id, gate_id: gateId, body: text, from_studio: true, author_name: "The Chanting Studio", via: "claude" });
+      if (error) throw new Error(error.message);
+      await log("project", p.id, `Sent a note to the client${a.stage_name ? ` on ${a.stage_name}` : ""}`);
+      return { sent: true, project_code: p.code, stage: gateId ? a.stage_name : null, note: "Client sees it in the portal now; email follows in ~1 minute." };
+    }
+
+    case "get_stage_history": {
+      const p = byCode(a.project_code);
+      if (!p) throw new Error(`No project ${a.project_code}`);
+      const { data: gates } = await sb.from("studio_gates").select("id, name, status, revision_round, revisions_included").eq("project_id", p.id).is("archived_at", null).order("order_index");
+      const n = a.stage_name ? norm(a.stage_name) : "";
+      const pick = (gates || []).filter((g: any) => !n || norm(g.name).includes(n));
+      const ids = pick.map((g: any) => g.id);
+      if (!ids.length) return { stages: [] };
+      const [msgs, vers, tasks] = await Promise.all([
+        sb.from("studio_portal_messages").select("gate_id, body, from_studio, via, created_at, read_by_client_at").in("gate_id", ids).is("archived_at", null).order("created_at"),
+        sb.from("studio_deliverables").select("gate_id, title, version, shared_with_client, is_final, created_at").in("gate_id", ids).is("archived_at", null).order("created_at"),
+        sb.from("studio_tasks").select("gate_id, title, status, source_ref").in("gate_id", ids).eq("source", "portal").is("archived_at", null),
+      ]);
+      return {
+        project_code: p.code,
+        stages: pick.map((g: any) => ({
+          stage: g.name,
+          status: g.status,
+          revision: `${g.revision_round}/${g.revisions_included}`,
+          notes: (msgs.data || []).filter((m: any) => m.gate_id === g.id).map((m: any) => ({ from: m.from_studio ? (m.via === "claude" ? "studio (via Claude)" : "studio") : "client", at: m.created_at, text: m.body, read: Boolean(m.read_by_client_at) })),
+          versions: (vers.data || []).filter((d: any) => d.gate_id === g.id).map((d: any) => ({ title: d.title, version: d.version, shared: d.shared_with_client, final: d.is_final, at: d.created_at })),
+          client_changes: (tasks.data || []).filter((t: any) => t.gate_id === g.id).map((t: any) => ({ round: Number(String(t.source_ref || "").match(/:r(\d+)$/)?.[1] || 1), change: String(t.title).replace(/^.*? R\d+:\s*/, ""), status: t.status === "done" ? "addressed" : t.status })),
+        })),
+      };
     }
 
     case "add_task": {

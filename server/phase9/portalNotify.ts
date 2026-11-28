@@ -15,13 +15,38 @@ import { baseUrlFromRequest } from "../phase3/gmail.js";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+/** Kinds that mean "the studio sent something" — the only ones ever emailed. */
+const EMAIL_KINDS = new Set(["review_ready", "new_version", "final_delivery", "message"]);
+/** Wait this long before emailing, so an accidental change that's undone never reaches the client. */
+const GRACE_MS = 60_000;
+
+/** Re-check that what we're about to email is still true (stage still awaiting review, file still shared, note not deleted). */
+async function stillValid(sb: SupabaseClient, n: any): Promise<boolean> {
+  if (!EMAIL_KINDS.has(n.kind)) return false;
+  if (n.kind === "review_ready" && n.gate_id) {
+    const { data } = await sb.from("studio_gates").select("status, portal_visible").eq("id", n.gate_id).maybeSingle();
+    return Boolean(data && data.status === "waiting_on_client" && data.portal_visible);
+  }
+  if ((n.kind === "new_version" || n.kind === "final_delivery") && n.ref_id) {
+    const { data } = await sb.from("studio_deliverables").select("shared_with_client, archived_at").eq("id", n.ref_id).maybeSingle();
+    return Boolean(data && data.shared_with_client && !data.archived_at);
+  }
+  if (n.kind === "message" && n.ref_id) {
+    const { data } = await sb.from("studio_portal_messages").select("archived_at").eq("id", n.ref_id).maybeSingle();
+    return Boolean(data && !data.archived_at);
+  }
+  return true;
+}
+
 export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string) {
+  const cutoff = new Date(Date.now() - GRACE_MS).toISOString();
   const { data: pending } = await sb
     .from("studio_portal_notifications")
-    .select("id, client_id, project_id, kind, title, body")
+    .select("id, client_id, project_id, kind, title, body, gate_id, ref_id, created_at")
     .eq("email_status", "pending")
+    .lte("created_at", cutoff)
     .order("created_at")
-    .limit(20);
+    .limit(60);
   if (!pending?.length) return { sent: 0, failed: 0, skipped: 0 };
 
   const senders = (await accounts(sb)).filter(canSend);
@@ -31,27 +56,58 @@ export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string) {
   let sent = 0;
   let failed = 0;
   let skipped = 0;
+  const mark = (ids: string[], email_status: string) => sb.from("studio_portal_notifications").update({ email_status }).in("id", ids);
 
+  // One email per client, combining everything sent to them in this window.
+  const byClient = new Map<string, any[]>();
   for (const n of pending) {
-    const [{ data: contacts }, { data: project }] = await Promise.all([
-      sb.from("studio_client_contacts").select("name, email").eq("client_id", n.client_id).eq("is_portal_user", true).is("archived_at", null),
-      n.project_id ? sb.from("studio_projects").select("title, code").eq("id", n.project_id).maybeSingle() : Promise.resolve({ data: null } as any),
-    ]);
-    const to = (contacts || []).map((c: any) => String(c.email || "").trim()).filter((e: string) => /@/.test(e));
-    if (!to.length || (!sender && !resendKey)) {
-      await sb.from("studio_portal_notifications").update({ email_status: "skipped" }).eq("id", n.id);
+    if (!(await stillValid(sb, n))) {
+      await mark([n.id], "skipped");
       skipped++;
       continue;
     }
-    const link = `${baseUrl}/portal${n.project_id ? `?project=${n.project_id}` : ""}`;
+    (byClient.get(n.client_id) || byClient.set(n.client_id, []).get(n.client_id)!).push(n);
+  }
+
+  for (const [clientId, list] of byClient) {
+    // Same stage: "ready for review" already covers its new version — keep one line per stage.
+    const seenGate = new Set<string>();
+    const items = list.filter((n) => {
+      if (n.kind === "message" || !n.gate_id) return true;
+      const k = `${n.gate_id}`;
+      if (seenGate.has(k)) return false;
+      seenGate.add(k);
+      return true;
+    });
+    const ids = list.map((n) => n.id);
+    const [{ data: contacts }, { data: projects }] = await Promise.all([
+      sb.from("studio_client_contacts").select("name, email").eq("client_id", clientId).eq("is_portal_user", true).is("archived_at", null),
+      sb.from("studio_projects").select("id, title").in("id", [...new Set(list.map((n) => n.project_id).filter(Boolean))]),
+    ]);
+    const to = (contacts || []).map((c: any) => String(c.email || "").trim()).filter((e: string) => /@/.test(e));
+    if (!to.length || (!sender && !resendKey)) {
+      await mark(ids, "skipped");
+      skipped += ids.length;
+      continue;
+    }
+    const titleOf = (pid: string | null) => (projects || []).find((p: any) => p.id === pid)?.title || "";
+    const firstProject = list.find((n) => n.project_id)?.project_id || null;
+    const link = `${baseUrl}/portal${firstProject && new Set(list.map((n) => n.project_id)).size === 1 ? `?project=${firstProject}` : ""}`;
     const first = String((contacts || [])[0]?.name || "").split(" ")[0] || "there";
-    const subject = `${n.title}${project?.title && !n.title.includes(project.title) ? ` — ${project.title}` : ""}`;
-    const text = `Hi ${first},\n\n${n.title}${project?.title ? ` (${project.title})` : ""}.\n${n.body ? `${n.body}\n` : ""}\nOpen your portal: ${link}\n\n— The Chanting Studio`;
-    const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#16181D;max-width:520px">
+    const subject = items.length === 1 ? `${items[0].title}${titleOf(items[0].project_id) && !items[0].title.includes(titleOf(items[0].project_id)) ? ` — ${titleOf(items[0].project_id)}` : ""}` : `${items.length} updates from The Chanting Studio`;
+    const text = `Hi ${first},\n\n${items.map((n) => `• ${n.title}${titleOf(n.project_id) ? ` (${titleOf(n.project_id)})` : ""}${n.kind === "message" && n.body ? `\n  "${n.body}"` : ""}`).join("\n")}\n\nOpen your portal: ${link}\n\n— The Chanting Studio`;
+    const rows = items
+      .map(
+        (n) => `<tr><td style="padding:10px 0;border-bottom:1px solid #EEF0F4">
+<p style="margin:0;font-weight:600">${esc(n.title)}</p>
+${titleOf(n.project_id) ? `<p style="margin:2px 0 0;color:#5B5F6B;font-size:13px">${esc(titleOf(n.project_id))}</p>` : ""}
+${n.kind === "message" && n.body ? `<p style="margin:8px 0 0;padding:10px 12px;background:#F4F2FF;border-radius:12px">${esc(n.body)}</p>` : ""}
+</td></tr>`
+      )
+      .join("");
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#16181D;max-width:540px">
 <p>Hi ${esc(first)},</p>
-<p style="font-size:17px;font-weight:600;margin:16px 0 6px">${esc(n.title)}</p>
-${project?.title ? `<p style="color:#5B5F6B;margin:0 0 10px">${esc(project.title)}</p>` : ""}
-${n.body ? `<p>${esc(n.body)}</p>` : ""}
+<table style="width:100%;border-collapse:collapse">${rows}</table>
 <p style="margin:22px 0"><a href="${esc(link)}" style="background:#5B3FE4;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600;display:inline-block">Open in your portal</a></p>
 <p style="color:#8A8F9C;font-size:12px">You're receiving this because you have access to The Chanting Studio client portal.</p>
 </div>`;
@@ -67,12 +123,12 @@ ${n.body ? `<p>${esc(n.body)}</p>` : ""}
         });
         if (!r.ok) throw new Error(`Resend HTTP ${r.status}`);
       }
-      await sb.from("studio_portal_notifications").update({ email_status: "sent" }).eq("id", n.id);
-      sent++;
+      await mark(ids, "sent");
+      sent += ids.length;
     } catch (err: any) {
       console.warn("[portal-notify] email failed:", err?.message);
-      await sb.from("studio_portal_notifications").update({ email_status: "failed" }).eq("id", n.id);
-      failed++;
+      await mark(ids, "failed");
+      failed += ids.length;
     }
   }
   return { sent, failed, skipped };
