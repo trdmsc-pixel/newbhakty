@@ -276,7 +276,7 @@ const StudioOSShell: React.FC<{
       <div className="sos-panel sos-panel-full min-h-screen flex">
         {/* Desktop / Tablet Left Sidebar */}
         <aside
-          className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 md:sticky md:top-0 md:h-screen ${
+          className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen ${
             sidebarCollapsed ? "w-[76px]" : "w-[256px]"
           }`}
           style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}
@@ -460,8 +460,8 @@ const StudioOSShell: React.FC<{
           </div>
         </aside>
 
-        {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* Main Content Column — offset by the fixed sidebar; only this side scrolls */}
+        <div className={`flex-1 flex flex-col min-w-0 transition-[margin] duration-200 ${sidebarCollapsed ? "md:ml-[76px]" : "md:ml-[256px]"}`}>
           {/* Top Bar */}
           <header
             className="sos-topbar sticky top-0 z-30 h-16 md:h-[72px] px-4 md:px-7 border-b flex items-center justify-between gap-3 shrink-0"

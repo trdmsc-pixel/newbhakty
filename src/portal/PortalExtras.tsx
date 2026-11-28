@@ -4,10 +4,10 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clapperboard, KeyRound, Loader2, LogOut, MessageSquare, Send, UserRound } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clapperboard, FolderOpen, Receipt as ReceiptIcon, KeyRound, Loader2, LogOut, MessageSquare, Send, UserRound } from "lucide-react";
 import { supabase } from "./portalSupabase";
 
-export type PortalTab = "projects" | "calendar" | "messages" | "account";
+export type PortalTab = "projects" | "calendar" | "messages" | "files" | "invoices" | "account";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 export interface StudioInfo {
@@ -197,8 +197,9 @@ export const StudioClock: React.FC<{ info: StudioInfo; compact?: boolean; onOpen
 export const PortalNav: React.FC<{ tab: PortalTab; onTab: (t: PortalTab) => void; unread: number; awaiting: number }> = ({ tab, onTab, unread, awaiting }) => {
   const items: Array<{ id: PortalTab; label: string; icon: React.ReactNode; badge?: number }> = [
     { id: "projects", label: "Projects", icon: <Clapperboard className="w-4 h-4" />, badge: awaiting },
-    { id: "calendar", label: "Calendar", icon: <CalendarDays className="w-4 h-4" /> },
-    { id: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" />, badge: unread },
+    { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-4 h-4" /> },
+    { id: "files", label: "Files", icon: <FolderOpen className="w-4 h-4" /> },
+    { id: "invoices", label: "Invoices", icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: "account", label: "Account", icon: <UserRound className="w-4 h-4" /> },
   ];
   return (

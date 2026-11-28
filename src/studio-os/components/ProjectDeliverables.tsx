@@ -140,6 +140,34 @@ export const portalLinkFor = (projectId: string) => `${window.location.origin}/p
 // ---------------------------------------------------------------------------
 // Deliverables tab
 // ---------------------------------------------------------------------------
+/** Files the client uploaded through the portal (private bucket). */
+const ClientUploadsPanel: React.FC<{ projectId: string }> = ({ projectId }) => {
+  const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; note: string | null; contact_name: string | null; created_at: string }>>([]);
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from("studio_client_uploads").select("id, name, path, size, note, contact_name, created_at").eq("project_id", projectId).is("archived_at", null).order("created_at", { ascending: false }).then(({ data }) => setItems((data || []) as any));
+  }, [projectId]);
+  if (!items.length) return null;
+  const open = async (path: string) => {
+    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(path, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+  return (
+    <div className="sos-card p-5 space-y-2">
+      <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>From the client · {items.length}</h3>
+      {items.map((it) => (
+        <button key={it.id} type="button" onClick={() => open(it.path)} className="w-full text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>
+          <Download className="w-4 h-4 shrink-0" style={{ color: "var(--sos-primary)" }} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>{it.name}</span>
+            <span className="block text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{[it.note, it.contact_name, format(parseISO(it.created_at), "d MMM, HH:mm"), it.size ? `${(it.size / 1048576).toFixed(1)} MB` : ""].filter(Boolean).join(" · ")}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: StudioGate[] }> = ({ project, gates }) => {
   const { pushToast, updateProject } = useStudioOS();
   const [isFinal, setIsFinal] = useState(false);
@@ -225,6 +253,8 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
   };
 
   return (
+    <div className="space-y-5">
+    <ClientUploadsPanel projectId={project.id} />
     <div className="sos-card p-5 md:p-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -351,6 +381,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
           })}
         </div>
       )}
+    </div>
     </div>
   );
 };

@@ -8,6 +8,14 @@ import { format, parseISO } from "date-fns";
 import {
   ArrowLeft,
   ChevronRight,
+  Clapperboard,
+  CalendarDays,
+  FolderOpen,
+  Receipt,
+  UserRound,
+  Sparkles,
+  Upload,
+  X,
   ChevronDown,
   Crosshair,
   RotateCcw,
@@ -1522,6 +1530,321 @@ const InvoicesCard: React.FC<{ invoices: PortalInvoice[] }> = ({ invoices }) => 
 );
 
 // ---------------------------------------------------------------------------
+// Portal hub: sidebar, review queue, files library, invoices, uploads, messages launcher
+// ---------------------------------------------------------------------------
+type HubTab = "projects" | "calendar" | "files" | "invoices" | "account";
+
+const PortalSidebar: React.FC<{
+  tab: string;
+  onTab: (t: HubTab) => void;
+  awaiting: number;
+  who?: string;
+  info: any;
+  onSignOut: () => void;
+}> = ({ tab, onTab, awaiting, who, info, onSignOut }) => {
+  const items: Array<{ id: HubTab; label: string; icon: React.ReactNode; badge?: number }> = [
+    { id: "projects", label: "Projects", icon: <Clapperboard className="w-[18px] h-[18px]" />, badge: awaiting },
+    { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-[18px] h-[18px]" /> },
+    { id: "files", label: "Files", icon: <FolderOpen className="w-[18px] h-[18px]" /> },
+    { id: "invoices", label: "Invoices", icon: <Receipt className="w-[18px] h-[18px]" /> },
+    { id: "account", label: "Account", icon: <UserRound className="w-[18px] h-[18px]" /> },
+  ];
+  return (
+    <aside className="hidden lg:flex flex-col w-[264px] fixed inset-y-0 left-0 z-40 border-r" style={{ background: "var(--sos-surface)" }}>
+      <div className="px-5 pt-6 pb-4">
+        <StudioLogo surface="light" height={24} />
+        <p className="text-[12px] mt-1.5 truncate" style={{ color: "var(--sos-text-3)" }}>{who || "Client portal"}</p>
+      </div>
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1" aria-label="Portal">
+        {items.map((it) => {
+          const on = tab === it.id;
+          return (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => onTab(it.id)}
+              className="relative w-full h-11 px-3.5 rounded-[14px] flex items-center gap-3 text-[14px] font-semibold transition-colors"
+              style={{ color: on ? "var(--sos-ink-text)" : "var(--sos-text-2)" }}
+            >
+              {on && <motion.span layoutId="portal-side-pill" className="absolute inset-0 rounded-[14px]" style={{ background: "var(--sos-ink)", boxShadow: "0 8px 20px -10px rgba(15,17,21,0.6)" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              <span className="relative z-[1] flex items-center gap-3 w-full">
+                {it.icon}
+                {it.label}
+                {it.badge ? <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{it.badge}</span> : null}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="p-3 space-y-2 border-t">
+        <StudioClock info={info} compact onOpenCalendar={() => onTab("calendar")} />
+        <button type="button" onClick={onSignOut} className="w-full h-10 px-3.5 rounded-[12px] flex items-center gap-2.5 text-[13px] font-semibold hover:bg-black/[0.04]" style={{ color: "var(--sos-text-2)" }}>
+          <LogOut className="w-4 h-4" /> Sign out
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+/** Everything waiting on the client, with one-tap approve. */
+const ReviewQueue: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; onOpen: (id: string) => void; onChanged: () => void }> = ({ projects, gates, onOpen, onChanged }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+  const waiting = gates.filter((g) => g.status === "waiting_on_client" && projects.some((p) => p.id === g.project_id));
+  if (!waiting.length) return null;
+  const approve = async (g: PortalGate) => {
+    if (!supabase || !window.confirm(`Approve "${g.name.replace(/^Ep \d+ · /, "")}"? The studio moves on to the next stage.`)) return;
+    setBusy(g.id);
+    const { data, error } = await supabase.rpc("portal_approve_gate", { p_gate_id: g.id, p_comment: null });
+    if (!error) {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      fetch("/api/portal/after-action", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ project_id: (data as any)?.project_id || g.project_id, gate_id: g.id, action: "approved" }) }).catch(() => {});
+    }
+    setBusy(null);
+    onChanged();
+  };
+  return (
+    <div className="sos-card sos-aurora sos-aurora-amber sos-aurora-glow p-5 space-y-3 overflow-hidden">
+      <span className="sos-orb" style={{ width: 220, height: 220, top: -110, right: -60, background: "radial-gradient(circle, rgba(245,158,11,0.28), transparent 70%)" }} />
+      <div className="flex items-center gap-2.5">
+        <span className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg, #FBBF24, #F59E0B)" }}><Sparkles className="w-4 h-4" /></span>
+        <div>
+          <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Waiting for your review · {waiting.length}</h2>
+          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Approve in one tap, or open it to watch and leave notes.</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {waiting.map((g) => {
+          const p = projects.find((x) => x.id === g.project_id)!;
+          return (
+            <div key={g.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 rounded-[16px]" style={{ background: "var(--sos-surface)", boxShadow: "0 0 0 1px var(--sos-border)" }}>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{g.name.replace(/^Ep (\d+) · /, "Episode $1 · ")}</p>
+                <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{p.title}{g.sent_for_approval_at ? ` · sent ${fmtDate(g.sent_for_approval_at)}` : ""}</p>
+              </div>
+              <button type="button" onClick={() => onOpen(p.id)} className="sos-jelly sos-jelly-ghost h-9 px-4 text-[13px]">Review</button>
+              <button type="button" disabled={busy === g.id} onClick={() => approve(g)} className="sos-jelly sos-jelly-green h-9 px-4 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-60">
+                {busy === g.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Approve
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/** Every version and final file across projects. */
+const FilesTab: React.FC<{ projects: PortalProject[]; deliverables: PortalDeliverable[] }> = ({ projects, deliverables }) => {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
+  const list = deliverables.filter((d) => {
+    const p = projects.find((x) => x.id === d.project_id);
+    return !q || `${d.title} ${d.version || ""} ${p?.title || ""}`.toLowerCase().includes(q.toLowerCase());
+  });
+  const byProject = projects.map((p) => ({ p, files: list.filter((d) => d.project_id === p.id).sort((a, b) => b.created_at.localeCompare(a.created_at)) })).filter((x) => x.files.length);
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="sos-display text-[28px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Files</h1>
+          <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>Every version and final file the studio has shared with you.</p>
+        </div>
+        <div className="flex items-center gap-2 h-11 px-4 rounded-full border w-full sm:w-72" style={{ background: "var(--sos-surface)" }}>
+          <Search className="w-4 h-4" style={{ color: "var(--sos-text-3)" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" className="flex-1 min-w-0 bg-transparent outline-none text-[14px]" style={{ color: "var(--sos-text-1)" }} />
+        </div>
+      </div>
+      {!byProject.length && <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>No files yet.</div>}
+      {byProject.map(({ p, files }) => (
+        <section key={p.id} className="sos-card p-5 space-y-2.5">
+          <h2 className="text-[15px] font-semibold flex items-center gap-2" style={{ color: "var(--sos-text-1)" }}>{p.emoji} {p.title} <span className="text-[12px] font-medium" style={{ color: "var(--sos-text-3)" }}>· {files.length}</span></h2>
+          {files.map((d) => (
+            <div key={d.id} className="space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>
+                <FileText className="w-4 h-4 shrink-0" style={{ color: d.is_final ? "#16A34A" : "var(--sos-text-3)" }} />
+                <span className="flex-1 min-w-0 text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>{d.title}</span>
+                {d.is_final && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#E7F7EE", color: "#17663F" }}>Final</span>}
+                {d.version && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}>{d.version}</span>}
+                <span className="hidden sm:inline text-[12px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>{fmtDate(d.created_at)}</span>
+                <button type="button" onClick={() => setOpen(open === d.id ? null : d.id)} className="h-8 px-3 rounded-full text-[12px] font-semibold" style={{ background: "var(--sos-surface)", color: "var(--sos-primary)" }}>{open === d.id ? "Hide" : "View"}</button>
+                {(d.download_url || d.is_final) && (
+                  <a href={downloadHref(d.download_url || d.url)} target="_blank" rel="noreferrer noopener" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }} aria-label="Download"><Download className="w-4 h-4" /></a>
+                )}
+              </div>
+              {open === d.id && <ReviewMedia url={d.url} resolveUrl={resolveReviewUrl} />}
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+};
+
+/** All invoices, with what's due. */
+const InvoicesTab: React.FC<{ projects: PortalProject[]; invoices: PortalInvoice[] }> = ({ projects, invoices }) => {
+  const due = invoices.filter((i) => i.status !== "paid");
+  const totals: Record<string, number> = {};
+  for (const i of due) totals[i.currency] = (totals[i.currency] || 0) + Number(i.amount || 0);
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="sos-display text-[28px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Invoices</h1>
+        <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
+          {due.length ? `Outstanding: ${Object.entries(totals).map(([c, v]) => money(v, c)).join(" + ")}` : "You're all paid up — thank you!"}
+        </p>
+      </div>
+      {projects.map((p) => {
+        const list = invoices.filter((i) => i.project_id === p.id);
+        if (!list.length) return null;
+        return (
+          <div key={p.id} className="space-y-2">
+            <p className="text-[12px] font-bold uppercase tracking-wider px-1" style={{ color: "var(--sos-text-3)" }}>{p.title}</p>
+            <InvoicesCard invoices={list} />
+          </div>
+        );
+      })}
+      {!invoices.length && <div className="sos-card p-8 text-center text-[14px]" style={{ color: "var(--sos-text-3)" }}>No invoices yet.</div>}
+    </div>
+  );
+};
+
+/** Client → studio uploads for one project (references, logos, scripts, voice-overs). */
+const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
+  const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; note: string | null; created_at: string; contact_name: string | null }>>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [err, setErr] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const load = useCallback(async () => {
+    if (!supabase) return;
+    const { data } = await supabase.from("studio_client_uploads").select("id, name, path, size, note, created_at, contact_name").eq("project_id", project.id).order("created_at", { ascending: false });
+    setItems((data || []) as any);
+  }, [project.id]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const upload = async (files: FileList | null) => {
+    if (!supabase || !files?.length) return;
+    setBusy(true);
+    setErr("");
+    try {
+      for (const f of Array.from(files).slice(0, 10)) {
+        if (f.size > 50 * 1024 * 1024) throw new Error(`${f.name} is over 50 MB — share a link in Messages instead.`);
+        const safe = f.name.replace(/[^\w.\-]+/g, "_").slice(-120);
+        const path = `${project.client_id}/${project.id}/${crypto.randomUUID()}-${safe}`;
+        const up = await supabase.storage.from("client-uploads").upload(path, f, { contentType: f.type || "application/octet-stream" });
+        if (up.error) throw new Error(up.error.message);
+        const { error } = await supabase.rpc("portal_add_upload", { p_project: project.id, p_name: f.name, p_path: path, p_size: f.size, p_mime: f.type || null, p_note: note.trim() || null });
+        if (error) throw new Error(error.message);
+      }
+      setNote("");
+      load();
+    } catch (e: any) {
+      setErr(e?.message || "Upload failed");
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  const open = async (path: string) => {
+    const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(path, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+  return (
+    <div className="sos-card p-5 space-y-3">
+      <div>
+        <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Send files to the studio</h2>
+        <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Briefs, references, logos, scripts, voice-overs — up to 50 MB each. Only you and the studio can see them.</p>
+      </div>
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          upload(e.dataTransfer.files);
+        }}
+        className="rounded-[16px] border-2 border-dashed p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+      >
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is it? (optional)" className="flex-1 min-w-0 h-11 px-3.5 rounded-[12px] border text-[14px]" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-1)" }} />
+        <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="sos-jelly h-11 px-5 text-[14px] inline-flex items-center justify-center gap-2 disabled:opacity-60">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {busy ? "Uploading…" : "Choose or drop files"}
+        </button>
+        <input ref={fileRef} type="file" multiple hidden onChange={(e) => upload(e.target.files)} />
+      </div>
+      {err && <p className="text-[12px]" style={{ color: "#B42318" }}>{err}</p>}
+      {items.map((it) => (
+        <button key={it.id} type="button" onClick={() => open(it.path)} className="w-full text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>
+          <FileText className="w-4 h-4 shrink-0" style={{ color: "var(--sos-primary)" }} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-medium truncate" style={{ color: "var(--sos-text-1)" }}>{it.name}</span>
+            <span className="block text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{[it.note, it.contact_name, fmtDate(it.created_at), it.size ? `${(it.size / 1048576).toFixed(1)} MB` : ""].filter(Boolean).join(" · ")}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/** Always-available "Message the studio" button + slide-up panel. */
+const MessagesLauncher: React.FC<{ open: boolean; setOpen: (o: boolean) => void; unread: number; children: React.ReactNode }> = ({ open, setOpen, unread, children }) => (
+  <>
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="fixed z-[70] right-4 bottom-[84px] md:right-6 md:bottom-24 sos-jelly inline-flex items-center gap-2 h-12 pl-4 pr-5 text-[14px] shadow-xl"
+      aria-label="Message the studio"
+    >
+      <MessageSquare className="w-4 h-4" /> Message us
+      {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center" style={{ background: "#E11D48" }}>{unread}</span>}
+    </button>
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-[90] flex items-end md:items-stretch md:justify-end bg-black/35" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 34 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full md:w-[480px] max-h-[92dvh] md:max-h-none md:h-full overflow-y-auto overscroll-contain rounded-t-[26px] md:rounded-none p-4 md:p-5 shadow-2xl"
+            style={{ background: "var(--sos-canvas)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[12px] font-semibold px-3 py-1 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>Goes to the studio like an email — not live chat</span>
+              <button type="button" onClick={() => setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }} aria-label="Close"><X className="w-4 h-4" /></button>
+            </div>
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </>
+);
+
+/** Upcoming reviews and deliveries, for the Timeline page. */
+const UpcomingTimeline: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; onOpen: (id: string) => void }> = ({ projects, gates, onOpen }) => {
+  const items = [
+    ...gates.filter((g) => g.status === "waiting_on_client").map((g) => ({ date: g.sent_for_approval_at || "", label: `Your review: ${g.name}`, pid: g.project_id, tone: "#D97706" })),
+    ...gates.filter((g) => g.due_date && !["approved", "skipped"].includes(g.status)).map((g) => ({ date: g.due_date!, label: `${g.name} due`, pid: g.project_id, tone: "#5B3FE4" })),
+    ...projects.filter((p) => p.promised_date && !p.closed_at && !["delivered", "paid"].includes(p.status)).map((p) => ({ date: p.promised_date!, label: `Delivery: ${p.title}`, pid: p.id, tone: "#16A34A" })),
+  ].sort((a, b) => (a.date || "0").localeCompare(b.date || "0"));
+  if (!items.length) return null;
+  return (
+    <div className="sos-card p-5 space-y-2">
+      <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Coming up</h2>
+      {items.slice(0, 12).map((it, i) => (
+        <button key={i} type="button" onClick={() => onOpen(it.pid)} className="w-full text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: it.tone }} />
+          <span className="flex-1 min-w-0 text-[14px] truncate" style={{ color: "var(--sos-text-1)" }}>
+            {it.label} <span style={{ color: "var(--sos-text-3)" }}>· {projects.find((p) => p.id === it.pid)?.title}</span>
+          </span>
+          <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>{it.date ? fmtDate(it.date) : ""}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => void }) {
@@ -1534,6 +1857,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [portalTasks, setPortalTasks] = useState<PortalTask[]>([]);
   const [revisions, setRevisions] = useState<PortalRevision[]>([]);
   const [toast, setToast] = useState<PortalNotification | null>(null);
+  const [msgOpen, setMsgOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "messages");
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [loading, setLoading] = useState(false);
@@ -1606,7 +1930,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const closeToast = useCallback(() => setToast(null), []);
   const openNotification = (n: PortalNotification) => {
     notif.markRead();
-    if (n.kind === "message") setTab("messages");
+    if (n.kind === "message") setMsgOpen(true);
     else if (n.project_id) {
       setTab("projects");
       setSelected(n.project_id);
@@ -1692,35 +2016,50 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           </div>
         </div>
       ) : (
-        <div className="max-w-6xl mx-auto px-4 md:px-6">
-          <Brand
-            onSignOut={signOut}
-            who={contact?.organisation}
-            extra={
-              contact?.ok ? (
-                <NotificationBell
-                  items={notif.items}
-                  unread={notif.unread}
-                  onOpenChange={(o) => o && notif.markRead()}
-                  onSelect={openNotification}
-                />
-              ) : null
-            }
-          />
+        <div className="min-h-screen">
+          {isLarge && (
+            <PortalSidebar
+              tab={tab}
+              onTab={(t) => {
+                setTab(t as PortalTab);
+                if (t !== "projects") setSelected(null);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
+              who={contact?.organisation}
+              info={studioInfo}
+              onSignOut={signOut}
+            />
+          )}
+          <div className="lg:ml-[264px] min-w-0">
+          <div className="px-4 md:px-8 xl:px-10 max-w-[1520px] mx-auto">
+          {isLarge ? (
+            <div className="sticky top-0 z-30 -mx-4 md:-mx-8 xl:-mx-10 px-4 md:px-8 xl:px-10 h-16 flex items-center justify-end gap-3 backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--sos-canvas) 80%, transparent)" }}>
+              {contact?.ok && <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />}
+            </div>
+          ) : (
+            <Brand
+              onSignOut={signOut}
+              who={contact?.organisation}
+              extra={contact?.ok ? <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} /> : null}
+            />
+          )}
           <NotificationToast n={toast} onClose={closeToast} onOpen={openNotification} />
-          <PortalNav
-            tab={tab}
-            onTab={(t) => {
-              setTab(t);
-              if (t !== "projects") setSelected(null);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            unread={unread}
-            awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
-          />
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 mt-4 items-start">
+          {!isLarge && (
+            <PortalNav
+              tab={tab}
+              onTab={(t) => {
+                setTab(t);
+                if (t !== "projects") setSelected(null);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              unread={unread}
+              awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
+            />
+          )}
+          <div className="mt-4">
             <div className="min-w-0 space-y-4">
-              {!isLarge && <StudioClock info={studioInfo} compact onOpenCalendar={() => setTab("calendar")} />}
+              {!isLarge && tab === "projects" && !selected && <StudioClock info={studioInfo} compact onOpenCalendar={() => setTab("calendar")} />}
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={tab}
@@ -1730,9 +2069,14 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
                   {tab === "calendar" ? (
-                    <CalendarTab info={studioInfo} />
-                  ) : tab === "messages" ? (
-                    <MessagesTab messages={messages} reload={reloadMessages} projects={projects.map((p) => ({ id: p.id, title: p.title }))} info={studioInfo} />
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
+                      <CalendarTab info={studioInfo} />
+                      <UpcomingTimeline projects={projects} gates={gates} onOpen={(id) => { setTab("projects"); setSelected(id); }} />
+                    </div>
+                  ) : tab === "files" ? (
+                    <FilesTab projects={projects} deliverables={deliverables} />
+                  ) : tab === "invoices" ? (
+                    <InvoicesTab projects={projects} invoices={invoices} />
                   ) : tab === "account" ? (
                     <AccountTab name={contact?.name} organisation={contact?.organisation} loginId={contact?.login_id} onSignOut={signOut} />
                   ) : (
@@ -1742,6 +2086,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--sos-primary)" }} />
             </div>
           ) : project ? (
+            <>
             <ProjectView
               project={project}
               gates={gates.filter((g) => g.project_id === project.id)}
@@ -1751,10 +2096,11 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               revisions={revisions.filter((r) => r.project_id === project.id)}
               stageNotes={messages.filter((m: any) => m.from_studio && m.gate_id && m.project_id === project.id) as any}
               viewerName={contact?.name}
-              showInvoices={!isLarge}
               onBack={() => setSelected(null)}
               onChanged={load}
             />
+            <div className="mt-5"><ClientUploads project={project} /></div>
+            </>
           ) : (
             <div className="space-y-5">
               <div>
@@ -1765,6 +2111,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   Everything the studio is making for {contact?.organisation || "you"}.
                 </p>
               </div>
+              <ReviewQueue projects={projects} gates={gates} onOpen={setSelected} onChanged={load} />
               {projects.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1" role="tablist" aria-label="Filter projects">
@@ -1836,28 +2183,14 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                 </motion.div>
               </AnimatePresence>
             </div>
-            {isLarge && (
-              <aside className="sticky top-20 space-y-4">
-                <StudioClock info={studioInfo} onOpenCalendar={() => setTab("calendar")} />
-                <button
-                  type="button"
-                  onClick={() => setTab("messages")}
-                  className="w-full sos-card p-4 flex items-center gap-3 text-left"
-                >
-                  <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>
-                    <MessageSquare className="w-4 h-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Message the studio</span>
-                    <span className="block text-[12px]" style={{ color: "var(--sos-text-3)" }}>{unread ? `${unread} new repl${unread > 1 ? "ies" : "y"}` : "Questions, ideas, anything"}</span>
-                  </span>
-                  {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#B42318] text-white text-[10px] font-bold flex items-center justify-center">{unread}</span>}
-                </button>
-                {tab === "projects" && selected && projects.some((p) => p.id === selected) && <InvoicesCard invoices={invoices.filter((i) => i.project_id === selected)} />}
-              </aside>
-            )}
+
           </div>
           <Footer />
+          </div>
+          </div>
+          <MessagesLauncher open={msgOpen} setOpen={setMsgOpen} unread={unread}>
+            <MessagesTab messages={messages} reload={reloadMessages} projects={projects.map((p) => ({ id: p.id, title: p.title }))} info={studioInfo} />
+          </MessagesLauncher>
           <PortalAssistant />
           <UpdateBanner />
         </div>
