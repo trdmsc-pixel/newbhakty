@@ -5,6 +5,16 @@ import { SwipeRow } from "../motion";
 import { usePortalPresence } from "../components/PortalPresence";
 
 const STATUS_ORDER: StudioProject["status"][] = ["lead", "quoted", "active", "on_hold", "parked", "delivered", "paid", "lost"];
+const SOFT_STATUS: Record<string, React.CSSProperties> = {
+  lead: { background: "#E8F0FF", color: "#1D4FD8" },
+  quoted: { background: "#E8F0FF", color: "#1D4FD8" },
+  active: { background: "var(--sos-violet-soft)", color: "var(--sos-primary)" },
+  on_hold: { background: "#FFF3E0", color: "#9A4A00" },
+  parked: { background: "var(--sos-surface-2)", color: "var(--sos-text-2)" },
+  delivered: { background: "#E7F7EE", color: "#17663F" },
+  paid: { background: "#E7F7EE", color: "#17663F" },
+  lost: { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" },
+};
 const STATUS_LABEL: Record<string, string> = { lead: "Lead", quoted: "Quoted", active: "Active", on_hold: "On hold", parked: "Parked", delivered: "Done · delivered", paid: "Paid", lost: "Lost / scrapped" };
 import { GmailScanButton } from "../components/GmailScanButton";
 import { supabase } from "../../lib/supabase";
@@ -263,7 +273,7 @@ export const ProjectsScreen: React.FC = () => {
       </div>
 
       {mode === "list" && (
-        <div key={`${filter}-${clientFilter}`} className="sos-card overflow-hidden divide-y sos-rows" style={{ borderColor: "var(--sos-border)" }}>
+        <div key={`${filter}-${clientFilter}`} className="space-y-2 sos-rows">
           {filtered.length === 0 && <p className="p-5 text-[13px]" style={{ color: "var(--sos-text-3)" }}>No projects here.</p>}
           {filtered.map((p, idx) => {
             const client = clients.find((c) => c.id === p.client_id);
@@ -279,7 +289,7 @@ export const ProjectsScreen: React.FC = () => {
             return (
               <SwipeRow
                 key={p.id}
-                radius={0}
+                radius={20}
                 onDone={() => setStatus([p.id], "delivered")}
                 onSnooze={() => setSheetFor([p.id])}
                 doneLabel={<>✓ Mark done</>}
@@ -294,8 +304,8 @@ export const ProjectsScreen: React.FC = () => {
                 onClick={() => openProject(p.id)}
                 onMouseEnter={() => setFocusIdx(idx)}
                 onKeyDown={(e) => e.key === "Enter" && openProject(p.id)}
-                className="sos-row w-full text-left flex items-center gap-3.5 px-4 py-3.5 cursor-pointer"
-                style={{ borderColor: "var(--sos-border)", ["--i" as any]: Math.min(idx, 14), background: selected.has(p.id) ? "rgba(91,63,228,0.07)" : undefined, boxShadow: focusIdx === idx ? "inset 0 0 0 2px rgba(91,63,228,0.35)" : undefined }}
+                className="group w-full text-left flex items-center gap-4 p-3 pr-4 rounded-[20px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5"
+                style={{ ["--i" as any]: Math.min(idx, 14), background: selected.has(p.id) ? "var(--sos-violet-soft)" : "var(--sos-surface)", boxShadow: focusIdx === idx ? "0 0 0 2px rgba(124,92,255,0.45), 0 10px 26px -16px rgba(91,63,228,0.6)" : "0 0 0 1px var(--sos-border), 0 1px 2px rgba(15,17,21,0.04)" }}
               >
                 <input
                   type="checkbox"
@@ -305,7 +315,7 @@ export const ProjectsScreen: React.FC = () => {
                   className="w-4 h-4 shrink-0 accent-[#5B3FE4] cursor-pointer"
                   aria-label={`Select ${p.code}`}
                 />
-                <ProjectThumb candidates={thumbCandidates(p.cover_image_url, deliverables[p.id] || [])} resolveUrl={resolveStudioReviewUrl} emoji={p.emoji} className="sos-row-thumb w-16 h-11 rounded-[12px] shrink-0 overflow-hidden" style={{ background: "var(--sos-surface-2)" }} />
+                <ProjectThumb candidates={thumbCandidates(p.cover_image_url, deliverables[p.id] || [])} resolveUrl={resolveStudioReviewUrl} emoji={p.emoji} className="sos-row-thumb w-[84px] h-14 rounded-[14px] shrink-0 overflow-hidden" style={{ background: "var(--sos-surface-2)" }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[11px] font-bold sos-tabular shrink-0" style={{ color: "var(--sos-primary)" }}>{p.code}</span>
@@ -337,8 +347,8 @@ export const ProjectsScreen: React.FC = () => {
                   value={p.status}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setStatus([p.id], e.target.value as StudioProject["status"])}
-                  className="hidden md:block h-8 pl-2.5 pr-7 rounded-full border text-[11px] font-bold shrink-0 cursor-pointer"
-                  style={{ background: badge.bg, color: badge.fg, borderColor: "transparent" }}
+                  className="hidden md:block h-8 pl-3 pr-7 rounded-full text-[12px] font-semibold shrink-0 cursor-pointer transition-shadow hover:shadow-[0_0_0_3px_rgba(124,92,255,0.15)]"
+                  style={SOFT_STATUS[p.status] || SOFT_STATUS.active}
                   aria-label={`Status of ${p.code}`}
                   title="Change status"
                 >

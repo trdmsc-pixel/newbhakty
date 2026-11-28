@@ -692,13 +692,13 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
   const progress = projectProgress(project, gates);
   const doneStages = gates.filter((g) => g.status === "approved" || g.status === "skipped").length;
   return (
-    <button type="button" onClick={onOpen} className="sos-card overflow-hidden text-left transition-transform hover:-translate-y-0.5">
+    <button type="button" onClick={onOpen} className="sos-card overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-20px_rgba(91,63,228,0.45)] flex flex-col">
       <ProjectThumb
         candidates={thumbCandidates(project.cover_image_url, deliverables)}
         resolveUrl={resolveReviewUrl}
         emoji={project.emoji}
-        className="h-28"
-        style={{ background: "var(--sos-violet-soft)" }}
+        className="h-32"
+        style={{ background: "radial-gradient(120% 120% at 20% 0%, rgba(139,118,255,0.28), transparent 60%), radial-gradient(100% 100% at 100% 100%, rgba(59,130,246,0.18), transparent 60%), var(--sos-violet-soft)" }}
       >
         <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm" style={{ background: badge.bg, color: badge.fg }}>
           {badge.label}
@@ -719,7 +719,7 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
               {project.title}
             </h3>
           </div>
-          {done ? <Pill bg="#E7F7EE" text="#17663F">{project.closed_at ? "Closed" : "Delivered"}</Pill> : <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
+          {!done && project.health !== "on_track" && project.health !== "tight" ? <Pill bg={h.bg} text={h.text}>{h.label}</Pill> : null}
         </div>
         <div className="flex items-center justify-between text-[13px]" style={{ color: "var(--sos-text-2)" }}>
           <span className="truncate">{project.closed_at ? `Completed ${fmtDate(project.closed_at)}` : done ? "Complete" : project.current_stage || "Getting started"}</span>

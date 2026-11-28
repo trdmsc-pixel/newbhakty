@@ -273,7 +273,7 @@ const StudioOSShell: React.FC<{
   return (
     <div className={`studio-os-root ${darkMode ? "studio-os-dark" : ""} p-0 md:p-4 lg:p-5`}>
       {/* Outer Rounded White Main Panel */}
-      <div className="sos-panel max-w-[1440px] mx-auto min-h-screen md:min-h-[calc(100vh-40px)] flex overflow-hidden">
+      <div className="sos-panel max-w-[1440px] 2xl:max-w-[1720px] mx-auto min-h-screen md:min-h-[calc(100vh-40px)] flex overflow-hidden">
         {/* Desktop / Tablet Left Sidebar */}
         <aside
           className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 ${

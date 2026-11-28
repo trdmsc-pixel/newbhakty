@@ -6,6 +6,7 @@
 import React, { useMemo, useState } from "react";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ChevronDown, Loader2, Mail, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { studioApi } from "../api";
 import { useStudioOS } from "../StudioOSContext";
 
@@ -44,7 +45,7 @@ const BriefList = React.memo(function BriefList({ title, rows, tone, icon, onOpe
 
 const AIBriefCardInner: React.FC = () => {
   const { projects, gates, tasks, clients, getProjectForecast, openProject, supabaseSyncStatus, settings } = useStudioOS();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false); // collapsed until you open it
   const [ai, setAi] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -102,6 +103,7 @@ const AIBriefCardInner: React.FC = () => {
   }, [projects, gates, tasks, clients, getProjectForecast, settings]);
 
   const askAi = async () => {
+    setOpen(true);
     setBusy(true);
     setError("");
     try {
@@ -141,8 +143,18 @@ const AIBriefCardInner: React.FC = () => {
           </button>
         )}
       </div>
+      <AnimatePresence initial={false}>
       {open && (
-        <>
+        <motion.div
+          key="brief-body"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ height: { type: "spring", stiffness: 220, damping: 30 }, opacity: { duration: 0.25 } }}
+          className="overflow-hidden relative"
+        >
+          <span className="sos-brief-sweep" aria-hidden />
+          <div className="relative space-y-3 pt-1">
           {empty && <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>Nothing urgent — no overdue tasks, approvals or risks today.</p>}
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             <BriefList onOpen={openProject} title="Focus today" rows={brief.focus} tone="#B42318" />
@@ -163,8 +175,10 @@ const AIBriefCardInner: React.FC = () => {
               </div>
             </div>
           )}
-        </>
+          </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       </div>
     </section>
   );
