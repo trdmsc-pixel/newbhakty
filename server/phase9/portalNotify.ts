@@ -38,7 +38,7 @@ async function stillValid(sb: SupabaseClient, n: any): Promise<boolean> {
   return true;
 }
 
-export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string) {
+export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string, opts: { digest?: boolean } = {}) {
   const cutoff = new Date(Date.now() - GRACE_MS).toISOString();
   const { data: pending } = await sb
     .from("studio_portal_notifications")
@@ -58,9 +58,20 @@ export async function flushPortalEmails(sb: SupabaseClient, baseUrl: string) {
   let skipped = 0;
   const mark = (ids: string[], email_status: string) => sb.from("studio_portal_notifications").update({ email_status }).in("id", ids);
 
+  // Each client's email preference: instant / daily digest (sent by the morning run) / portal only.
+  const { data: prefs } = await sb.from("studio_clients").select("id, email_pref").in("id", [...new Set(pending.map((n) => n.client_id))]);
+  const pref = new Map((prefs || []).map((c: any) => [c.id, c.email_pref || "instant"]));
+
   // One email per client, combining everything sent to them in this window.
   const byClient = new Map<string, any[]>();
   for (const n of pending) {
+    const p = pref.get(n.client_id) || "instant";
+    if (p === "portal") {
+      await mark([n.id], "skipped");
+      skipped++;
+      continue;
+    }
+    if (p === "digest" && !opts.digest) continue; // stays pending until the daily digest run
     if (!(await stillValid(sb, n))) {
       await mark([n.id], "skipped");
       skipped++;

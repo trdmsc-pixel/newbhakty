@@ -632,7 +632,7 @@ export function registerStudioOSRoutes(app: Express) {
       // Fallback: email any client notifications still waiting.
       try {
         const { flushPortalEmails } = await import("./phase9/portalNotify.js");
-        await flushPortalEmails(sb, "https://www.thechantingstudio.in");
+        await flushPortalEmails(sb, "https://www.thechantingstudio.in", { digest: true });
       } catch {
         /* best-effort */
       }

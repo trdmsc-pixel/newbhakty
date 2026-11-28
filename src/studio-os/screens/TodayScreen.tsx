@@ -15,6 +15,7 @@ import { generateBriefSummary } from "../forecastEngine";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { TeamLoadCard } from "../components/Team";
 import { AIBriefCard } from "../components/AIBriefCard";
+import { TodayActivity } from "../components/TodayActivity";
 import { CLIENT_FOCUS_KEY, useClientPulse } from "../components/ClientPulse";
 import { BreathingRing, CompleteCheck, EASE, SwipeRow, TickDigits } from "../motion";
 import type { StudioTask } from "../types";
@@ -264,6 +265,7 @@ export const TodayScreen: React.FC = () => {
       </div>
 
       <AIBriefCard />
+      <TodayActivity />
 
       {/* 1. Client updates — only when something new arrived */}
       <AnimatePresence initial={false}>

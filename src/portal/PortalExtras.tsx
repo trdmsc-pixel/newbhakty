@@ -507,6 +507,65 @@ export const MessagesTab: React.FC<{ messages: Msg[]; reload: () => void; projec
 };
 
 // ---- Account -------------------------------------------------------------------
+const PREFS: Array<{ id: "instant" | "digest" | "portal"; title: string; desc: string }> = [
+  { id: "instant", title: "Instant emails", desc: "An email whenever the studio sends you a file, a note or something to review." },
+  { id: "digest", title: "Daily digest", desc: "One email each morning with everything from the day before." },
+  { id: "portal", title: "Portal only", desc: "No emails — you'll see everything here, with the bell." },
+];
+/** Lets the client choose how the studio emails them. */
+const EmailPrefCard: React.FC = () => {
+  const [pref, setPref] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    supabase?.rpc("portal_get_email_pref").then(({ data }) => setPref((data as string) || "instant"));
+  }, []);
+  const choose = async (id: string) => {
+    if (!supabase || id === pref) return;
+    setSaving(true);
+    const prev = pref;
+    setPref(id);
+    const { error } = await supabase.rpc("portal_set_email_pref", { p_pref: id });
+    if (error) setPref(prev);
+    setSaving(false);
+  };
+  return (
+    <div className="sos-card p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="text-[16px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Email updates</h2>
+          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>How should we let you know when something arrives?</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--sos-text-3)" }} />}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Email preference">
+        {PREFS.map((p) => {
+          const on = pref === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={pref === null}
+              onClick={() => choose(p.id)}
+              className="text-left p-3.5 rounded-[16px] border transition-all duration-200"
+              style={on ? { borderColor: "var(--sos-primary)", background: "var(--sos-violet-soft)", boxShadow: "0 0 0 3px rgba(91,63,228,0.12)" } : { borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}
+            >
+              <span className="flex items-center gap-2 text-[14px] font-semibold" style={{ color: on ? "var(--sos-primary)" : "var(--sos-text-1)" }}>
+                <span className="w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: on ? "var(--sos-primary)" : "var(--sos-border)" }}>
+                  {on && <span className="w-2 h-2 rounded-full" style={{ background: "var(--sos-primary)" }} />}
+                </span>
+                {p.title}
+              </span>
+              <span className="block text-[12px] mt-1 leading-snug" style={{ color: "var(--sos-text-2)" }}>{p.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const AccountTab: React.FC<{ name?: string; organisation?: string; loginId?: string; onSignOut: () => void }> = ({ name, organisation, loginId, onSignOut }) => {
   const [cur, setCur] = useState("");
   const [pw, setPw] = useState("");
@@ -545,6 +604,7 @@ export const AccountTab: React.FC<{ name?: string; organisation?: string; loginI
   return (
     <div className="space-y-5">
       <h1 className="sos-display text-[28px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Account</h1>
+      <EmailPrefCard />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
         <div className="sos-card p-5 space-y-3">
           <div className="flex items-center gap-3">
