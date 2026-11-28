@@ -409,9 +409,14 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
         });
         if (error) throw new Error(error.message);
       }
-      updateGate(gate.id, { status: "waiting_on_client", portal_visible: true });
-      navigator.clipboard?.writeText(portalLinkFor(project.id)).catch(() => {});
-      pushToast(`${gate.name} sent for approval — portal link copied`, "success");
+      if (gate.needs_client_approval) {
+        updateGate(gate.id, { status: "waiting_on_client", portal_visible: true });
+        navigator.clipboard?.writeText(portalLinkFor(project.id)).catch(() => {});
+        pushToast(`${gate.name} sent for approval — portal link copied`, "success");
+      } else {
+        if (!gate.portal_visible) updateGate(gate.id, { portal_visible: true });
+        pushToast(`Sent to the client — ${gate.name}`, "success");
+      }
       onClose();
     } catch (err: any) {
       pushToast(err?.message || "Could not send", "warn");
@@ -426,7 +431,7 @@ export const SendForApprovalModal: React.FC<{ project: StudioProject; gate: Stud
         <div className="flex items-center justify-between">
           <div>
             <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-              Send {gate.name} for approval
+              {gate.needs_client_approval ? `Send ${gate.name} for approval` : `Send ${gate.name} to the client`}
             </h3>
             <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
               Appears instantly in the client portal with Approve / Request changes.

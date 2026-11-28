@@ -35,11 +35,11 @@ const TONE: Record<EpState, { bg: string; fg: string; ring?: string; label: stri
   upcoming: { bg: "var(--sos-surface-2)", fg: "var(--sos-text-3)", label: "Upcoming" },
 };
 
-export const EpisodeTracker: React.FC<{ gates: EpGate[]; selected: number; onSelect: (ep: number) => void; audience?: "studio" | "client" }> = ({ gates, selected, onSelect, audience = "studio" }) => {
+export const EpisodeTracker: React.FC<{ gates: EpGate[]; selected: number; onSelect: (ep: number) => void; audience?: "studio" | "client"; multi?: number[] }> = ({ gates, selected, onSelect, audience = "studio", multi }) => {
   const eps = episodeStates(gates);
   if (!eps.length) return null;
   const doneN = eps.filter((e) => e.state === "done").length;
-  const sel = eps.find((e) => e.ep === selected) || eps[0];
+  const sel = eps.find((e) => e.ep === (multi?.[0] ?? selected)) || eps[0];
   const now = eps.find((e) => e.state === "active" || e.state === "waiting");
   return (
     <div className="space-y-3">
@@ -64,7 +64,7 @@ export const EpisodeTracker: React.FC<{ gates: EpGate[]; selected: number; onSel
       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))" }} role="tablist" aria-label="Episodes">
         {eps.map((e) => {
           const t = TONE[e.state];
-          const on = e.ep === selected;
+          const on = multi ? multi.includes(e.ep) : e.ep === selected;
           return (
             <button
               key={e.ep}

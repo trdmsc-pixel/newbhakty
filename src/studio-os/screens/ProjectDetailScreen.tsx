@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { EpisodeTracker, currentEpisode } from "../../review/EpisodeTracker";
 import { StageHistoryButton, StageNoteBox, StageTimelineList, useStageTimeline } from "../components/StageHistory";
 import { usePortalPresence } from "../components/PortalPresence";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, ChevronDown, Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, ChevronDown, MessageSquare, X, Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { GateStatusChip, HealthPill, StackedAvatars } from "../components/StatusChip";
 import { BoardScreen } from "./BoardScreen";
@@ -46,6 +47,129 @@ export const GateStatusSelect: React.FC<{ status: GateStatus; needsApproval?: bo
       </select>
       <ChevronDown className="w-3.5 h-3.5 absolute right-2 pointer-events-none" style={{ color: t.fg }} />
     </span>
+  );
+};
+
+/** Compact milestone row: tick, name + status side by side, small facts, and actions. */
+const MilestoneRow: React.FC<{ gate: StudioGate; revisions: StudioTask[]; onToggle: () => void; onStatus: (s: GateStatus) => void; onOpen: () => void; onSend: () => void }> = ({ gate: g, revisions, onToggle, onStatus, onOpen, onSend }) => {
+  const open = revisions.filter((t) => t.status !== "done").length;
+  const done = g.status === "approved";
+  return (
+    <div className="sos-tile sos-row flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3" style={{ boxShadow: g.status === "waiting_on_client" ? "inset 3px 0 0 #F59E0B" : open ? "inset 3px 0 0 #DC2626" : undefined }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-110"
+        style={done ? { background: "linear-gradient(135deg, #34D399, #16A34A)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(22,163,74,0.7)" } : { background: "var(--sos-surface)", color: "var(--sos-text-3)", border: "1.5px solid var(--sos-border)" }}
+        aria-label={done ? `Mark ${g.name} not completed` : `Mark ${g.name} completed`}
+        title={done ? "Completed — click to undo" : "Mark completed"}
+      >
+        <Check className="w-4 h-4" />
+      </button>
+      <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="text-[15px] font-semibold min-w-0 truncate" style={{ color: done ? "var(--sos-text-2)" : "var(--sos-text-1)" }}>
+          {g.name.replace(/^Ep \d+ · /, "")}
+          {g.needs_client_approval && <Diamond className="inline w-2.5 h-2.5 ml-1.5 -mt-0.5 fill-current" style={{ color: "#D97706" }} aria-label="Needs client approval" />}
+        </span>
+        <GateStatusSelect status={g.status} needsApproval={g.needs_client_approval} onChange={onStatus} />
+        {g.episode ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>Ep {g.episode}</span> : null}
+        {g.revision_round > 0 && <span className="text-[11px] sos-tabular" style={{ color: g.revision_round > g.revisions_included ? "#B42318" : "var(--sos-text-3)" }}>round {g.revision_round}/{g.revisions_included}</span>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0 ml-auto">
+        <button type="button" onClick={onOpen} className="sos-jelly sos-jelly-ghost inline-flex items-center gap-1.5 h-8 px-3 text-[12px]" title="Client changes, notes, files and history">
+          <MessageSquare className="w-3.5 h-3.5" /> {open ? <span style={{ color: "#B42318" }}>{open} change{open > 1 ? "s" : ""}</span> : "Details"}
+        </button>
+        {!done && (
+          <button type="button" onClick={onSend} className="sos-jelly inline-flex items-center gap-1.5 h-8 px-3.5 text-[12px]" title="Send a file and/or note to the client">
+            <Send className="w-3.5 h-3.5" /> {g.status === "waiting_on_client" ? "Resend" : g.needs_client_approval ? "Send for approval" : "Send"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** Side panel for one milestone: status, client change requests (all rounds, collapsible), notes, files and history. */
+const MilestoneDrawer: React.FC<{ project: StudioProject; gate: StudioGate; revisions: StudioTask[]; onStatus: (s: GateStatus) => void; onTask: (id: string, st: "todo" | "in_progress" | "done") => void; onSend: () => void; onClose: () => void }> = ({ project, gate, revisions, onStatus, onTask, onSend, onClose }) => {
+  const tl = useStageTimeline(project, gate);
+  return (
+    <motion.div className="fixed inset-0 z-50 flex justify-end bg-black/35" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.aside initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ type: "spring", stiffness: 380, damping: 34 }} onClick={(e) => e.stopPropagation()} className="h-full w-full sm:max-w-[520px] flex flex-col shadow-2xl" style={{ background: "var(--sos-surface)" }}>
+        <div className="p-5 border-b space-y-3" style={{ borderColor: "var(--sos-border)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>{project.code}{gate.episode ? ` · Episode ${gate.episode}` : ""}</p>
+              <h3 className="sos-display text-[20px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{gate.name.replace(/^Ep \d+ · /, "")}</h3>
+            </div>
+            <button type="button" onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }} aria-label="Close">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <GateStatusSelect status={gate.status} needsApproval={gate.needs_client_approval} onChange={onStatus} />
+            {gate.status !== "approved" && (
+              <button type="button" onClick={onSend} className="sos-jelly inline-flex items-center gap-1.5 h-8 px-3.5 text-[12px]">
+                <Send className="w-3.5 h-3.5" /> {gate.needs_client_approval ? "Send for approval" : "Send file / note"}
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5">
+          {revisions.length > 0 && <RevisionChecklist gate={gate} tasks={revisions} onStatus={onTask} />}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--sos-text-3)" }}>Sent & received</p>
+            <StageTimelineList events={tl.events} />
+          </div>
+        </div>
+        <div className="p-4 border-t" style={{ borderColor: "var(--sos-border)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+          <StageNoteBox gate={gate} canSend={Boolean(project.client_id)} note={tl.note} setNote={tl.setNote} busy={tl.busy} send={tl.send} />
+        </div>
+      </motion.aside>
+    </motion.div>
+  );
+};
+
+/** Episode grid + "work on several episodes" bulk tools. */
+const EpisodePanel: React.FC<{ gates: StudioGate[]; selected: number; onSelect: (n: number) => void; multi: number[]; setMulti: (m: number[]) => void; onBulk: (eps: number[], stage: string, status: GateStatus) => void }> = ({ gates, selected, onSelect, multi, setMulti, onBulk }) => {
+  const [multiMode, setMultiMode] = React.useState(false);
+  const stages = [...new Set(gates.filter((g) => g.episode).map((g) => g.name.replace(/^Ep \d+ · /, "")))];
+  const [stage, setStage] = React.useState(stages[0] || "");
+  const [status, setStatus] = React.useState<GateStatus>("in_work");
+  return (
+    <div className="p-4 rounded-[18px] space-y-3" style={{ background: "var(--sos-surface-2)" }}>
+      <EpisodeTracker
+        gates={gates}
+        selected={multiMode ? -1 : selected}
+        multi={multiMode ? multi : undefined}
+        onSelect={(ep) => (multiMode ? setMulti(multi.includes(ep) ? multi.filter((x) => x !== ep) : [...multi, ep].sort((a, b) => a - b)) : onSelect(ep))}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMultiMode((m) => !m);
+            setMulti(multiMode ? [] : [selected]);
+          }}
+          className="h-8 px-3 rounded-full text-[12px] font-semibold border"
+          style={multiMode ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}
+        >
+          {multiMode ? `Working on ${multi.length} episode${multi.length === 1 ? "" : "s"} · done` : "Work on several episodes"}
+        </button>
+        {multiMode && multi.length > 0 && (
+          <>
+            <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Set</span>
+            <select value={stage} onChange={(e) => setStage(e.target.value)} className="h-8 px-2.5 rounded-full border text-[12px] font-semibold" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}>
+              {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>to</span>
+            <select value={status} onChange={(e) => setStatus(e.target.value as GateStatus)} className="h-8 px-2.5 rounded-full border text-[12px] font-semibold" style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}>
+              {(["not_started", "in_work", "revising", "approved", "skipped"] as GateStatus[]).map((s) => <option key={s} value={s}>{GATE_LABEL[s]}</option>)}
+            </select>
+            <button type="button" onClick={() => onBulk(multi, stage, status)} className="sos-jelly inline-flex items-center h-8 px-3.5 text-[12px]">Apply to Ep {multi.join(", ")}</button>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -142,9 +266,12 @@ const MilestoneCommsCard: React.FC<{ project: StudioProject; gate: StudioGate; t
 
 const ClientChangesTab: React.FC<{ project: StudioProject; gates: StudioGate[]; tasks: StudioTask[]; onStatus: (gateId: string, s: GateStatus) => void; onTask: (id: string, st: "todo" | "in_progress" | "done") => void; onSend: (gateId: string) => void }> = ({ project, gates, tasks, onStatus, onTask, onSend }) => {
   const [all, setAll] = React.useState(false);
+  const hasEps = gates.some((g) => g.episode);
+  const [ep, setEp] = React.useState(() => currentEpisode(gates));
   const revs = tasks.filter((t) => t.source === "portal" && !t.archived_at);
-  const active = gates.filter((g) => g.status !== "not_started" || revs.some((t) => t.gate_id === g.id));
-  const shown = all ? gates : active;
+  const inEp = (g: StudioGate) => !hasEps || !g.episode || g.episode === ep;
+  const active = gates.filter((g) => inEp(g) && (g.status !== "not_started" || revs.some((t) => t.gate_id === g.id)));
+  const shown = all ? gates.filter(inEp) : active;
   const open = revs.filter((t) => t.status !== "done").length;
   const waiting = gates.filter((g) => g.status === "waiting_on_client");
   return (
@@ -167,6 +294,11 @@ const ClientChangesTab: React.FC<{ project: StudioProject; gates: StudioGate[]; 
           ))}
         </div>
       </div>
+      {hasEps && (
+        <div className="sos-card p-4">
+          <EpisodeTracker gates={gates} selected={ep} onSelect={setEp} />
+        </div>
+      )}
       {shown.map((g) => (
         <MilestoneCommsCard
           key={g.id}
@@ -249,6 +381,16 @@ export const ProjectDetailScreen: React.FC = () => {
   const forecast = project ? getProjectForecast(project.id) : null;
   const hasEpisodes = projectGates.some((g) => g.episode);
   const [epSel, setEpSel] = useState<number>(() => currentEpisode(projectGates));
+  const [multiEps, setMultiEps] = useState<number[]>([]);
+  const [drawerGateId, setDrawerGateId] = useState<string | null>(null);
+  /** Same stage, several episodes at once (e.g. "Generation" for Ep 3–5 → In work). */
+  const bulkEpisodeStatus = (eps: number[], stageSuffix: string, status: GateStatus) => {
+    const targets = projectGates.filter((g) => g.episode && eps.includes(g.episode) && g.name.replace(/^Ep \d+ · /, "") === stageSuffix && g.status !== status);
+    if (!targets.length) return pushToast("Nothing to change", "info");
+    if (!window.confirm(`Set "${stageSuffix}" to ${GATE_LABEL[status]} for episodes ${eps.join(", ")}?\n\nThe client portal shows the change.`)) return;
+    for (const g of targets) updateGate(g.id, { status });
+    pushToast(`${stageSuffix} → ${GATE_LABEL[status]} for ${targets.length} episode${targets.length > 1 ? "s" : ""}`, "success");
+  };
   useEffect(() => {
     setEpSel(currentEpisode(projectGates));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -315,6 +457,19 @@ export const ProjectDetailScreen: React.FC = () => {
   return (
     <div className="space-y-6">
       {sendGate && project && <SendForApprovalModal project={project} gate={sendGate} onClose={() => setSendGateId(null)} />}
+      <AnimatePresence>
+        {drawerGateId && project && projectGates.find((g) => g.id === drawerGateId) && (
+          <MilestoneDrawer
+            project={project}
+            gate={projectGates.find((g) => g.id === drawerGateId)!}
+            revisions={tasks.filter((t) => t.gate_id === drawerGateId && t.source === "portal" && !t.archived_at)}
+            onStatus={(st) => handleGateStatusChange(drawerGateId, st)}
+            onTask={(id, st) => updateTask(id, { status: st, ...(st === "done" ? { completed_at: new Date().toISOString(), is_in_now: false } : { completed_at: undefined }) })}
+            onSend={() => setSendGateId(drawerGateId)}
+            onClose={() => setDrawerGateId(null)}
+          />
+        )}
+      </AnimatePresence>
       {assignOpen && project && <AssignMembersModal project={project} onClose={() => setAssignOpen(false)} />}
       <button
         type="button"
@@ -509,146 +664,18 @@ export const ProjectDetailScreen: React.FC = () => {
               {/* Gate Rows */}
               <div className="space-y-2.5">
                 {hasEpisodes && (
-                  <div className="p-4 rounded-[18px]" style={{ background: "var(--sos-surface-2)" }}>
-                    <EpisodeTracker gates={projectGates} selected={epSel} onSelect={setEpSel} />
-                  </div>
+                  <EpisodePanel gates={projectGates} selected={epSel} onSelect={setEpSel} multi={multiEps} setMulti={setMultiEps} onBulk={bulkEpisodeStatus} />
                 )}
-                {(hasEpisodes ? projectGates.filter((g) => !g.episode || g.episode === epSel) : projectGates).map((g) => (
-                  <React.Fragment key={g.id}>
-                  <div
+                {(hasEpisodes ? projectGates.filter((g) => !g.episode || (multiEps.length ? multiEps.includes(g.episode) : g.episode === epSel)) : projectGates).map((g) => (
+                  <MilestoneRow
                     key={g.id}
-                    className="sos-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleGateStatusChange(g.id, g.status === "approved" ? "in_work" : "approved")
-                        }
-                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
-                        style={{
-                          background: g.status === "approved" ? "var(--sos-green)" : "var(--sos-surface)",
-                          color: g.status === "approved" ? "#FFFFFF" : "var(--sos-text-3)",
-                          border: g.status === "approved" ? "none" : "1.5px solid var(--sos-border)",
-                        }}
-                        aria-label={`Toggle ${g.name} approved`}
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[12px] font-bold sos-tabular" style={{ color: "var(--sos-primary)" }}>
-                            {g.code}
-                          </span>
-                          <span className="text-[15px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
-                            {g.name}
-                          </span>
-                          {g.needs_client_approval && (
-                            <span
-                              title="Requires client approval"
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#9A4A00]"
-                            >
-                              <Diamond className="w-2.5 h-2.5 fill-current" /> Approval
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                          <GateStatusSelect status={g.status} needsApproval={g.needs_client_approval} onChange={(st) => handleGateStatusChange(g.id, st)} />
-                          <span className="sos-tabular">
-                            Rev {g.revision_round} of {g.revisions_included} included
-                          </span>
-                          {(() => {
-                            const st = forecast?.stages.find((x) => x.gate_id === g.id);
-                            if (!st) return null;
-                            if (st.done) return st.client_wait_days != null ? <span className="sos-tabular">client took {st.client_wait_days}d</span> : null;
-                            const moved = st.planned_end && st.projected_end !== st.planned_end;
-                            return (
-                              <span className="sos-tabular" style={{ color: moved ? "#9A4A00" : undefined }} title={st.planned_is_manual ? "Manual date" : "From estimates"}>
-                                {st.planned_end ? `plan ${format(parseISO(st.planned_end), "d MMM")}` : ""}
-                                {moved ? ` → now ${format(parseISO(st.projected_end), "d MMM")}` : ""}
-                                {g.status === "waiting_on_client" && st.client_wait_days != null ? ` · waiting ${st.client_wait_days}d` : ""}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <label className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--sos-text-2)" }} title="Planned end date for this stage (shown in the client portal)">
-                        Due
-                        <input
-                          type="date"
-                          value={g.due_date || ""}
-                          onChange={(e) => updateGate(g.id, { due_date: e.target.value || undefined })}
-                          className="h-8 px-2 rounded-[10px] border text-[12px] sos-tabular"
-                          style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
-                        />
-                      </label>
-                      <label className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--sos-text-2)" }}>
-                        Est.
-                        <input
-                          type="number"
-                          min={0}
-                          max={60}
-                          step={0.5}
-                          value={g.estimate_days}
-                          onChange={(e) =>
-                            updateGate(g.id, { estimate_days: Math.max(0, parseFloat(e.target.value) || 0) })
-                          }
-                          className="w-16 h-8 px-2 text-center rounded-[10px] border text-[13px] font-semibold sos-tabular"
-                          style={{
-                            background: "var(--sos-surface)",
-                            borderColor: "var(--sos-border)",
-                            color: "var(--sos-text-1)",
-                          }}
-                        />
-                        d
-                      </label>
-
-                      {g.status === "approved" && (
-                        <label className="inline-flex items-center gap-1 text-[12px]" style={{ color: "var(--sos-text-2)" }}>
-                          Act.
-                          <input
-                            type="number"
-                            min={0.5}
-                            max={90}
-                            step={0.5}
-                            value={g.actual_days ?? g.estimate_days}
-                            onChange={(e) =>
-                              updateGate(g.id, { actual_days: Math.max(0.5, parseFloat(e.target.value) || 0.5) })
-                            }
-                            className="w-14 h-8 px-1.5 text-center rounded-[10px] border text-[12px] font-semibold sos-tabular"
-                            style={{
-                              background: "var(--sos-surface)",
-                              borderColor: "var(--sos-border)",
-                              color: "var(--sos-green)",
-                            }}
-                          />
-                          d
-                        </label>
-                      )}
-
-                      <StageHistoryButton project={project} gate={g} />
-                      {g.needs_client_approval && g.status !== "approved" && (
-                        <button
-                          type="button"
-                          onClick={() => setSendGateId(g.id)}
-                          className="sos-pill-btn inline-flex items-center gap-1 px-3 h-8 text-[12px] font-semibold border"
-                          style={{
-                            background: "var(--sos-surface)",
-                            borderColor: "var(--sos-border)",
-                            color: "var(--sos-blue)",
-                          }}
-                        >
-                          <Send className="w-3 h-3" /> {g.status === "waiting_on_client" ? "Resend" : "Send for approval"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <RevisionChecklist gate={g} tasks={tasks.filter((t) => t.gate_id === g.id && t.source === "portal" && !t.archived_at)} onStatus={(id, st) => updateTask(id, { status: st, ...(st === "done" ? { completed_at: new Date().toISOString(), is_in_now: false } : { completed_at: undefined }) })} />
-                  </React.Fragment>
+                    gate={g}
+                    revisions={tasks.filter((t) => t.gate_id === g.id && t.source === "portal" && !t.archived_at)}
+                    onToggle={() => handleGateStatusChange(g.id, g.status === "approved" ? "in_work" : "approved")}
+                    onStatus={(st) => handleGateStatusChange(g.id, st)}
+                    onOpen={() => setDrawerGateId(g.id)}
+                    onSend={() => setSendGateId(g.id)}
+                  />
                 ))}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EpisodeTracker, currentEpisode } from "../review/EpisodeTracker";
 import { NotificationBell, NotificationToast, usePortalNotifications, type PortalNotification } from "./PortalNotifications";
 import { SegToggle } from "../review/SegToggle";
 import { StudioLogo } from "../brand/StudioLogo";
@@ -6,6 +7,9 @@ import { format, parseISO } from "date-fns";
 import {
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
+  Crosshair,
+  RotateCcw,
   Check,
   Clock,
   Download,
@@ -61,6 +65,7 @@ interface PortalGate {
   revisions_included: number;
   client_comment: string | null;
   due_date?: string | null;
+  episode?: number | null;
 }
 interface PortalRevision {
   id: string;
@@ -470,6 +475,8 @@ function portalBadge(project: PortalProject, gates: PortalGate[]): { label: stri
 /** The client's own change requests, grouped by stage and round, with a live status for each. */
 const RevisionTracker: React.FC<{ gates: PortalGate[]; revisions: PortalRevision[] }> = ({ gates, revisions }) => {
   const [showOld, setShowOld] = useState(false);
+  const [openKeys, setOpenKeys] = useState<Set<string> | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (!revisions.length) return null;
   const groups = new Map<string, PortalRevision[]>();
   for (const r of revisions) {
@@ -500,14 +507,23 @@ const RevisionTracker: React.FC<{ gates: PortalGate[]; revisions: PortalRevision
           </button>
         ) : null}
       </div>
-      {visible.map(([k, list]) => {
+      {visible.map(([k, list], gi) => {
         const gate = gates.find((g) => g.id === k.split("|")[0]);
         const approved = gate?.status === "approved";
         const done = list.filter((r) => approved || r.status === "done").length;
         const pct = Math.round((done / list.length) * 100);
+        // Open by default: the first two groups that still have open items.
+        const isOpen = openKeys ? openKeys.has(k) : gi < 2 && pct < 100;
+        const toggle = () => {
+          const next = new Set(openKeys ?? visible.filter(([kk], ii) => ii < 2).map(([kk]) => kk));
+          next.has(k) ? next.delete(k) : next.add(k);
+          setOpenKeys(next);
+        };
+        const many = list.length > 4 && !expanded.has(k);
+        const items = many ? list.slice(0, 4) : list;
         return (
           <div key={k} className="space-y-2">
-            <div className="flex items-center gap-3">
+            <button type="button" onClick={toggle} className="w-full flex items-center gap-3 text-left" aria-expanded={isOpen}>
               <p className="text-[13px] font-semibold shrink-0" style={{ color: "var(--sos-text-1)" }}>
                 {gate?.name || "General"} <span style={{ color: "var(--sos-text-3)" }}>· round {list[0].round}</span>
               </p>
@@ -515,11 +531,13 @@ const RevisionTracker: React.FC<{ gates: PortalGate[]; revisions: PortalRevision
                 <span className={pct === 100 ? "done" : ""} style={{ width: `${pct}%` }} />
               </div>
               <span className="text-[12px] font-semibold sos-tabular shrink-0" style={{ color: pct === 100 ? "#17663F" : "var(--sos-text-2)" }}>
-                {approved ? "Approved" : `${done}/${list.length} addressed`}
+                {approved ? (gate?.needs_client_approval ? "Approved" : "Completed") : `${done}/${list.length} addressed`}
               </span>
-            </div>
+              <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--sos-text-3)" }} />
+            </button>
+            {isOpen && (
             <ul className="space-y-1.5 sos-rows">
-              {list.map((r, i) => {
+              {items.map((r, i) => {
                 const st = statusOf(r, approved);
                 return (
                   <li key={r.id} className="flex items-start gap-3 px-3.5 py-2.5 rounded-[14px]" style={{ background: "var(--sos-surface-2)", ["--i" as any]: i }}>
@@ -529,7 +547,15 @@ const RevisionTracker: React.FC<{ gates: PortalGate[]; revisions: PortalRevision
                   </li>
                 );
               })}
+              {many && (
+                <li>
+                  <button type="button" onClick={() => setExpanded(new Set([...expanded, k]))} className="text-[12px] font-semibold px-1" style={{ color: "var(--sos-primary)" }}>
+                    Show {list.length - 4} more
+                  </button>
+                </li>
+              )}
             </ul>
+            )}
           </div>
         );
       })}
@@ -654,68 +680,84 @@ const ProjectCard: React.FC<{ project: PortalProject; gates: PortalGate[]; deliv
 // ---------------------------------------------------------------------------
 // Project view
 // ---------------------------------------------------------------------------
-const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
-  <div className="sos-card p-5 md:p-6">
-    <h2 className="sos-display text-[18px] font-semibold mb-4" style={{ color: "var(--sos-text-1)" }}>
-      Production stages
-    </h2>
-    <ol className="space-y-0">
-      {gates.map((g, i) => {
-        const done = g.status === "approved" || g.status === "skipped";
-        const current = ["in_work", "waiting_on_client", "revising"].includes(g.status);
-        const date = done ? fmtDate(g.approved_at || g.started_at) : g.due_date ? `due ${fmtDate(g.due_date)}` : current ? fmtDate(g.sent_for_approval_at || g.started_at) : null;
-        const label =
-          g.status === "approved" ? "Approved" : g.status === "skipped" ? "Skipped" : g.status === "waiting_on_client" ? "Awaiting your review" : g.status === "revising" ? "Revising" : g.status === "in_work" ? "In progress" : "Upcoming";
-        return (
-          <li key={g.id} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <span
-                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold"
-                style={{
-                  background: done ? "linear-gradient(135deg, #34D399, #16A34A)" : current ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "var(--sos-surface-2)",
-                  color: done || current ? "#FFFFFF" : "var(--sos-text-3)",
-                  boxShadow: current ? "0 0 0 5px rgba(91,63,228,0.14), 0 6px 16px -6px rgba(91,63,228,0.7)" : done ? "0 4px 12px -6px rgba(22,163,74,0.6)" : undefined,
-                }}
-              >
-                {done ? <Check className="w-4 h-4" /> : i + 1}
-              </span>
-              {i < gates.length - 1 && <span className="w-[2px] flex-1 min-h-[18px] my-1" style={{ background: done ? "var(--sos-green)" : "var(--sos-border)" }} />}
-            </div>
-            <div className="pb-4 min-w-0 flex-1 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold" style={{ color: current || done ? "var(--sos-text-1)" : "var(--sos-text-3)" }}>
-                  {g.name}
-                </p>
-                <span
-                  className="inline-flex items-center gap-1.5 mt-1 h-6 px-2.5 rounded-full text-[11px] font-bold"
-                  style={
-                    g.status === "approved"
-                      ? { background: "#E7F7EE", color: "#17663F" }
-                      : g.status === "waiting_on_client"
-                      ? { background: "#FFF3E0", color: "#9A4A00" }
-                      : g.status === "revising"
-                      ? { background: "#FDF2F8", color: "#BE185D" }
-                      : g.status === "in_work"
-                      ? { background: "#E8F0FF", color: "#1D4FD8" }
-                      : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }
-                  }
-                >
-                  {current && <span className="sos-live-dot" style={{ width: 6, height: 6 }} />}
-                  {label}
-                </span>
-              </div>
-              {date && (
-                <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>
-                  {date}
-                </span>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  </div>
-);
+/** One stage row. Approval stages say "Approved"; work stages say "Completed". */
+const StageRow: React.FC<{ g: PortalGate; i: number; last: boolean }> = ({ g, i, last }) => {
+  const done = g.status === "approved" || g.status === "skipped";
+  const current = ["in_work", "waiting_on_client", "revising"].includes(g.status);
+  const date = done ? fmtDate(g.approved_at || g.started_at) : g.due_date ? `due ${fmtDate(g.due_date)}` : current ? fmtDate(g.sent_for_approval_at || g.started_at) : null;
+  const label =
+    g.status === "approved" ? (g.needs_client_approval ? "Approved" : "Completed") : g.status === "skipped" ? "Skipped" : g.status === "waiting_on_client" ? "Awaiting your review" : g.status === "revising" ? "Revising" : g.status === "in_work" ? "In progress" : "Upcoming";
+  const chip =
+    g.status === "approved" ? { background: "#E7F7EE", color: "#17663F" } : g.status === "waiting_on_client" ? { background: "#FFF3E0", color: "#9A4A00" } : g.status === "revising" ? { background: "#FDF2F8", color: "#BE185D" } : g.status === "in_work" ? { background: "#E8F0FF", color: "#1D4FD8" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" };
+  return (
+    <li className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <span
+          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold"
+          style={{
+            background: done ? "linear-gradient(135deg, #34D399, #16A34A)" : current ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "var(--sos-surface-2)",
+            color: done || current ? "#FFFFFF" : "var(--sos-text-3)",
+            boxShadow: current ? "0 0 0 5px rgba(91,63,228,0.14), 0 6px 16px -6px rgba(91,63,228,0.7)" : undefined,
+          }}
+        >
+          {done ? <Check className="w-4 h-4" /> : i + 1}
+        </span>
+        {!last && <span className="w-[2px] flex-1 min-h-[12px] my-1" style={{ background: done ? "var(--sos-green)" : "var(--sos-border)" }} />}
+      </div>
+      <div className="pb-3 min-w-0 flex-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[14px] font-semibold" style={{ color: current || done ? "var(--sos-text-1)" : "var(--sos-text-3)" }}>{g.name.replace(/^Ep \d+ · /, "")}</p>
+          <span className="inline-flex items-center gap-1.5 mt-1 h-6 px-2.5 rounded-full text-[11px] font-bold" style={chip}>
+            {current && <span className="sos-live-dot" style={{ width: 6, height: 6 }} />}
+            {label}
+          </span>
+        </div>
+        {date && <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>{date}</span>}
+      </div>
+    </li>
+  );
+};
+
+/** Production stages: episode grid for series, completed stages folded away, no endless scrolling. */
+const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => {
+  const hasEps = gates.some((g) => g.episode);
+  const [ep, setEp] = useState(() => currentEpisode(gates as any));
+  const [showDone, setShowDone] = useState(false);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const scoped = hasEps ? gates.filter((g) => !g.episode || g.episode === ep) : gates;
+  const isDone = (g: PortalGate) => g.status === "approved" || g.status === "skipped";
+  const doneList = scoped.filter(isDone);
+  const openList = scoped.filter((g) => !isDone(g));
+  const upcomingLimit = 4;
+  const visibleOpen = showAllUpcoming ? openList : openList.slice(0, upcomingLimit);
+  const list = [...(showDone ? doneList : []), ...visibleOpen];
+  return (
+    <div className="sos-card p-5 md:p-6 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Production stages</h2>
+        <span className="text-[12px] font-semibold sos-tabular" style={{ color: "var(--sos-text-3)" }}>{gates.filter(isDone).length}/{gates.length}</span>
+      </div>
+      {hasEps && <EpisodeTracker gates={gates as any} selected={ep} onSelect={setEp} audience="client" />}
+      {doneList.length > 0 && (
+        <button type="button" onClick={() => setShowDone((v) => !v)} className="w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-[13px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
+          <Check className="w-4 h-4" /> {doneList.length} stage{doneList.length > 1 ? "s" : ""} done{hasEps ? ` (episode ${ep} + shared)` : ""}
+          <span className="ml-auto text-[12px]">{showDone ? "Hide" : "Show"}</span>
+        </button>
+      )}
+      <ol className="space-y-0">
+        {list.map((g, i) => (
+          <StageRow key={g.id} g={g} i={scoped.indexOf(g)} last={i === list.length - 1} />
+        ))}
+      </ol>
+      {openList.length > upcomingLimit && (
+        <button type="button" onClick={() => setShowAllUpcoming((v) => !v)} className="text-[13px] font-semibold" style={{ color: "var(--sos-primary)" }}>
+          {showAllUpcoming ? "Show fewer" : `Show ${openList.length - upcomingLimit} more upcoming`}
+        </button>
+      )}
+      {!openList.length && !showDone && <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>All stages here are done.</p>}
+    </div>
+  );
+};
 
 const resolveReviewUrl = async (url: string) => {
   if (!supabase || !url.startsWith("storage://studio-review/")) return null;
@@ -887,7 +929,7 @@ const ApprovalCard: React.FC<{
                   className="sos-pill-btn h-10 px-4 text-[13px] font-semibold border inline-flex items-center gap-2"
                   style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
                 >
-                  <Clock className="w-4 h-4" /> Add a note at this moment
+                  <Crosshair className="w-4 h-4" /> Snap this moment & comment
                 </button>
               )}
               <VoiceNoteButton
@@ -1016,15 +1058,29 @@ const ApprovalCard: React.FC<{
                     Pin {n.pin.n}
                   </span>
                 ) : (
-                  <div className="flex items-center shrink-0">
-                    <input
-                      value={n.t}
-                      onChange={(e) => setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, t: e.target.value } : x)))}
-                      placeholder="0:12"
-                      aria-label="Timestamp"
-                      className="w-20 h-10 px-3 rounded-[12px] border text-[13px] sos-tabular"
-                      style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
-                    />
+                  <div className="flex items-center shrink-0 gap-1">
+                    {n.t ? (
+                      <span className="inline-flex items-center gap-1 h-10 px-3 rounded-[12px] text-[13px] font-bold sos-tabular text-white" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4)" }} title="Captured from the video">
+                        <Crosshair className="w-3.5 h-3.5" /> {n.t}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center h-10 px-3 rounded-[12px] text-[12px] font-semibold" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>General</span>
+                    )}
+                    {isVideo && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const t = await player.current?.getTime();
+                          if (t != null) setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, time: t, t: fmtTime(t) } : x)));
+                        }}
+                        className="w-9 h-10 flex items-center justify-center rounded-[10px]"
+                        style={{ color: "var(--sos-text-3)" }}
+                        aria-label="Re-snap to the current moment"
+                        title="Re-snap to where the video is now"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {isVideo && n.t && parseTime(n.t) !== null && (
                       <button type="button" onClick={() => player.current?.seek(parseTime(n.t)!)} className="w-9 h-10 flex items-center justify-center" style={{ color: "var(--sos-primary)" }} aria-label={`Play from ${n.t}`}>
                         <Play className="w-4 h-4" />
@@ -1041,14 +1097,14 @@ const ApprovalCard: React.FC<{
                   className="flex-1 min-w-0 h-10 px-3 rounded-[12px] border text-[13px]"
                   style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
                 />
-                <button type="button" onClick={() => setNotes((prev) => prev.filter((x) => x.id !== n.id))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ color: "var(--sos-text-3)" }} aria-label="Remove note">
+                <button type="button" onClick={() => setNotes((prev) => prev.filter((x) => x.id !== n.id))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors hover:bg-[#FDECEC] hover:text-[#B42318]" style={{ color: "var(--sos-text-3)" }} aria-label="Delete this note" title="Delete this note">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ))}
             {isVideo ? (
-              <button type="button" onClick={addTimedNote} className="text-[13px] font-medium inline-flex items-center gap-1" style={{ color: "var(--sos-primary)" }}>
-                <Plus className="w-4 h-4" /> Note at the current moment
+              <button type="button" onClick={addTimedNote} className="sos-jelly inline-flex items-center gap-1.5 h-9 px-4 text-[13px]">
+                <Crosshair className="w-4 h-4" /> Snap this moment & comment
               </button>
             ) : !isImage ? (
               <button
@@ -1061,7 +1117,7 @@ const ApprovalCard: React.FC<{
                 className="text-[13px] font-medium inline-flex items-center gap-1"
                 style={{ color: "var(--sos-primary)" }}
               >
-                <Plus className="w-4 h-4" /> Add timestamp note
+                <Plus className="w-4 h-4" /> Add a note
               </button>
             ) : null}
           </div>
@@ -1182,9 +1238,10 @@ const ProjectView: React.FC<{
   revisions?: PortalRevision[];
   stageNotes?: Array<{ id: string; gate_id: string; body: string; created_at: string }>;
   viewerName?: string;
+  showInvoices?: boolean;
   onBack: () => void;
   onChanged: () => void;
-}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], stageNotes = [], viewerName, onBack, onChanged }) => {
+}> = ({ project, gates, deliverables, invoices, tasks = [], revisions = [], stageNotes = [], viewerName, showInvoices = true, onBack, onChanged }) => {
   const [flash, setFlash] = useState("");
   const [openDeliverable, setOpenDeliverable] = useState<string | null>(null);
   const h = HEALTH[project.health] || HEALTH.on_track;
@@ -1354,7 +1411,16 @@ const ProjectView: React.FC<{
             )}
           </div>
 
-          <div className="sos-card p-5 md:p-6">
+          {showInvoices && <InvoicesCard invoices={invoices} />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Invoices for one project (sidebar on desktop, below the files on phones). */
+const InvoicesCard: React.FC<{ invoices: PortalInvoice[] }> = ({ invoices }) => (
+          <div className="sos-card p-5">
             <h2 className="sos-display text-[18px] font-semibold mb-3" style={{ color: "var(--sos-text-1)" }}>
               Invoices
             </h2>
@@ -1395,11 +1461,7 @@ const ProjectView: React.FC<{
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+);
 
 // ---------------------------------------------------------------------------
 // App
@@ -1631,6 +1693,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               revisions={revisions.filter((r) => r.project_id === project.id)}
               stageNotes={messages.filter((m: any) => m.from_studio && m.gate_id && m.project_id === project.id) as any}
               viewerName={contact?.name}
+              showInvoices={!isLarge}
               onBack={() => setSelected(null)}
               onChanged={load}
             />
@@ -1736,6 +1799,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   </span>
                   {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#B42318] text-white text-[10px] font-bold flex items-center justify-center">{unread}</span>}
                 </button>
+                {tab === "projects" && selected && projects.some((p) => p.id === selected) && <InvoicesCard invoices={invoices.filter((i) => i.project_id === selected)} />}
               </aside>
             )}
           </div>
