@@ -9,14 +9,17 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 
-export type MediaKind = "youtube" | "vimeo" | "image" | "iframe" | "link";
+export type MediaKind = "youtube" | "vimeo" | "video" | "image" | "iframe" | "link";
 export interface ParsedMedia {
   kind: MediaKind;
   id?: string;
   hash?: string;
   src: string;
   host: string;
+  /** For "video": the host's own viewer, used if the file can't be streamed directly. */
+  fallback?: string;
 }
+const VIDEO_EXT = /\.(mp4|m4v|mov|webm|ogv)(\?|#|$)/i;
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i;
 
@@ -41,8 +44,25 @@ export function parseMedia(url?: string | null): ParsedMedia | null {
   const vimeo = (host === "vimeo.com" && u.pathname.match(/^\/(?:.*\/)?(\d+)(?:\/([a-z0-9]+))?/i)) || (host === "player.vimeo.com" && u.pathname.match(/\/video\/(\d+)/));
   if (vimeo) return { kind: "vimeo", id: vimeo[1], hash: (vimeo as RegExpMatchArray)[2] || u.searchParams.get("h") || undefined, src: url, host: "Vimeo" };
   if (IMAGE_EXT.test(u.pathname)) return { kind: "image", src: url, host };
-  const drive = host === "drive.google.com" && u.pathname.match(/\/file\/d\/([^/]+)/);
-  if (drive) return { kind: "iframe", src: `https://drive.google.com/file/d/${drive[1]}/preview`, host: "Google Drive" };
+  // Google Drive: stream the file into our own player (needs "Anyone with the link"); Drive's viewer is the fallback.
+  const driveId =
+    (host === "drive.google.com" && (u.pathname.match(/\/file\/d\/([\w-]{10,})/)?.[1] || ((u.pathname === "/open" || u.pathname === "/uc") && u.searchParams.get("id")))) ||
+    (host === "drive.usercontent.google.com" && u.searchParams.get("id")) ||
+    null;
+  if (driveId)
+    return {
+      kind: "video",
+      id: driveId,
+      src: `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`,
+      fallback: `https://drive.google.com/file/d/${driveId}/preview`,
+      host: "Google Drive",
+    };
+  if (host.endsWith("dropbox.com") && VIDEO_EXT.test(u.pathname)) {
+    u.searchParams.delete("dl");
+    u.searchParams.set("raw", "1");
+    return { kind: "video", src: u.toString(), host: "Dropbox" };
+  }
+  if (VIDEO_EXT.test(u.pathname)) return { kind: "video", src: url, host };
   if (host.endsWith("frame.io") || host === "f.io") return { kind: "link", src: url, host: "Frame.io" };
   return { kind: "link", src: url, host };
 }
@@ -123,12 +143,21 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
   const player = useRef<any>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const videoEl = useRef<HTMLVideoElement>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  useEffect(() => {
+    setVideoFailed(false);
+    setVideoReady(false);
+  }, [media?.src]);
+  const ownPlayer = media?.kind === "video" && !videoFailed;
 
   useImperativeHandle(
     ref,
     () => ({
-      supportsTime: media?.kind === "youtube" || media?.kind === "vimeo",
+      supportsTime: media?.kind === "youtube" || media?.kind === "vimeo" || ownPlayer,
       getTime: async () => {
+        if (media?.kind === "video") return ownPlayer && videoEl.current ? videoEl.current.currentTime : null;
         const p = player.current;
         if (!p) return null;
         try {
@@ -140,6 +169,16 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
         return null;
       },
       seek: (sec: number) => {
+        if (media?.kind === "video") {
+          const v = videoEl.current;
+          if (v && ownPlayer) {
+            v.currentTime = sec;
+            v.play().catch(() => null);
+          }
+          mount.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          videoEl.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         const p = player.current;
         if (!p) return;
         if (media?.kind === "youtube") {
@@ -151,12 +190,13 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
         mount.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       },
       pause: () => {
+        if (media?.kind === "video") return void videoEl.current?.pause();
         const p = player.current;
         if (media?.kind === "youtube") p?.pauseVideo?.();
         else if (media?.kind === "vimeo") p?.pause?.().catch(() => null);
       },
     }),
-    [media?.kind]
+    [media?.kind, ownPlayer]
   );
 
   // Video players
@@ -263,6 +303,49 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
                 {p.n}
               </span>
             ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (media.kind === "video") {
+    if (videoFailed && media.fallback) {
+      return (
+        <div className={`space-y-1.5 ${className || ""}`}>
+          <div className="sos-media rounded-[18px] overflow-hidden bg-black relative w-full" style={{ aspectRatio: "16 / 9" }}>
+            <iframe src={media.fallback} title="Review preview" loading="lazy" className="absolute inset-0 w-full h-full border-0" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" />
+          </div>
+          <p className="text-[12px] px-1" style={{ color: "var(--sos-text-3)" }}>Playing in {media.host}'s viewer — type the time you see when adding a timestamp.</p>
+        </div>
+      );
+    }
+    if (videoFailed) {
+      return (
+        <a href={url} target="_blank" rel="noreferrer noopener" className={`flex items-center justify-between gap-3 p-4 rounded-[18px] border ${className || ""}`} style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface-2)" }}>
+          <span className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Open video on {media.host}</span>
+          <ExternalLink className="w-4 h-4" style={{ color: "var(--sos-text-2)" }} />
+        </a>
+      );
+    }
+    return (
+      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
+        <video
+          ref={videoEl}
+          key={media.src}
+          src={media.src}
+          controls
+          playsInline
+          preload="metadata"
+          controlsList="nodownload"
+          className="absolute inset-0 w-full h-full object-contain bg-black"
+          onLoadedMetadata={() => setVideoReady(true)}
+          onError={() => setVideoFailed(true)}
+        />
+        {!videoReady && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none text-white/80">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="text-[12px]">Loading video from {media.host}…</span>
           </div>
         )}
       </div>

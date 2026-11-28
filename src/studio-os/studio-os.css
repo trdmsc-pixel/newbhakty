@@ -518,3 +518,13 @@
 
 /* Bell popover */
 .studio-os-root .sos-pop-panel { background: var(--sos-surface); border: 1px solid var(--sos-border); box-shadow: 0 24px 60px -20px rgba(15,17,21,0.35), 0 4px 12px -4px rgba(15,17,21,0.12); }
+
+/* Client portal: scale the whole signed-in layout up on large monitors so nothing looks tiny.
+   Phones/tablets are unaffected. --pz lets full-height panels divide viewport units back out. */
+.portal-scale { --pz: 1; }
+@media (min-width: 1440px) { .portal-scale { zoom: 1.06; --pz: 1.06; } }
+@media (min-width: 1680px) { .portal-scale { zoom: 1.14; --pz: 1.14; } }
+@media (min-width: 1920px) { .portal-scale { zoom: 1.22; --pz: 1.22; } }
+@media (min-width: 2240px) { .portal-scale { zoom: 1.34; --pz: 1.34; } }
+@media (min-width: 2560px) { .portal-scale { zoom: 1.5; --pz: 1.5; } }
+@media (min-width: 3200px) { .portal-scale { zoom: 1.8; --pz: 1.8; } }

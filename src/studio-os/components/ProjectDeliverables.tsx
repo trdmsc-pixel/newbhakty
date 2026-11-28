@@ -72,7 +72,7 @@ export async function uploadReviewImage(projectId: string, file: File): Promise<
   return `storage://studio-review/${path}`;
 }
 
-const KIND_LABEL: Record<string, string> = { youtube: "YouTube", vimeo: "Vimeo", image: "Image", iframe: "Embed", link: "Link" };
+const KIND_LABEL: Record<string, string> = { youtube: "YouTube", vimeo: "Vimeo", video: "Video", image: "Image", iframe: "Embed", link: "Link" };
 
 /** Player + the client's timestamped / pinned notes for one deliverable. */
 const DeliverableReview: React.FC<{ d: Deliverable }> = ({ d }) => {
@@ -430,7 +430,7 @@ export const ProjectDeliverablesTab: React.FC<{ project: StudioProject; gates: S
             return (
               <div key={d.id} data-focus={`deliverable:${d.id}`} className="px-3.5 py-3 rounded-[14px] sos-tile">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                {parseMedia(d.url)?.kind === "image" ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : ["youtube", "vimeo"].includes(parseMedia(d.url)?.kind || "") ? <Play className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />}
+                {parseMedia(d.url)?.kind === "image" ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : ["youtube", "vimeo", "video"].includes(parseMedia(d.url)?.kind || "") ? <Play className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} /> : <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />}
                 <div className="min-w-[55%] flex-1">
                   <button type="button" onClick={() => setOpenId(openId === d.id ? null : d.id)} className="text-[14px] font-semibold truncate block hover:underline text-left max-w-full" style={{ color: "var(--sos-text-1)" }} aria-expanded={openId === d.id}>
                     {d.is_final && <span className="inline-flex items-center gap-1 mr-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" style={{ background: "#E7F7EE", color: "#17663F" }}><Award className="w-3 h-3" /> FINAL</span>}

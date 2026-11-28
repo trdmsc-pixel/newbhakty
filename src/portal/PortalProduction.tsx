@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./portalSupabase";
 import { uploadResumable } from "./resumableUpload";
-import { ReviewMedia, type ReviewMediaHandle, fmtTime } from "../review/ReviewMedia";
+import { ReviewMedia, type ReviewMediaHandle, fmtTime, parseTime } from "../review/ReviewMedia";
 import { Receipt } from "../review/Receipt";
 
 // ───────────────────────────────────────────────────────────── shared
@@ -741,10 +741,17 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
   const mine = comments.filter((c) => c.deliverable_id === a?.id);
   const roots = mine.filter((c) => !c.parent_id && (showResolved || !c.resolved_at)).sort((x, y) => (x.timecode ?? 1e9) - (y.timecode ?? 1e9));
   /** Read the exact playhead time and write it into the comment ("At 01:24 — "). */
-  const insertStamp = async () => {
-    const t = await playerA.current?.getTime();
-    if (t == null) return setErr("Play the video, pause where you want, then tap the timestamp button.");
+  const [manual, setManual] = useState<string | null>(null);
+  const insertStamp = async (typed?: number) => {
+    const t = typed ?? (await playerA.current?.getTime());
+    if (t == null) {
+      // This video plays in the host's own viewer, which doesn't share its time — ask for it.
+      setManual("");
+      return;
+    }
+    setManual(null);
     setErr("");
+    playerA.current?.pause();
     const sec = Math.round(t * 10) / 10;
     const tag = `At ${fmtTime(sec)} — `;
     const el = textRef.current;
@@ -828,11 +835,32 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
             {canComment && (
               <div className="space-y-2 p-3 rounded-[16px]" style={{ background: "var(--sos-surface-2)" }}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={insertStamp} className="sos-jelly h-9 px-4 text-[13px] inline-flex items-center gap-1.5" title="Pause the video where you want the change, then tap — the exact time is added to your comment">
+                  <button type="button" onClick={() => insertStamp()} className="sos-jelly h-10 px-4 text-[14px] inline-flex items-center gap-1.5" title="Pause the video where you want the change, then tap — the exact time is added to your comment">
                     <Clapperboard className="w-4 h-4" /> Add timestamp
                   </button>
-                  <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Pause on the moment, tap, then write what to change.</span>
+                  <span className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>Pause on the moment, tap, then write what to change.</span>
                 </div>
+                {manual != null && (
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-[12px]" style={{ background: "var(--sos-surface)" }}>
+                    <span className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Type the time shown in the player:</span>
+                    <input
+                      autoFocus
+                      value={manual}
+                      onChange={(e) => setManual(e.target.value.replace(/[^\d:]/g, ""))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const v = parseTime(manual);
+                          if (v != null) insertStamp(v);
+                        }
+                      }}
+                      placeholder="1:24"
+                      className="w-24 h-9 px-3 rounded-[10px] border text-[14px] sos-num"
+                      style={fieldStyle}
+                    />
+                    <button type="button" onClick={() => { const v = parseTime(manual); if (v != null) insertStamp(v); }} className="sos-jelly h-9 px-3 text-[13px]">Add</button>
+                    <button type="button" onClick={() => setManual(null)} className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>Cancel</button>
+                  </div>
+                )}
                 <textarea ref={textRef} rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. At 01:24 — the costume changes between these two shots; keep it as in the approved reference." className={`${fieldCls} py-2`} style={{ ...fieldStyle, background: "var(--sos-surface)" }} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && post()} />
                 <button type="button" disabled={busy || !text.trim()} onClick={post} className="sos-jelly h-9 px-4 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Comment</button>
               </div>
@@ -1220,7 +1248,7 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
   const subjectOf = (m: PMsg) => m.subject || (m.kind === "meeting_note" ? "Meeting notes" : m.kind === "announcement" ? "Announcement" : m.from_studio ? "From the studio" : "Your message");
   const reading = composing || Boolean(thread);
   return (
-    <div className="sos-card overflow-hidden lg:grid lg:grid-cols-[380px_minmax(0,1fr)] h-[calc(100dvh-140px)] min-h-[560px]">
+    <div className="sos-card overflow-hidden lg:grid lg:grid-cols-[380px_minmax(0,1fr)] h-[calc((100dvh-130px)/var(--pz,1))] min-h-[520px]">
       {/* Thread list */}
       <div className={`${reading ? "hidden lg:flex" : "flex"} flex-col min-h-0 h-full lg:border-r`} style={{ borderColor: "var(--sos-border)" }}>
         <div className="px-5 pt-5 pb-3 space-y-3 border-b" style={{ borderColor: "var(--sos-border)" }}>

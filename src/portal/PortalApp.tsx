@@ -851,13 +851,17 @@ const ApprovalCard: React.FC<{
   const [activeNote, setActiveNote] = useState<number | null>(null);
   const player = useRef<ReviewMediaHandle>(null);
   const media = parseMedia(previewUrl);
-  const isVideo = media?.kind === "youtube" || media?.kind === "vimeo";
+  const isVideo = media?.kind === "youtube" || media?.kind === "vimeo" || media?.kind === "video";
   const isImage = media?.kind === "image";
   const nextId = useRef(1);
   const addTimedNote = async () => {
     setMode("changes");
-    const t = await player.current?.getTime();
+    let t = await player.current?.getTime();
     player.current?.pause();
+    if (t == null && isVideo) {
+      const typed = window.prompt("Type the time you see in the player (e.g. 1:24)");
+      t = typed ? parseTime(typed) : null;
+    }
     const id = nextId.current++;
     setNotes((prev) => [...prev, { id, time: t ?? undefined, t: t != null ? fmtTime(t) : "", text: "" }]);
     setActiveNote(id);
@@ -2115,7 +2119,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           </div>
         </div>
       ) : (
-        <div className="min-h-screen">
+        <div className="min-h-screen portal-scale">
           {isLarge && (
             <PortalSidebar
               tab={tab}
