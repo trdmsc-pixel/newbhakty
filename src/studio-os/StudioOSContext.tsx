@@ -773,7 +773,8 @@ export const StudioOSProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pinned: true,
         updated_at: nowStr,
       };
-      const newGates = createGatesFromTemplate(id, input.template as GateTemplateKey, 0);
+      const newGates = createGatesFromTemplate(id, input.template as GateTemplateKey, 0, input.template === "series_episode" ? input.episodes : undefined);
+      if (input.template === "series_episode" && input.episodes) newProject.episode_count = input.episodes;
       const actItem = buildActivityItem("project", id, `created project ${newProject.code} — ${newProject.title}`);
 
       commitState({

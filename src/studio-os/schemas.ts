@@ -50,6 +50,8 @@ export const projectCreateSchema = z.object({
   is_confidential: z.boolean().default(false),
   priority: z.enum(["p1", "p2", "p3"]).default("p2"),
   template: z.enum(["film", "music_video", "series_episode", "hybrid", "internal"]).default("film"),
+  /** Series only: number of episodes (creates shared stages + a stage set per episode). */
+  episodes: z.number().int().min(1).max(500).optional(),
 });
 
 export type TaskCreateInput = z.infer<typeof taskCreateSchema>;

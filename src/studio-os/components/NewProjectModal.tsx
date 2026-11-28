@@ -20,6 +20,7 @@ export const NewProjectModal: React.FC = () => {
   }, [clients, clientId]);
   const [type, setType] = useState<ProjectType>("ad_film");
   const [template, setTemplate] = useState<GateTemplateKey>("film");
+  const [episodes, setEpisodes] = useState(8);
   const [currency, setCurrency] = useState<CurrencyCode>("INR");
   const [fee, setFee] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -63,6 +64,7 @@ export const NewProjectModal: React.FC = () => {
       is_confidential: isConfidential,
       priority: "p2",
       template,
+      ...(template === "series_episode" ? { episodes: Math.max(1, Math.min(500, episodes || 1)) } : {}),
     });
     setNewProjectOpen(false);
     setTitle("");
@@ -172,11 +174,30 @@ export const NewProjectModal: React.FC = () => {
               >
                 {(Object.keys(GATE_TEMPLATES) as GateTemplateKey[]).map((k) => (
                   <option key={k} value={k}>
-                    {GATE_TEMPLATES[k].label}
+                    {k === "series_episode" ? "Series (multiple episodes)" : GATE_TEMPLATES[k].label}
                   </option>
                 ))}
               </select>
             </div>
+            {template === "series_episode" && (
+              <div className="col-span-full p-3.5 rounded-[16px] space-y-2" style={{ background: "var(--sos-violet-soft)" }}>
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] font-semibold" style={{ color: "var(--sos-primary)" }}>Number of episodes</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={episodes}
+                    onChange={(e) => setEpisodes(parseInt(e.target.value, 10) || 1)}
+                    className="w-24 h-10 px-3 text-center text-[15px] font-semibold rounded-[12px] border sos-tabular"
+                    style={{ background: "var(--sos-surface)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}
+                  />
+                </label>
+                <p className="text-[12px] leading-snug" style={{ color: "var(--sos-text-2)" }}>
+                  Creates shared stages once (series bible, characters, locations), then <b>Script → Generation → Edit → First draft ◆ → Final</b> for each of the {episodes} episodes — {3 + episodes * 5} milestones, tracked per episode in Studio OS and the client portal.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3">

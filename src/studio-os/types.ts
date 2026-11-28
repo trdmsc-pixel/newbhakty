@@ -132,6 +132,8 @@ export interface StudioGate {
   portal_visible: boolean;
   /** Manually planned end date for this stage (YYYY-MM-DD). Shown in the client portal. */
   due_date?: string;
+  /** Episode number for series stages (undefined = shared / whole-project stage). */
+  episode?: number;
 }
 
 export type HolidayRegion = "IN" | "US" | "AR" | "GLOBAL";
@@ -210,6 +212,8 @@ export interface StudioProject {
   last_client_touch_at?: string;
   last_studio_touch_at?: string;
   updated_at: string;
+  /** Number of episodes for a series. */
+  episode_count?: number;
 }
 
 export interface TaskChecklistItem {

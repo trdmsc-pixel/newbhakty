@@ -292,6 +292,7 @@ function mapGates(rows: any[]): StudioGate[] {
     client_comment: r.client_comment || undefined,
     portal_visible: r.portal_visible !== false,
     due_date: r.due_date ? String(r.due_date).slice(0, 10) : undefined,
+    episode: r.episode ?? undefined,
   }));
 }
 

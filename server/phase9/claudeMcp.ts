@@ -78,6 +78,7 @@ const TOOLS = [
         hard_deadline: str("Hard deadline YYYY-MM-DD"),
         promised_date: str("Date promised to the client YYYY-MM-DD"),
         priority: str("p1 (highest) / p2 / p3", { enum: ["p1", "p2", "p3"] }),
+        episodes: { type: "integer", minimum: 1, maximum: 500, description: "For a series: number of episodes. Creates shared stages + Script/Generation/Edit/First draft/Final per episode." },
         summary: str("1–3 lines: brief, scope, where it stands (saved as the first task's notes)"),
       },
     },
@@ -247,7 +248,7 @@ async function callTool(sb: SupabaseClient, name: string, a: any): Promise<unkno
         client = await createClient(sb, ctx, { name: a.client_name }, "Claude");
         clientCreated = true;
       }
-      const made = await createProjectWithGates(sb, ctx, { title: a.title, client, type: a.type, status: a.status, hard_deadline: a.hard_deadline, promised_date: a.promised_date, priority: a.priority });
+      const made = await createProjectWithGates(sb, ctx, { title: a.title, client, type: a.type, status: a.status, hard_deadline: a.hard_deadline, promised_date: a.promised_date, priority: a.priority, episodes: a.episodes });
       if (a.summary) {
         await createTask(sb, ctx, { projectId: made.id, title: made.status === "lead" ? "Reply to the enquiry" : "Review project details", description: `${a.summary}\n\nAdded by Claude.`, type: made.status === "lead" ? "reply_owed" : "task", priority: "normal", source: "ai" }).catch(() => null);
       }

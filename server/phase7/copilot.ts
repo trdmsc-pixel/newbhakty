@@ -544,7 +544,8 @@ async function execute(sb: SupabaseClient, tool: ToolName, a: any): Promise<{ me
         emoji: "🎬",
       });
       if (error) throw new Error(error.message);
-      const gates = createGatesFromTemplate(id, a.template || "film", 0).map((g) => ({
+      const gates = createGatesFromTemplate(id, a.template || "film", 0, a.template === "series_episode" ? a.episodes : undefined).map((g) => ({
+        episode: g.episode ?? null,
         id: g.id,
         project_id: id,
         order_index: g.order_index,

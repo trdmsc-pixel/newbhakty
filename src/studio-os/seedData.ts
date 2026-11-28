@@ -100,13 +100,54 @@ export const GATE_TEMPLATES: Record<
   },
 };
 
+/** Series: shared stages once, then the same pipeline for every episode. */
+export const SERIES_SHARED_STAGES = [
+  { code: "S0", name: "Series brief & bible", needs_client_approval: true, estimate_days: 1.5 },
+  { code: "S1", name: "Character sheets", needs_client_approval: true, estimate_days: 2 },
+  { code: "S2", name: "Locations & look", needs_client_approval: true, estimate_days: 2 },
+];
+export const SERIES_EPISODE_STAGES = [
+  { code: "E1", name: "Script", needs_client_approval: true, estimate_days: 1 },
+  { code: "E2", name: "Generation", needs_client_approval: false, estimate_days: 3 },
+  { code: "E3", name: "Edit + audio sync", needs_client_approval: false, estimate_days: 1.5 },
+  { code: "E4", name: "First draft", needs_client_approval: true, estimate_days: 1 },
+  { code: "E5", name: "Final delivery", needs_client_approval: false, estimate_days: 0.5 },
+];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Stage rows for a multi-episode series (episode = null for shared stages). */
+export function seriesGateDefs(episodes: number, includeShared = true) {
+  const n = Math.max(1, Math.min(500, Math.floor(episodes)));
+  const rows: Array<{ code: string; name: string; needs_client_approval: boolean; estimate_days: number; episode: number | null }> = [];
+  if (includeShared) for (const g of SERIES_SHARED_STAGES) rows.push({ ...g, episode: null });
+  for (let e = 1; e <= n; e++) for (const g of SERIES_EPISODE_STAGES) rows.push({ ...g, code: `EP${pad2(e)}·${g.code}`, name: `Ep ${e} · ${g.name}`, episode: e });
+  return rows;
+}
+
 export function createGatesFromTemplate(
   projectId: string,
   template: GateTemplateKey,
-  activeIndex = 0
+  activeIndex = 0,
+  episodes?: number
 ): StudioGate[] {
-  const def = GATE_TEMPLATES[template] || GATE_TEMPLATES.film;
   const resolvedProjectId = isUuid(projectId) ? projectId : deterministicUuid(projectId);
+  if (template === "series_episode" && episodes && episodes >= 1) {
+    return seriesGateDefs(episodes).map((g, idx) => ({
+      id: deterministicUuid(`${resolvedProjectId}-g${idx}`),
+      project_id: resolvedProjectId,
+      order_index: idx,
+      code: g.code,
+      name: g.name,
+      needs_client_approval: g.needs_client_approval,
+      estimate_days: g.estimate_days,
+      status: idx === activeIndex ? "in_work" : idx < activeIndex ? "approved" : "not_started",
+      revision_round: 0,
+      revisions_included: 2,
+      portal_visible: true,
+      episode: g.episode ?? undefined,
+    }));
+  }
+  const def = GATE_TEMPLATES[template] || GATE_TEMPLATES.film;
   return def.gates.map((g, idx) => ({
     id: deterministicUuid(`${resolvedProjectId}-g${idx}`),
     project_id: resolvedProjectId,

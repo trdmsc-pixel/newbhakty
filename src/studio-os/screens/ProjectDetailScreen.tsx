@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { EpisodeTracker, currentEpisode } from "../../review/EpisodeTracker";
 import { StageHistoryButton, StageNoteBox, StageTimelineList, useStageTimeline } from "../components/StageHistory";
 import { usePortalPresence } from "../components/PortalPresence";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
@@ -246,6 +247,12 @@ export const ProjectDetailScreen: React.FC = () => {
     [projectBlocks, settings]
   );
   const forecast = project ? getProjectForecast(project.id) : null;
+  const hasEpisodes = projectGates.some((g) => g.episode);
+  const [epSel, setEpSel] = useState<number>(() => currentEpisode(projectGates));
+  useEffect(() => {
+    setEpSel(currentEpisode(projectGates));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
   const presence = usePortalPresence();
 
   if (!project) return null;
@@ -501,7 +508,12 @@ export const ProjectDetailScreen: React.FC = () => {
 
               {/* Gate Rows */}
               <div className="space-y-2.5">
-                {projectGates.map((g) => (
+                {hasEpisodes && (
+                  <div className="p-4 rounded-[18px]" style={{ background: "var(--sos-surface-2)" }}>
+                    <EpisodeTracker gates={projectGates} selected={epSel} onSelect={setEpSel} />
+                  </div>
+                )}
+                {(hasEpisodes ? projectGates.filter((g) => !g.episode || g.episode === epSel) : projectGates).map((g) => (
                   <React.Fragment key={g.id}>
                   <div
                     key={g.id}

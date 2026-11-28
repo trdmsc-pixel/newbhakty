@@ -194,7 +194,7 @@ function mailBlock(digests: Digest[], accountEmails: string[]) {
 export async function createProjectWithGates(
   sb: SupabaseClient,
   ctx: StudioCtx,
-  p: { title: string; client: { id: string; name: string }; type?: string; status?: string; hard_deadline?: string | null; promised_date?: string | null; priority?: string }
+  p: { title: string; client: { id: string; name: string }; type?: string; status?: string; hard_deadline?: string | null; promised_date?: string | null; priority?: string; episodes?: number | null }
 ) {
   const id = crypto.randomUUID();
   const code = await uniqueCode(sb, p.client.name);
@@ -213,11 +213,14 @@ export async function createProjectWithGates(
     owner_member_id: ctx.ownerMemberId,
     emoji: status === "lead" ? "✉️" : "🎬",
     last_client_touch_at: new Date().toISOString(),
+    episode_count: type === "series" && p.episodes ? Math.min(500, Math.max(1, Math.floor(p.episodes))) : null,
   });
   if (error) throw new Error(error.message);
   const template = type === "music_video" ? "music_video" : type === "series" ? "series_episode" : type === "internal" ? "internal" : "film";
   const active = status === "active";
-  const gates = createGatesFromTemplate(id, template as any, 0).map((g) => ({
+  const eps = type === "series" && p.episodes ? Math.min(500, Math.max(1, Math.floor(p.episodes))) : undefined;
+  const gates = createGatesFromTemplate(id, template as any, 0, eps).map((g) => ({
+    episode: g.episode ?? null,
     id: g.id,
     project_id: id,
     order_index: g.order_index,
