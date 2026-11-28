@@ -9,7 +9,7 @@
  * media branch is now ~81 MB — that is what broke the site's videos.
  */
 import type { Express, Request, Response } from "express";
-import { getEnv } from "./studioOsRoutes.js";
+import { getEnv, getServiceSupabase } from "./studioOsRoutes.js";
 
 const GH_OWNER = "trdmsc-pixel";
 const GH_REPO = "newbhakty";
@@ -18,7 +18,75 @@ const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,250}$/;
 
 export const githubMediaUrl = (file: string) => `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURIComponent(file)}`;
 
+// ---------------------------------------------------------------------------
+// Google Drive video streaming for the review player.
+// Google blocks other sites from streaming Drive files straight into a <video>, so the
+// browser asks us instead; we fetch the requested byte range server-side and pass it on.
+// Each response is capped at ~4 MB (Vercel's response limit) — browsers simply ask for the
+// next range. Only Drive files that the studio has actually shared in Studio OS are served.
+// ---------------------------------------------------------------------------
+const DRIVE_ID = /^[\w-]{10,200}$/;
+const CHUNK = 4 * 1000 * 1000;
+const allowed = new Map<string, number>(); // id -> expiry
+async function driveIdAllowed(id: string): Promise<boolean> {
+  const exp = allowed.get(id);
+  if (exp && exp > Date.now()) return true;
+  const sb = getServiceSupabase();
+  if (!sb) return false;
+  const like = `%${id}%`;
+  const checks = await Promise.all([
+    sb.from("studio_deliverables").select("id").or(`url.ilike.${like},download_url.ilike.${like}`).is("archived_at", null).limit(1),
+    sb.from("studio_asset_versions").select("id").ilike("url", like).is("archived_at", null).limit(1),
+    sb.from("studio_shots").select("id").ilike("preview_url", like).is("archived_at", null).limit(1),
+    sb.from("studio_projects").select("id").ilike("review_link_url", like).limit(1),
+  ]);
+  const ok = checks.some((r) => (r.data || []).length > 0);
+  if (ok) {
+    if (allowed.size > 2000) allowed.clear();
+    allowed.set(id, Date.now() + 15 * 60_000);
+  }
+  return ok;
+}
+
+export function registerDriveStreamRoute(app: Express) {
+  app.get("/api/media/drive/:id", async (req: Request, res: Response) => {
+    const id = String(req.params.id || "");
+    if (!DRIVE_ID.test(id)) return res.status(400).send("Bad id");
+    try {
+      if (!(await driveIdAllowed(id))) return res.status(404).send("Not shared");
+      const m = String(req.headers.range || "").match(/bytes=(\d*)-(\d*)/);
+      const start = m && m[1] ? Number(m[1]) : 0;
+      const wantEnd = m && m[2] ? Number(m[2]) : start + CHUNK - 1;
+      const end = Math.min(wantEnd, start + CHUNK - 1);
+      const up = await fetch(`https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download&confirm=t`, {
+        headers: { Range: `bytes=${start}-${end}`, "User-Agent": "Mozilla/5.0 (compatible; StudioReviewPlayer/1.0)" },
+        redirect: "follow",
+      });
+      const type = up.headers.get("content-type") || "";
+      if (!up.ok || /text\/html/i.test(type)) return res.status(403).send("Drive file is not shared publicly");
+      const buf = Buffer.from(await up.arrayBuffer());
+      const range = up.headers.get("content-range");
+      const total = range?.split("/")[1];
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Type", /octet-stream/i.test(type) || !type ? "video/mp4" : type);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.setHeader("Content-Length", String(buf.length));
+      if (up.status === 206 && range) {
+        res.setHeader("Content-Range", range);
+        return res.status(206).end(buf);
+      }
+      // Host ignored the range: send what we have as a partial response.
+      const size = total && total !== "*" ? total : String(buf.length);
+      res.setHeader("Content-Range", `bytes 0-${buf.length - 1}/${size}`);
+      return res.status(buf.length < Number(size) ? 206 : 200).end(buf);
+    } catch (err: any) {
+      return res.status(502).send("Couldn't reach Google Drive");
+    }
+  });
+}
+
 export function registerMediaRoutes(app: Express) {
+  registerDriveStreamRoute(app);
   app.get("/api/media/:file", (req: Request, res: Response) => {
     const file = String(req.params.file || "");
     if (!SAFE_NAME.test(file)) return res.status(400).send("Bad file name");

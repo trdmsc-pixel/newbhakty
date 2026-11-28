@@ -53,7 +53,8 @@ export function parseMedia(url?: string | null): ParsedMedia | null {
     return {
       kind: "video",
       id: driveId,
-      src: `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`,
+      // Streamed through our server (Google blocks direct cross-site playback).
+      src: `/api/media/drive/${encodeURIComponent(driveId)}`,
       fallback: `https://drive.google.com/file/d/${driveId}/preview`,
       host: "Google Drive",
     };
