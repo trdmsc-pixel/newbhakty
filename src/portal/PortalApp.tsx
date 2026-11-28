@@ -40,7 +40,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
 import { SketchOverlay, VoiceNoteButton } from "./PortalReviewTools";
 import { ProjectThumb, thumbCandidates, downloadHref, isStreamOnly } from "../review/ProjectThumb";
-import { ActivityPanel, ApprovalHistoryCard, ProjectGantt, AssetLibrary, AttentionRequired, ChangeRequestsCard, MailInbox, MessagesButton, ProductionPanel, ReviewStudio, SectionBar, useSectionBadges, type ProjectSection } from "./PortalProduction";
+import { ActivityPanel, ApprovalHistoryCard, ProjectGantt, AssetLibrary, AttentionRequired, ChangeRequestsCard, MailInbox, ProductionPanel, ReviewStudio, SectionBar, useSectionBadges, type ProjectSection } from "./PortalProduction";
 import "../studio-os/studio-os.css";
 
 // ---------------------------------------------------------------------------
@@ -629,28 +629,28 @@ const ProjectRow: React.FC<{ project: PortalProject; gates: PortalGate[]; delive
   const eps = gates.some((g) => g.episode) ? episodeStates(gates as any) : [];
   const epDone = eps.filter((e) => e.state === "done").length;
   return (
-    <button type="button" onClick={onOpen} className="group w-full text-left flex items-center gap-4 p-3 pr-4 rounded-[20px] transition-all duration-300 hover:-translate-y-0.5" style={{ background: "var(--sos-surface)", boxShadow: "0 1px 2px rgba(15,17,21,0.04), 0 0 0 1px var(--sos-border)", ["--i" as any]: Math.min(index, 14) }}>
-      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="sos-row-thumb w-[84px] h-14 rounded-[14px] shrink-0 overflow-hidden" style={{ background: "var(--sos-violet-soft)" }} />
+    <button type="button" onClick={onOpen} className="group w-full text-left flex items-center gap-4 lg:gap-5 p-3 lg:p-3.5 pr-4 lg:pr-5 rounded-[20px] lg:rounded-[22px] transition-all duration-300 hover:-translate-y-0.5" style={{ background: "var(--sos-surface)", boxShadow: "0 1px 2px rgba(15,17,21,0.04), 0 0 0 1px var(--sos-border)", ["--i" as any]: Math.min(index, 14) }}>
+      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="sos-row-thumb w-[84px] h-14 lg:w-[112px] lg:h-[70px] rounded-[14px] shrink-0 overflow-hidden" style={{ background: "var(--sos-violet-soft)" }} />
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex items-center gap-2 min-w-0">
-          <p className="text-[15px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
+          <p className="text-[15px] lg:text-[17px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
           <span className="sm:hidden shrink-0 w-2 h-2 rounded-full" style={{ background: badge.fg }} />
         </div>
-        <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
+        <p className="text-[12px] lg:text-[14px] truncate" style={{ color: "var(--sos-text-3)" }}>
           {TYPE_LABEL[project.type] || "Project"}
           {eps.length ? ` · ${epDone}/${eps.length} episodes` : ""} · {done ? (project.closed_at ? "Completed" : "Delivered") : project.current_stage?.replace(/^Ep \d+ · /, "") || "Getting started"}
         </p>
-        <div className="sos-bar h-1.5 max-w-[220px]" style={{ ["--i" as any]: Math.min(index, 14) }}>
+        <div className="sos-bar h-1.5 max-w-[220px] lg:max-w-[280px]" style={{ ["--i" as any]: Math.min(index, 14) }}>
           <span className={progress === 100 ? "done" : ""} style={{ width: `${progress}%` }} />
         </div>
       </div>
       <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0">
-        <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold" style={{ background: badge.bg, color: badge.fg }}>
+        <span className="inline-flex items-center gap-1.5 h-7 lg:h-8 px-3 lg:px-3.5 rounded-full text-[12px] lg:text-[13px] font-semibold" style={{ background: badge.bg, color: badge.fg }}>
           {badge.dot && <span className="sos-live-dot" style={{ width: 6, height: 6 }} />}
           {badge.label}
         </span>
         {date && (
-          <span className="text-[11px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
+          <span className="text-[11px] lg:text-[13px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
             {done ? "on" : "due"} {fmtDate(date)}
           </span>
         )}
@@ -680,7 +680,7 @@ const ProjectList: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; de
         if (!list.length) return null;
         return (
           <section key={grp.key} className="space-y-2.5">
-            <h3 className="flex items-center gap-2 px-1 text-[12px] font-bold uppercase tracking-wider" style={{ color: grp.key === "review" ? "#9A4A00" : "var(--sos-text-3)" }}>
+            <h3 className="flex items-center gap-2 px-1 text-[12px] lg:text-[13px] font-bold uppercase tracking-wider" style={{ color: grp.key === "review" ? "#9A4A00" : "var(--sos-text-3)" }}>
               {grp.title}
               <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] flex items-center justify-center" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>{list.length}</span>
             </h3>
@@ -1588,32 +1588,32 @@ const PortalSidebar: React.FC<{
     {
       group: "Your work",
       items: [
-        { id: "projects", label: "Projects", icon: <Clapperboard className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: awaiting, urgent: awaiting > 0 },
-        { id: "messages", label: "Messages", icon: <Mail className="w-[18px] h-[18px]" strokeWidth={1.75} />, badge: unread, urgent: unread > 0 },
-        { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+        { id: "projects", label: "Projects", icon: <Clapperboard className="w-5 h-5" strokeWidth={1.75} />, badge: awaiting, urgent: awaiting > 0 },
+        { id: "messages", label: "Messages", icon: <Mail className="w-5 h-5" strokeWidth={1.75} />, badge: unread, urgent: unread > 0 },
+        { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-5 h-5" strokeWidth={1.75} /> },
       ],
     },
     {
       group: "Library",
       items: [
-        { id: "files", label: "Files", icon: <FolderOpen className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
-        { id: "invoices", label: "Invoices", icon: <Receipt className="w-[18px] h-[18px]" strokeWidth={1.75} /> },
+        { id: "files", label: "Files", icon: <FolderOpen className="w-5 h-5" strokeWidth={1.75} /> },
+        { id: "invoices", label: "Invoices", icon: <Receipt className="w-5 h-5" strokeWidth={1.75} /> },
       ],
     },
-    { group: "You", items: [{ id: "account", label: "Account", icon: <UserRound className="w-[18px] h-[18px]" strokeWidth={1.75} /> }] },
+    { group: "You", items: [{ id: "account", label: "Account", icon: <UserRound className="w-5 h-5" strokeWidth={1.75} /> }] },
   ];
   const initials = (name || who || "C").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <aside className="hidden lg:flex flex-col justify-between w-[256px] fixed inset-y-0 left-0 z-40 border-r" style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}>
-      <div className="p-4 space-y-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-        <div className="px-1">
-          <StudioLogo surface="light" height={22} />
-          <p className="text-[11px] mt-1 truncate" style={{ color: "var(--sos-text-3)" }}>Client portal</p>
+    <aside className="hidden lg:flex flex-col justify-between w-[300px] fixed inset-y-0 left-0 z-40 border-r" style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}>
+      <div className="px-5 pt-7 pb-5 space-y-8 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+        <div className="px-2">
+          <StudioLogo surface="light" height={34} />
+          <p className="text-[13px] mt-2 font-medium truncate" style={{ color: "var(--sos-text-3)" }}>Client portal{who ? ` · ${who}` : ""}</p>
         </div>
         <nav className="space-y-1" aria-label="Portal">
           {groups.map(({ group, items }) => (
-            <div key={group} className="space-y-1 pb-2">
-              <p className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>{group}</p>
+            <div key={group} className="space-y-1.5 pb-3">
+              <p className="px-4 pt-1 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--sos-text-3)" }}>{group}</p>
               {items.map((it) => {
                 const on = tab === it.id;
                 return (
@@ -1621,17 +1621,17 @@ const PortalSidebar: React.FC<{
                     key={it.id}
                     type="button"
                     onClick={() => (it.id === "messages" ? onMessages() : onTab(it.id as HubTab))}
-                    className="relative w-full flex items-center justify-between gap-2.5 px-3 h-10 rounded-full text-[14px] font-medium transition-colors duration-200"
+                    className="relative w-full flex items-center justify-between gap-3 px-4 h-12 rounded-full text-[16px] font-medium transition-colors duration-200 hover:bg-[var(--sos-surface-2)]"
                     style={{ color: on ? "var(--sos-ink-text)" : "var(--sos-text-2)" }}
                     aria-current={on ? "page" : undefined}
                   >
                     {on && <motion.span layoutId="portal-side-pill" className="absolute inset-0 rounded-full" style={{ background: "var(--sos-ink)" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-                    <span className="relative z-[1] flex items-center gap-2.5 min-w-0">
+                    <span className="relative z-[1] flex items-center gap-3 min-w-0">
                       {it.icon}
                       <span className="truncate">{it.label}</span>
                     </span>
                     {it.badge ? (
-                      <span className={`relative z-[1] px-2 py-0.5 rounded-full text-[10px] font-semibold ${it.urgent ? "sos-pulse-badge" : ""}`} style={it.urgent ? { background: "#B42318", color: "#FFFFFF" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>
+                      <span className={`relative z-[1] min-w-[24px] h-6 px-2 flex items-center justify-center rounded-full text-[12px] font-bold ${it.urgent ? "sos-pulse-badge" : ""}`} style={it.urgent ? { background: "#B42318", color: "#FFFFFF" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}>
                         {it.badge}
                       </span>
                     ) : null}
@@ -1642,18 +1642,17 @@ const PortalSidebar: React.FC<{
           ))}
         </nav>
       </div>
-      <div className="p-4 space-y-3 border-t" style={{ borderColor: "var(--sos-border)" }}>
-        <StudioClock info={info} compact onOpenCalendar={() => onTab("calendar")} />
-        <div className="flex items-center gap-2.5 px-1">
-          <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4)" }}>{initials}</span>
+      <div className="p-5 space-y-3 border-t" style={{ borderColor: "var(--sos-border)" }}>
+        <div className="flex items-center gap-3 p-3 rounded-[18px]" style={{ background: "var(--sos-surface-2)" }}>
+          <span className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[14px] font-bold shrink-0" style={{ background: "linear-gradient(135deg, #8B6CFF, #5B3FE4)" }}>{initials}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{name || "Client"}</p>
-            <p className="text-[11px] truncate" style={{ color: "var(--sos-text-3)" }}>{who}</p>
+            <p className="text-[15px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{name || "Client"}</p>
+            <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>{who}</p>
           </div>
-          <button type="button" onClick={onSignOut} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 hover:opacity-80" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }} aria-label="Sign out" title="Sign out">
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
+        <button type="button" onClick={onSignOut} className="w-full h-12 rounded-full border flex items-center justify-center gap-2 text-[15px] font-semibold transition-colors hover:bg-[var(--sos-surface-2)]" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }}>
+          <LogOut className="w-[18px] h-[18px]" /> Sign out
+        </button>
       </div>
     </aside>
   );
@@ -1928,11 +1927,16 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const [portalTasks, setPortalTasks] = useState<PortalTask[]>([]);
   const [revisions, setRevisions] = useState<PortalRevision[]>([]);
   const [toast, setToast] = useState<PortalNotification | null>(null);
-  const [msgOpen, setMsgOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "messages");
+
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [selected, setSelectedRaw] = useState<string | null>(() => new URLSearchParams(window.location.search).get("project"));
   const [section, setSection] = useState<ProjectSection>(() => (new URLSearchParams(window.location.search).get("section") as ProjectSection) || "overview");
   const [refreshKey, setRefreshKey] = useState(0);
+  const openMessages = () => {
+    setTab("messages");
+    setSelectedRaw(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const setSelected = useCallback((id: string | null, sec: ProjectSection = "overview") => {
     setSelectedRaw(id);
     setSection(sec);
@@ -1958,6 +1962,13 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
     }
   };
   const isLarge = useIsLarge();
+  const [isXl, setIsXl] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const on = () => setIsXl(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   const studioInfo = useStudioInfo();
   const portalReady = signedIn && Boolean(contact?.ok) && !contact?.must_set_password;
   const { messages, unread, reload: reloadMessages } = usePortalMessages(portalReady);
@@ -2008,7 +2019,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
   const closeToast = useCallback(() => setToast(null), []);
   const openNotification = (n: PortalNotification) => {
     notif.markRead();
-    if (n.kind === "message") setMsgOpen(true);
+    if (n.kind === "message") openMessages();
     else if (n.project_id) {
       setTab("projects");
       setSelected(n.project_id, n.kind === "comment_reply" ? "reviews" : "overview");
@@ -2115,20 +2126,23 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               }}
               awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
               unread={unread}
-              onMessages={() => setMsgOpen(true)}
+              onMessages={() => openMessages()}
               who={contact?.organisation}
               name={contact?.name}
               info={studioInfo}
               onSignOut={signOut}
             />
           )}
-          <div className="lg:ml-[256px] min-w-0">
-          <div className="px-4 md:px-8 xl:px-10 w-full">
+          <div className="lg:ml-[300px] min-w-0">
+          <div className="px-4 md:px-8 xl:px-12 w-full">
           {isLarge ? (
-            <div className="sticky top-0 z-30 -mx-4 md:-mx-8 xl:-mx-10 px-4 md:px-8 xl:px-10 h-16 flex items-center justify-end gap-3 backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--sos-canvas) 80%, transparent)" }}>
+            <div className="sticky top-0 z-30 -mx-4 md:-mx-8 xl:-mx-12 px-4 md:px-8 xl:px-12 h-[72px] flex items-center justify-end gap-3 backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--sos-canvas) 80%, transparent)" }}>
               {contact?.ok && (
                 <>
-                  <MessagesButton unread={unread} open={msgOpen} setOpen={setMsgOpen}>{inbox}</MessagesButton>
+                  <button type="button" onClick={() => openMessages()} className="relative h-11 pl-3.5 pr-4 rounded-full border inline-flex items-center gap-2 text-[14px] font-semibold transition-colors hover:bg-[var(--sos-surface-2)]" style={{ borderColor: unread ? "var(--sos-primary)" : "var(--sos-border)", color: unread ? "var(--sos-primary)" : "var(--sos-text-2)", background: tab === "messages" ? "var(--sos-violet-soft)" : "var(--sos-surface)" }} aria-label={unread ? `Messages, ${unread} unread` : "Messages"}>
+                    <Mail className="w-4 h-4" /> <span className="hidden sm:inline">Messages</span>
+                    {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{unread}</span>}
+                  </button>
                   <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />
                 </>
               )}
@@ -2140,7 +2154,10 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               extra={
                 contact?.ok ? (
                   <span className="flex items-center gap-2">
-                    <MessagesButton unread={unread} open={msgOpen} setOpen={setMsgOpen}>{inbox}</MessagesButton>
+                    <button type="button" onClick={() => openMessages()} className="relative h-11 pl-3.5 pr-4 rounded-full border inline-flex items-center gap-2 text-[14px] font-semibold transition-colors hover:bg-[var(--sos-surface-2)]" style={{ borderColor: unread ? "var(--sos-primary)" : "var(--sos-border)", color: unread ? "var(--sos-primary)" : "var(--sos-text-2)", background: tab === "messages" ? "var(--sos-violet-soft)" : "var(--sos-surface)" }} aria-label={unread ? `Messages, ${unread} unread` : "Messages"}>
+                    <Mail className="w-4 h-4" /> <span className="hidden sm:inline">Messages</span>
+                    {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{unread}</span>}
+                  </button>
                     <NotificationBell items={notif.items} unread={notif.unread} onOpenChange={(o) => o && notif.markRead()} onSelect={openNotification} />
                   </span>
                 ) : null
@@ -2160,9 +2177,9 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               awaiting={gates.filter((g) => g.status === "waiting_on_client").length}
             />
           )}
-          <div className="mt-4">
+          <div className={`mt-2 mx-auto w-full ${tab === "messages" ? "max-w-[1400px]" : "max-w-[1500px] grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_330px] gap-7 items-start"}`}>
             <div className="min-w-0 space-y-4">
-              {!isLarge && tab === "projects" && !selected && <StudioClock info={studioInfo} compact onOpenCalendar={() => setTab("calendar")} />}
+              {tab === "projects" && !selected && <div className="xl:hidden"><StudioClock info={studioInfo} compact onOpenCalendar={() => setTab("calendar")} /></div>}
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={tab}
@@ -2171,7 +2188,9 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  {tab === "calendar" ? (
+                  {tab === "messages" ? (
+                    inbox
+                  ) : tab === "calendar" ? (
                     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
                       <div className="xl:col-span-2"><ProjectGantt projects={projects} gates={gates as any} onOpen={(id) => { setTab("projects"); setSelected(id); }} /></div>
                       <CalendarTab info={studioInfo} />
@@ -2200,6 +2219,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
               revisions={revisions.filter((r) => r.project_id === project.id)}
               stageNotes={messages.filter((m: any) => m.from_studio && m.gate_id && m.project_id === project.id) as any}
               viewerName={contact?.name}
+              showInvoices={!isXl}
               onBack={() => setSelected(null)}
               onChanged={load}
               section={section}
@@ -2233,10 +2253,10 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           ) : (
             <div className="space-y-5">
               <div>
-                <h1 className="sos-display text-[30px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
+                <h1 className="sos-display text-[30px] lg:text-[38px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>
                   {contact?.name ? `Hello, ${contact.name.split(" ")[0]}` : "Your projects"}
                 </h1>
-                <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>
+                <p className="text-[14px] lg:text-[16px]" style={{ color: "var(--sos-text-2)" }}>
                   Everything the studio is making for {contact?.organisation || "you"}.
                 </p>
               </div>
@@ -2250,7 +2270,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   setSelected(id, sec || "overview");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                onOpenMessages={() => setMsgOpen(true)}
+                onOpenMessages={() => openMessages()}
                 onChanged={load}
               />
               {projects.length > 0 && (
@@ -2266,7 +2286,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                           role="tab"
                           aria-selected={active}
                           onClick={() => setListFilter(f.id)}
-                          className="relative shrink-0 h-10 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-2 border"
+                          className="relative shrink-0 h-10 lg:h-11 px-4 lg:px-5 rounded-full text-[13px] lg:text-[14px] font-semibold inline-flex items-center gap-2 border"
                           style={active ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)", borderColor: "var(--sos-ink)" } : { background: "var(--sos-surface)", color: "var(--sos-text-2)", borderColor: "var(--sos-border)" }}
                         >
                           {f.label}
@@ -2324,7 +2344,22 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                 </motion.div>
               </AnimatePresence>
             </div>
-
+            {tab !== "messages" && (
+              <aside className="hidden xl:block sticky top-[88px] space-y-4">
+                <StudioClock info={studioInfo} onOpenCalendar={() => setTab("calendar")} />
+                <button type="button" onClick={() => openMessages()} className="w-full sos-card p-5 flex items-center gap-3.5 text-left transition-transform hover:-translate-y-0.5">
+                  <span className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>
+                    <MessageSquare className="w-5 h-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[16px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Message the studio</span>
+                    <span className="block text-[13px]" style={{ color: "var(--sos-text-3)" }}>{unread ? `${unread} new repl${unread > 1 ? "ies" : "y"}` : "Questions, ideas, anything"}</span>
+                  </span>
+                  {unread > 0 && <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#B42318] text-white text-[11px] font-bold flex items-center justify-center">{unread}</span>}
+                </button>
+                {tab === "projects" && project && <InvoicesCard invoices={invoices.filter((i) => i.project_id === project.id)} />}
+              </aside>
+            )}
           </div>
           <Footer />
           </div>

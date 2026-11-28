@@ -1217,130 +1217,104 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
       {err && <p className="text-[13px]" style={{ color: "#B42318" }}>{err}</p>}
     </div>
   );
+  const subjectOf = (m: PMsg) => m.subject || (m.kind === "meeting_note" ? "Meeting notes" : m.kind === "announcement" ? "Announcement" : m.from_studio ? "From the studio" : "Your message");
+  const reading = composing || Boolean(thread);
   return (
-    <div className="h-full flex flex-col min-h-0">
-      <div className="flex items-center justify-between gap-2 pb-3">
-        {thread && !composing ? (
-          <button type="button" onClick={() => setOpenId(null)} className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: "var(--sos-text-2)" }}><ChevronRight className="w-4 h-4 rotate-180" /> Inbox</button>
-        ) : (
-          <div>
-            <h2 className="sos-display text-[22px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Messages</h2>
-            {statusLine && <p className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>{statusLine}</p>}
+    <div className="sos-card overflow-hidden lg:grid lg:grid-cols-[380px_minmax(0,1fr)] h-[calc(100dvh-140px)] min-h-[560px]">
+      {/* Thread list */}
+      <div className={`${reading ? "hidden lg:flex" : "flex"} flex-col min-h-0 h-full lg:border-r`} style={{ borderColor: "var(--sos-border)" }}>
+        <div className="px-5 pt-5 pb-3 space-y-3 border-b" style={{ borderColor: "var(--sos-border)" }}>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="sos-display text-[26px] font-semibold tracking-[-0.02em]" style={{ color: "var(--sos-text-1)" }}>Messages</h1>
+            <button type="button" onClick={() => { setComposing(true); setOpenId(null); }} className="sos-jelly h-10 px-4 text-[14px] inline-flex items-center gap-1.5"><PenLine className="w-4 h-4" /> New</button>
           </div>
-        )}
-        {!composing && (
-          <button type="button" onClick={() => { setComposing(true); setOpenId(null); }} className="sos-jelly h-9 px-4 text-[13px] inline-flex items-center gap-1.5"><PenLine className="w-4 h-4" /> New message</button>
-        )}
+          {statusLine && <p className="text-[13px]" style={{ color: "var(--sos-text-3)" }}>{statusLine}</p>}
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2">
+          {!threads.length ? (
+            <div className="p-6 text-center">
+              <Inbox className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--sos-text-3)" }} />
+              <p className="text-[14px]" style={{ color: "var(--sos-text-2)" }}>No messages yet.</p>
+              <button type="button" onClick={() => setComposing(true)} className="mt-3 text-[14px] font-semibold" style={{ color: "var(--sos-primary)" }}>Write to the studio →</button>
+            </div>
+          ) : (
+            threads.map((t, i) => {
+              const on = t.root.id === openId && !composing;
+              return (
+                <motion.button
+                  key={t.root.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i, 10) * 0.02 }}
+                  onClick={() => { setComposing(false); setOpenId(t.root.id); }}
+                  className="w-full text-left flex items-start gap-3 p-3.5 rounded-[16px] transition-colors hover:bg-[var(--sos-surface-2)]"
+                  style={on ? { background: "var(--sos-ink)", color: "var(--sos-ink-text)" } : t.unread ? { background: "var(--sos-violet-soft)" } : undefined}
+                >
+                  <span className="mt-0.5 w-10 h-10 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: t.last.from_studio ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "#0EA5E9" }}>{t.last.from_studio ? "TCS" : "You"}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className={`text-[15px] truncate ${t.unread ? "font-bold" : "font-semibold"}`} style={{ color: on ? "inherit" : "var(--sos-text-1)" }}>{subjectOf(t.root)}</span>
+                      <span className="ml-auto text-[12px] shrink-0" style={{ color: on ? "inherit" : "var(--sos-text-3)", opacity: on ? 0.7 : 1 }}>{fmtDate(t.last.created_at)}</span>
+                    </span>
+                    <span className="block text-[13px] truncate mt-0.5" style={{ color: on ? "inherit" : "var(--sos-text-2)", opacity: on ? 0.75 : 1 }}>{title(t.root.project_id) ? `${title(t.root.project_id)} — ` : ""}{t.last.body}</span>
+                    {t.all.length > 1 && <span className="inline-block mt-1 text-[11px] font-semibold" style={{ opacity: 0.7 }}>{t.all.length} messages</span>}
+                  </span>
+                  {t.unread && !on && <span className="mt-2 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: "#E11D48" }} />}
+                </motion.button>
+              );
+            })
+          )}
+        </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1">
-        {composing ? (
-          Composer
-        ) : thread ? (
-          <div className="space-y-3">
-            <h3 className="text-[17px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{thread.root.subject || (thread.root.kind === "meeting_note" ? "Meeting notes" : thread.root.kind === "announcement" ? "Announcement" : "Message")}</h3>
-            {title(thread.root.project_id) && <Chip t="violet">{title(thread.root.project_id)}</Chip>}
-            {thread.all.map((m) => (
-              <div key={m.id} className="p-3.5 rounded-[16px] space-y-1" style={{ background: m.from_studio ? "var(--sos-surface)" : "var(--sos-violet-soft)", boxShadow: "0 0 0 1px var(--sos-border)" }}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{m.from_studio ? "The Chanting Studio" : m.author_name || "You"}</span>
-                  <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--sos-text-3)" }}>
-                    {new Date(m.created_at).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-                    {!m.from_studio && <Receipt read={m.read_by_studio_at || null} delivered={m.delivered_to_studio_at || null} />}
-                  </span>
-                </div>
-                <p className="text-[14px] whitespace-pre-wrap break-words" style={{ color: "var(--sos-text-1)" }}>{m.body}</p>
-                {!!m.attachments?.length && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {m.attachments.map((a) => (
-                      <button key={a.path} type="button" onClick={() => openAtt(a.path)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12px] font-medium" style={{ background: "var(--sos-surface-2)", color: "var(--sos-primary)" }}><Paperclip className="w-3 h-3" /> {a.name}</button>
-                    ))}
-                  </div>
-                )}
+      {/* Reading pane */}
+      <div className={`${reading ? "flex" : "hidden lg:flex"} flex-col min-h-0 h-full`}>
+        {reading ? (
+          <>
+            <div className="px-5 md:px-7 pt-5 pb-3 border-b flex items-start gap-3" style={{ borderColor: "var(--sos-border)" }}>
+              <button type="button" onClick={() => { setOpenId(null); setComposing(false); }} className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sos-surface-2)" }} aria-label="Back to inbox"><ChevronRight className="w-4 h-4 rotate-180" /></button>
+              <div className="min-w-0 flex-1">
+                <h2 className="sos-display text-[22px] font-semibold leading-tight" style={{ color: "var(--sos-text-1)" }}>{composing ? "New message" : subjectOf(thread!.root)}</h2>
+                {!composing && title(thread!.root.project_id) && <div className="mt-1.5"><Chip t="violet">{title(thread!.root.project_id)}</Chip></div>}
               </div>
-            ))}
-            <div className="pt-1">{Composer}</div>
-          </div>
-        ) : !threads.length ? (
-          <div className="space-y-4">
-            <Empty icon={<Inbox className="w-7 h-7" />} text="No messages yet. Write to the studio — it arrives like an email and they reply here." />
-            {Composer}
-          </div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 md:px-7 py-5 space-y-4">
+              {!composing &&
+                thread!.all.map((m) => (
+                  <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-[18px] p-4 md:p-5 space-y-2" style={{ background: m.from_studio ? "var(--sos-surface-2)" : "var(--sos-violet-soft)" }}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: m.from_studio ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "#0EA5E9" }}>{m.from_studio ? "TCS" : "You"}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{m.from_studio ? "The Chanting Studio" : m.author_name || "You"}</p>
+                        <p className="text-[12px] inline-flex items-center gap-1" style={{ color: "var(--sos-text-3)" }}>
+                          {new Date(m.created_at).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                          {!m.from_studio && <Receipt read={m.read_by_studio_at || null} delivered={m.delivered_to_studio_at || null} />}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: "var(--sos-text-1)" }}>{m.body}</p>
+                    {!!m.attachments?.length && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {m.attachments.map((a) => (
+                          <button key={a.path} type="button" onClick={() => openAtt(a.path)} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium" style={{ background: "var(--sos-surface)", color: "var(--sos-primary)" }}><Paperclip className="w-3.5 h-3.5" /> {a.name}</button>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              <div className={composing ? "" : "pt-1"}>{Composer}</div>
+            </div>
+          </>
         ) : (
-          <div className="space-y-1">
-            {threads.map((t, i) => (
-              <motion.button
-                key={t.root.id}
-                type="button"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(i, 10) * 0.02 }}
-                onClick={() => setOpenId(t.root.id)}
-                className="w-full text-left flex items-start gap-3 p-3 rounded-[16px] transition-colors hover:bg-[var(--sos-surface-2)]"
-                style={t.unread ? { background: "var(--sos-violet-soft)" } : undefined}
-              >
-                <span className="mt-0.5 w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: t.last.from_studio ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "#0EA5E9" }}>{t.last.from_studio ? "TCS" : "You"}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className={`text-[14px] truncate ${t.unread ? "font-bold" : "font-semibold"}`} style={{ color: "var(--sos-text-1)" }}>{t.root.subject || (t.root.kind === "meeting_note" ? "Meeting notes" : t.root.kind === "announcement" ? "Announcement" : t.root.from_studio ? "From the studio" : "Your message")}</span>
-                    {t.all.length > 1 && <span className="text-[11px] shrink-0" style={{ color: "var(--sos-text-3)" }}>{t.all.length}</span>}
-                    <span className="ml-auto text-[11px] shrink-0" style={{ color: "var(--sos-text-3)" }}>{fmtDate(t.last.created_at)}</span>
-                  </span>
-                  <span className="block text-[13px] truncate" style={{ color: "var(--sos-text-2)" }}>{title(t.root.project_id) ? `${title(t.root.project_id)} — ` : ""}{t.last.body}</span>
-                </span>
-                {t.unread && <span className="mt-2 w-2 h-2 rounded-full shrink-0" style={{ background: "#E11D48" }} />}
-              </motion.button>
-            ))}
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-10 gap-3">
+            <span className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}><Mail className="w-7 h-7" /></span>
+            <p className="text-[17px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Select a conversation</p>
+            <p className="text-[14px] max-w-sm" style={{ color: "var(--sos-text-2)" }}>Messages go to the studio like an email — they reply right here, and you get an email too.</p>
+            <button type="button" onClick={() => setComposing(true)} className="sos-jelly h-11 px-5 text-[14px] inline-flex items-center gap-2 mt-1"><PenLine className="w-4 h-4" /> New message</button>
           </div>
         )}
       </div>
     </div>
-  );
-};
-
-/** Top-bar Messages button + right-side mail drawer (replaces the floating bubble). */
-export const MessagesButton: React.FC<{ unread: number; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode }> = ({ unread, open, setOpen, children }) => {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open, setOpen]);
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className="relative h-10 pl-3 pr-3.5 rounded-full border inline-flex items-center gap-2 text-[13px] font-semibold transition-colors hover:bg-[var(--sos-surface-2)]" style={{ borderColor: unread ? "var(--sos-primary)" : "var(--sos-border)", color: unread ? "var(--sos-primary)" : "var(--sos-text-2)", background: "var(--sos-surface)" }} aria-label={unread ? `Messages, ${unread} unread` : "Messages"}>
-        <Mail className="w-4 h-4" />
-        <span className="hidden sm:inline">Messages</span>
-        {unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{unread}</span>}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
-            <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 380, damping: 38 }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 inset-y-0 w-full sm:w-[560px] flex flex-col shadow-2xl"
-              style={{ background: "var(--sos-canvas)", paddingBottom: "env(safe-area-inset-bottom)" }}
-              role="dialog"
-              aria-label="Messages"
-            >
-              <div className="flex items-center justify-between px-5 pt-4">
-                <span className="text-[11px] font-semibold px-3 py-1 rounded-full" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>Goes to the studio like an email</span>
-                <button type="button" onClick={() => setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }} aria-label="Close"><X className="w-4 h-4" /></button>
-              </div>
-              <div className="flex-1 min-h-0 px-5 pt-3 pb-5">{children}</div>
-            </motion.aside>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
   );
 };
 

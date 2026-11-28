@@ -197,6 +197,7 @@ export const StudioClock: React.FC<{ info: StudioInfo; compact?: boolean; onOpen
 export const PortalNav: React.FC<{ tab: PortalTab; onTab: (t: PortalTab) => void; unread: number; awaiting: number }> = ({ tab, onTab, unread, awaiting }) => {
   const items: Array<{ id: PortalTab; label: string; icon: React.ReactNode; badge?: number }> = [
     { id: "projects", label: "Projects", icon: <Clapperboard className="w-4 h-4" />, badge: awaiting },
+    { id: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" />, badge: unread },
     { id: "calendar", label: "Timeline", icon: <CalendarDays className="w-4 h-4" /> },
     { id: "files", label: "Files", icon: <FolderOpen className="w-4 h-4" /> },
     { id: "invoices", label: "Invoices", icon: <ReceiptIcon className="w-4 h-4" /> },
