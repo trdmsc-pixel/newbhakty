@@ -4,7 +4,22 @@ import { ViewSwitcher } from "../components/ViewSwitcher";
 import { TaskStatusSelect } from "../components/TaskStatusSelect";
 import { ActivePill, SwipeRow } from "../motion";
 import { format, parseISO } from "date-fns";
-import { Check, Clock, Eye, EyeOff, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
+import { Check, Clock, Eye, EyeOff, Lock, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
+import { TaskDetailPanel, blockersOf } from "../components/TaskDetailPanel";
+import type { StudioTask } from "../types";
+
+/** Subtask progress + "blocked by" chips under a task title. */
+const TaskMeta: React.FC<{ task: StudioTask; all: StudioTask[] }> = ({ task, all }) => {
+  const subs = all.filter((t) => t.parent_task_id === task.id);
+  const blockers = blockersOf(task, all);
+  if (!subs.length && !blockers.length) return null;
+  return (
+    <span className="flex flex-wrap gap-1.5 mt-1">
+      {subs.length > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>{subs.filter((s) => s.status === "done").length}/{subs.length} subtasks</span>}
+      {blockers.length > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "#FDECEC", color: "#B42318" }}><Lock className="w-3 h-3" /> blocked by {blockers.map((b) => b.key).join(", ")}</span>}
+    </span>
+  );
+};
 import { useStudioOS } from "../StudioOSContext";
 import { PriorityBadge, TaskStatusChip } from "../components/StatusChip";
 import { AssigneePicker } from "../components/Team";
@@ -17,6 +32,8 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
   const [tab, setTab] = useState<"all" | "done" | "backlog">("all");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const allTasks = tasks;
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
@@ -73,6 +90,7 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
 
   return (
     <div className="space-y-5 pb-20">
+      <TaskDetailPanel taskId={detailId} onClose={() => setDetailId(null)} />
       {!projectFilterId && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
@@ -184,9 +202,11 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                       {task.key}
                     </td>
                     <td className="py-3.5 px-3 max-w-md">
-                      <p className="text-[14px] font-semibold leading-snug" style={{ color: "var(--sos-text-1)" }}>
+                      <button type="button" onClick={() => setDetailId(task.id)} className="text-left text-[14px] font-semibold leading-snug hover:underline" style={{ color: "var(--sos-text-1)" }}>
+                        {task.parent_task_id && <span style={{ color: "var(--sos-text-3)" }}>↳ </span>}
                         {task.title}
-                      </p>
+                      </button>
+                      <TaskMeta task={task} all={allTasks} />
                     </td>
                     <td className="py-3.5 px-3">
                       <TaskStatusSelect status={task.status} onChange={(next) => setStatus(task.id, next)} />
@@ -271,9 +291,11 @@ export const TableScreen: React.FC<{ projectFilterId?: string }> = ({ projectFil
                 </span>
                 <TaskStatusSelect status={task.status} compact onChange={(next) => setStatus(task.id, next)} />
               </div>
-              <p className="text-[15px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+              <button type="button" onClick={() => setDetailId(task.id)} className="text-left text-[15px] font-semibold" style={{ color: "var(--sos-text-1)" }}>
+                {task.parent_task_id && <span style={{ color: "var(--sos-text-3)" }}>↳ </span>}
                 {task.title}
-              </p>
+              </button>
+              <TaskMeta task={task} all={allTasks} />
               <div className="flex items-center justify-between text-[12px]" style={{ color: "var(--sos-text-3)" }}>
                 <PriorityBadge priority={task.priority} />
                 <span className="flex items-center gap-1.5">

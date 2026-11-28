@@ -6,6 +6,7 @@ import { ReviewMedia, type ReviewMediaHandle, fmtTime, parseMedia, parseNote } f
 import { supabase } from "../../lib/supabase";
 import { useStudioOS } from "../StudioOSContext";
 import { DeliverableAI } from "./DeliverableAI";
+import { downloadZip } from "../../review/zipDownload";
 import { StudioGate, StudioProject } from "../types";
 
 export interface Deliverable {
@@ -161,6 +162,7 @@ const ClientUploadsPanel: React.FC<{ projectId: string; focus?: string }> = ({ p
   const [items, setItems] = useState<Array<{ id: string; name: string; path: string; size: number | null; mime: string | null; note: string | null; category: string | null; contact_name: string | null; created_at: string }>>([]);
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const [zipPct, setZipPct] = useState<number | null>(null);
   const load = useCallback(() => {
     if (!supabase) return;
     supabase.from("studio_client_uploads").select("id, name, path, size, mime, note, category, contact_name, created_at").eq("project_id", projectId).is("archived_at", null).order("created_at", { ascending: false }).then(({ data }) => setItems((data || []) as any));
@@ -217,11 +219,30 @@ const ClientUploadsPanel: React.FC<{ projectId: string; focus?: string }> = ({ p
     load();
   };
   const total = items.reduce((a, x) => a + (x.size || 0), 0);
+  const downloadAll = async () => {
+    setZipPct(0);
+    try {
+      const signed = await Promise.all(items.map(async (it) => ({ name: it.name, url: (await supabase!.storage.from("client-uploads").createSignedUrl(it.path, 600)).data?.signedUrl || "" })));
+      await downloadZip(signed.filter((x) => x.url), `client-uploads-${new Date().toISOString().slice(0, 10)}`, setZipPct);
+      setDownloaded(new Set(items.map((x) => x.id)));
+    } catch (e: any) {
+      pushToast(e?.message || "Zip failed", "warn");
+    } finally {
+      setZipPct(null);
+    }
+  };
   return (
     <div className="sos-card p-5 space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="sos-display text-[18px] font-semibold" style={{ color: "var(--sos-text-1)" }}>From the client · {items.length}</h3>
-        <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>{(total / 1048576).toFixed(1)} MB in private storage</span>
+        <span className="flex items-center gap-2">
+          <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>{(total / 1048576).toFixed(1)} MB in private storage</span>
+          {items.length > 1 && (
+            <button type="button" disabled={zipPct != null} onClick={downloadAll} className="inline-flex items-center gap-1 px-3 h-8 rounded-full text-[12px] font-semibold" style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}>
+              {zipPct != null ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {Math.round(zipPct * 100)}%</> : <><Download className="w-3.5 h-3.5" /> Download all (.zip)</>}
+            </button>
+          )}
+        </span>
       </div>
       {items.map((it) => (
         <div key={it.id} data-focus={`upload:${it.id}`} className="flex flex-wrap md:flex-nowrap items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--sos-surface-2)" }}>

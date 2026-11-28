@@ -56,8 +56,12 @@ New RPCs: portal_project_ids, portal_contact_role, portal_me, portal_complete_ta
   - existing `portal_approve_gate` still works and is logged in approval history.
 - Supabase security advisors: no new issues (view warnings are the existing portal pattern).
 
+## Follow-up (same day)
+- **Timestamp button** in the review studio: pause → "Add timestamp" reads the exact playhead time and writes "At 01:24 — " into the comment; timestamps in comments are clickable and jump the player.
+- **Resumable uploads** (TUS, 6 MB chunks) with a progress bar for client uploads and message attachments; dropped connections resume.
+- **Download all (.zip)** for client uploads in Studio OS and in the portal's Files.
+- **Subtasks & dependencies**: click a task title in Tasks → panel with description, subtasks (progress), "Depends on" with blocked status; list shows "n/m subtasks" and "blocked by" chips.
+
 ## Known limitations
-- Not yet clicked through in a browser (both apps need a login). Please test on the preview.
-- Frame "screenshots" are uploaded images — browsers can't grab frames from YouTube/Vimeo players.
-- Resumable uploads / bulk zip download not added (50 MB per file limit stays).
-- Subtasks and dependencies have database columns but no editor yet.
+- Not clicked through on a phone (both apps need a login).
+- 50 MB per file stays (Supabase plan limit).

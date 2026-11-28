@@ -435,6 +435,7 @@ function toTaskRow(t: StudioTask) {
     portal_visible: Boolean(t.portal_visible),
     responsibility: t.responsibility === "client" ? "client" : "studio",
     parent_task_id: isUuid(t.parent_task_id) ? t.parent_task_id : null,
+    depends_on: (t.depends_on || []).filter(isUuid),
     created_at: t.created_at || new Date().toISOString(),
     updated_at: t.updated_at || new Date().toISOString(),
   };
@@ -468,6 +469,7 @@ function fromTaskRow(row: any): StudioTask {
     portal_visible: Boolean(row.portal_visible),
     responsibility: row.responsibility === "client" ? "client" : "studio",
     parent_task_id: row.parent_task_id || undefined,
+    depends_on: Array.isArray(row.depends_on) ? row.depends_on : [],
     created_at: row.created_at || new Date().toISOString(),
     updated_at: row.updated_at || new Date().toISOString(),
   };

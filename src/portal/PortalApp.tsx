@@ -33,6 +33,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./portalSupabase";
+import { uploadResumable } from "./resumableUpload";
+import { downloadZip } from "../review/zipDownload";
 import { AccountTab, CalendarTab, PortalAssistant, PortalNav, StudioClock, useIsLarge, usePortalMessages, useStudioInfo, type PortalTab } from "./PortalExtras";
 import { AnimatePresence, motion } from "motion/react";
 import { ReviewMedia, type ReviewMediaHandle, type NoteRef, fmtTime, parseTime, noteLine, parseMedia } from "../review/ReviewMedia";
@@ -1670,6 +1672,18 @@ const FilesTab: React.FC<{ projects: PortalProject[]; deliverables: PortalDelive
   const catOf = (d: PortalDeliverable) => (d as any).category || (d.is_final ? "final" : "review_video");
   const cats = [...new Set([...deliverables.map(catOf), ...uploads.map((u) => u.category).filter(Boolean)])] as string[];
   const usedBytes = uploads.reduce((a, u) => a + (u.size || 0), 0);
+  const [zipPct, setZipPct] = useState<number | null>(null);
+  const zipAll = async (list: typeof uploads) => {
+    setZipPct(0);
+    try {
+      const signed = await Promise.all(list.map(async (u) => ({ name: u.name, url: (await supabase!.storage.from("client-uploads").createSignedUrl(u.path, 600)).data?.signedUrl || "" })));
+      await downloadZip(signed.filter((x) => x.url), `my-files-${new Date().toISOString().slice(0, 10)}`, setZipPct);
+    } catch {
+      window.alert("Couldn't build the zip — please try again.");
+    } finally {
+      setZipPct(null);
+    }
+  };
   const openUpload = async (path: string) => {
     const { data } = await supabase!.storage.from("client-uploads").createSignedUrl(path, 600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
@@ -1706,6 +1720,11 @@ const FilesTab: React.FC<{ projects: PortalProject[]; deliverables: PortalDelive
         <section className="sos-card p-5 space-y-2.5">
           <h2 className="text-[15px] font-semibold flex flex-wrap items-center gap-2" style={{ color: "var(--sos-text-1)" }}>
             <Upload className="w-4 h-4" style={{ color: "var(--sos-primary)" }} /> Sent by your team <span className="text-[12px] font-medium" style={{ color: "var(--sos-text-3)" }}>· {shownUploads.length} · {(usedBytes / 1048576).toFixed(1)} MB stored</span>
+            {shownUploads.length > 1 && (
+              <button type="button" disabled={zipPct != null} onClick={() => zipAll(shownUploads)} className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-semibold" style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}>
+                {zipPct != null ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {Math.round(zipPct * 100)}%</> : <><Download className="w-3.5 h-3.5" /> Download all (.zip)</>}
+              </button>
+            )}
           </h2>
           <div className="grid gap-2 xl:grid-cols-2">
             {shownUploads.map((u) => (
@@ -1779,6 +1798,7 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [category, setCategory] = useState("");
+  const [progress, setProgress] = useState<{ name: string; p: number } | null>(null);
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
@@ -1798,8 +1818,8 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
         if (f.size > 50 * 1024 * 1024) throw new Error(`${f.name} is over 50 MB — share a link in Messages instead.`);
         const safe = f.name.replace(/[^\w.\-]+/g, "_").slice(-120);
         const path = `${project.client_id}/${project.id}/${crypto.randomUUID()}-${safe}`;
-        const up = await supabase.storage.from("client-uploads").upload(path, f, { contentType: f.type || "application/octet-stream" });
-        if (up.error) throw new Error(up.error.message);
+        setProgress({ name: f.name, p: 0 });
+        await uploadResumable("client-uploads", path, f, (p) => setProgress({ name: f.name, p }));
         const { error } = await supabase.rpc("portal_add_upload", { p_project: project.id, p_name: f.name, p_path: path, p_size: f.size, p_mime: f.type || null, p_note: note.trim() || null, p_category: category || null });
         if (error) throw new Error(error.message);
       }
@@ -1809,6 +1829,7 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
       setErr(e?.message || "Upload failed");
     } finally {
       setBusy(false);
+      setProgress(null);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -1848,6 +1869,14 @@ const ClientUploads: React.FC<{ project: PortalProject }> = ({ project }) => {
         </button>
         <input ref={fileRef} type="file" multiple hidden onChange={(e) => upload(e.target.files)} />
       </div>
+      {progress && (
+        <div className="space-y-1">
+          <p className="text-[12px] truncate" style={{ color: "var(--sos-text-2)" }}>Uploading {progress.name} · {Math.round(progress.p * 100)}% — you can keep working; a dropped connection resumes automatically.</p>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--sos-surface-2)" }}>
+            <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.max(3, progress.p * 100)}%`, background: "linear-gradient(90deg, #8B6CFF, #5B3FE4)" }} />
+          </div>
+        </div>
+      )}
       {err && <p className="text-[12px]" style={{ color: "#B42318" }}>{err}</p>}
       {items.map((it) => (
         <button key={it.id} type="button" onClick={() => open(it.path)} className="w-full text-left flex items-center gap-3 p-3 rounded-[14px] hover:opacity-90" style={{ background: "var(--sos-surface-2)" }}>

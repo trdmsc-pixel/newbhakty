@@ -9,6 +9,8 @@ const url = ((import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_S
 const key = ((import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") as string).trim();
 
 export const isSupabaseConfigured = Boolean(url && key);
+export const portalSupabaseUrl = url;
+export const portalSupabaseKey = key;
 export const supabase = isSupabaseConfigured
   ? createClient(url, key, { auth: { storageKey: "tcs-client-portal-auth", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
   : null;

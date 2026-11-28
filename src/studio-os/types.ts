@@ -252,6 +252,8 @@ export interface StudioTask {
   /** Who owns the next action: the studio (default) or the client (shows under "Your attention required"). */
   responsibility?: "studio" | "client";
   parent_task_id?: string;
+  /** Tasks that must be done before this one can start. */
+  depends_on?: string[];
   created_at: string;
   updated_at: string;
 }

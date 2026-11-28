@@ -10,6 +10,7 @@ import {
   Inbox, ListChecks, Loader2, Lock, Mail, MessageSquare, Paperclip, PenLine, Plus, Printer, Reply, RotateCcw, Send, Sparkles, Upload, X,
 } from "lucide-react";
 import { supabase } from "./portalSupabase";
+import { uploadResumable } from "./resumableUpload";
 import { ReviewMedia, type ReviewMediaHandle, fmtTime } from "../review/ReviewMedia";
 import { Receipt } from "../review/Receipt";
 
@@ -731,36 +732,43 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
   const { rows: comments, reload } = useRows<RComment>("studio_review_comments", (q) => q.eq("project_id", projectId), [projectId]);
   const [text, setText] = useState("");
   const [stamp, setStamp] = useState<number | null>(null);
-  const [frame, setFrame] = useState<File | null>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const [reply, setReply] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [showResolved, setShowResolved] = useState(false);
-  const frameRef = useRef<HTMLInputElement>(null);
   if (!versions.length) return <Card title="Video review"><Empty icon={<Clapperboard className="w-7 h-7" />} text="Versions the studio shares appear here, with frame-accurate comments." /></Card>;
   const mine = comments.filter((c) => c.deliverable_id === a?.id);
   const roots = mine.filter((c) => !c.parent_id && (showResolved || !c.resolved_at)).sort((x, y) => (x.timecode ?? 1e9) - (y.timecode ?? 1e9));
-  const capture = async () => setStamp(await playerA.current?.getTime().then((t) => (t == null ? null : Math.round(t * 10) / 10)) ?? null);
+  /** Read the exact playhead time and write it into the comment ("At 01:24 — "). */
+  const insertStamp = async () => {
+    const t = await playerA.current?.getTime();
+    if (t == null) return setErr("Play the video, pause where you want, then tap the timestamp button.");
+    setErr("");
+    const sec = Math.round(t * 10) / 10;
+    const tag = `At ${fmtTime(sec)} — `;
+    const el = textRef.current;
+    const pos = el ? el.selectionStart ?? text.length : text.length;
+    const before = text.slice(0, pos);
+    const next = `${before}${before && !/\s$/.test(before) ? "\n" : ""}${tag}${text.slice(pos)}`;
+    setText(next);
+    if (stamp == null) setStamp(sec);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const at = next.indexOf(tag, Math.max(0, pos - 1)) + tag.length;
+      el.focus();
+      el.setSelectionRange(at, at);
+    });
+  };
   const post = async () => {
     if (!supabase || !a || !text.trim()) return;
     setBusy(true);
     setErr("");
-    let framePath: string | null = null;
-    if (frame) {
-      const safe = frame.name.replace(/[^\w.\-]+/g, "_").slice(-80);
-      framePath = `${clientId}/${projectId}/frames/${crypto.randomUUID()}-${safe}`;
-      const up = await supabase.storage.from("client-uploads").upload(framePath, frame, { contentType: frame.type || "image/png" });
-      if (up.error) {
-        setBusy(false);
-        return setErr("Couldn't attach the screenshot.");
-      }
-    }
-    const { error } = await supabase.rpc("portal_add_review_comment", { p_deliverable: a.id, p_body: text.trim(), p_timecode: stamp, p_parent: null, p_frame_path: framePath });
+    const { error } = await supabase.rpc("portal_add_review_comment", { p_deliverable: a.id, p_body: text.trim(), p_timecode: stamp, p_parent: null, p_frame_path: null });
     setBusy(false);
     if (error) return setErr(errText(error.message));
     setText("");
     setStamp(null);
-    setFrame(null);
     reload();
   };
   const sendReply = async (root: RComment) => {
@@ -820,16 +828,12 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
             {canComment && (
               <div className="space-y-2 p-3 rounded-[16px]" style={{ background: "var(--sos-surface-2)" }}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={capture} className="h-8 px-3 rounded-full text-[12px] font-bold inline-flex items-center gap-1.5" style={stamp != null ? { background: "var(--sos-primary)", color: "#fff" } : { background: "var(--sos-surface)", color: "var(--sos-primary)" }}>
-                    <Clapperboard className="w-3.5 h-3.5" /> {stamp != null ? `At ${fmtTime(stamp)}` : "Pin current moment"}
+                  <button type="button" onClick={insertStamp} className="sos-jelly h-9 px-4 text-[13px] inline-flex items-center gap-1.5" title="Pause the video where you want the change, then tap — the exact time is added to your comment">
+                    <Clapperboard className="w-4 h-4" /> Add timestamp
                   </button>
-                  {stamp != null && <button type="button" onClick={() => setStamp(null)} className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>clear</button>}
-                  <button type="button" onClick={() => frameRef.current?.click()} className="h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ background: "var(--sos-surface)", color: "var(--sos-text-2)" }}>
-                    <Paperclip className="w-3.5 h-3.5" /> {frame ? frame.name.slice(0, 18) : "Screenshot"}
-                  </button>
-                  <input ref={frameRef} type="file" accept="image/*" hidden onChange={(e) => setFrame(e.target.files?.[0] || null)} />
+                  <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>Pause on the moment, tap, then write what to change.</span>
                 </div>
-                <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. The costume changes between these two shots — keep it as in the approved reference." className={`${fieldCls} py-2`} style={{ ...fieldStyle, background: "var(--sos-surface)" }} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && post()} />
+                <textarea ref={textRef} rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. At 01:24 — the costume changes between these two shots; keep it as in the approved reference." className={`${fieldCls} py-2`} style={{ ...fieldStyle, background: "var(--sos-surface)" }} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && post()} />
                 <button type="button" disabled={busy || !text.trim()} onClick={post} className="sos-jelly h-9 px-4 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Comment</button>
               </div>
             )}
@@ -844,7 +848,7 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
                       {c.timecode != null && (
                         <button type="button" onClick={() => playerA.current?.seek(Number(c.timecode))} className="sos-num shrink-0 h-6 px-2 rounded-full text-[11px] font-bold" style={{ background: "var(--sos-primary)", color: "#fff" }}>{fmtTime(Number(c.timecode))}</button>
                       )}
-                      <p className="text-[13px] flex-1 min-w-0 whitespace-pre-wrap" style={{ color: "var(--sos-text-1)" }}><b>{c.from_studio ? "Studio" : c.author_name || "You"}:</b> {c.body}</p>
+                      <p className="text-[13px] flex-1 min-w-0 whitespace-pre-wrap" style={{ color: "var(--sos-text-1)" }}><b>{c.from_studio ? "Studio" : c.author_name || "You"}:</b> <StampedText text={c.body} onSeek={(t) => playerA.current?.seek(t)} /></p>
                       {canComment && (
                         <button type="button" onClick={() => resolve(c, !c.resolved_at)} className="shrink-0" style={{ color: c.resolved_at ? "var(--sos-text-3)" : "#17663F" }} title={c.resolved_at ? "Reopen" : "Mark resolved"} aria-label={c.resolved_at ? "Reopen" : "Mark resolved"}>
                           {c.resolved_at ? <RotateCcw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -869,6 +873,23 @@ export const ReviewStudio: React.FC<{ projectId: string; clientId: string; deliv
         )}
       </div>
     </Card>
+  );
+};
+/** Turn "01:24" / "1:02:10" in comment text into buttons that seek the player. */
+export const StampedText: React.FC<{ text: string; onSeek?: (s: number) => void }> = ({ text, onSeek }) => {
+  const parts = text.split(/(\b\d{1,2}:\d{2}(?::\d{2})?\b)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (i % 2 === 0 || !onSeek) return <React.Fragment key={i}>{p}</React.Fragment>;
+        const secs = p.split(":").map(Number).reduce((a, n) => a * 60 + n, 0);
+        return (
+          <button key={i} type="button" onClick={() => onSeek(secs)} className="sos-num inline-flex items-center h-5 px-1.5 mx-0.5 rounded-full text-[11px] font-bold align-baseline" style={{ background: "var(--sos-primary)", color: "#fff" }}>
+            {p}
+          </button>
+        );
+      })}
+    </>
   );
 };
 const FrameThumb: React.FC<{ path: string }> = ({ path }) => {
@@ -1110,6 +1131,7 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
   const [projectId, setProjectId] = useState(initialProject || "");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [sendPct, setSendPct] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1126,8 +1148,7 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
       if (f.size > 50 * 1024 * 1024) throw new Error(`${f.name} is over 50 MB.`);
       const safe = f.name.replace(/[^\w.\-]+/g, "_").slice(-100);
       const path = `${clientId}/${projectId || "general"}/mail/${crypto.randomUUID()}-${safe}`;
-      const up = await supabase.storage.from("client-uploads").upload(path, f, { contentType: f.type || "application/octet-stream" });
-      if (up.error) throw new Error(up.error.message);
+      await uploadResumable("client-uploads", path, f, (p) => setSendPct(Math.round(p * 100)));
       out.push({ name: f.name, path, size: f.size });
     }
     return out;
@@ -1156,6 +1177,7 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
       setErr(e?.message || "Couldn't send.");
     } finally {
       setBusy(false);
+      setSendPct(null);
     }
   };
   const openAtt = async (path: string) => {
@@ -1187,7 +1209,7 @@ export const MailInbox: React.FC<{ messages: PMsg[]; reload: () => void; project
         </div>
       )}
       <div className="flex items-center gap-2">
-        <button type="button" disabled={busy || (!body.trim() && !files.length)} onClick={send} className="sos-jelly h-10 px-5 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send</button>
+        <button type="button" disabled={busy || (!body.trim() && !files.length)} onClick={send} className="sos-jelly h-10 px-5 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {busy && sendPct != null ? `Uploading ${sendPct}%` : "Send"}</button>
         <button type="button" onClick={() => fileRef.current?.click()} className="sos-jelly sos-jelly-ghost h-10 px-3 text-[13px] inline-flex items-center gap-1.5"><Paperclip className="w-4 h-4" /> Attach</button>
         <input ref={fileRef} type="file" multiple hidden onChange={(e) => { setFiles((x) => [...x, ...Array.from(e.target.files || [])].slice(0, 10)); e.target.value = ""; }} />
         {composing && <button type="button" onClick={() => setComposing(false)} className="ml-auto text-[13px]" style={{ color: "var(--sos-text-3)" }}>Discard</button>}
