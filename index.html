@@ -74,6 +74,26 @@
       fbq('track', 'PageView');
     </script>
     <!-- End Meta Pixel Code -->
+    <!-- Boot: hide the crawler fallback from visitors and show a branded loader until the app mounts -->
+    <script>
+      (function () {
+        var d = document.documentElement, p = location.pathname;
+        d.classList.add("js-boot");
+        d.setAttribute("data-boot", /^\/(studio-os|portal|client|admin)(\/|$)/.test(p) ? "app" : "site");
+      })();
+    </script>
+    <style>
+      .js-boot .seo-fallback { display: none; }
+      #boot-loader { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #07080C; transition: opacity .45s ease, visibility .45s ease; }
+      html[data-boot="app"] #boot-loader { background: radial-gradient(1200px 600px at 50% 0%, #EEEBFD 0%, #F5F6FA 55%); }
+      html:not(.js-boot) #boot-loader, #boot-loader.boot-done { opacity: 0; visibility: hidden; pointer-events: none; }
+      #boot-loader .ring { width: 56px; height: 56px; border-radius: 50%; padding: 3px; background: conic-gradient(from 0deg, #8B6CFF, #3B82F6, #22D3EE, #F59E0B, #8B6CFF); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); animation: boot-spin 1.1s linear infinite; }
+      #boot-loader .word { font: 600 13px/1 "Outfit", "Archivo", system-ui, sans-serif; letter-spacing: .32em; text-transform: uppercase; color: rgba(244,239,230,.82); background: linear-gradient(90deg, rgba(244,239,230,.35), #F4EFE6, rgba(244,239,230,.35)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: boot-shine 1.6s ease-in-out infinite; }
+      html[data-boot="app"] #boot-loader .word { background-image: linear-gradient(90deg, rgba(22,24,29,.3), #16181D, rgba(22,24,29,.3)); }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @keyframes boot-shine { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+      @media (prefers-reduced-motion: reduce) { #boot-loader .ring, #boot-loader .word { animation: none; } }
+    </style>
   </head>
   <body>
     <!-- Meta Pixel Code (noscript fallback) -->
@@ -83,7 +103,9 @@
     <!-- End Meta Pixel Code (noscript fallback) -->
 
     <!-- Crawlable Semantic Fallback for Search Engines and Link Previewers -->
+    <div id="boot-loader" aria-hidden="true"><div class="ring"></div><div class="word">The Chanting Studio</div></div>
     <div id="root">
+      <div class="seo-fallback">
       <header>
         <p>AI-NATIVE CINEMATIC STUDIO — DELHI → WORLDWIDE</p>
         <h1>Film-scale craft. AI-speed delivery.</h1>
@@ -112,6 +134,7 @@
       <footer>
         <p>© 2026 Chaitravarna Ventures Pvt. Ltd. — The Chanting Studio</p>
       </footer>
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

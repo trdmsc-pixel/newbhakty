@@ -20,4 +20,19 @@ const boot = async () => {
     root.render(<StrictMode><App /></StrictMode>);
   }
 };
-boot();
+/** Fade the branded boot loader out once the first real frame has painted. */
+const hideBootLoader = () => {
+  const el = document.getElementById('boot-loader');
+  if (!el) return;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      el.classList.add('boot-done');
+      setTimeout(() => el.remove(), 600);
+    })
+  );
+};
+boot()
+  .catch((err) => console.error(err))
+  .finally(() => setTimeout(hideBootLoader, 60));
+// Safety net: never leave the loader up.
+setTimeout(hideBootLoader, 8000);
