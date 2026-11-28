@@ -7,7 +7,44 @@
  * Notes travel as plain text lines: "[1:23] note" or "[Pin 2 · 34%,58%] note".
  */
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Download, ExternalLink, Loader2 } from "lucide-react";
+
+/** "Open original" + "Download" under every video, pointing at the source host (Drive, Dropbox, file…). */
+export function originalLinks(url: string): { open: string; download: string | null; host: string } | null {
+  const m = parseMedia(url);
+  if (!m || m.kind === "image" || m.kind === "link") return null;
+  if (m.host === "Google Drive" && m.id) return { open: `https://drive.google.com/file/d/${m.id}/view`, download: `https://drive.google.com/uc?export=download&id=${m.id}`, host: "Google Drive" };
+  if (m.host === "Dropbox") {
+    try {
+      const u = new URL(url);
+      u.searchParams.delete("raw");
+      u.searchParams.set("dl", "1");
+      return { open: url, download: u.toString(), host: "Dropbox" };
+    } catch {
+      return { open: url, download: null, host: "Dropbox" };
+    }
+  }
+  if (m.kind === "youtube" || m.kind === "vimeo") return { open: url, download: null, host: m.host };
+  if (m.kind === "video") return { open: url, download: url, host: m.host };
+  return { open: url, download: null, host: m.host };
+}
+const LinkBar: React.FC<{ url: string }> = ({ url }) => {
+  const l = originalLinks(url);
+  if (!l) return null;
+  const btn = "inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors hover:bg-[var(--sos-surface-2)]";
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-2">
+      <a href={l.open} target="_blank" rel="noreferrer noopener" className={btn} style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}>
+        <ExternalLink className="w-4 h-4" /> Open on {l.host}
+      </a>
+      {l.download && (
+        <a href={l.download} target="_blank" rel="noreferrer noopener" className={btn} style={{ borderColor: "var(--sos-border)", color: "var(--sos-primary)", background: "var(--sos-surface)" }}>
+          <Download className="w-4 h-4" /> Download
+        </a>
+      )}
+    </div>
+  );
+};
 
 export type MediaKind = "youtube" | "vimeo" | "video" | "image" | "iframe" | "link";
 export interface ParsedMedia {
@@ -269,9 +306,12 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
 
   if (media.kind === "youtube" || media.kind === "vimeo") {
     return (
-      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
+      <div className={className}>
+      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full`} style={{ aspectRatio: "16 / 9" }}>
         <div ref={mount} className="absolute inset-0 [&_iframe]:absolute [&_iframe]:inset-0 [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:border-0 [&>div]:w-full [&>div]:h-full" />
         {error && <p className="absolute inset-x-0 bottom-0 p-3 text-[12px] text-white/80 bg-black/60">{error}</p>}
+      </div>
+      <LinkBar url={url} />
       </div>
     );
   }
@@ -318,6 +358,7 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
             <iframe src={media.fallback} title="Review preview" loading="lazy" className="absolute inset-0 w-full h-full border-0" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" />
           </div>
           <p className="text-[12px] px-1" style={{ color: "var(--sos-text-3)" }}>Playing in {media.host}'s viewer — type the time you see when adding a timestamp.</p>
+          <LinkBar url={url} />
         </div>
       );
     }
@@ -330,7 +371,8 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
       );
     }
     return (
-      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
+      <div className={className}>
+      <div className="sos-media rounded-[18px] overflow-hidden bg-black relative w-full" style={{ aspectRatio: "16 / 9" }}>
         <video
           ref={videoEl}
           key={media.src}
@@ -350,12 +392,15 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
           </div>
         )}
       </div>
+      <LinkBar url={url} />
+      </div>
     );
   }
 
   if (media.kind === "iframe") {
     return (
-      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full ${className || ""}`} style={{ aspectRatio: "16 / 9" }}>
+      <div className={className}>
+      <div className={`sos-media rounded-[18px] overflow-hidden bg-black relative w-full`} style={{ aspectRatio: "16 / 9" }}>
         <iframe
           src={media.src}
           title="Review preview"
@@ -365,6 +410,8 @@ export const ReviewMedia = forwardRef<ReviewMediaHandle, Props>(function ReviewM
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
         />
+      </div>
+      <LinkBar url={url} />
       </div>
     );
   }
