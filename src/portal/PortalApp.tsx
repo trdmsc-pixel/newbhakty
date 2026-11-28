@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EpisodeTracker, currentEpisode } from "../review/EpisodeTracker";
+import { UpdateBanner } from "../studio-os/components/UpdateBanner";
+import { EpisodeTracker, currentEpisode, episodeStates } from "../review/EpisodeTracker";
 import { NotificationBell, NotificationToast, usePortalNotifications, type PortalNotification } from "./PortalNotifications";
 import { SegToggle } from "../review/SegToggle";
 import { StudioLogo } from "../brand/StudioLogo";
@@ -588,7 +589,7 @@ const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; don
         {!done && <Pill bg={h.bg} text={h.text}>{h.label}</Pill>}
       </div>
       <p key={date || "tbc"} className="sos-display sos-pop sos-gradient-text text-[36px] font-semibold leading-none sos-tabular">
-        {date ? format(parseISO(date), "d MMM") : "TBC"}
+        {date ? format(parseISO(date), "d MMM") : done ? "✓ Done" : "TBC"}
       </p>
       {date && <p className="text-[13px] font-medium" style={{ color: "var(--sos-text-2)" }}>{format(parseISO(date), "EEEE, yyyy")}</p>}
       <p className="text-[12px] leading-snug" style={{ color: "var(--sos-text-2)" }}>{note}</p>
@@ -596,32 +597,89 @@ const DeliveryPanel: React.FC<{ project: PortalProject; gates: PortalGate[]; don
   );
 };
 
+/** Soft status pill for list rows (solid pills stay on thumbnails). */
+function softBadge(project: PortalProject, gates: PortalGate[]): { label: string; bg: string; fg: string; dot?: boolean } {
+  if (project.closed_at) return { label: "Completed", bg: "#E7F7EE", fg: "#17663F" };
+  if (project.status === "delivered" || project.status === "paid") return { label: "Delivered", bg: "#E7F7EE", fg: "#17663F" };
+  if (gates.some((g) => g.status === "waiting_on_client")) return { label: "Needs your review", bg: "#FFF3E0", fg: "#9A4A00", dot: true };
+  if (gates.some((g) => g.status === "revising")) return { label: "Revising your notes", bg: "#FDF2F8", fg: "#BE185D", dot: true };
+  if (project.status === "on_hold" || project.status === "parked") return { label: "Paused", bg: "var(--sos-surface-2)", fg: "var(--sos-text-2)" };
+  if (project.status === "quoted" || project.status === "lead") return { label: "Proposal", bg: "#E8F0FF", fg: "#1D4FD8" };
+  return { label: "In production", bg: "var(--sos-violet-soft)", fg: "var(--sos-primary)", dot: true };
+}
+
 const ProjectRow: React.FC<{ project: PortalProject; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: () => void; index?: number }> = ({ project, gates, deliverables, onOpen, index = 0 }) => {
   const done = Boolean(project.closed_at) || project.status === "delivered" || project.status === "paid";
-  const badge = portalBadge(project, gates);
+  const badge = softBadge(project, gates);
   const progress = projectProgress(project, gates);
-  const date = done ? null : milestoneDate(project);
+  const date = done ? project.closed_at || null : milestoneDate(project);
+  const eps = gates.some((g) => g.episode) ? episodeStates(gates as any) : [];
+  const epDone = eps.filter((e) => e.state === "done").length;
   return (
-    <button type="button" onClick={onOpen} className="sos-row w-full text-left flex items-center gap-3.5 px-4 py-3.5" style={{ ["--i" as any]: Math.min(index, 14) }}>
-      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="sos-row-thumb w-[72px] h-12 rounded-[12px] shrink-0 overflow-hidden" style={{ background: "var(--sos-violet-soft)" }} />
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="sos-bar h-1.5 w-20 sm:w-28 shrink-0" style={{ ["--i" as any]: Math.min(index, 14) }}>
-            <span className={progress === 100 ? "done" : ""} style={{ width: `${progress}%` }} />
-          </div>
-          <span className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
-            {TYPE_LABEL[project.type] || "Project"} · {done ? (project.closed_at ? "Completed" : "Delivered") : project.current_stage || "Getting started"}
-          </span>
+    <button type="button" onClick={onOpen} className="group w-full text-left flex items-center gap-4 p-3 pr-4 rounded-[20px] transition-all duration-300 hover:-translate-y-0.5" style={{ background: "var(--sos-surface)", boxShadow: "0 1px 2px rgba(15,17,21,0.04), 0 0 0 1px var(--sos-border)", ["--i" as any]: Math.min(index, 14) }}>
+      <ProjectThumb candidates={thumbCandidates(project.cover_image_url, deliverables)} resolveUrl={resolveReviewUrl} emoji={project.emoji} className="sos-row-thumb w-[84px] h-14 rounded-[14px] shrink-0 overflow-hidden" style={{ background: "var(--sos-violet-soft)" }} />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-[15px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{project.title}</p>
+          <span className="sm:hidden shrink-0 w-2 h-2 rounded-full" style={{ background: badge.fg }} />
+        </div>
+        <p className="text-[12px] truncate" style={{ color: "var(--sos-text-3)" }}>
+          {TYPE_LABEL[project.type] || "Project"}
+          {eps.length ? ` · ${epDone}/${eps.length} episodes` : ""} · {done ? (project.closed_at ? "Completed" : "Delivered") : project.current_stage?.replace(/^Ep \d+ · /, "") || "Getting started"}
+        </p>
+        <div className="sos-bar h-1.5 max-w-[220px]" style={{ ["--i" as any]: Math.min(index, 14) }}>
+          <span className={progress === 100 ? "done" : ""} style={{ width: `${progress}%` }} />
         </div>
       </div>
-      <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0" style={{ background: badge.bg, color: badge.fg }}>
-        {gates.some((g) => g.status === "waiting_on_client") && <span className="sos-live-dot" />}
-        {badge.label}
+      <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0">
+        <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold" style={{ background: badge.bg, color: badge.fg }}>
+          {badge.dot && <span className="sos-live-dot" style={{ width: 6, height: 6 }} />}
+          {badge.label}
+        </span>
+        {date && (
+          <span className="text-[11px] sos-tabular" style={{ color: "var(--sos-text-3)" }}>
+            {done ? "on" : "due"} {fmtDate(date)}
+          </span>
+        )}
+      </div>
+      <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors group-hover:bg-[var(--sos-violet-soft)]">
+        <ChevronRight className="sos-row-chevron w-4 h-4" style={{ color: "var(--sos-text-3)" }} />
       </span>
-      <span className="text-[13px] font-semibold sos-tabular shrink-0 w-[70px] text-right" style={{ color: "var(--sos-text-1)" }}>{date ? fmtDate(date).replace(/ \d{4}$/, "") : "—"}</span>
-      <ChevronRight className="sos-row-chevron w-4 h-4 shrink-0" style={{ color: "var(--sos-text-3)" }} />
     </button>
+  );
+};
+
+/** List view grouped by what matters to the client. */
+const ProjectList: React.FC<{ projects: PortalProject[]; gates: PortalGate[]; deliverables: PortalDeliverable[]; onOpen: (id: string) => void }> = ({ projects, gates, deliverables, onOpen }) => {
+  const groups: Array<{ key: string; title: string; test: (p: PortalProject, g: PortalGate[]) => boolean }> = [
+    { key: "review", title: "Needs your review", test: (p, g) => !p.closed_at && g.some((x) => x.status === "waiting_on_client") },
+    { key: "active", title: "In production", test: (p) => !p.closed_at && ["active", "lead", "quoted"].includes(p.status) },
+    { key: "paused", title: "Paused", test: (p) => !p.closed_at && ["on_hold", "parked"].includes(p.status) },
+    { key: "done", title: "Delivered & completed", test: () => true },
+  ];
+  const used = new Set<string>();
+  let idx = 0;
+  return (
+    <div className="space-y-6">
+      {groups.map((grp) => {
+        const list = projects.filter((p) => !used.has(p.id) && grp.test(p, gates.filter((g) => g.project_id === p.id)));
+        list.forEach((p) => used.add(p.id));
+        if (!list.length) return null;
+        return (
+          <section key={grp.key} className="space-y-2.5">
+            <h3 className="flex items-center gap-2 px-1 text-[12px] font-bold uppercase tracking-wider" style={{ color: grp.key === "review" ? "#9A4A00" : "var(--sos-text-3)" }}>
+              {grp.title}
+              <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] flex items-center justify-center" style={{ background: "var(--sos-surface-2)", color: "var(--sos-text-2)" }}>{list.length}</span>
+            </h3>
+            <div className="space-y-2 sos-rows">
+              {list.map((p) => (
+                <ProjectRow key={p.id} index={idx++} project={p} gates={gates.filter((g) => g.project_id === p.id)} deliverables={deliverables.filter((d) => d.project_id === p.id)} onOpen={() => onOpen(p.id)} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
   );
 };
 
@@ -740,7 +798,7 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => {
       {hasEps && <EpisodeTracker gates={gates as any} selected={ep} onSelect={setEp} audience="client" />}
       {doneList.length > 0 && (
         <button type="button" onClick={() => setShowDone((v) => !v)} className="w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-[13px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
-          <Check className="w-4 h-4" /> {doneList.length} stage{doneList.length > 1 ? "s" : ""} done{hasEps ? ` (episode ${ep} + shared)` : ""}
+          <Check className="w-4 h-4 shrink-0" /> <span className="truncate">{doneList.length} stage{doneList.length > 1 ? "s" : ""} done{hasEps ? ` · Ep ${ep}` : ""}</span>
           <span className="ml-auto text-[12px]">{showDone ? "Hide" : "Show"}</span>
         </button>
       )}
@@ -1335,7 +1393,7 @@ const ProjectView: React.FC<{
       ))}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-2">
+        <div className={gates.some((g) => g.episode) ? "lg:col-span-3" : "lg:col-span-2"}>
           <Stepper gates={gates} />
           {tasks.length > 0 && (
             <div className="sos-card p-5 md:p-6">
@@ -1362,7 +1420,7 @@ const ProjectView: React.FC<{
             </div>
           )}
         </div>
-        <div className="lg:col-span-3 space-y-5">
+        <div className={`${gates.some((g) => g.episode) ? "lg:col-span-2" : "lg:col-span-3"} space-y-5`}>
           <div className="sos-card p-5 md:p-6">
             <h2 className="sos-display text-[18px] font-semibold mb-3" style={{ color: "var(--sos-text-1)" }}>
               Deliverables &amp; versions
@@ -1757,11 +1815,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
                   <button type="button" onClick={() => { setListFilter("all"); setListQuery(""); }} style={{ color: "var(--sos-primary)" }}>Show all</button>
                 </div>
               ) : listMode === "list" ? (
-                <div key={`${listFilter}-${listSort}`} className="sos-card overflow-hidden divide-y sos-rows" style={{ borderColor: "var(--sos-border)" }}>
-                  {visibleProjects.map((p, i) => (
-                    <ProjectRow key={p.id} index={i} project={p} gates={gates.filter((g) => g.project_id === p.id)} deliverables={deliverables.filter((d) => d.project_id === p.id)} onOpen={() => setSelected(p.id)} />
-                  ))}
-                </div>
+                <ProjectList key={`${listFilter}-${listSort}`} projects={visibleProjects} gates={gates} deliverables={deliverables} onOpen={setSelected} />
               ) : (
                 <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sos-stagger">
                   {visibleProjects.map((p) => (
@@ -1805,6 +1859,7 @@ export default function PortalApp({ onNavigateHome }: { onNavigateHome: () => vo
           </div>
           <Footer />
           <PortalAssistant />
+          <UpdateBanner />
         </div>
       )}
     </div>

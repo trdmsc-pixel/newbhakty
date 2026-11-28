@@ -50,10 +50,10 @@ export const EpisodeTracker: React.FC<{ gates: EpGate[]; selected: number; onSel
             {doneN} of {eps.length} delivered{now ? ` · ${audience === "client" ? "now working on" : "on"} Ep ${now.ep} (${now.current})` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--sos-text-3)" }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--sos-text-3)" }}>
           {(["done", "active", "waiting", "upcoming"] as EpState[]).map((s) => (
-            <span key={s} className="inline-flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: TONE[s].bg }} /> {TONE[s].label}
+            <span key={s} className="inline-flex items-center gap-1 whitespace-nowrap">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TONE[s].bg, boxShadow: s === "upcoming" ? "inset 0 0 0 1px var(--sos-border)" : undefined }} /> {TONE[s].label}
             </span>
           ))}
         </div>
