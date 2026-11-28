@@ -271,17 +271,17 @@ const StudioOSShell: React.FC<{
   const pinnedProjects = projects.filter((p) => p.pinned);
 
   return (
-    <div className={`studio-os-root ${darkMode ? "studio-os-dark" : ""} p-0 md:p-4 lg:p-5`}>
-      {/* Outer Rounded White Main Panel */}
-      <div className="sos-panel max-w-[1440px] 2xl:max-w-[1720px] mx-auto min-h-screen md:min-h-[calc(100vh-40px)] flex overflow-hidden">
+    <div className={`studio-os-root ${darkMode ? "studio-os-dark" : ""}`}>
+      {/* Full-width app shell: fixed sidebar + sticky top bar; only the content scrolls */}
+      <div className="sos-panel sos-panel-full min-h-screen flex">
         {/* Desktop / Tablet Left Sidebar */}
         <aside
-          className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 ${
+          className={`hidden md:flex flex-col justify-between border-r transition-all duration-200 shrink-0 md:sticky md:top-0 md:h-screen ${
             sidebarCollapsed ? "w-[76px]" : "w-[256px]"
           }`}
           style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}
         >
-          <div className="p-4 space-y-6 overflow-y-auto">
+          <div className="p-4 space-y-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
             {/* Brand + Collapse */}
             <div className="flex items-center justify-between gap-2">
               {sidebarCollapsed ? null : (
@@ -464,8 +464,8 @@ const StudioOSShell: React.FC<{
         <div className="flex-1 flex flex-col min-w-0">
           {/* Top Bar */}
           <header
-            className="h-16 md:h-[72px] px-4 md:px-7 border-b flex items-center justify-between gap-3 shrink-0"
-            style={{ borderColor: "var(--sos-border)", background: "var(--sos-surface)" }}
+            className="sos-topbar sticky top-0 z-30 h-16 md:h-[72px] px-4 md:px-7 border-b flex items-center justify-between gap-3 shrink-0"
+            style={{ borderColor: "var(--sos-border)" }}
           >
             <button
               type="button"
@@ -588,7 +588,7 @@ const StudioOSShell: React.FC<{
           </header>
 
           {/* Active Screen */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-7 pb-24 md:pb-8">
+          <main className="flex-1 p-4 md:p-7 xl:px-10 pb-24 md:pb-8 w-full">
             <Suspense
               fallback={
                 <div className="py-24 flex justify-center" aria-busy="true">
