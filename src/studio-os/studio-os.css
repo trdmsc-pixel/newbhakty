@@ -411,3 +411,41 @@
   .studio-os-root [style*="backdrop-filter"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   .studio-os-root .sos-bar > span::after { animation-duration: 4s; }
 }
+
+/* ---- Jelly buttons: springy squash on press, lift + glow + sheen on hover ---- */
+@keyframes sos-jelly {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.08, 0.9); }
+  45% { transform: scale(0.94, 1.06); }
+  60% { transform: scale(1.03, 0.97); }
+  75% { transform: scale(0.99, 1.01); }
+  100% { transform: scale(1, 1); }
+}
+.studio-os-root .sos-jelly {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: 999px; color: #fff; font-weight: 600;
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 300ms var(--sos-ease), filter 200ms;
+  box-shadow: 0 8px 22px -10px var(--glow, rgba(91, 63, 228, 0.7)), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+}
+.studio-os-root .sos-jelly::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%); transition: transform 700ms var(--sos-ease);
+}
+.studio-os-root .sos-jelly::before {
+  content: ""; position: absolute; inset: 0; z-index: -2; border-radius: inherit; background: var(--jelly-bg, linear-gradient(135deg, #8B6CFF, #5B3FE4 55%, #4338CA));
+}
+@media (hover: hover) and (pointer: fine) {
+  .studio-os-root .sos-jelly:hover:not(:disabled) { transform: translateY(-2px) scale(1.035); box-shadow: 0 14px 34px -10px var(--glow, rgba(91, 63, 228, 0.85)), 0 0 0 4px var(--ring, rgba(91, 63, 228, 0.12)), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+  .studio-os-root .sos-jelly:hover:not(:disabled)::after { transform: translateX(120%); }
+}
+.studio-os-root .sos-jelly:active:not(:disabled) { animation: sos-jelly 520ms ease-out; }
+.studio-os-root .sos-jelly-green { --jelly-bg: linear-gradient(135deg, #34D399, #16A34A 55%, #15803D); --glow: rgba(22, 163, 74, 0.7); --ring: rgba(22, 163, 74, 0.14); }
+.studio-os-root .sos-jelly-ink { --jelly-bg: linear-gradient(135deg, #3A3F4B, #16181D); --glow: rgba(15, 17, 21, 0.55); --ring: rgba(15, 17, 21, 0.1); }
+.studio-os-root .sos-jelly-amber { --jelly-bg: linear-gradient(135deg, #FBBF24, #F59E0B 55%, #D97706); --glow: rgba(217, 119, 6, 0.7); --ring: rgba(217, 119, 6, 0.14); }
+.studio-os-root .sos-jelly-ghost { --jelly-bg: var(--sos-surface); color: var(--sos-text-1); --glow: rgba(15, 17, 21, 0.18); box-shadow: 0 0 0 1px var(--sos-border), 0 6px 16px -10px rgba(15, 17, 21, 0.25); }
+
+/* Project hero header */
+.studio-os-root .sos-hero { position: relative; overflow: hidden; background: radial-gradient(120% 140% at 0% 0%, rgba(124, 92, 255, 0.10), transparent 55%), radial-gradient(90% 120% at 100% 0%, rgba(59, 130, 246, 0.08), transparent 60%), var(--sos-surface); }
+.studio-os-root .sos-tabbar { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--sos-surface-2); overflow-x: auto; scrollbar-width: none; }
+.studio-os-root .sos-tabbar::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .studio-os-root .sos-jelly, .studio-os-root .sos-jelly:active { animation: none !important; transition: none !important; } }

@@ -672,8 +672,9 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
               <span
                 className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold"
                 style={{
-                  background: done ? "var(--sos-green)" : current ? "var(--sos-primary)" : "var(--sos-surface-2)",
+                  background: done ? "linear-gradient(135deg, #34D399, #16A34A)" : current ? "linear-gradient(135deg, #8B6CFF, #5B3FE4)" : "var(--sos-surface-2)",
                   color: done || current ? "#FFFFFF" : "var(--sos-text-3)",
+                  boxShadow: current ? "0 0 0 5px rgba(91,63,228,0.14), 0 6px 16px -6px rgba(91,63,228,0.7)" : done ? "0 4px 12px -6px rgba(22,163,74,0.6)" : undefined,
                 }}
               >
                 {done ? <Check className="w-4 h-4" /> : i + 1}
@@ -685,9 +686,23 @@ const Stepper: React.FC<{ gates: PortalGate[] }> = ({ gates }) => (
                 <p className="text-[14px] font-semibold" style={{ color: current || done ? "var(--sos-text-1)" : "var(--sos-text-3)" }}>
                   {g.name}
                 </p>
-                <p className="text-[12px]" style={{ color: g.status === "waiting_on_client" ? "#9A4A00" : "var(--sos-text-3)" }}>
+                <span
+                  className="inline-flex items-center gap-1.5 mt-1 h-6 px-2.5 rounded-full text-[11px] font-bold"
+                  style={
+                    g.status === "approved"
+                      ? { background: "#E7F7EE", color: "#17663F" }
+                      : g.status === "waiting_on_client"
+                      ? { background: "#FFF3E0", color: "#9A4A00" }
+                      : g.status === "revising"
+                      ? { background: "#FDF2F8", color: "#BE185D" }
+                      : g.status === "in_work"
+                      ? { background: "#E8F0FF", color: "#1D4FD8" }
+                      : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }
+                  }
+                >
+                  {current && <span className="sos-live-dot" style={{ width: 6, height: 6 }} />}
                   {label}
-                </p>
+                </span>
               </div>
               {date && (
                 <span className="text-[12px] sos-tabular shrink-0" style={{ color: "var(--sos-text-3)" }}>
@@ -934,8 +949,7 @@ const ApprovalCard: React.FC<{
               type="button"
               disabled={busy}
               onClick={approve}
-              className="sos-pill-btn h-12 px-6 text-[15px] font-semibold text-white inline-flex items-center justify-center gap-2 disabled:opacity-60"
-              style={{ background: "var(--sos-green)" }}
+              className="sos-jelly sos-jelly-green h-12 px-7 text-[15px] inline-flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Approve
             </button>
@@ -943,8 +957,7 @@ const ApprovalCard: React.FC<{
               type="button"
               disabled={busy}
               onClick={() => setMode("changes")}
-              className="sos-pill-btn h-12 px-6 text-[15px] font-medium border inline-flex items-center justify-center gap-2"
-              style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}
+              className="sos-jelly sos-jelly-ghost h-12 px-6 text-[15px] inline-flex items-center justify-center gap-2"
             >
               <MessageSquare className="w-4 h-4" /> Request changes
             </button>
@@ -1057,8 +1070,7 @@ const ApprovalCard: React.FC<{
               type="button"
               disabled={busy}
               onClick={requestChanges}
-              className="sos-pill-btn h-12 px-6 text-[15px] font-semibold text-white inline-flex items-center justify-center gap-2 disabled:opacity-60"
-              style={{ background: "var(--sos-ink)", color: "var(--sos-ink-text)" }}
+              className="sos-jelly sos-jelly-ink h-12 px-6 text-[15px] inline-flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />} Send notes to the studio
             </button>

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StageHistoryButton } from "../components/StageHistory";
+import { StageHistoryButton, StageNoteBox, StageTimelineList, useStageTimeline } from "../components/StageHistory";
 import { usePortalPresence } from "../components/PortalPresence";
 import { DeliveryTimelineCard } from "../components/DeliveryTimelineCard";
 import { ActivePill } from "../motion";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Calendar, Check, CheckCircle2, Diamond, Film, Lock, Minus, Plus, RotateCcw, Send, Sparkles, UserPlus } from "lucide-react";
 import { useStudioOS } from "../StudioOSContext";
 import { GateStatusChip, HealthPill, StackedAvatars } from "../components/StatusChip";
 import { BoardScreen } from "./BoardScreen";
@@ -15,7 +15,38 @@ import { ProjectMoneyTab } from "../components/Money";
 import { supabase } from "../../lib/supabase";
 import { ProjectDeliverablesTab, SendForApprovalModal } from "../components/ProjectDeliverables";
 import { computeGenerationEstimate } from "../forecastEngine";
-import { GateStatus, GenerationBlockStatus, type StudioGate, type StudioTask } from "../types";
+import { GateStatus, GenerationBlockStatus, type StudioGate, type StudioTask, type StudioProject } from "../types";
+
+const GATE_LABEL: Record<GateStatus, string> = { not_started: "Not started", in_work: "In work", waiting_on_client: "Awaiting client review", revising: "Revising", approved: "Completed", skipped: "Skipped" };
+const GATE_TONE: Record<GateStatus, { bg: string; fg: string }> = {
+  not_started: { bg: "var(--sos-surface-2)", fg: "var(--sos-text-2)" },
+  in_work: { bg: "#E8F0FF", fg: "#1D4FD8" },
+  waiting_on_client: { bg: "#FFF3E0", fg: "#9A4A00" },
+  revising: { bg: "#FDF2F8", fg: "#BE185D" },
+  approved: { bg: "#E7F7EE", fg: "#17663F" },
+  skipped: { bg: "var(--sos-surface-2)", fg: "var(--sos-text-3)" },
+};
+/** Milestone status as a coloured dropdown pill. */
+export const GateStatusSelect: React.FC<{ status: GateStatus; needsApproval?: boolean; onChange: (s: GateStatus) => void }> = ({ status, needsApproval, onChange }) => {
+  const t = GATE_TONE[status];
+  return (
+    <span className="relative inline-flex items-center">
+      <select
+        value={status}
+        onChange={(e) => onChange(e.target.value as GateStatus)}
+        className="appearance-none h-7 pl-3 pr-7 rounded-full text-[12px] font-semibold cursor-pointer transition-shadow hover:shadow-[0_0_0_3px_rgba(91,63,228,0.12)]"
+        style={{ background: t.bg, color: t.fg }}
+        aria-label="Milestone status"
+        title="Change status — the client portal shows it"
+      >
+        {(["not_started", "in_work", ...(needsApproval ? (["waiting_on_client", "revising"] as GateStatus[]) : []), "approved", "skipped"] as GateStatus[]).map((s) => (
+          <option key={s} value={s}>{s === "waiting_on_client" && status !== s ? "Send for client review…" : GATE_LABEL[s]}</option>
+        ))}
+      </select>
+      <ChevronDown className="w-3.5 h-3.5 absolute right-2 pointer-events-none" style={{ color: t.fg }} />
+    </span>
+  );
+};
 
 const REV_STATUS: Array<{ id: "todo" | "in_progress" | "done"; label: string; bg: string; fg: string }> = [
   { id: "todo", label: "To do", bg: "var(--sos-surface-2)", fg: "var(--sos-text-2)" },
@@ -75,6 +106,87 @@ const RevisionChecklist: React.FC<{ gate: StudioGate; tasks: StudioTask[]; onSta
   );
 };
 
+/** One milestone in the Client changes tab: status, the client's change requests, and the full back-and-forth. */
+const MilestoneCommsCard: React.FC<{ project: StudioProject; gate: StudioGate; tasks: StudioTask[]; defaultOpen: boolean; onStatus: (s: GateStatus) => void; onTask: (id: string, st: "todo" | "in_progress" | "done") => void; onSend: () => void }> = ({ project, gate, tasks, defaultOpen, onStatus, onTask, onSend }) => {
+  const [open, setOpen] = React.useState(defaultOpen);
+  const tl = useStageTimeline(project, gate);
+  const openRevs = tasks.filter((t) => t.status !== "done").length;
+  return (
+    <div className="sos-card overflow-hidden" style={{ boxShadow: gate.status === "waiting_on_client" ? "0 0 0 1.5px rgba(245,158,11,0.45), 0 12px 30px -16px rgba(245,158,11,0.5)" : undefined }}>
+      <div className="flex flex-wrap items-center gap-3 p-4">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 min-w-0 flex-1 text-left" aria-expanded={open}>
+          <span className="text-[11px] font-bold sos-tabular shrink-0" style={{ color: "var(--sos-primary)" }}>{gate.code}</span>
+          <span className="text-[15px] font-semibold truncate" style={{ color: "var(--sos-text-1)" }}>{gate.name}</span>
+          {openRevs > 0 && <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF3E0", color: "#9A4A00" }}>{openRevs} open change{openRevs > 1 ? "s" : ""}</span>}
+          {tl.events && tl.events.length > 0 && <span className="shrink-0 text-[11px]" style={{ color: "var(--sos-text-3)" }}>· {tl.events.length} event{tl.events.length > 1 ? "s" : ""}</span>}
+          <ChevronDown className={`w-4 h-4 shrink-0 ml-auto transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "var(--sos-text-3)" }} />
+        </button>
+        <GateStatusSelect status={gate.status} needsApproval={gate.needs_client_approval} onChange={onStatus} />
+        {gate.needs_client_approval && gate.status !== "approved" && (
+          <button type="button" onClick={onSend} className="sos-jelly inline-flex items-center gap-1.5 h-8 px-3.5 text-[12px]">
+            <Send className="w-3.5 h-3.5" /> {gate.status === "waiting_on_client" ? "Resend" : "Send for review"}
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="px-4 pb-4 space-y-4">
+          <RevisionChecklist gate={gate} tasks={tasks} onStatus={onTask} />
+          <StageTimelineList events={tl.events} compact />
+          <StageNoteBox gate={gate} canSend={Boolean(project.client_id)} note={tl.note} setNote={tl.setNote} busy={tl.busy} send={tl.send} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ClientChangesTab: React.FC<{ project: StudioProject; gates: StudioGate[]; tasks: StudioTask[]; onStatus: (gateId: string, s: GateStatus) => void; onTask: (id: string, st: "todo" | "in_progress" | "done") => void; onSend: (gateId: string) => void }> = ({ project, gates, tasks, onStatus, onTask, onSend }) => {
+  const [all, setAll] = React.useState(false);
+  const revs = tasks.filter((t) => t.source === "portal" && !t.archived_at);
+  const active = gates.filter((g) => g.status !== "not_started" || revs.some((t) => t.gate_id === g.id));
+  const shown = all ? gates : active;
+  const open = revs.filter((t) => t.status !== "done").length;
+  const waiting = gates.filter((g) => g.status === "waiting_on_client");
+  return (
+    <div className="space-y-4">
+      <div className="sos-card sos-hero p-5 flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div>
+          <h2 className="sos-display text-[22px] font-semibold" style={{ color: "var(--sos-text-1)" }}>Client changes & communication</h2>
+          <p className="text-[13px]" style={{ color: "var(--sos-text-2)" }}>Every milestone: its status (as the client sees it), their change requests, and everything sent and received.</p>
+        </div>
+        <div className="flex gap-6 ml-auto">
+          {[
+            ["Open changes", open, open ? "#9A4A00" : "var(--sos-text-1)"],
+            ["Awaiting client", waiting.length, waiting.length ? "#D97706" : "var(--sos-text-1)"],
+            ["Addressed", revs.filter((t) => t.status === "done").length, "#17663F"],
+          ].map(([k, v, c]) => (
+            <div key={k as string}>
+              <p className="sos-num text-[26px] font-semibold leading-none" style={{ color: c as string }}>{v as number}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--sos-text-3)" }}>{k}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {shown.map((g) => (
+        <MilestoneCommsCard
+          key={g.id}
+          project={project}
+          gate={g}
+          tasks={revs.filter((t) => t.gate_id === g.id)}
+          defaultOpen={g.status === "waiting_on_client" || g.status === "revising" || revs.some((t) => t.gate_id === g.id && t.status !== "done")}
+          onStatus={(st) => onStatus(g.id, st)}
+          onTask={onTask}
+          onSend={() => onSend(g.id)}
+        />
+      ))}
+      {gates.length > active.length && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="text-[13px] font-semibold" style={{ color: "var(--sos-primary)" }}>
+          {all ? "Hide milestones that haven't started" : `Show all ${gates.length} milestones`}
+        </button>
+      )}
+    </div>
+  );
+};
+
 export const ProjectDetailScreen: React.FC = () => {
   const {
     projects,
@@ -110,7 +222,7 @@ export const ProjectDetailScreen: React.FC = () => {
       .then(({ data }) => setProjectTeamIds((data || []).map((r: any) => r.member_id)));
   }, [selectedProjectId, supabaseSyncStatus, assignOpen]);
 
-  const [tab, setTab] = useState<"approvals" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables" | "money">("approvals");
+  const [tab, setTab] = useState<"approvals" | "changes" | "overview" | "generation" | "list" | "board" | "emails" | "deliverables" | "money">("approvals");
   const [sendGateId, setSendGateId] = useState<string | null>(null);
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const client = clients.find((c) => c.id === project?.client_id);
@@ -150,9 +262,19 @@ export const ProjectDetailScreen: React.FC = () => {
       : `₹${project.fee_amount.toLocaleString("en-IN")}`
     : "—";
 
+  /** Every milestone status change is visible in the client portal, so completing / un-completing asks first. */
   const handleGateStatusChange = (gateId: string, status: GateStatus) => {
+    const g = projectGates.find((x) => x.id === gateId);
+    if (!g || g.status === status) return;
+    if (status === "waiting_on_client") {
+      setSendGateId(gateId); // goes through "Send for approval" so the client gets the file + note
+      return;
+    }
+    const shown = project?.portal_visible && g.portal_visible;
+    if (status === "approved" && !window.confirm(`Mark "${g.name}" as completed?${shown ? "\n\nThis shows as completed in the client portal." : ""}`)) return;
+    if (g.status === "approved" && !window.confirm(`Remove the completion from "${g.name}" and set it to ${GATE_LABEL[status]}?${shown ? "\n\nThe client portal will show it as not completed again." : ""}`)) return;
     updateGate(gateId, { status });
-    pushToast(`Updated gate to ${status.replace(/_/g, " ")}`, "success");
+    pushToast(`${g.name} → ${GATE_LABEL[status]}${shown ? " · client portal updated" : ""}`, "success");
   };
 
   const sendGate = projectGates.find((g) => g.id === sendGateId);
@@ -196,46 +318,60 @@ export const ProjectDetailScreen: React.FC = () => {
         <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" /> Back
       </button>
       {/* Project Header */}
-      <div className="sos-card p-5 md:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <select
-                value={project.id}
-                onChange={(e) => openProject(e.target.value)}
-                className="sos-display text-[26px] md:text-[32px] font-semibold tracking-[-0.02em] bg-transparent outline-none cursor-pointer pr-2 max-w-full"
-                style={{ color: "var(--sos-text-1)" }}
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.emoji} {p.title}
-                  </option>
-                ))}
-              </select>
-              {project && (presence[project.id] || []).map((v, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }} title={`Since ${new Date(v.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}>
-                  <span className="sos-live-dot" style={{ width: 6, height: 6 }} /> {v.name.split(" ")[0]} · {v.activity.toLowerCase()} now
-                </span>
-              ))}
-              {isClosed ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Completed & closed · {format(parseISO(project.closed_at!), "d MMM yyyy")}
-                </span>
-              ) : (
-                <HealthPill health={project.health} />
+      <div className="sos-card sos-hero p-5 md:p-7">
+        <span className="sos-orb" style={{ width: 260, height: 260, top: -140, right: -60, background: "radial-gradient(circle, rgba(124,92,255,0.22), transparent 70%)" }} />
+        <div className="relative z-[1] flex flex-col xl:flex-row xl:items-end justify-between gap-5">
+          <div className="min-w-0 space-y-3">
+            {/* Eyebrow: code · client · type */}
+            <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold" style={{ color: "var(--sos-text-3)" }}>
+              <span className="px-2 py-0.5 rounded-md sos-tabular" style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}>{project.code}</span>
+              {client && (
+                <button type="button" onClick={() => setRoute("clients")} className="hover:underline" style={{ color: "var(--sos-text-2)" }}>
+                  {client.name}
+                </button>
               )}
+              <span aria-hidden>·</span>
+              <span className="capitalize">{project.type.replace(/_/g, " ")}</span>
               {project.is_confidential && (
-                <span
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold"
-                  style={{ background: "var(--sos-violet-soft)", color: "var(--sos-primary)" }}
-                >
+                <span className="inline-flex items-center gap-1" style={{ color: "var(--sos-primary)" }}>
                   <Lock className="w-3 h-3" /> Confidential
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]" style={{ color: "var(--sos-text-2)" }}>
-              <span>Client: <strong>{client?.name}</strong></span>
+            {/* Title with a quiet project switcher */}
+            <div className="relative inline-flex items-center gap-2 max-w-full group">
+              <h1 className="sos-display text-[28px] md:text-[36px] font-semibold tracking-[-0.025em] leading-[1.1] min-w-0" style={{ color: "var(--sos-text-1)" }}>
+                <span className="mr-2">{project.emoji}</span>
+                {project.title}
+              </h1>
+              <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors group-hover:bg-black/[0.05]" style={{ color: "var(--sos-text-3)" }} aria-hidden>
+                <ChevronDown className="w-4 h-4" />
+              </span>
+              <select
+                value={project.id}
+                onChange={(e) => openProject(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                aria-label="Switch project"
+                title="Switch project"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.emoji} {p.code} — {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              {isClosed ? (
+                <span className="inline-flex items-center gap-1 h-7 px-3 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }}>
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Completed & closed · {format(parseISO(project.closed_at!), "d MMM yyyy")}
+                </span>
+              ) : (
+                <HealthPill health={project.health} />
+              )}
               {isOwner && (
                 <button
                   type="button"
@@ -243,94 +379,99 @@ export const ProjectDetailScreen: React.FC = () => {
                     updateProject(project.id, { portal_visible: !project.portal_visible });
                     pushToast(project.portal_visible ? "Hidden from the client portal" : "Now visible in the client portal", "success");
                   }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-semibold"
+                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold transition-colors"
                   style={project.portal_visible ? { background: "#E7F7EE", color: "#17663F" } : { background: "var(--sos-surface-2)", color: "var(--sos-text-3)" }}
                   title="Whether the client can see this project in their portal"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: project.portal_visible ? "#1F7A52" : "var(--sos-text-3)" }} />
-                  {project.portal_visible ? "Shown in client portal" : "Hidden from client portal"}
+                  <span className={project.portal_visible ? "sos-live-dot" : "w-1.5 h-1.5 rounded-full"} style={{ width: 6, height: 6, background: project.portal_visible ? undefined : "var(--sos-text-3)", color: "#1F7A52" }} />
+                  {project.portal_visible ? "Live in client portal" : "Hidden from portal"}
                 </button>
               )}
+              {(presence[project.id] || []).map((v, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold" style={{ background: "#E7F7EE", color: "#17663F" }} title={`Since ${new Date(v.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}>
+                  <span className="sos-live-dot" style={{ width: 6, height: 6 }} /> {v.name.split(" ")[0]} · {v.activity.toLowerCase()} now
+                </span>
+              ))}
               {isOwner && project.portal_visible && project.status !== "lost" && client && !client.contacts.some((ct) => ct.is_portal_user) && (
-                <button
-                  type="button"
-                  onClick={() => setRoute("clients")}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-semibold"
-                  style={{ background: "#FFF3E0", color: "#9A4A00" }}
-                  title="Create a portal login for this client in Clients"
-                >
-                  {client.name} has no portal login yet →
+                <button type="button" onClick={() => setRoute("clients")} className="inline-flex items-center gap-1 h-7 px-3 rounded-full text-[12px] font-semibold" style={{ background: "#FFF3E0", color: "#9A4A00" }} title="Create a portal login for this client in Clients">
+                  No portal login yet →
                 </button>
               )}
-              <span>Code: <strong className="sos-tabular">{project.code}</strong></span>
-              {isOwner && <span>Fee (owner only): <strong className="sos-tabular">{feeDisplay}</strong></span>}
-              <span>
-                Last updated:{" "}
-                <strong className="sos-tabular">{format(parseISO(project.updated_at), "d MMM yyyy")}</strong>
-              </span>
             </div>
+
+            {/* Key facts */}
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
+              {[
+                ["Planned delivery", project.promised_date ? format(parseISO(project.promised_date), "d MMM yyyy") : "Not set"],
+                ["Hard deadline", project.hard_deadline ? format(parseISO(project.hard_deadline), "d MMM yyyy") : "—"],
+                ...(isOwner ? [["Fee", feeDisplay]] : []),
+                ["Updated", format(parseISO(project.updated_at), "d MMM")],
+              ].map(([k, v]) => (
+                <div key={k} className="min-w-0">
+                  <dt className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "var(--sos-text-3)" }}>{k}</dt>
+                  <dd className="text-[14px] font-semibold sos-tabular" style={{ color: "var(--sos-text-1)" }}>{v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                Assigned
-              </span>
-              <MemberStack
-                memberIds={[project.owner_member_id, ...projectTeamIds, ...tasks.filter((t) => t.project_id === project.id && t.status !== "done").map((t) => t.assignee_member_id)]}
-                size={34}
-              />
+          {/* Team + actions */}
+          <div className="flex flex-wrap items-center gap-3 xl:justify-end shrink-0">
+            <div className="flex items-center gap-2 pr-1">
+              <MemberStack memberIds={[project.owner_member_id, ...projectTeamIds, ...tasks.filter((t) => t.project_id === project.id && t.status !== "done").map((t) => t.assignee_member_id)]} size={32} />
             </div>
-            {isOwner &&
-              (isClosed ? (
-                <button type="button" onClick={reopenProject} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold border" style={{ borderColor: "var(--sos-border)", color: "var(--sos-text-1)", background: "var(--sos-surface)" }}>
-                  <RotateCcw className="w-4 h-4" /> Reopen
-                </button>
-              ) : (
-                <button type="button" onClick={closeProject} className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white" style={{ background: "var(--sos-green)" }}>
-                  <CheckCircle2 className="w-4 h-4" /> Complete & close
-                </button>
-              ))}
             <button
               type="button"
               onClick={() => (isOwner ? setAssignOpen(true) : pushToast("Only the studio owner can change the project team", "info"))}
-              className="sos-pill-btn inline-flex items-center gap-1.5 px-4 h-10 text-[13px] font-semibold text-white"
-              style={{ background: "var(--sos-primary)" }}
+              className="sos-jelly sos-jelly-ghost inline-flex items-center gap-2 h-11 px-5 text-[13px]"
             >
-              <UserPlus className="w-4 h-4" /> Assign Member
+              <UserPlus className="w-4 h-4" /> Team
             </button>
+            {isOwner &&
+              (isClosed ? (
+                <button type="button" onClick={reopenProject} className="sos-jelly sos-jelly-ink inline-flex items-center gap-2 h-11 px-5 text-[13px]">
+                  <RotateCcw className="w-4 h-4" /> Reopen
+                </button>
+              ) : (
+                <button type="button" onClick={closeProject} className="sos-jelly sos-jelly-green inline-flex items-center gap-2 h-11 px-5 text-[13px]">
+                  <CheckCircle2 className="w-4 h-4" /> Complete & close
+                </button>
+              ))}
           </div>
         </div>
 
         {/* Project Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t" style={{ borderColor: "var(--sos-border)" }}>
-          {(
-            [
-              { id: "approvals", label: "Approvals & Gates" },
-              { id: "generation", label: `Generation (${projectBlocks.length})` },
-              { id: "overview", label: "Overview" },
-              { id: "list", label: `List (${projectTasks.length})` },
-              { id: "board", label: "Board" },
-              { id: "deliverables", label: "Deliverables" },
-              { id: "emails", label: "Emails" },
-              ...(isOwner ? ([{ id: "money", label: "Money" }] as const) : []),
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className="relative px-4 py-2 min-h-[40px] rounded-full text-[13px] font-semibold transition-colors duration-200"
-              style={{
-                background: "var(--sos-surface-2)",
-                color: tab === t.id ? "var(--sos-ink-text)" : "var(--sos-text-2)",
-              }}
-              aria-pressed={tab === t.id}
-            >
-              {tab === t.id && <ActivePill layoutId="sos-project-tab" style={{ background: "var(--sos-ink)" }} />}
-              <span className="relative z-[1]">{t.label}</span>
-            </button>
-          ))}
+        <div className="relative z-[1] mt-6">
+          <div className="sos-tabbar" role="tablist">
+            {(
+              [
+                { id: "approvals", label: "Milestones" },
+                { id: "changes", label: "Client changes", badge: tasks.filter((t) => t.project_id === project.id && t.source === "portal" && t.status !== "done" && !t.archived_at).length },
+                { id: "overview", label: "Overview" },
+                { id: "list", label: `Tasks (${projectTasks.filter((t) => t.status !== "done").length})` },
+                { id: "board", label: "Board" },
+                { id: "deliverables", label: "Files & versions" },
+                { id: "emails", label: "Emails" },
+                ...(isOwner ? ([{ id: "money", label: "Money" }] as const) : []),
+              ] as Array<{ id: typeof tab; label: string; badge?: number }>
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className="relative shrink-0 px-4 h-10 rounded-full text-[13px] font-semibold transition-colors duration-200 inline-flex items-center gap-1.5"
+                style={{ color: tab === t.id ? "var(--sos-ink-text)" : "var(--sos-text-2)" }}
+              >
+                {tab === t.id && <ActivePill layoutId="sos-project-tab" style={{ background: "var(--sos-ink)", boxShadow: "0 6px 18px -8px rgba(15,17,21,0.6)" }} />}
+                <span className="relative z-[1]">{t.label}</span>
+                {t.badge ? (
+                  <span className="relative z-[1] min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center text-white sos-pulse-badge" style={{ background: "#E11D48" }}>{t.badge}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -401,7 +542,7 @@ export const ProjectDetailScreen: React.FC = () => {
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 mt-1 text-[12px]" style={{ color: "var(--sos-text-3)" }}>
-                          <GateStatusChip status={g.status} />
+                          <GateStatusSelect status={g.status} needsApproval={g.needs_client_approval} onChange={(st) => handleGateStatusChange(g.id, st)} />
                           <span className="sos-tabular">
                             Rev {g.revision_round} of {g.revisions_included} included
                           </span>
@@ -695,6 +836,16 @@ export const ProjectDetailScreen: React.FC = () => {
             </div>
           )}
 
+          {tab === "changes" && (
+            <ClientChangesTab
+              project={project}
+              gates={projectGates}
+              tasks={projectTasks}
+              onStatus={handleGateStatusChange}
+              onTask={(id, st) => updateTask(id, { status: st, ...(st === "done" ? { completed_at: new Date().toISOString(), is_in_now: false } : { completed_at: undefined }) })}
+              onSend={(gid) => setSendGateId(gid)}
+            />
+          )}
           {tab === "list" && <TableScreen projectFilterId={project.id} />}
           {tab === "board" && <BoardScreen projectFilterId={project.id} />}
           {tab === "emails" && <ProjectEmailsTab projectId={project.id} />}

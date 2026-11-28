@@ -67,7 +67,8 @@ export const StageHistoryButton: React.FC<{ project: StudioProject; gate: Studio
   );
 };
 
-const StageHistoryDrawer: React.FC<{ project: StudioProject; gate: StudioGate; onClose: () => void }> = ({ project, gate, onClose }) => {
+/** Loads one stage's full back-and-forth and sends stage notes. */
+export function useStageTimeline(project: StudioProject, gate: StudioGate) {
   const { pushToast } = useStudioOS();
   const [events, setEvents] = useState<Ev[] | null>(null);
   const [note, setNote] = useState("");
@@ -124,6 +125,50 @@ const StageHistoryDrawer: React.FC<{ project: StudioProject; gate: StudioGate; o
     load();
   };
 
+  return { events, note, setNote, busy, send };
+}
+
+/** Timeline list (newest first). */
+export const StageTimelineList: React.FC<{ events: Ev[] | null; compact?: boolean }> = ({ events, compact }) => (
+  <>
+    {!events && <Loader2 className="w-5 h-5 animate-spin mx-auto" style={{ color: "var(--sos-text-3)" }} />}
+    {events && events.length === 0 && <p className="text-[13px] text-center py-6" style={{ color: "var(--sos-text-3)" }}>Nothing sent or received on this stage yet.</p>}
+    <ol className={`relative ${compact ? "space-y-2" : "space-y-3"} sos-rows`}>
+      {(compact ? events?.slice(0, 6) : events)?.map((e, i) => {
+        const st = STYLE[e.kind];
+        return (
+          <li key={i} className={`flex gap-3 ${st.side === "client" ? "flex-row-reverse text-right" : ""}`} style={{ ["--i" as any]: Math.min(i, 14) }}>
+            <span className="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 mt-0.5" style={{ background: st.color, boxShadow: `0 4px 12px -4px ${st.color}` }}>{st.icon}</span>
+            <div className="min-w-0 flex-1 p-3 rounded-[14px]" style={{ background: st.side === "client" ? "rgba(14,165,233,0.07)" : st.side === "system" ? "var(--sos-surface-2)" : "rgba(91,63,228,0.06)" }}>
+              <p className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{e.title}</p>
+              {e.body && <p className="text-[13px] whitespace-pre-wrap mt-0.5" style={{ color: "var(--sos-text-2)" }}>{e.body}</p>}
+              <p className="text-[11px] mt-1" style={{ color: "var(--sos-text-3)" }}>
+                {format(parseISO(e.at), "EEE d MMM, HH:mm")}
+                {e.meta ? ` · ${e.meta}` : ""}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  </>
+);
+
+/** Note composer for a stage. */
+export const StageNoteBox: React.FC<{ gate: StudioGate; canSend: boolean; note: string; setNote: (v: string) => void; busy: boolean; send: () => void }> = ({ gate, canSend, note, setNote, busy, send }) => (
+  <div className="space-y-2">
+    <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={4000} placeholder={`Send a note about ${gate.name}…`} className="w-full px-3.5 py-2.5 rounded-[14px] border text-[14px] resize-none" style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }} />
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>Shows in their portal (with a ring) and is emailed after 1 min.</span>
+      <button type="button" disabled={busy || !note.trim() || !canSend} onClick={send} className="sos-jelly inline-flex items-center gap-1.5 h-9 px-4 text-[13px] disabled:opacity-50">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send note
+      </button>
+    </div>
+  </div>
+);
+
+const StageHistoryDrawer: React.FC<{ project: StudioProject; gate: StudioGate; onClose: () => void }> = ({ project, gate, onClose }) => {
+  const { events, note, setNote, busy, send } = useStageTimeline(project, gate);
   return (
     <motion.div className="fixed inset-0 z-50 flex justify-end bg-black/35" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
       <motion.aside
@@ -146,35 +191,10 @@ const StageHistoryDrawer: React.FC<{ project: StudioProject; gate: StudioGate; o
           </button>
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain p-5">
-          {!events && <Loader2 className="w-5 h-5 animate-spin mx-auto" style={{ color: "var(--sos-text-3)" }} />}
-          {events && events.length === 0 && <p className="text-[13px] text-center py-8" style={{ color: "var(--sos-text-3)" }}>Nothing sent or received on this stage yet.</p>}
-          <ol className="relative space-y-3 sos-rows">
-            {events?.map((e, i) => {
-              const st = STYLE[e.kind];
-              return (
-                <li key={i} className={`flex gap-3 ${st.side === "client" ? "flex-row-reverse text-right" : ""}`} style={{ ["--i" as any]: Math.min(i, 14) }}>
-                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 mt-0.5" style={{ background: st.color }}>{st.icon}</span>
-                  <div className="min-w-0 flex-1 p-3 rounded-[14px]" style={{ background: st.side === "client" ? "rgba(14,165,233,0.07)" : st.side === "system" ? "var(--sos-surface-2)" : "rgba(91,63,228,0.06)" }}>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--sos-text-1)" }}>{e.title}</p>
-                    {e.body && <p className="text-[13px] whitespace-pre-wrap mt-0.5" style={{ color: "var(--sos-text-2)" }}>{e.body}</p>}
-                    <p className="text-[11px] mt-1" style={{ color: "var(--sos-text-3)" }}>
-                      {format(parseISO(e.at), "EEE d MMM, HH:mm")}
-                      {e.meta ? ` · ${e.meta}` : ""}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <StageTimelineList events={events} />
         </div>
-        <div className="p-4 border-t space-y-2" style={{ borderColor: "var(--sos-border)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={4000} placeholder={`Send a note about ${gate.name}…`} className="w-full px-3.5 py-2.5 rounded-[14px] border text-[14px] resize-none" style={{ background: "var(--sos-surface-2)", borderColor: "var(--sos-border)", color: "var(--sos-text-1)" }} />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px]" style={{ color: "var(--sos-text-3)" }}>Shows in their portal (with a ring) and is emailed after 1 min.</span>
-            <button type="button" disabled={busy || !note.trim() || !project.client_id} onClick={send} className="sos-pill-btn h-9 px-4 text-[13px] font-semibold text-white inline-flex items-center gap-1.5 disabled:opacity-50" style={{ background: "var(--sos-primary)" }}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send note
-            </button>
-          </div>
+        <div className="p-4 border-t" style={{ borderColor: "var(--sos-border)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+          <StageNoteBox gate={gate} canSend={Boolean(project.client_id)} note={note} setNote={setNote} busy={busy} send={send} />
         </div>
       </motion.aside>
     </motion.div>
